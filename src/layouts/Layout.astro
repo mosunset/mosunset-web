@@ -1,26 +1,218 @@
 ---
 import "../styles/global.css";
+import { SEO } from "astro-seo";
+const { pathname } = Astro.url;
+
+interface Props {
+    title?: string;
+    description?: string;
+    keywords?: string[];
+}
+
+const { title: pTitle } = Astro.props as Props;
+const title = pTitle ? `${pTitle} | mosunset` : "mosunset";
+const { description: pDescription } = Astro.props as Props;
+const description = pDescription
+    ? `${pDescription} - mosunsetのウェブサイト`
+    : "mosunsetのウェブサイト - ブログ、楽器、プレイグラウンドなどのコンテンツを提供しています";
+const image = "https://mosunset.com/my.webp";
+const { keywords: pKeywords } = Astro.props as Props;
+const defaultKeywords: string[] = [
+    "mosunset",
+    "ブログ",
+    "楽器",
+    "プレイグラウンド",
+    "書籍",
+    "プログラミング",
+    "技術",
+];
+const keywords: string[] = pKeywords
+    ? [...pKeywords, ...defaultKeywords]
+    : defaultKeywords;
+
+const navLinkClass = (href: string) =>
+    pathname.startsWith(href)
+        ? "font-medium text-blue-500 focus:outline-hidden"
+        : "font-medium text-gray-600 hover:text-gray-400 focus:outline-hidden focus:text-gray-400 dark:text-neutral-400 dark:hover:text-neutral-500 dark:focus:text-neutral-500";
+
+const navAriaCurrent = (href: string) =>
+    pathname.startsWith(href) ? "page" : undefined;
 ---
 
 <!doctype html>
-<html lang="en">
-	<head>
-		<meta charset="UTF-8" />
-		<meta name="viewport" content="width=device-width" />
-		<link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-		<meta name="generator" content={Astro.generator} />
-		<title>Astro Basics</title>
-	</head>
-	<body>
-		<slot />
-	</body>
+<html lang="ja">
+    <head>
+        <meta name="viewport" content="width=device-width" />
+        <link rel="icon" type="image/x-icon" href="/favicon.ico" />
+        <meta name="generator" content={Astro.generator} />
+        <meta name="keywords" content={keywords.join(",")} />
+        <SEO
+            title={title}
+            description={description}
+            canonical={`https://mosunset.com${pathname}`}
+            languageAlternates={[
+                {
+                    href: "https://mosunset.com",
+                    hrefLang: "ja",
+                },
+            ]}
+            charset="UTF-8"
+            openGraph={{
+                basic: {
+                    type: "website",
+                    url: "https://mosunset.com",
+                    title: title,
+                    image: image,
+                },
+            }}
+            twitter={{
+                card: "summary_large_image",
+                site: "@TMoSunset0",
+                title: title,
+                description: description,
+                image: image,
+            }}
+        />
+        <script>
+            // このコードは<head>に追加する必要があります。
+            // ページ読み込み時のちらつきを防ぐために使用されます。
+            const html = document.querySelector("html");
+            const isLightOrAuto =
+                localStorage.getItem("hs_theme") === "light" ||
+                (localStorage.getItem("hs_theme") === "auto" &&
+                    !window.matchMedia("(prefers-color-scheme: dark)").matches);
+            const isDarkOrAuto =
+                localStorage.getItem("hs_theme") === "dark" ||
+                (localStorage.getItem("hs_theme") === "auto" &&
+                    window.matchMedia("(prefers-color-scheme: dark)").matches);
+
+            if (isLightOrAuto && html?.classList.contains("dark"))
+                html?.classList.remove("dark");
+            else if (isDarkOrAuto && html?.classList.contains("light"))
+                html?.classList.remove("light");
+            else if (isDarkOrAuto && !html?.classList.contains("dark"))
+                html?.classList.add("dark");
+            else if (isLightOrAuto && !html?.classList.contains("light"))
+                html?.classList.add("light");
+        </script>
+    </head>
+    <body class="">
+        <header
+            class="flex flex-wrap sm:justify-start sm:flex-nowrap w-full bg-white text-sm py-3 dark:bg-neutral-800"
+        >
+            <nav
+                class="max-w-[85rem] w-full mx-auto px-4 sm:flex sm:items-center sm:justify-between"
+            >
+                <a
+                    class="flex-none font-semibold text-xl text-black focus:outline-hidden focus:opacity-80 dark:text-white"
+                    href="/"
+                    aria-label="mosunset">mosunset</a
+                >
+                <div
+                    class="flex flex-row items-center gap-5 mt-5 sm:justify-end sm:mt-0 sm:ps-5"
+                >
+                    <a
+                        class={navLinkClass("/blog")}
+                        href="/blog"
+                        aria-current={navAriaCurrent("/blog")}>Blog</a
+                    >
+                    <a
+                        class={navLinkClass("/playground")}
+                        href="/playground"
+                        aria-current={navAriaCurrent("/playground")}
+                        >Playground</a
+                    >
+                    <a
+                        class={navLinkClass("/book")}
+                        href="/book"
+                        aria-current={navAriaCurrent("/book")}>Book</a
+                    >
+                    <a
+                        class={navLinkClass("/instruments")}
+                        href="/instruments"
+                        aria-current={navAriaCurrent("/instruments")}>楽器</a
+                    >
+                    <div>
+                        <button
+                            type="button"
+                            class="hs-dark-mode-active:hidden block hs-dark-mode font-medium text-gray-800 rounded-full hover:bg-gray-200 focus:outline-hidden focus:bg-gray-200 dark:text-neutral-200 dark:hover:bg-neutral-800 dark:focus:bg-neutral-800"
+                            data-hs-theme-click-value="dark"
+                        >
+                            <span
+                                class="group inline-flex shrink-0 justify-center items-center size-9"
+                            >
+                                <svg
+                                    class="shrink-0 size-4"
+                                    xmlns="http://www.w3.org/2000/svg"
+                                    width="24"
+                                    height="24"
+                                    viewBox="0 0 24 24"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    stroke-width="2"
+                                    stroke-linecap="round"
+                                    stroke-linejoin="round"
+                                >
+                                    <path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"
+                                    ></path>
+                                </svg>
+                            </span>
+                        </button>
+                        <button
+                            type="button"
+                            class="hs-dark-mode-active:block hidden hs-dark-mode font-medium text-gray-800 rounded-full hover:bg-gray-200 focus:outline-hidden focus:bg-gray-200 dark:text-neutral-200 dark:hover:bg-neutral-800 dark:focus:bg-neutral-800"
+                            data-hs-theme-click-value="light"
+                        >
+                            <span
+                                class="group inline-flex shrink-0 justify-center items-center size-9"
+                            >
+                                <svg
+                                    class="shrink-0 size-4"
+                                    xmlns="http://www.w3.org/2000/svg"
+                                    width="24"
+                                    height="24"
+                                    viewBox="0 0 24 24"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    stroke-width="2"
+                                    stroke-linecap="round"
+                                    stroke-linejoin="round"
+                                >
+                                    <circle cx="12" cy="12" r="4"></circle>
+                                    <path d="M12 2v2"></path>
+                                    <path d="M12 20v2"></path>
+                                    <path d="m4.93 4.93 1.41 1.41"></path>
+                                    <path d="m17.66 17.66 1.41 1.41"></path>
+                                    <path d="M2 12h2"></path>
+                                    <path d="M20 12h2"></path>
+                                    <path d="m6.34 17.66-1.41 1.41"></path>
+                                    <path d="m19.07 4.93-1.41 1.41"></path>
+                                </svg>
+                            </span>
+                        </button>
+                    </div>
+                </div>
+            </nav>
+        </header>
+        <slot />
+    </body><!-- Optional plugins --><!-- <script is:inline src="./node_modules/jquery/dist/jquery.min.js"></script>
+    <script is:inline src="./node_modules/lodash/lodash.js"></script>
+    <script is:inline src="./node_modules/datatables.net/js/dataTables.min.js"
+    ></script>
+    <script is:inline src="./node_modules/dropzone/dist/dropzone-min.js"
+    ></script>
+    <script is:inline src="./node_modules/nouislider/dist/nouislider.min.js"
+    ></script>
+    <script is:inline src="./node_modules/vanilla-calendar-pro/index.js"
+    ></script> --><!-- Preline UI -->
+    <script is:inline src="./node_modules/preline/dist/index.js"></script>
 </html>
 
 <style>
-	html,
-	body {
-		margin: 0;
-		width: 100%;
-		height: 100%;
-	}
+    html,
+    body {
+        margin: 0;
+        width: 100%;
+        height: 100%;
+    }
 </style>
