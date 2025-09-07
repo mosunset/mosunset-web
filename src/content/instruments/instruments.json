@@ -1,0 +1,38 @@
+[
+    {
+        "name": "エレキギター",
+        "modelName": "ST62-TX (Stratocaster)",
+        "brand": "Fender Japan",
+        "serialNumber": "CIJ P012345",
+        "purchaseDate": "2010-04-15",
+        "thumbnail": "./images/my.webp",
+        "tags": [
+            "メイン機",
+            "宅録用"
+        ]
+    },
+    {
+        "name": "アコースティックギター",
+        "modelName": "FG800",
+        "brand": "YAMAHA",
+        "serialNumber": "YG123456",
+        "purchaseDate": "2018-06-20",
+        "thumbnail": "./images/my.webp",
+        "tags": [
+            "アコギ",
+            "弾き語り用"
+        ]
+    },
+    {
+        "name": "ベースギター",
+        "modelName": "Jazz Bass Standard",
+        "brand": "Fender",
+        "serialNumber": "MX19876543",
+        "purchaseDate": "2020-11-03",
+        "thumbnail": "./images/my.webp",
+        "tags": [
+            "4弦ベース",
+            "バンド用"
+        ]
+    }
+]

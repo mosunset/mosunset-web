@@ -6,8 +6,78 @@ import Layout from "../layouts/Layout.astro";
 ---
 
 <Layout>
-    <h1>Hello World</h1>
-    <div class="bg-red-500">
-        <h2>Hello World</h2>
-    </div>
+    <section class="py-16 sm:py-24">
+        <div class="mx-auto max-w-5xl">
+            <div
+                class="grid grid-cols-1 md:grid-cols-2 gap-10 md:gap-12 items-center"
+            >
+                <div>
+                    <h1
+                        class="text-3xl sm:text-4xl md:text-5xl font-bold tracking-tight text-gray-900"
+                    >
+                        たのしく、つくる。
+                    </h1>
+                    <p class="mt-4 text-gray-600 leading-relaxed">
+                        mosunset
+                        の個人サイトです。ブログ、楽器づくり、プレイグラウンド、書籍や学習ノートなど、
+                        日々の試行錯誤とアウトプットをまとめています。
+                    </p>
+                    <div class="mt-6 flex flex-wrap gap-3">
+                        <a
+                            href="/blog"
+                            class="inline-flex items-center justify-center rounded-md bg-gray-900 px-4 py-2 text-white text-sm font-medium hover:bg-gray-800 focus:outline-hidden focus:ring-2 focus:ring-gray-400"
+                        >
+                            ブログを見る
+                        </a>
+                        <a
+                            href="/playground"
+                            class="inline-flex items-center justify-center rounded-md border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-hidden focus:ring-2 focus:ring-gray-300"
+                        >
+                            Playground で試す
+                        </a>
+                    </div>
+                </div>
+                <div class="order-first md:order-none">
+                    <div
+                        class="aspect-[4/3] w-full overflow-hidden rounded-xl border border-gray-200 bg-gray-50"
+                    >
+                        <img
+                            src="/my.webp"
+                            alt="mosunset"
+                            class="h-full w-full object-cover"
+                            loading="lazy"
+                        />
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section id="about" class="py-14 sm:py-20 border-t border-gray-200">
+        <div class="mx-auto max-w-4xl">
+            <h2 class="text-2xl sm:text-3xl font-semibold text-gray-900">
+                About
+            </h2>
+            <p class="mt-4 text-gray-700 leading-relaxed">
+                mosunset
+                はソフトウェア、音、ものづくりが好きなエンジニアです。学んだことや作ったもの、考えたことを
+                コンパクトに記録していくためにこのサイトを運営しています。フロントエンドやツール作り、
+                そして楽器づくりのメモなどを公開しています。
+            </p>
+            <ul class="mt-6 grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <li class="rounded-lg border border-gray-200 p-4">
+                    <p class="text-sm text-gray-500">最近の関心</p>
+                    <p class="mt-1 text-gray-800">
+                        フロントエンド開発、UI/UX、型安全、音・ハードウェア
+                    </p>
+                </li>
+                <li class="rounded-lg border border-gray-200 p-4">
+                    <p class="text-sm text-gray-500">活動</p>
+                    <p class="mt-1 text-gray-800">
+                        ブログ更新、Playground での実験、楽器の試作
+                    </p>
+                </li>
+            </ul>
+        </div>
+    </section>
 </Layout>

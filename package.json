@@ -12,20 +12,20 @@
 	},
 	"dependencies": {
 		"@astrojs/cloudflare": "^12.6.7",
+		"@astrojs/markdoc": "^0.15.5",
 		"@astrojs/react": "^4.3.0",
-		"@preline/theme-switch": "^3.2.3",
+		"@keystatic/astro": "^5.0.6",
+		"@keystatic/core": "^0.5.48",
 		"@tailwindcss/vite": "^4.1.13",
 		"@types/react": "^19.1.12",
 		"@types/react-dom": "^19.1.9",
 		"astro": "^5.13.5",
 		"astro-seo": "^0.8.4",
-		"preline": "^3.2.3",
 		"react": "^19.1.1",
 		"react-dom": "^19.1.1",
 		"tailwindcss": "^4.1.13"
 	},
 	"devDependencies": {
-		"@tailwindcss/forms": "^0.5.10",
 		"@types/node": "^24.3.1",
 		"wrangler": "^4.34.0"
 	}

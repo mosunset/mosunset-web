@@ -1,0 +1,78 @@
+---
+import { getCollection } from "astro:content";
+import { Image } from "astro:assets";
+import Layout from "../../layouts/Layout.astro";
+
+// 'qualifications' コレクションを取得
+const qualificationsCollection = await getCollection("qualifications");
+
+// 配列形式のデータから実際の資格の配列を取得
+const allQualifications = qualificationsCollection.flatMap(
+    (qualification) => qualification.data
+);
+
+// 取得日順でソートやカテゴリ別でグループ化も可能
+allQualifications.sort((a, b) => a.name.localeCompare(b.name)); // 名前順
+---
+
+<Layout title="資格・試験">
+    <h1 class="text-3xl font-bold text-gray-900 mb-8">資格・試験</h1>
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {
+            allQualifications.map((qualification) => (
+                <div class="bg-white border border-gray-200 rounded-lg shadow-sm hover:shadow-md transition-shadow overflow-hidden">
+                    <Image
+                        src={qualification.certificateImage || "/my.webp"}
+                        width={160}
+                        height={90}
+                        alt={`${qualification.name}の証明書`}
+                        class="w-full aspect-[4/3] object-cover"
+                    />
+
+                    <div class="p-6">
+                        <h3 class="text-xl font-semibold text-gray-900 mb-2">
+                            {qualification.name}
+                        </h3>
+                        <p class="text-gray-600 mb-1">
+                            実施団体: {qualification.organization}
+                        </p>
+                        <p class="text-gray-600 mb-1">
+                            カテゴリ: {qualification.category}
+                        </p>
+                        <div class="mb-2">
+                            <span
+                                class={`inline-block px-2 py-1 text-xs font-medium rounded ${
+                                    qualification.status === "取得済み"
+                                        ? "bg-green-100 text-green-800"
+                                        : qualification.status === "受験済み"
+                                          ? "bg-blue-100 text-blue-800"
+                                          : "bg-yellow-100 text-yellow-800"
+                                }`}
+                            >
+                                {qualification.status}
+                            </span>
+                        </div>
+                        {qualification.acquiredDate && (
+                            <p class="text-gray-600 mb-1">
+                                取得日:{" "}
+                                {qualification.acquiredDate.toLocaleDateString(
+                                    "ja-JP"
+                                )}
+                            </p>
+                        )}
+                        {qualification.score && (
+                            <p class="text-gray-600 mb-1">
+                                スコア: {qualification.score}
+                            </p>
+                        )}
+                        {qualification.memo && (
+                            <p class="text-gray-500 text-sm mt-3 italic">
+                                {qualification.memo}
+                            </p>
+                        )}
+                    </div>
+                </div>
+            ))
+        }
+    </div>
+</Layout>

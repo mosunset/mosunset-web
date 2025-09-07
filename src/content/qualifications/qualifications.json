@@ -1,0 +1,28 @@
+[
+    {
+        "name": "基本情報技術者試験",
+        "organization": "IPA（情報処理推進機構）",
+        "category": "IT・情報処理",
+        "status": "取得済み",
+        "acquiredDate": "2023-04-23",
+        "score": "午前試験: 85点, 午後試験: 78点",
+        "memo": "プログラミングとアルゴリズムの理解が深まった"
+    },
+    {
+        "name": "TOEIC L&R",
+        "organization": "ETS",
+        "category": "語学",
+        "status": "受験済み",
+        "acquiredDate": "2023-09-10",
+        "score": "785点（L: 420, R: 365）",
+        "memo": "リーディングパートでもう少し時間管理を改善したい",
+        "certificateImage": "./images/my.webp"
+    },
+    {
+        "name": "応用情報技術者試験",
+        "organization": "IPA（情報処理推進機構）",
+        "category": "IT・情報処理",
+        "status": "学習中",
+        "memo": "基本情報の次のステップとして挑戦中。セキュリティ分野を重点的に学習している"
+    }
+]

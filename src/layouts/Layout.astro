@@ -33,7 +33,7 @@ const keywords: string[] = pKeywords
 const navLinkClass = (href: string) =>
     pathname.startsWith(href)
         ? "font-medium text-blue-500 focus:outline-hidden"
-        : "font-medium text-gray-600 hover:text-gray-400 focus:outline-hidden focus:text-gray-400 dark:text-neutral-400 dark:hover:text-neutral-500 dark:focus:text-neutral-500";
+        : "font-medium text-gray-700 hover:text-gray-500 hover:underline hover:underline-offset-2 focus:outline-hidden focus:text-gray-500 focus:underline focus:underline-offset-2";
 
 const navAriaCurrent = (href: string) =>
     pathname.startsWith(href) ? "page" : undefined;
@@ -46,6 +46,8 @@ const navAriaCurrent = (href: string) =>
         <link rel="icon" type="image/x-icon" href="/favicon.ico" />
         <meta name="generator" content={Astro.generator} />
         <meta name="keywords" content={keywords.join(",")} />
+        <meta name="author" content="mosunset" />
+        <meta name="publisher" content="mosunset" />
         <SEO
             title={title}
             description={description}
@@ -73,38 +75,14 @@ const navAriaCurrent = (href: string) =>
                 image: image,
             }}
         />
-        <script is:inline>
-            // このコードは<head>に追加する必要があります。
-            // ページ読み込み時のちらつきを防ぐために使用されます。
-            const html = document.querySelector("html");
-            const isLightOrAuto =
-                localStorage.getItem("hs_theme") === "light" ||
-                (localStorage.getItem("hs_theme") === "auto" &&
-                    !window.matchMedia("(prefers-color-scheme: dark)").matches);
-            const isDarkOrAuto =
-                localStorage.getItem("hs_theme") === "dark" ||
-                (localStorage.getItem("hs_theme") === "auto" &&
-                    window.matchMedia("(prefers-color-scheme: dark)").matches);
-
-            if (isLightOrAuto && html?.classList.contains("dark"))
-                html?.classList.remove("dark");
-            else if (isDarkOrAuto && html?.classList.contains("light"))
-                html?.classList.remove("light");
-            else if (isDarkOrAuto && !html?.classList.contains("dark"))
-                html?.classList.add("dark");
-            else if (isLightOrAuto && !html?.classList.contains("light"))
-                html?.classList.add("light");
-        </script>
     </head>
-    <body class="">
+    <body class="flex flex-col min-h-dvh min-w-80 overflow-x-hidden">
         <header
-            class="flex flex-wrap sm:justify-start sm:flex-nowrap w-full bg-white text-sm py-3 dark:bg-neutral-800"
+            class="container mx-auto px-4 sm:px-6 lg:px-8 pb-8 flex flex-wrap sm:justify-start sm:flex-nowrap w-full bg-white text-sm py-3"
         >
-            <nav
-                class="max-w-[85rem] w-full mx-auto px-4 sm:flex sm:items-center sm:justify-between"
-            >
+            <nav class="w-full sm:flex sm:items-center sm:justify-between">
                 <a
-                    class="flex-none font-semibold text-xl text-black focus:outline-hidden focus:opacity-80 dark:text-white"
+                    class="flex-none font-semibold text-xl text-black focus:outline-hidden focus:opacity-80"
                     href="/"
                     aria-label="mosunset">mosunset</a
                 >
@@ -132,80 +110,53 @@ const navAriaCurrent = (href: string) =>
                         href="/instruments"
                         aria-current={navAriaCurrent("/instruments")}>楽器</a
                     >
-                    <div>
-                        <button
-                            type="button"
-                            class="hs-dark-mode-active:hidden block hs-dark-mode font-medium text-gray-800 rounded-full hover:bg-gray-200 focus:outline-hidden focus:bg-gray-200 dark:text-neutral-200 dark:hover:bg-neutral-800 dark:focus:bg-neutral-800"
-                            data-hs-theme-click-value="dark"
-                        >
-                            <span
-                                class="group inline-flex shrink-0 justify-center items-center size-9"
-                            >
-                                <svg
-                                    class="shrink-0 size-4"
-                                    xmlns="http://www.w3.org/2000/svg"
-                                    width="24"
-                                    height="24"
-                                    viewBox="0 0 24 24"
-                                    fill="none"
-                                    stroke="currentColor"
-                                    stroke-width="2"
-                                    stroke-linecap="round"
-                                    stroke-linejoin="round"
-                                >
-                                    <path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"
-                                    ></path>
-                                </svg>
-                            </span>
-                        </button>
-                        <button
-                            type="button"
-                            class="hs-dark-mode-active:block hidden hs-dark-mode font-medium text-gray-800 rounded-full hover:bg-gray-200 focus:outline-hidden focus:bg-gray-200 dark:text-neutral-200 dark:hover:bg-neutral-800 dark:focus:bg-neutral-800"
-                            data-hs-theme-click-value="light"
-                        >
-                            <span
-                                class="group inline-flex shrink-0 justify-center items-center size-9"
-                            >
-                                <svg
-                                    class="shrink-0 size-4"
-                                    xmlns="http://www.w3.org/2000/svg"
-                                    width="24"
-                                    height="24"
-                                    viewBox="0 0 24 24"
-                                    fill="none"
-                                    stroke="currentColor"
-                                    stroke-width="2"
-                                    stroke-linecap="round"
-                                    stroke-linejoin="round"
-                                >
-                                    <circle cx="12" cy="12" r="4"></circle>
-                                    <path d="M12 2v2"></path>
-                                    <path d="M12 20v2"></path>
-                                    <path d="m4.93 4.93 1.41 1.41"></path>
-                                    <path d="m17.66 17.66 1.41 1.41"></path>
-                                    <path d="M2 12h2"></path>
-                                    <path d="M20 12h2"></path>
-                                    <path d="m6.34 17.66-1.41 1.41"></path>
-                                    <path d="m19.07 4.93-1.41 1.41"></path>
-                                </svg>
-                            </span>
-                        </button>
-                    </div>
+                    <a
+                        class={navLinkClass("/qualifications")}
+                        href="/qualifications"
+                        aria-current={navAriaCurrent("/qualifications")}>資格・試験</a
+                    >
                 </div>
             </nav>
         </header>
-        <slot />
-    </body><!-- Optional plugins --><!-- <script is:inline src="./node_modules/jquery/dist/jquery.min.js"></script>
-    <script is:inline src="./node_modules/lodash/lodash.js"></script>
-    <script is:inline src="./node_modules/datatables.net/js/dataTables.min.js"
-    ></script>
-    <script is:inline src="./node_modules/dropzone/dist/dropzone-min.js"
-    ></script>
-    <script is:inline src="./node_modules/nouislider/dist/nouislider.min.js"
-    ></script>
-    <script is:inline src="./node_modules/vanilla-calendar-pro/index.js"
-    ></script> --><!-- Preline UI -->
-    <script is:inline src="./node_modules/preline/dist/index.js"></script>
+        <div class="container mx-auto px-4 sm:px-6 lg:px-8 flex-grow">
+            <slot />
+        </div>
+        <!-- ========== FOOTER ========== -->
+        <footer class="w-full container mx-auto px-4 sm:px-6 lg:px-8 py-4">
+            <div class="py-6 border-t border-gray-200">
+                <div class="flex flex-wrap justify-between items-center gap-2">
+                    <div>
+                        <p class="text-xs text-gray-600">© 2025 mosunset.</p>
+                    </div>
+                    <!-- End Col -->
+
+                    <!-- List -->
+                    <ul class="flex flex-wrap items-center">
+                        <li
+                            class="inline-block relative pe-4 text-xs last:pe-0 last-of-type:before:hidden before:absolute before:top-1/2 before:end-1.5 before:-translate-y-1/2 before:size-[3px] before:rounded-full before:bg-gray-400"
+                        >
+                            <a
+                                class="text-xs text-gray-500 underline hover:text-gray-800 hover:decoration-2 focus:outline-hidden focus:decoration-2"
+                                href="https://x.com/TMoSunset0"
+                            >
+                                X (Twitter)
+                            </a>
+                        </li>
+                        <li class="inline-block pe-4 text-xs">
+                            <a
+                                class="text-xs text-gray-500 underline hover:text-gray-800 hover:decoration-2 focus:outline-hidden focus:decoration-2"
+                                href="https://github.com/mosunset"
+                            >
+                                Github
+                            </a>
+                        </li>
+                    </ul>
+                    <!-- End List -->
+                </div>
+            </div>
+        </footer>
+        <!-- ========== END FOOTER ========== -->
+    </body>
 </html>
 
 <style>

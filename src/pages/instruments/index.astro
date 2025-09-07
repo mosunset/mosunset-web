@@ -1,7 +1,73 @@
 ---
+import { getCollection } from "astro:content";
+import { Image } from "astro:assets";
 import Layout from "../../layouts/Layout.astro";
+
+// 'instruments' コレクションを取得
+const instrumentsCollection = await getCollection("instruments");
+
+// 配列形式のデータから実際の楽器の配列を取得
+const allInstruments = instrumentsCollection.flatMap(
+    (instrument) => instrument.data
+);
+
+// ブランド別や購入日順でソートやグループ化も可能
+allInstruments.sort((a, b) => a.name.localeCompare(b.name)); // 名前順
 ---
 
-<Layout title="楽器">
-    <h1>楽器</h1>
+<Layout title="楽器コレクション">
+    <h1>楽器コレクション</h1>
+    <div
+        class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6"
+    >
+        {
+            allInstruments.map((instrument) => (
+                <div class="bg-white border border-gray-200 rounded-lg shadow-sm hover:shadow-md transition-shadow overflow-hidden">
+                    {instrument.thumbnail && (
+                        <Image
+                            src={instrument.thumbnail}
+                            width={160}
+                            height={90}
+                            format="webp"
+                            alt={`${instrument.name}の写真`}
+                            class="w-full aspect-[4/3] object-cover"
+                        />
+                    )}
+                    <div class="p-6">
+                        <h3 class="text-xl font-semibold text-gray-900 mb-2">
+                            {instrument.name}
+                        </h3>
+                        <p class="text-gray-600 mb-1">
+                            モデル: {instrument.modelName}
+                        </p>
+                        <p class="text-gray-600 mb-1">
+                            ブランド: {instrument.brand}
+                        </p>
+                        {instrument.serialNumber && (
+                            <p class="text-gray-600 mb-1">
+                                シリアル番号: {instrument.serialNumber}
+                            </p>
+                        )}
+                        {instrument.purchaseDate && (
+                            <p class="text-gray-600 mb-3">
+                                購入日:{" "}
+                                {instrument.purchaseDate.toLocaleDateString(
+                                    "ja-JP"
+                                )}
+                            </p>
+                        )}
+                        {instrument.tags && instrument.tags.length > 0 && (
+                            <div class="flex flex-wrap gap-2">
+                                {instrument.tags.map((tag) => (
+                                    <span class="inline-block px-2 py-1 text-xs font-medium bg-blue-100 text-blue-800 rounded">
+                                        {tag}
+                                    </span>
+                                ))}
+                            </div>
+                        )}
+                    </div>
+                </div>
+            ))
+        }
+    </div>
 </Layout>

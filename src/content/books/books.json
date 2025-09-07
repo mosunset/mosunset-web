@@ -1,0 +1,26 @@
+[
+    {
+        "title": "Astroで作る！モダン静的サイト",
+        "author": "アストロ 太郎",
+        "category": "技術書",
+        "status": "読了",
+        "format": "電子版",
+        "isbn": "978-4-00-000000-1",
+        "coverImage": "./images/my.webp"
+    },
+    {
+        "title": "銀河鉄道の夜",
+        "author": "宮沢 賢治",
+        "category": "小説",
+        "status": "積読",
+        "format": "紙",
+        "isbn": "978-4-00-000000-2"
+    },
+    {
+        "title": "チェンソーマン 1巻",
+        "author": "藤本 タツキ",
+        "category": "漫画",
+        "status": "読了",
+        "format": "紙"
+    }
+]

@@ -1,7 +1,46 @@
 ---
 import Layout from "../../layouts/Layout.astro";
+import { getCollection } from "astro:content";
+import { Image } from "astro:assets"; // 画像の表示には <Image> が必要
+
+// 'blog' コレクションから全記事を取得
+const allPosts = await getCollection("blog");
+
+// 日付の新しい順に並び替え
+allPosts.sort((a, b) => b.data.pubDate.valueOf() - a.data.pubDate.valueOf());
 ---
 
-<Layout title="Blog">
-    <h1>Blog</h1>
+<Layout title="ブログ一覧">
+    <h1>ブログ</h1>
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {
+            allPosts.map((post) => (
+                <div class="bg-white border border-gray-200 rounded-lg shadow-sm hover:shadow-md transition-shadow overflow-hidden">
+                    <a href={`/blog/${post.slug}/`} class="block">
+                        {" "}
+                        {/* 詳細ページへのリンク */}
+                        <Image
+                            src={post.data.thumbnail}
+                            width={160}
+                            height={90}
+                            format="webp"
+                            alt=""
+                            class="w-full aspect-[4/3] object-cover"
+                        />
+                        <div class="p-6">
+                            <h2 class="text-xl font-semibold text-gray-900 mb-2">
+                                {post.data.title}
+                            </h2>
+                            <p class="text-gray-600 mb-3">
+                                {post.data.description}
+                            </p>
+                            <time class="text-sm text-gray-500">
+                                {post.data.pubDate.toLocaleDateString("ja-JP")}
+                            </time>
+                        </div>
+                    </a>
+                </div>
+            ))
+        }
+    </div>
 </Layout>
