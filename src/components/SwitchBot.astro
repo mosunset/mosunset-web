@@ -61,7 +61,15 @@
         }
         try {
             // ステップ3で作成した「自分のサーバーのAPIルート」を呼び出す
-            const response = await fetch("/api/get-devices");
+            const response = await fetch("/api/get-devices", {
+                cache: "no-store",
+                headers: {
+                    // ブラウザのHTTPキャッシュをできる限り抑止
+                    "Cache-Control": "no-store, must-revalidate",
+                    // 中間のCDNが解釈する可能性もあるため念のため
+                    "CDN-Cache-Control": "max-age=120",
+                },
+            });
 
             if (!response.ok) {
                 throw new Error(`API error: ${response.statusText}`);

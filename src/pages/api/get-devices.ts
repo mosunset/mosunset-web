@@ -1,6 +1,15 @@
 // サーバーサイドでのみ .env 変数を読み込む
+export const prerender = false;
 const token = import.meta.env.SWITCHBOT_TOKEN;
 const secret = import.meta.env.SWITCHBOT_SECRET;
+
+// このAPIはブラウザキャッシュを無効化し、CDNは最大10分まで許可
+const cacheHeaders = {
+    "Content-Type": "application/json",
+    "Cache-Control": "no-store, must-revalidate",
+    // Cloudflare等のエッジで最大10分だけ許可
+    "CDN-Cache-Control": "max-age=120",
+} as const;
 
 // AstroのAPIルートでは、GET, POSTなどのHTTPメソッドに対応する関数を export します
 export async function GET() {
@@ -10,7 +19,7 @@ export async function GET() {
             JSON.stringify({ error: "Server configuration error" }),
             {
                 status: 500,
-                headers: { "Content-Type": "application/json" },
+                headers: cacheHeaders,
             }
         );
     }
@@ -39,7 +48,7 @@ export async function GET() {
             }
         );
 
-        const data = await response.json();
+        const data: any = await response.json();
 
         // SwitchBot APIからエラーが返された場合の処理
         if (data && data.error) {
@@ -51,7 +60,7 @@ export async function GET() {
                 }),
                 {
                     status: 401, // Unauthorized
-                    headers: { "Content-Type": "application/json" },
+                    headers: cacheHeaders,
                 }
             );
         }
@@ -84,7 +93,7 @@ export async function GET() {
                         }
                     );
 
-                    const statusData = await statusResponse.json();
+                    const statusData: any = await statusResponse.json();
                     const status =
                         statusData?.body ?? statusData?.data ?? statusData;
                     return { ...device, status };
@@ -118,14 +127,15 @@ export async function GET() {
             }),
             {
                 status: 200,
-                headers: { "Content-Type": "application/json" },
+                headers: cacheHeaders,
             }
         );
-    } catch (err) {
+    } catch (err: unknown) {
         // SwitchBot APIからエラーが返ってきた場合の処理
-        const errorData = err.response
-            ? err.response.data
-            : { message: err.message };
+        const errorData =
+            err instanceof Error
+                ? { message: err.message }
+                : { message: "Unknown error" };
         console.error("SwitchBot API error:", errorData);
 
         return new Response(
@@ -135,7 +145,7 @@ export async function GET() {
             }),
             {
                 status: 502, // 502 Bad Gateway (上流サーバーからのエラー)
-                headers: { "Content-Type": "application/json" },
+                headers: cacheHeaders,
             }
         );
     }
