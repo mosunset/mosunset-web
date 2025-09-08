@@ -1,50 +1,49 @@
 ---
 import { getCollection } from "astro:content";
 import { Image } from "astro:assets";
-import Layout from "../../layouts/Layout.astro";
+import Layout from "@/layouts/Layout.astro";
 
 // 'books' コレクションを取得
-const booksCollection = await getCollection("books");
-
-// 配列形式のデータから実際の本の配列を取得
-const allBooks = booksCollection.flatMap((book) => book.data);
+const allBooks = await getCollection("books");
 
 // カテゴリ別や著者別でソートやグループ化も可能
-allBooks.sort((a, b) => a.title.localeCompare(b.title)); // タイトル順
+allBooks.sort((a, b) => a.data.title.localeCompare(b.data.title)); // タイトル順
 ---
 
 <Layout title="蔵書リスト">
-    <h1>蔵書リスト</h1>
+    <h1 class="text-3xl font-bold text-gray-900 mb-8">蔵書リスト</h1>
     <div
         class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6"
     >
         {
             allBooks.map((book) => (
                 <div class="bg-white border border-gray-200 rounded-lg shadow-sm hover:shadow-md transition-shadow overflow-hidden">
-                    {book.coverImage && (
+                    {book.data.coverImage && (
                         <Image
-                            src={book.coverImage}
+                            src={book.data.coverImage}
                             width={160}
                             height={90}
                             format="webp"
-                            alt={`${book.title}の表紙`}
+                            alt={`${book.data.title}の表紙`}
                             class="w-full aspect-[4/3] object-cover"
                         />
                     )}
                     <div class="p-6">
                         <h3 class="text-xl font-semibold text-gray-900 mb-2">
-                            {book.title}
+                            {book.data.title}
                         </h3>
-                        <p class="text-gray-600 mb-3">著者: {book.author}</p>
+                        <p class="text-gray-600 mb-3">
+                            著者: {book.data.author}
+                        </p>
                         <div class="space-y-1">
                             <p class="text-sm text-gray-500">
-                                カテゴリ: {book.category}
+                                カテゴリ: {book.data.category}
                             </p>
                             <p class="text-sm text-gray-500">
-                                状態: {book.status}
+                                状態: {book.data.status}
                             </p>
                             <p class="text-sm text-gray-500">
-                                形式: {book.format}
+                                形式: {book.data.format}
                             </p>
                         </div>
                     </div>
