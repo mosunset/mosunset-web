@@ -47,7 +47,7 @@ export default config({
             schema: {
                 draft: fields.checkbox({
                     label: "下書き",
-                    // description: "記事の下書き状態",F
+                    // description: "記事の下書き状態",
                 }),
                 visibility: fields.select({
                     label: "公開範囲",
@@ -471,7 +471,7 @@ export default config({
                     label: "証明書番号",
                     description: "証明書の番号",
                 }),
-                certificateImage: fields.image({
+                thumbnail: fields.image({
                     label: "証明書画像",
                     description: "証明書の画像",
                     directory: "src/assets/images/qualifications/",

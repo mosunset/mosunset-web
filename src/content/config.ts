@@ -10,7 +10,18 @@ import { defineCollection, z } from "astro:content";
  */
 const blogCollection = defineCollection({
     type: "content",
-    schema: z.any(),
+    schema: ({ image }) =>
+        z.object({
+            draft: z.boolean(),
+            visibility: z.enum(["public", "unlisted", "private"]),
+            publishedDate: z.date(),
+            updatedDate: z.date().optional(),
+            title: z.string(),
+            description: z.string().optional(),
+            thumbnail: image(),
+            category: z.enum(["技術", "日記", "その他"]),
+            tags: z.array(z.string()),
+        }),
 });
 
 /**
@@ -22,7 +33,31 @@ const blogCollection = defineCollection({
  */
 const booksCollection = defineCollection({
     type: "content",
-    schema: z.any(),
+    schema: ({ image }) =>
+        z.object({
+            draft: z.boolean(),
+            visibility: z.enum(["public", "unlisted", "private"]),
+            isbn: z.string(),
+            title: z.string(),
+            author: z.string(),
+            publisher: z.string(),
+            publishedDate: z.date(),
+            description: z.string().optional(),
+            thumbnail: image(),
+            category: z.enum([
+                "技術書",
+                "漫画",
+                "小説",
+                "ビジネス書",
+                "雑誌",
+                "画集",
+                "その他",
+            ]),
+            tags: z.array(z.string()),
+            format: z.enum(["紙", "電子版", "自炊"]),
+            status: z.enum(["未読", "読書中", "読了"]),
+            evaluation: z.enum(["未評価", "1", "2", "3", "4", "5"]),
+        }),
 });
 
 /**
@@ -34,7 +69,31 @@ const booksCollection = defineCollection({
  */
 const instrumentsCollection = defineCollection({
     type: "content",
-    schema: z.any(),
+    schema: ({ image }) =>
+        z.object({
+            draft: z.boolean(),
+            visibility: z.enum(["public", "unlisted", "private"]),
+            name: z.string(),
+            brand: z.string(),
+            type: z.enum([
+                "ギター",
+                "ベース",
+                "ドラム",
+                "キーボード",
+                "金管楽器",
+                "木管楽器",
+                "弦楽器",
+                "その他",
+            ]),
+            instrumentName: z.string(),
+            manufactureYear: z.number().optional(),
+            serialNumber: z.string().optional(),
+            thumbnail: image(),
+            images: z.array(image()).optional(),
+            purchaseDate: z.date().optional(),
+            purchasePrice: z.number().optional(),
+            status: z.enum(["使用中", "修理中", "修理済み", "売却済み"]),
+        }),
 });
 
 /**
@@ -46,7 +105,30 @@ const instrumentsCollection = defineCollection({
  */
 const qualificationsCollection = defineCollection({
     type: "content",
-    schema: z.any(),
+    schema: ({ image }) =>
+        z.object({
+            draft: z.boolean(),
+            visibility: z.enum(["public", "unlisted", "private"]),
+            name: z.string(),
+            organization: z.string(),
+            category: z.enum([
+                "IT・情報処理",
+                "語学",
+                "ビジネス",
+                "技術・工学",
+                "デザイン",
+                "福祉",
+                "医療",
+                "その他",
+            ]),
+            tags: z.array(z.string()),
+            status: z.enum(["取得済み", "未取得", "受験済み", "学習中"]),
+            acquiredDate: z.date().optional(),
+            validityPeriod: z.date().optional(),
+            score: z.string().optional(),
+            certificateNumber: z.string().optional(),
+            thumbnail: image().optional(),
+        }),
 });
 
 /**

@@ -6,41 +6,63 @@ import { Image } from "astro:assets"; // 画像の表示には <Image> が必要
 // 'blog' コレクションから全記事を取得
 const allPosts = await getCollection("blog");
 
+// 下書きを除外
+const publishedPosts = allPosts.filter((post) => !post.data.draft);
+
+// 公開範囲が公開以外のものを除外
+const publicPosts = publishedPosts.filter(
+    (post) => post.data.visibility === "public"
+);
+
 // 日付の新しい順に並び替え
-allPosts.sort((a, b) => b.data.pubDate.valueOf() - a.data.pubDate.valueOf());
+// 更新日が存在する場合は更新日を優先
+// 更新日が存在しない場合は公開日を優先
+publicPosts.sort(
+    (a, b) =>
+        new Date(b.data.updatedDate || b.data.publishedDate).getTime() -
+        new Date(a.data.updatedDate || a.data.publishedDate).getTime()
+);
 ---
 
 <Layout title="ブログ一覧">
     <h1 class="text-3xl font-bold text-gray-900 mb-8">ブログ</h1>
     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {
-            allPosts.map((post) => (
-                <div class="bg-white border border-gray-200 rounded-lg shadow-sm hover:shadow-md transition-shadow overflow-hidden">
-                    <a href={`/blog/${post.slug}/`} class="block">
-                        {" "}
-                        {/* 詳細ページへのリンク */}
-                        <Image
-                            src={post.data.thumbnail}
-                            width={160}
-                            height={90}
-                            format="webp"
-                            alt=""
-                            class="w-full aspect-[4/3] object-cover"
-                        />
-                        <div class="p-6">
-                            <h2 class="text-xl font-semibold text-gray-900 mb-2">
-                                {post.data.title}
-                            </h2>
-                            <p class="text-gray-600 mb-3">
-                                {post.data.description}
-                            </p>
-                            <time class="text-sm text-gray-500">
-                                {post.data.pubDate.toLocaleDateString("ja-JP")}
-                            </time>
-                        </div>
-                    </a>
+            publicPosts.length === 0 ? (
+                <div class="col-span-full text-center text-gray-500">
+                    <p>記事がありません</p>
                 </div>
-            ))
+            ) : (
+                publicPosts.map((post) => (
+                    <div class="bg-white border border-gray-200 rounded-lg shadow-sm hover:shadow-md transition-shadow overflow-hidden">
+                        <a href={`/blog/${post.slug}/`} class="block">
+                            {" "}
+                            {/* 詳細ページへのリンク */}
+                            <Image
+                                src={post.data.thumbnail}
+                                width={160}
+                                height={90}
+                                format="webp"
+                                alt=""
+                                class="w-full aspect-[4/3] object-cover"
+                            />
+                            <div class="p-6">
+                                <h2 class="text-xl font-semibold text-gray-900 mb-2">
+                                    {post.data.title}
+                                </h2>
+                                <p class="text-gray-600 mb-3">
+                                    {post.data.description}
+                                </p>
+                                <time class="text-sm text-gray-500">
+                                    {new Date(
+                                        post.data.publishedDate
+                                    ).toLocaleDateString("ja-JP")}
+                                </time>
+                            </div>
+                        </a>
+                    </div>
+                ))
+            )
         }
     </div>
 </Layout>
