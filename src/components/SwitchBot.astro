@@ -1,0 +1,249 @@
+---
+// ここはサーバーサイド（ビルド時）
+---
+
+<section class="py-14 sm:py-20 border-t border-gray-200">
+    <div class="mx-auto max-w-4xl">
+        <h1>私の部屋の温湿度</h1>
+        <div class="mt-6 grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div class="rounded border p-4">
+                <p class="text-sm text-gray-500">温度</p>
+                <p id="avg-temp" class="text-2xl font-semibold mt-2">
+                    読み込み中...
+                </p>
+            </div>
+            <div class="rounded border p-4">
+                <p class="text-sm text-gray-500">湿度</p>
+                <p id="avg-hum" class="text-2xl font-semibold mt-2">
+                    読み込み中...
+                </p>
+            </div>
+            <div class="rounded border p-4">
+                <p class="text-sm text-gray-500">不快指数</p>
+                <div class="mt-2 flex items-center gap-3">
+                    <p id="di-value" class="text-2xl font-semibold">
+                        読み込み中...
+                    </p>
+                    <p id="feeling-text-full" class="text-xs text-gray-600"></p>
+                </div>
+            </div>
+        </div>
+        <div class="mt-8">
+            <div class="w-full">
+                <div id="di-ticks-full" class="relative h-5 w-full mb-1"></div>
+                <div class="relative h-4 w-full rounded">
+                    <div id="di-scale-full" class="absolute inset-0 rounded">
+                    </div>
+                    <div
+                        id="di-pointer-full"
+                        class="absolute -top-1 h-6 w-0.5 bg-black"
+                        style="left: 0px;"
+                    >
+                    </div>
+                </div>
+                <div id="di-labels-full" class="relative mt-2 h-6 w-full"></div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<script>
+    // @ts-nocheck
+    // このスクリプトはクライアント（ブラウザ）で実行されます
+    /**
+     * @typedef {{ temperature?: number|string, humidity?: number|string }} Device
+     * @typedef {{ devices?: Device[] }} DevicesResponse
+     */
+    const container = document.getElementById("devices-list");
+    async function fetchAndRender() {
+        if (container) {
+            container.innerHTML = "<p>読み込み中...</p>";
+        }
+        try {
+            // ステップ3で作成した「自分のサーバーのAPIルート」を呼び出す
+            const response = await fetch("/api/get-devices");
+
+            if (!response.ok) {
+                throw new Error(`API error: ${response.statusText}`);
+            }
+
+            const data = /** @type {any} */ (await response.json());
+
+            // 平均値を計算
+            /** @type {any} */
+            const maybeDevices = data && data.devices;
+            /** @type {Device[]} */
+            const devices = Array.isArray(maybeDevices)
+                ? /** @type {Device[]} */ (maybeDevices)
+                : [];
+            /** @param {number|string|undefined} v @returns {number} */
+            function toNum(v) {
+                const n = Number(v);
+                return Number.isFinite(n) ? n : NaN;
+            }
+            /** @param {Device} d @returns {number} */
+            function mapTemperature(d) {
+                return toNum(d.temperature);
+            }
+            /** @param {Device} d @returns {number} */
+            function mapHumidity(d) {
+                return toNum(d.humidity);
+            }
+            /** @param {number} n @returns {boolean} */
+            function isFiniteNumber(n) {
+                return !Number.isNaN(n);
+            }
+            /** @param {number} a @param {number} b @returns {number} */
+            function sum(a, b) {
+                return a + b;
+            }
+            /** @param {number[]} arr @returns {number} */
+            function average(arr) {
+                return arr.length ? arr.reduce(sum, 0) / arr.length : NaN;
+            }
+            /** @type {number[]} */
+            const temps = devices.map(mapTemperature).filter(isFiniteNumber);
+            /** @type {number[]} */
+            const hums = devices.map(mapHumidity).filter(isFiniteNumber);
+            const avgTemp = average(temps);
+            const avgHum = average(hums);
+            // 不快指数 DI = 0.81*T + 0.01*H*(0.99*T - 14.3) + 46.3
+            const di =
+                Number.isFinite(avgTemp) && Number.isFinite(avgHum)
+                    ? 0.81 * avgTemp +
+                      0.01 * avgHum * (0.99 * avgTemp - 14.3) +
+                      46.3
+                    : NaN;
+
+            // 数値部分だけ差し替え
+            const tempEl = document.getElementById("avg-temp");
+            const humEl = document.getElementById("avg-hum");
+            const diEl = document.getElementById("di-value");
+            if (tempEl)
+                tempEl.textContent = Number.isFinite(avgTemp)
+                    ? `${avgTemp.toFixed(1)}°C`
+                    : "N/A";
+            if (humEl)
+                humEl.textContent = Number.isFinite(avgHum)
+                    ? `${avgHum.toFixed(1)}%`
+                    : "N/A";
+            if (diEl)
+                diEl.textContent = Number.isFinite(di) ? di.toFixed(1) : "N/A";
+
+            // DIスケール描画（350段階）
+            const scale = document.getElementById("di-scale");
+            const pointer = document.getElementById("di-pointer");
+            const diText = document.getElementById("di-value");
+            if (scale) {
+                // 青(0,0,255) → 赤(255,0,0) の横方向グラデーション
+                scale.style.background =
+                    "linear-gradient(90deg, rgba(0,0,255,1) 0%, rgba(255,0,0,1) 100%)";
+            }
+            if (pointer && Number.isFinite(di)) {
+                // DIはおおよそ45〜90のレンジを可視化。範囲外はクランプ
+                const min = 45;
+                const max = 90;
+                const clamped = Math.min(max, Math.max(min, di));
+                const width = 350; // px
+                const pos = ((clamped - min) / (max - min)) * width;
+                pointer.style.left = `${pos}px`;
+            }
+            if (diText && Number.isFinite(di)) {
+                diText.textContent = di.toFixed(1);
+            }
+
+            // フル幅スケール・表示
+            const scaleF = document.getElementById("di-scale-full");
+            const pointerF = document.getElementById("di-pointer-full");
+            const diTextF = document.getElementById("di-text-full");
+            const feelingTextF = document.getElementById("feeling-text-full");
+            const labelsF = document.getElementById("di-labels-full");
+            const ticksF = document.getElementById("di-ticks-full");
+            if (scaleF) {
+                scaleF.style.background =
+                    "linear-gradient(90deg, rgba(0,0,255,1) 0%, rgba(255,0,0,1) 100%)";
+            }
+            const min = 45;
+            const max = 90;
+            if (pointerF && Number.isFinite(di)) {
+                const widthF =
+                    scaleF?.clientWidth || container?.clientWidth || 600;
+                const clampedF = Math.min(max, Math.max(min, di));
+                const posF = ((clampedF - min) / (max - min)) * widthF;
+                pointerF.style.left = `${posF}px`;
+            }
+            // 数値目盛り（45,50,55,...,90）
+            if (ticksF) {
+                ticksF.innerHTML = "";
+                const tickValues = [45, 50, 55, 60, 65, 70, 75, 80, 85, 90];
+                const widthF = scaleF?.clientWidth || ticksF.clientWidth || 600;
+                tickValues.forEach((v) => {
+                    const x = ((v - min) / (max - min)) * widthF;
+                    const label = document.createElement("span");
+                    label.textContent =
+                        v === 45 || v === 90 ? "・・・" : String(v);
+                    label.style.position = "absolute";
+                    label.style.left = `${x}px`;
+                    label.style.transform = "translateX(-50%)";
+                    label.className = "text-xs text-gray-600";
+                    ticksF.appendChild(label);
+                });
+            }
+            // 数直線上に体感ラベルを全て表示
+            if (labelsF) {
+                labelsF.innerHTML = "";
+                const segments = [
+                    { start: 45, end: 50, text: "🥶 とても寒い" },
+                    { start: 50, end: 55, text: "❄️ 寒い" },
+                    { start: 55, end: 60, text: "🧥 肌寒い" },
+                    { start: 60, end: 65, text: "🙂 ちょうど良い" },
+                    { start: 65, end: 70, text: "😊 快適" },
+                    { start: 70, end: 75, text: "😕 少し暑い" },
+                    { start: 75, end: 80, text: "😣 暑くて不快" },
+                    { start: 80, end: 85, text: "🥵 とても暑い" },
+                    { start: 85, end: 90, text: "🔥 危険な暑さ" },
+                ];
+                const widthF =
+                    scaleF?.clientWidth || labelsF.clientWidth || 600;
+                segments.forEach((seg) => {
+                    const center = (seg.start + seg.end) / 2;
+                    const x = ((center - min) / (max - min)) * widthF;
+                    const span = document.createElement("span");
+                    span.textContent = seg.text;
+                    span.style.position = "absolute";
+                    span.style.left = `${x}px`;
+                    span.style.transform = "translateX(-50%)";
+                    span.style.whiteSpace = "nowrap";
+                    span.className = "text-xs text-gray-600";
+                    labelsF.appendChild(span);
+                });
+            }
+            if (diTextF && Number.isFinite(di)) {
+                diTextF.textContent = di.toFixed(1);
+            }
+            if (feelingTextF && Number.isFinite(di)) {
+                let label = "";
+                if (di < 50) label = "🥶 とても寒い";
+                else if (di < 55) label = "❄️ 寒い";
+                else if (di < 60) label = "🧥 肌寒い";
+                else if (di < 65) label = "🙂 ちょうど良い";
+                else if (di < 70) label = "😊 快適";
+                else if (di < 75) label = "😕 少し暑い";
+                else if (di < 80) label = "😣 暑くて不快";
+                else if (di < 85) label = "🥵 とても暑い";
+                else label = "🔥 危険な暑さ";
+                feelingTextF.textContent = label;
+            }
+        } catch (error) {
+            if (container) {
+                container.innerHTML = `<p style="color: red;">エラーが発生しました: ${error instanceof Error ? error.message : "Unknown error"}</p>`;
+            }
+        }
+    }
+
+    if (document.readyState === "loading") {
+        document.addEventListener("DOMContentLoaded", fetchAndRender);
+    } else {
+        fetchAndRender();
+    }
+</script>
