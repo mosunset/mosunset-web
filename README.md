@@ -1,46 +1,83 @@
-# Astro Starter Kit: Basics
+# mosunset-web
 
-```sh
-pnpm create astro@latest -- --template basics
-```
+大改修5回目 今度こそ完全版にする!
 
-> 🧑‍🚀 **Seasoned astronaut?** Delete this file. Have fun!
+## Keystatic CMS コレクション設定
 
-## 🚀 Project Structure
+このプロジェクトでは、Keystatic CMSを使用してコンテンツを管理しています。以下は設定されているコレクションの詳細です。
 
-Inside of your Astro project, you'll see the following folders and files:
+### 1. ブログ記事 (blog)
 
-```text
-/
-├── public/
-│   └── favicon.svg
-├── src
-│   ├── assets
-│   │   └── astro.svg
-│   ├── components
-│   │   └── Welcome.astro
-│   ├── layouts
-│   │   └── Layout.astro
-│   └── pages
-│       └── index.astro
-└── package.json
-```
+- **用途**: ブログ記事の管理
+- **パス**: `src/content/blog/*`
+- **フィールド**:
+  - 下書き (checkbox) - 下書き状態の管理
+  - 公開範囲 (select) - 公開、限定公開、非公開
+  - 公開日 (date)
+  - 更新日 (date) - 記事の最終更新日時
+  - タイトル (slug) - URLスラッグとしても使用
+  - 概要 (text) - 記事の要約
+  - サムネイル画像 (image) - 記事のサムネイル
+  - カテゴリ (select) - 技術、日記、レビューなどの大分類
+  - タグ (array) - 記事に関連するタグのリスト
+  - 本文 (markdoc) - Markdown形式の記事本文
 
-To learn more about the folder structure of an Astro project, refer to [our guide on project structure](https://docs.astro.build/en/basics/project-structure/).
+### 2. 蔵書リスト (books)
 
-## 🧞 Commands
+- **用途**: 蔵書インベントリの管理
+- **パス**: `src/content/books/*`
+- **フィールド**:
+  - 下書き (checkbox) - 下書き状態の管理
+  - 公開範囲 (select) - 公開、限定公開、非公開
+  - ISBN (slug) - ISBNコード（10-13文字） URLスラッグとしても使用
+  - タイトル (text) - 本のタイトル
+  - 著者 (text)
+  - 出版社 (text) - 出版元の情報
+  - 出版日 (date) - 本の発行日
+  - 概要 (text) - 本の概要や要約
+  - 表紙画像 (image)
+  - カテゴリ (select) - 技術書、漫画、小説、ビジネス書、雑誌、画集、その他
+  - タグ (array) - 専門分野、ジャンル、キーワードなど
+  - 所有形態 (select) - 紙、電子版、自炊
+  - 読了状態 (select) - 未読、読書中、読了
+  - 評価 (select) - ★1〜★5の5段階評価
+  - 本文 (markdoc) - 感想やメモなど
 
-All commands are run from the root of the project, from a terminal:
+### 3. 楽器リスト (instruments)
 
-| Command                   | Action                                           |
-| :------------------------ | :----------------------------------------------- |
-| `pnpm install`             | Installs dependencies                            |
-| `pnpm dev`             | Starts local dev server at `localhost:4321`      |
-| `pnpm build`           | Build your production site to `./dist/`          |
-| `pnpm preview`         | Preview your build locally, before deploying     |
-| `pnpm astro ...`       | Run CLI commands like `astro add`, `astro check` |
-| `pnpm astro -- --help` | Get help using the Astro CLI                     |
+- **用途**: 所有楽器の管理
+- **パス**: `src/content/instruments/*`
+- **フィールド**:
+  - 下書き (checkbox) - 下書き状態の管理
+  - 公開範囲 (select) - 公開、限定公開、非公開
+  - モデル名 (text) - 例: Stratocaster ST62 URLスラッグとしても使用
+  - ブランド (text)
+  - 楽器の種類 (select) - ギター、ベース、ドラム、キーボード、金管楽器、木管楽器、弦楽器、その他
+  - 楽器名 (text) - 例: トランペット
+  - 製造年 (text)
+  - 製造番号 (text)
+  - 楽器のサムネイル (image)
+  - 楽器の写真 (image)
+  - 購入日 (date)
+  - 購入価格 (number)
+  - ステータス select - 使用中、修理中、修理済み、売却済み
+  - 本文 (markdoc) - 改造履歴やメモなど
 
-## 👀 Want to learn more?
+### 4. 資格・試験 (qualifications)
 
-Feel free to check [our documentation](https://docs.astro.build) or jump into our [Discord server](https://astro.build/chat).
+- **用途**: 取得した資格や受験した試験の管理
+- **パス**: `src/content/qualifications/*`
+- **フィールド**:
+  - 下書き (checkbox) - 下書き状態の管理
+  - 公開範囲 (select) - 公開、限定公開、非公開
+  - 資格名 (text) - 例: 基本情報技術者試験
+  - 実施団体 (text) - 例: IPA
+  - カテゴリ (select) - IT・情報処理、語学、ビジネス、技術・工学、デザイン、その他
+  - タグ (array) - 「AWS」「Python」「国家資格」など
+  - ステータス (select) - 取得済み、未取得(不合格)、受験済み(結果待ち)、学習中
+  - 取得日 (date)
+  - 有効期限 (date) - 資格の有効期限（更新が必要な資格の場合）
+  - スコア (text) - スコアや得点
+  - 証明書番号 (text) - 合格証明書の番号
+  - 証明書画像 (image)
+  - 本文 (markdoc) - 学習メモや感想など
