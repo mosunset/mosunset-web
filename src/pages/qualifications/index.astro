@@ -2,6 +2,7 @@
 import { getCollection } from "astro:content";
 import { Image } from "astro:assets";
 import Layout from "@/layouts/Layout.astro";
+import myImage from "@/assets/images/my.webp";
 
 // 'qualifications' コレクションを取得
 const qualificationsCollection = await getCollection("qualifications");
@@ -22,9 +23,8 @@ allQualifications.sort((a, b) => a.name.localeCompare(b.name)); // 名前順
             allQualifications.map((qualification) => (
                 <div class="bg-white border border-gray-200 rounded-lg shadow-sm hover:shadow-md transition-shadow overflow-hidden">
                     <Image
-                        src={qualification.certificateImage || "/my.webp"}
-                        width={160}
-                        height={90}
+                        src={qualification.certificateImage || myImage}
+                        format="webp"
                         alt={`${qualification.name}の証明書`}
                         class="w-full aspect-[4/3] object-cover"
                     />

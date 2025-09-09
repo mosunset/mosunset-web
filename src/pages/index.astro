@@ -1,7 +1,8 @@
 ---
 import Layout from "@/layouts/Layout.astro";
 import SwitchBot from "@/components/SwitchBot.astro";
-
+import myImage from "@/assets/images/my.webp";
+import { Image } from "astro:assets";
 ---
 
 <Layout>
@@ -40,8 +41,9 @@ import SwitchBot from "@/components/SwitchBot.astro";
                     <div
                         class="aspect-[4/3] w-full overflow-hidden rounded-xl border border-gray-200 bg-gray-50"
                     >
-                        <img
-                            src="/my.webp"
+                        <Image
+                            src={myImage}
+                            format="webp"
                             alt="mosunset"
                             class="h-full w-full object-cover"
                             loading="lazy"
