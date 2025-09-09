@@ -199,6 +199,7 @@ export default config({
                     label: "カテゴリ",
                     description: "本のカテゴリ",
                     options: [
+                        { label: "教科書", value: "教科書" },
                         { label: "技術書", value: "技術書" },
                         { label: "漫画", value: "漫画" },
                         { label: "小説", value: "小説" },

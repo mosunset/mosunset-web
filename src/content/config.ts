@@ -45,6 +45,7 @@ const booksCollection = defineCollection({
             description: z.string().optional(),
             thumbnail: image(),
             category: z.enum([
+                "教科書",
                 "技術書",
                 "漫画",
                 "小説",
