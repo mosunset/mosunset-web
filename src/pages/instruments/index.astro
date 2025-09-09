@@ -4,12 +4,8 @@ import { Image } from "astro:assets";
 import Layout from "@/layouts/Layout.astro";
 
 // 'instruments' コレクションを取得
-const instrumentsCollection = await getCollection("instruments");
+const allInstruments = await getCollection("instruments");
 
-// 配列形式のデータから実際の楽器の配列を取得
-const allInstruments = instrumentsCollection.flatMap(
-    (instrument) => instrument.data
-);
 
 // ブランド別や購入日順でソートやグループ化も可能
 allInstruments.sort((a, b) => a.name.localeCompare(b.name)); // 名前順
@@ -68,4 +64,7 @@ allInstruments.sort((a, b) => a.name.localeCompare(b.name)); // 名前順
             ))
         }
     </div>
+    <pre>
+{JSON.stringify(allInstruments, null, 2)}
+    </pre>
 </Layout>

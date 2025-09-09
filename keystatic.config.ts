@@ -126,6 +126,12 @@ export default config({
                 content: fields.markdoc({
                     label: "本文",
                     // description: "記事の本文（Markdown形式）",
+                    options: {
+                        image: {
+                            directory: "public/images/blog/",
+                            publicPath: "public/images/blog/",
+                        },
+                    },
                 }),
             },
         }),
@@ -288,6 +294,12 @@ export default config({
                 content: fields.markdoc({
                     label: "本文",
                     // description: "本の本文（Markdown形式）",
+                    options: {
+                        image: {
+                            directory: "public/images/books/",
+                            publicPath: "public/images/books/",
+                        },
+                    },
                 }),
             },
         }),
@@ -428,6 +440,12 @@ export default config({
                 content: fields.markdoc({
                     label: "本文",
                     // description: "記事の本文（Markdown形式）",
+                    options: {
+                        image: {
+                            directory: "public/images/instruments/",
+                            publicPath: "public/images/instruments/",
+                        },
+                    },
                 }),
             },
         }),
@@ -581,6 +599,12 @@ export default config({
                 content: fields.markdoc({
                     label: "本文",
                     // description: "記事の本文（Markdown形式）",
+                    options: {
+                        image: {
+                            directory: "public/images/qualifications/",
+                            publicPath: "public/images/qualifications/",
+                        },
+                    },
                 }),
             },
         }),

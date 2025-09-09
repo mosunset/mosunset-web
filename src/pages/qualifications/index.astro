@@ -5,12 +5,8 @@ import Layout from "@/layouts/Layout.astro";
 import myImage from "@/assets/images/my.webp";
 
 // 'qualifications' コレクションを取得
-const qualificationsCollection = await getCollection("qualifications");
+const allQualifications = await getCollection("qualifications");
 
-// 配列形式のデータから実際の資格の配列を取得
-const allQualifications = qualificationsCollection.flatMap(
-    (qualification) => qualification.data
-);
 
 // 取得日順でソートやカテゴリ別でグループ化も可能
 allQualifications.sort((a, b) => a.name.localeCompare(b.name)); // 名前順
@@ -75,4 +71,7 @@ allQualifications.sort((a, b) => a.name.localeCompare(b.name)); // 名前順
             ))
         }
     </div>
+    <pre>
+{JSON.stringify(allQualifications, null, 2)}
+    </pre>
 </Layout>

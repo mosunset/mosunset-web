@@ -6,7 +6,14 @@ import Layout from "@/layouts/Layout.astro";
 // 1. Astroにどのページを生成すべきか教える
 export async function getStaticPaths() {
     const allPosts = await getCollection("blog");
-    return allPosts.map((post) => ({
+    // 下書きを除外
+    const publishedPosts = allPosts.filter((post) => !post.data.draft);
+
+    // 公開範囲が非公開のものを除外
+    const publicPosts = publishedPosts.filter(
+        (post) => post.data.visibility !== "private"
+    );
+    return publicPosts.map((post) => ({
         params: { slug: post.slug },
         props: { entry: post }, // ページコンポーネントに記事データ(entry)を渡す
     }));
