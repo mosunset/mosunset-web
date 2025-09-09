@@ -26,10 +26,6 @@ export default config({
     collections: {
         /**
          * 1. ブログ (Blog) コレクション
-         * ----------------------------------------
-         * 用途: ブログ記事の管理
-         * タイプ: 'content' (Markdown本文を記事内容として使用)
-         * スキーマ: タイトル、概要、公開日、タグ配列、サムネイル画像
          */
         blog: collection({
             label: "ブログ記事",
@@ -96,8 +92,28 @@ export default config({
                     label: "カテゴリ",
                     // description: "記事のカテゴリ",
                     options: [
-                        { label: "技術", value: "技術" },
-                        { label: "日記", value: "日記" },
+                        {
+                            label: "ソフトウェア開発(技術)",
+                            value: "開発",
+                        },
+                        {
+                            label: "インフラ・専門技術 (データベース, AI・機械学習, セキュリティ)",
+                            value: "専門技術",
+                        },
+                        {
+                            label: "学習・キャリア(資格・試験, イベント・勉強会)",
+                            value: "学習",
+                        },
+                        {
+                            label: "ライフスタイル・健康・料理",
+                            value: "ライフスタイル",
+                        },
+                        {
+                            label: "趣味・カルチャー(旅行, 音楽, 読書)",
+                            value: "趣味",
+                        },
+                        { label: "レビュー・ツール・環境", value: "レビュー" },
+                        { label: "日記・雑記", value: "日記" },
                         { label: "その他", value: "その他" },
                     ],
                     defaultValue: "その他",
@@ -116,10 +132,6 @@ export default config({
 
         /**
          * 2. 蔵書 (Books) コレクション
-         * ----------------------------------------
-         * 用途: 蔵書リスト（インベントリ）
-         * タイプ: 'data' (Markdown本文を持たないデータ。JSONまたはYAMLでの管理を想定)
-         * スキーマ: タイトル、著者、カテゴリ、読了状態、所有形態、ISBN、表紙画像
          */
         books: collection({
             label: "蔵書リスト",
@@ -148,7 +160,7 @@ export default config({
                         description: "ISBNコード 10文字または13文字",
                         validation: {
                             pattern: {
-                                regex: /^$|^(?:\d{10}|\d{13})$/,
+                                regex: /^(?:\d{10}|\d{13})$/,
                             },
                             isRequired: true,
                         },
@@ -199,16 +211,41 @@ export default config({
                     label: "カテゴリ",
                     description: "本のカテゴリ",
                     options: [
-                        { label: "教科書", value: "教科書" },
-                        { label: "技術書", value: "技術書" },
-                        { label: "漫画", value: "漫画" },
-                        { label: "小説", value: "小説" },
-                        { label: "ビジネス書", value: "ビジネス書" },
-                        { label: "雑誌", value: "雑誌" },
-                        { label: "画集", value: "画集" },
+                        { label: "雑誌(季刊・月刊・週刊)", value: "雑誌" },
+                        {
+                            label: "コミック（漫画・ライトノベル）",
+                            value: "コミック",
+                        },
+                        { label: "文庫(文芸・小説など)", value: "文庫" },
+                        { label: "新書(読み物・教養書)", value: "新書" },
+                        {
+                            label: "文芸書(国内外文学・エッセイ・詩歌)",
+                            value: "文芸書",
+                        },
+                        {
+                            label: "実用書(料理・健康・ホビー・暮らし)",
+                            value: "実用書",
+                        },
+                        {
+                            label: "専門書(人文・社会・理工・芸術・医学)",
+                            value: "専門書",
+                        },
+                        {
+                            label: "ビジネス書(資格・経済・経営)",
+                            value: "ビジネス書",
+                        },
+                        {
+                            label: "児童書(絵本・童話・図鑑・学習まんが)",
+                            value: "児童書",
+                        },
+                        {
+                            label: "学習参考書(小中高・辞書・辞典)",
+                            value: "学習参考書",
+                        },
+                        { label: "画集・写真集(写真集)", value: "画集" },
                         { label: "その他", value: "その他" },
                     ],
-                    defaultValue: "その他",
+                    defaultValue: "専門書",
                 }),
                 tags: fields.array(fields.text({ label: "タグ" }), {
                     label: "タグ",
@@ -257,10 +294,6 @@ export default config({
 
         /**
          * 3. 楽器 (Instruments) コレクション
-         * ----------------------------------------
-         * 用途: 所有楽器の管理
-         * タイプ: 'data' (改造履歴やメモなどをMarkdown本文として使用)
-         * スキーマ: 楽器名、モデル名、ブランド、製造番号、購入日、写真、タグ
          */
         instruments: collection({
             label: "楽器リスト",
@@ -301,15 +334,31 @@ export default config({
                 }),
                 type: fields.select({
                     label: "楽器の種類",
-                    description: "https://jp.yamaha.com/products/musical_instruments/index.html",
+                    description:
+                        "https://jp.yamaha.com/products/musical_instruments/index.html",
                     options: [
-                        { label: "ピアノ・電子ピアノ", value: "ピアノ・電子ピアノ" },
-                        { label: "エレクトーン・キーボード", value: "エレクトーン・キーボード" },
-                        { label: "ギター・ベース・アンプ", value: "ギター・ベース・アンプ" },
+                        {
+                            label: "ピアノ・電子ピアノ",
+                            value: "ピアノ・電子ピアノ",
+                        },
+                        {
+                            label: "エレクトーン・キーボード",
+                            value: "エレクトーン・キーボード",
+                        },
+                        {
+                            label: "ギター・ベース・アンプ",
+                            value: "ギター・ベース・アンプ",
+                        },
                         { label: "ドラム", value: "ドラム" },
-                        { label: "管楽器・吹奏楽器", value: "管楽器・吹奏楽器" },
+                        {
+                            label: "管楽器・吹奏楽器",
+                            value: "管楽器・吹奏楽器",
+                        },
                         { label: "弦楽器", value: "弦楽器" },
-                        { label: "コンサートパーカッション", value: "コンサートパーカッション" },
+                        {
+                            label: "コンサートパーカッション",
+                            value: "コンサートパーカッション",
+                        },
                         { label: "マーチング楽器", value: "マーチング楽器" },
                         { label: "その他", value: "その他" },
                     ],
@@ -317,7 +366,8 @@ export default config({
                 }),
                 instrumentName: fields.text({
                     label: "楽器名",
-                    description: "https://jp.yamaha.com/products/musical_instruments/index.html 例: トランペット",
+                    description:
+                        "https://jp.yamaha.com/products/musical_instruments/index.html 例: トランペット",
                     validation: {
                         isRequired: true,
                     },
@@ -384,10 +434,6 @@ export default config({
 
         /**
          * 4. 資格・試験 (Qualifications) コレクション
-         * ----------------------------------------
-         * 用途: 取得した資格や受験した試験の管理
-         * タイプ: 'data' (JSON形式でのデータ管理)
-         * スキーマ: 資格名、実施団体、取得日、スコア、証明書画像、メモ
          */
         qualifications: collection({
             label: "資格・試験",
@@ -428,15 +474,68 @@ export default config({
                 }),
                 category: fields.select({
                     label: "カテゴリ",
-                    description: "資格のカテゴリ",
+                    description: "https://jpsk.jp/examinations/browse.html",
                     options: [
                         { label: "IT・情報処理", value: "IT・情報処理" },
-                        { label: "語学", value: "語学" },
-                        { label: "ビジネス", value: "ビジネス" },
-                        { label: "技術・工学", value: "技術・工学" },
-                        { label: "デザイン", value: "デザイン" },
-                        { label: "福祉", value: "福祉" },
-                        { label: "医療", value: "医療" },
+                        {
+                            label: "財務・金融・会計",
+                            value: "財務・金融・会計",
+                        },
+                        {
+                            label: "不動産・建築・工事",
+                            value: "不動産・建築・工事",
+                        },
+                        {
+                            label: "事務・法務・経営",
+                            value: "事務・法務・経営",
+                        },
+                        {
+                            label: "基礎教育・趣味・教養",
+                            value: "基礎教育・趣味・教養",
+                        },
+                        {
+                            label: "医療・福祉・介護",
+                            value: "医療・福祉・介護",
+                        },
+                        {
+                            label: "健康・心理・スポーツ",
+                            value: "健康・心理・スポーツ",
+                        },
+                        { label: "ご当地・娯楽", value: "ご当地・娯楽" },
+                        {
+                            label: "工業・技術・技能",
+                            value: "工業・技術・技能",
+                        },
+                        {
+                            label: "調理・衛生・飲食",
+                            value: "調理・衛生・飲食",
+                        },
+                        {
+                            label: "美容・ファッション",
+                            value: "美容・ファッション",
+                        },
+                        {
+                            label: "デザイン・クリエイティブ",
+                            value: "デザイン・クリエイティブ",
+                        },
+                        {
+                            label: "語学・国際ビジネス",
+                            value: "語学・国際ビジネス",
+                        },
+                        {
+                            label: "サステナブル・自然・環境・生物",
+                            value: "サステナブル・自然・環境・生物",
+                        },
+                        {
+                            label: "生活・サービス・冠婚葬祭",
+                            value: "生活・サービス・冠婚葬祭",
+                        },
+                        {
+                            label: "車両・航空・船舶・無線",
+                            value: "車両・航空・船舶・無線",
+                        },
+                        { label: "公務員・教育", value: "公務員・教育" },
+                        { label: "適性検査", value: "適性検査" },
                         { label: "その他", value: "その他" },
                     ],
                     defaultValue: "その他",
