@@ -26,8 +26,6 @@ allInstruments.sort((a, b) => a.name.localeCompare(b.name)); // 名前順
                     {instrument.thumbnail && (
                         <Image
                             src={instrument.thumbnail}
-                            width={160}
-                            height={90}
                             format="webp"
                             alt={`${instrument.name}の写真`}
                             class="w-full aspect-[4/3] object-cover"

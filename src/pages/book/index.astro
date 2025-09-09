@@ -21,8 +21,6 @@ allBooks.sort((a, b) => a.data.title.localeCompare(b.data.title)); // タイト�
                     {book.data.coverImage && (
                         <Image
                             src={book.data.coverImage}
-                            width={160}
-                            height={90}
                             format="webp"
                             alt={`${book.data.title}の表紙`}
                             class="w-full aspect-[4/3] object-cover"
