@@ -29,7 +29,7 @@ const blogCollection = defineCollection({
                 "日記",
                 "その他",
             ]),
-            tags: z.array(z.string()),
+            tags: z.array(z.string()).optional(),
         }),
 });
 
@@ -67,7 +67,7 @@ const booksCollection = defineCollection({
                 "画集",
                 "その他",
             ]),
-            tags: z.array(z.string()),
+            tags: z.array(z.string()).optional(),
             format: z.enum(["紙", "電子版", "自炊"]),
             status: z.enum(["未読", "読書中", "読了"]),
             evaluation: z.enum(["未評価", "1", "2", "3", "4", "5"]),
@@ -147,7 +147,7 @@ const qualificationsCollection = defineCollection({
                 "適性検査",
                 "その他",
             ]),
-            tags: z.array(z.string()),
+            tags: z.array(z.string()).optional(),
             status: z.enum(["取得済み", "未取得", "受験済み", "学習中"]),
             acquiredDate: z.date().optional(),
             validityPeriod: z.date().optional(),
