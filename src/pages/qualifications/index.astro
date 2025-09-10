@@ -14,9 +14,7 @@ const publicPosts = publishedPosts.filter(
     (post) => post.data.visibility === "public"
 );
 
-// 日付の新しい順に並び替え
-// 更新日が存在する場合は更新日を優先
-// 更新日が存在しない場合は公開日を優先
+// 並び替え
 publicPosts.sort((a, b) => {
     const typeA = a.data.category || "";
     const typeB = b.data.category || "";
