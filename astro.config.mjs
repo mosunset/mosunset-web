@@ -1,29 +1,33 @@
 // @ts-check
-import { defineConfig } from 'astro/config';
+import { defineConfig } from "astro/config";
 
-import cloudflare from '@astrojs/cloudflare';
+import cloudflare from "@astrojs/cloudflare";
 
-import tailwindcss from '@tailwindcss/vite';
+import tailwindcss from "@tailwindcss/vite";
 
-import react from '@astrojs/react';
+import react from "@astrojs/react";
 
-import markdoc from '@astrojs/markdoc';
+import markdoc from "@astrojs/markdoc";
 
-import keystatic from '@keystatic/astro'
+import keystatic from "@keystatic/astro";
 
 // https://astro.build/config
 export default defineConfig({
-  adapter: cloudflare({
-    platformProxy: {
-      enabled: true
+    adapter: cloudflare({
+        platformProxy: {
+            enabled: true,
+        },
+
+        imageService: "compile",
+    }),
+
+    prefetch: {
+        prefetchAll: true,
     },
 
-    imageService: "compile"
-  }),
+    vite: {
+        plugins: [tailwindcss()],
+    },
 
-  vite: {
-    plugins: [tailwindcss()]
-  },
-
-  integrations: [react(), markdoc(), keystatic()]
+    integrations: [react(), markdoc(), keystatic()],
 });
