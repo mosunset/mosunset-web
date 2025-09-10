@@ -1,0 +1,955 @@
+---
+import "@/styles/global.css";
+import { SEO } from "astro-seo";
+import myImage from "@/assets/images/my.webp";
+import ClientRouter from "astro/components/ClientRouter.astro";
+const title = "Three.js インタラクティブ・ボクセルビューア (Z-up) | mosunset";
+const description =
+    "mosunsetのウェブサイト - ブログ、楽器、プレイグラウンドなどのコンテンツを提供しています";
+const image = myImage;
+const defaultKeywords: string[] = [
+    "mosunset",
+    "ブログ",
+    "楽器",
+    "プレイグラウンド",
+    "書籍",
+    "プログラミング",
+    "技術",
+];
+const keywords: string[] = defaultKeywords;
+const navLinkClass = (href: string) =>
+    Astro.url.pathname.startsWith(href)
+        ? "font-medium text-blue-500 focus:outline-hidden"
+        : "font-medium text-gray-700 hover:text-gray-500 hover:underline hover:underline-offset-2 focus:outline-hidden focus:text-gray-500 focus:underline focus:underline-offset-2";
+---
+
+<!doctype html>
+<html lang="ja">
+    <head>
+        <meta name="viewport" content="width=device-width" />
+        <link rel="icon" type="image/x-icon" href="/favicon.ico" />
+        <meta name="generator" content={Astro.generator} />
+        <meta name="keywords" content={keywords.join(",")} />
+        <meta name="author" content="mosunset" />
+        <meta name="publisher" content="mosunset" />
+        <SEO
+            title={title}
+            description={description}
+            canonical={`https://mosunset.com${Astro.url.pathname}`}
+            languageAlternates={[
+                {
+                    href: "https://mosunset.com",
+                    hrefLang: "ja",
+                },
+            ]}
+            charset="UTF-8"
+            openGraph={{
+                basic: {
+                    type: "website",
+                    url: "https://mosunset.com",
+                    title: title,
+                    image: image.src,
+                },
+            }}
+            twitter={{
+                card: "summary_large_image",
+                site: "@TMoSunset0",
+                title: title,
+                description: description,
+                image: image.src,
+            }}
+        />
+        <ClientRouter />
+        <style>
+            :root {
+                --header-height: 0px;
+            }
+            body {
+                margin: 0;
+                overflow: hidden;
+                font-family: "Inter", sans-serif;
+            }
+
+            #canvas-container {
+                width: 100vw;
+                height: calc(100vh - var(--header-height));
+                position: fixed;
+                top: var(--header-height);
+                left: 0;
+            }
+
+            canvas {
+                display: block;
+            }
+
+            #controls-container {
+                position: fixed;
+                top: calc(var(--header-height) + 8px);
+                left: 8px;
+                background-color: rgba(31, 41, 55, 0.8);
+                /* 半透明の背景 */
+                padding: 20px;
+                border-radius: 12px;
+                box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+                color: #f3f4f6;
+                /* 明るいグレーのテキスト */
+                width: 360px;
+                /* 少し幅を広げる */
+                backdrop-filter: blur(10px);
+                border: 1px solid rgba(255, 255, 255, 0.1);
+                transition: opacity 0.2s;
+                z-index: 40;
+            }
+
+            #controls-container.minimized {
+                display: none;
+            }
+
+            #show-controls-btn {
+                z-index: 50;
+                top: calc(var(--header-height) + 8px);
+            }
+
+            #camera-info {
+                top: calc(var(--header-height) + 8px);
+            }
+
+            .control-group {
+                margin-bottom: 16px;
+            }
+
+            .control-group label {
+                display: block;
+                margin-bottom: 8px;
+                font-weight: 500;
+            }
+
+            .control-group input[type="range"] {
+                width: 100%;
+                cursor: pointer;
+            }
+
+            .control-group span {
+                font-weight: 700;
+                color: #60a5fa;
+                /* 明るい青 */
+            }
+
+            hr {
+                border-color: rgba(255, 255, 255, 0.2);
+                margin-top: 20px;
+                margin-bottom: 20px;
+            }
+        </style>
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+        <link
+            href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&display=swap"
+            rel="stylesheet"
+        />
+    </head>
+
+    <body>
+        <header
+            id="site-header"
+            class="container mx-auto px-4 sm:px-6 lg:px-8 pb-8 flex flex-wrap sm:justify-start sm:flex-nowrap w-full bg-white text-sm py-3"
+        >
+            <nav class="w-full sm:flex sm:items-center sm:justify-between">
+                <a
+                    class="flex-none font-semibold text-xl text-black focus:outline-hidden focus:opacity-80"
+                    href="/"
+                    aria-label="mosunset">mosunset</a
+                >
+                <div
+                    class="flex flex-row items-center gap-5 mt-5 sm:justify-end sm:mt-0 sm:ps-5"
+                >
+                    <a class={navLinkClass("/blog")} href="/blog">Blog</a>
+                    <a class={navLinkClass("/playground")} href="/playground"
+                        >Playground</a
+                    >
+                    <a class={navLinkClass("/book")} href="/book">Book</a>
+                    <a class={navLinkClass("/instruments")} href="/instruments"
+                        >楽器</a
+                    >
+                    <a
+                        class={navLinkClass("/qualifications")}
+                        href="/qualifications">資格・試験</a
+                    >
+                </div>
+            </nav>
+        </header>
+        <!-- Three.jsの描画領域 -->
+        <div id="canvas-container" class=""></div>
+
+        <!-- 操作パネル -->
+        <div id="controls-container" class="minimized">
+            <button
+                id="minimize-btn"
+                class="absolute top-2 right-2 rounded px-2 py-0 text-lg font-bold hover:bg-gray-700"
+            >
+                − 閉じる
+            </button>
+            <!-- 既存の設定UI -->
+            <h1 class="mb-4 text-xl font-bold">ボクセル設定</h1>
+            <div class="flex flex-row gap-4">
+                <div class="w-1/2">
+                    <h2 class="my-2 text-lg font-semibold">セルの数</h2>
+                    <div class="control-group">
+                        <label for="countX"
+                            >奥行きの数: <span id="countX-value">8</span></label
+                        >
+                        <input
+                            type="range"
+                            id="countX"
+                            min="1"
+                            max="17"
+                            step="1"
+                            value="8"
+                        />
+                    </div>
+                    <div class="control-group">
+                        <label for="countY"
+                            >スパンの数: <span id="countY-value">1</span></label
+                        >
+                        <input
+                            type="range"
+                            id="countY"
+                            min="1"
+                            max="6"
+                            step="1"
+                            value="1"
+                        />
+                    </div>
+                    <div class="control-group">
+                        <label for="countZ"
+                            >階数: <span id="countZ-value">3</span></label
+                        >
+                        <input
+                            type="range"
+                            id="countZ"
+                            min="1"
+                            max="6"
+                            step="1"
+                            value="3"
+                        />
+                    </div>
+                </div>
+                <div class="w-1/2">
+                    <h2 class="my-2 text-lg font-semibold">セルのサイズ</h2>
+                    <div class="control-group">
+                        <label for="sizeX"
+                            >奥行き距離: <span id="sizeX-value">7.0</span
+                            ></label
+                        >
+                        <input
+                            type="range"
+                            id="sizeX"
+                            min="5.0"
+                            max="11.0"
+                            step="0.1"
+                            value="7.0"
+                        />
+                    </div>
+                    <div class="control-group">
+                        <label for="sizeY"
+                            >スパン柱間数: <span id="sizeY-value">3.0</span
+                            ></label
+                        >
+                        <input
+                            type="range"
+                            id="sizeY"
+                            min="1.0"
+                            max="7.0"
+                            step="0.1"
+                            value="3.0"
+                        />
+                    </div>
+                    <div class="control-group">
+                        <label for="sizeZ"
+                            >1階の高さ: <span id="sizeZ-value">3.4</span></label
+                        >
+                        <input
+                            type="range"
+                            id="sizeZ"
+                            min="2.5"
+                            max="7.0"
+                            step="0.1"
+                            value="3.4"
+                        />
+                    </div>
+                </div>
+            </div>
+
+            <hr />
+
+            <!-- NEW: 表示モード切替 -->
+            <h2 class="my-2 text-lg font-semibold">表示モード</h2>
+            <div id="display-mode-group" class="control-group flex space-x-4">
+                <label class="flex w-1/2 cursor-pointer items-center">
+                    <input
+                        type="radio"
+                        name="displayMode"
+                        value="voxel"
+                        class="mr-2"
+                    />
+                    ボクセル
+                </label>
+                <label class="flex w-1/2 cursor-pointer items-center">
+                    <input
+                        type="radio"
+                        name="displayMode"
+                        value="timber"
+                        class="mr-2"
+                        checked
+                    />
+                    木組み
+                </label>
+            </div>
+
+            <!-- Voxel-specific options -->
+            <div id="voxel-options">
+                <h2 class="my-2 text-lg font-semibold">表示設定</h2>
+                <div class="control-group">
+                    <label
+                        for="wireframeOnly"
+                        class="flex cursor-pointer items-center"
+                    >
+                        <input
+                            type="checkbox"
+                            id="wireframeOnly"
+                            class="mr-2"
+                        />
+                        ワイヤーフレームのみ表示
+                    </label>
+                </div>
+                <div class="control-group">
+                    <label for="opacityRange"
+                        >透明度: <span id="opacity-value">0.7</span></label
+                    >
+                    <input
+                        type="range"
+                        id="opacityRange"
+                        min="0.1"
+                        max="1"
+                        step="0.01"
+                        value="0.7"
+                    />
+                </div>
+            </div>
+
+            <p class="mt-4 text-xs text-gray-400">
+                マウスでドラッグして回転、スクロールでズーム、右クリックでパンができます。
+            </p>
+        </div>
+        <button
+            id="show-controls-btn"
+            class="fixed top-2 left-2 z-50 rounded bg-gray-800 px-3 py-1 text-white shadow-lg"
+        >
+            ＋ 設定を展開
+        </button>
+
+        <!-- カメラ情報表示パネル -->
+        <div
+            id="camera-info"
+            class="fixed right-2 z-100 rounded bg-gray-800 px-3 py-2 font-sans text-xs text-white shadow-lg"
+        >
+            <div class="mb-1 font-bold">カメラ情報</div>
+            <div>
+                位置: <span id="camera-position" class="font-mono"
+                    >(0, 0, 0)</span
+                >
+            </div>
+            <div>
+                回転: <span id="camera-rotation" class="font-mono"
+                    >(0, 0, 0)</span
+                >
+            </div>
+            <div>
+                注視点: <span id="camera-target" class="font-mono"
+                    >(0, 0, 0)</span
+                >
+            </div>
+        </div>
+
+        <script type="importmap">
+            {
+                "imports": {
+                    "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+                    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+                }
+            }
+        </script>
+
+        <script type="module">
+            import * as THREE from "three";
+            import { OrbitControls } from "three/addons/controls/OrbitControls.js";
+
+            // Z-up設定
+            THREE.Object3D.DEFAULT_UP.set(0, 0, 1);
+
+            // --- グローバル変数 ---
+            let scene, camera, renderer, controls, groundPlane;
+            let voxelGroup = new THREE.Group();
+            let voxelColors = []; // Voxelモードの色を保持
+
+            // --- UI要素の取得 ---
+            const canvasContainer = document.getElementById("canvas-container");
+            const countXSlider = document.getElementById("countX");
+            const countYSlider = document.getElementById("countY");
+            const countZSlider = document.getElementById("countZ");
+            const countXValue = document.getElementById("countX-value");
+            const countYValue = document.getElementById("countY-value");
+            const countZValue = document.getElementById("countZ-value");
+
+            const sizeXSlider = document.getElementById("sizeX");
+            const sizeYSlider = document.getElementById("sizeY");
+            const sizeZSlider = document.getElementById("sizeZ");
+            const sizeXValue = document.getElementById("sizeX-value");
+            const sizeYValue = document.getElementById("sizeY-value");
+            const sizeZValue = document.getElementById("sizeZ-value");
+
+            // Display mode elements
+            const displayModeRadios = document.querySelectorAll(
+                'input[name="displayMode"]'
+            );
+            const voxelOptionsDiv = document.getElementById("voxel-options");
+            const wireframeOnlyCheckbox =
+                document.getElementById("wireframeOnly");
+            const opacityRange = document.getElementById("opacityRange");
+            const opacityValue = document.getElementById("opacity-value");
+
+            // --- 初期化関数 ---
+            function init() {
+                scene = new THREE.Scene();
+                scene.background = new THREE.Color("#95c0ec");
+
+                camera = new THREE.PerspectiveCamera(
+                    75,
+                    window.innerWidth / window.innerHeight,
+                    0.1,
+                    1000
+                );
+                camera.position.set(-10, -25, 15);
+
+                renderer = new THREE.WebGLRenderer({ antialias: true });
+                // サイズはヘッダー高を考慮して後で設定
+                renderer.setPixelRatio(window.devicePixelRatio);
+                canvasContainer.appendChild(renderer.domElement);
+
+                const ambientLight = new THREE.AmbientLight(0xffffff, 1.0);
+                scene.add(ambientLight);
+                const directionalLight = new THREE.DirectionalLight(
+                    0xffffff,
+                    0.8
+                );
+                directionalLight.position.set(10, 20, 30);
+                scene.add(directionalLight);
+
+                createAxes();
+
+                controls = new OrbitControls(camera, renderer.domElement);
+                controls.enableDamping = true;
+                controls.dampingFactor = 0.05;
+                controls.screenSpacePanning = false;
+                controls.minDistance = 1;
+                controls.maxDistance = 200;
+                controls.maxPolarAngle = Math.PI / 2;
+
+                const groundGeometry = new THREE.PlaneGeometry(500, 500);
+                const groundTexture = createGroundTexture();
+                const groundMaterial = new THREE.MeshStandardMaterial({
+                    map: groundTexture,
+                    roughness: 0.9,
+                    color: new THREE.Color("rgb(255,255,255)"),
+                });
+                groundPlane = new THREE.Mesh(groundGeometry, groundMaterial);
+                groundPlane.position.z = -0.25; // 地面を少し下げる
+                scene.add(groundPlane);
+
+                scene.add(voxelGroup);
+
+                // UIイベントリスナーを設定
+                setupEventListeners();
+
+                // 初期表示を更新
+                onControlsChange();
+
+                // 注視点を設定
+                const [centerX, centerY, centerZ] = getCenterPoint();
+                controls.target.set(centerX, centerY, centerZ);
+
+                // レイアウトとレンダラーサイズを初期化
+                updateLayoutSizes();
+
+                window.addEventListener("resize", onWindowResize, false);
+                animate();
+            }
+
+            // --- イベントリスナーをまとめて設定 ---
+            function setupEventListeners() {
+                const allSliders = [
+                    countXSlider,
+                    countYSlider,
+                    countZSlider,
+                    sizeXSlider,
+                    sizeYSlider,
+                    sizeZSlider,
+                    opacityRange,
+                ];
+                allSliders.forEach((slider) => {
+                    slider.addEventListener("input", onControlsChange);
+                });
+
+                wireframeOnlyCheckbox.addEventListener(
+                    "change",
+                    onControlsChange
+                );
+
+                displayModeRadios.forEach((radio) => {
+                    radio.addEventListener("change", onControlsChange);
+                });
+            }
+
+            // --- 軸を生成する関数 ---
+            function createAxes() {
+                const axisGroup = new THREE.Group();
+                const axisLength = 20;
+
+                axisGroup.add(
+                    new THREE.ArrowHelper(
+                        new THREE.Vector3(1, 0, 0),
+                        new THREE.Vector3(0, 0, 0),
+                        axisLength,
+                        0xff0000
+                    )
+                );
+                const xLabel = makeTextSprite("奥行き(X)", {
+                    fontsize: 24,
+                    fontColor: "rgb(255, 0, 0)",
+                });
+                xLabel.position.set(axisLength + 2, -3, 1);
+                axisGroup.add(xLabel);
+
+                axisGroup.add(
+                    new THREE.ArrowHelper(
+                        new THREE.Vector3(0, 1, 0),
+                        new THREE.Vector3(0, 0, 0),
+                        axisLength,
+                        0x00ff00
+                    )
+                );
+                const yLabel = makeTextSprite("スパン(Y)", {
+                    fontsize: 24,
+                    fontColor: "rgb(0, 255, 0)",
+                });
+                yLabel.position.set(-3, axisLength + 2, 1);
+                axisGroup.add(yLabel);
+
+                axisGroup.add(
+                    new THREE.ArrowHelper(
+                        new THREE.Vector3(0, 0, 1),
+                        new THREE.Vector3(0, 0, 0),
+                        axisLength,
+                        0x0000ff
+                    )
+                );
+                const zLabel = makeTextSprite("階数(Z)", {
+                    fontsize: 24,
+                    fontColor: "rgb(0, 0, 255)",
+                });
+                zLabel.position.set(-2, -2, axisLength + 2);
+                axisGroup.add(zLabel);
+
+                axisGroup.position.set(-0.01, -0.01, -0.01);
+                scene.add(axisGroup);
+            }
+
+            // --- テキストスプライトを生成する関数 ---
+            function makeTextSprite(message, parameters) {
+                const fontface = parameters.fontface || "Arial";
+                const fontsize = parameters.fontsize || 18;
+                const fontColor =
+                    parameters.fontColor || "rgba(255, 255, 255, 1.0)";
+
+                const canvas = document.createElement("canvas");
+                const context = canvas.getContext("2d");
+                context.font = `Bold ${fontsize}px ${fontface}`;
+
+                const metrics = context.measureText(message);
+                const textWidth = metrics.width;
+
+                canvas.width = textWidth;
+                canvas.height = fontsize * 1.2;
+                context.font = `Bold ${fontsize}px ${fontface}`;
+                context.fillStyle = fontColor;
+                context.fillText(message, 0, fontsize);
+
+                const texture = new THREE.CanvasTexture(canvas);
+                texture.minFilter = THREE.LinearFilter;
+                texture.needsUpdate = true;
+
+                const spriteMaterial = new THREE.SpriteMaterial({
+                    map: texture,
+                });
+                const sprite = new THREE.Sprite(spriteMaterial);
+                sprite.scale.set((canvas.width / fontsize) * 2.5, 2.5, 1.0);
+
+                return sprite;
+            }
+
+            // --- 地面のテクスチャを生成する関数 ---
+            function createGroundTexture() {
+                const canvas = document.createElement("canvas");
+                const context = canvas.getContext("2d");
+                const size = 512;
+                canvas.width = size;
+                canvas.height = size;
+
+                context.fillStyle = "#eafcd6";
+                context.fillRect(0, 0, size, size);
+
+                const text = "地面";
+                const fontsize = 64;
+                context.font = `Bold ${fontsize}px "Hiragino Kaku Gothic ProN", "メイリオ", sans-serif`;
+                context.fillStyle = "rgb(180,180,180)";
+                context.textAlign = "center";
+                context.textBaseline = "middle";
+                context.fillText(text, size / 1.7, size / 2.1);
+
+                const texture = new THREE.CanvasTexture(canvas);
+                texture.needsUpdate = true;
+                return texture;
+            }
+
+            // --- 中心点を計算するヘルパー関数 ---
+            function getCenterPoint() {
+                const countX = parseInt(countXSlider.value);
+                const countY = parseInt(countYSlider.value);
+                const countZ = parseInt(countZSlider.value);
+                const sizeX = parseFloat(sizeXSlider.value);
+                const sizeY = parseFloat(sizeYSlider.value);
+                const sizeZ = parseFloat(sizeZSlider.value);
+
+                const totalWidth = countX * sizeX;
+                const totalDepth = countY * sizeY;
+                const totalHeight = countZ * sizeZ;
+
+                return [totalWidth / 3, totalDepth / 2, totalHeight / 2.5];
+            }
+
+            // --- ボクセルまたは木組みを更新するメイン関数 ---
+            function updateModels() {
+                while (voxelGroup.children.length > 0) {
+                    voxelGroup.remove(voxelGroup.children[0]);
+                }
+
+                const countX = parseInt(countXSlider.value);
+                const countY = parseInt(countYSlider.value);
+                const countZ = parseInt(countZSlider.value);
+                const sizeX = parseFloat(sizeXSlider.value);
+                const sizeY = parseFloat(sizeYSlider.value);
+                const sizeZ = parseFloat(sizeZSlider.value);
+
+                // スライダーの値を表示に反映
+                countXValue.textContent = countX;
+                countYValue.textContent = countY;
+                countZValue.textContent = countZ;
+                sizeXValue.textContent = sizeX.toFixed(1);
+                sizeYValue.textContent = sizeY.toFixed(1);
+                sizeZValue.textContent = sizeZ.toFixed(1);
+
+                const displayMode = document.querySelector(
+                    'input[name="displayMode"]:checked'
+                ).value;
+
+                if (displayMode === "timber") {
+                    createTimberFrame(
+                        countX,
+                        countY,
+                        countZ,
+                        sizeX,
+                        sizeY,
+                        sizeZ
+                    );
+                } else if (displayMode === "voxel") {
+                    // 'voxel' mode
+                    createVoxelGrid(
+                        countX,
+                        countY,
+                        countZ,
+                        sizeX,
+                        sizeY,
+                        sizeZ
+                    );
+                } else {
+                    createVoxelGrid(
+                        countX,
+                        countY,
+                        countZ,
+                        sizeX,
+                        sizeY,
+                        sizeZ
+                    );
+                }
+            }
+
+            // --- ボクセルグリッドを生成する関数 ---
+            function createVoxelGrid(
+                countX,
+                countY,
+                countZ,
+                sizeX,
+                sizeY,
+                sizeZ
+            ) {
+                // 色配列の初期化・拡張
+                if (
+                    !voxelColors.length ||
+                    voxelColors.length < countX ||
+                    voxelColors[0].length < countY ||
+                    voxelColors[0][0].length < countZ
+                ) {
+                    voxelColors = [];
+                    for (let i = 0; i < countX; i++) {
+                        voxelColors[i] = [];
+                        for (let j = 0; j < countY; j++) {
+                            voxelColors[i][j] = [];
+                            for (let k = 0; k < countZ; k++) {
+                                voxelColors[i][j][k] = new THREE.Color(
+                                    Math.random(),
+                                    Math.random(),
+                                    Math.random()
+                                );
+                            }
+                        }
+                    }
+                }
+
+                const geometry = new THREE.BoxGeometry(sizeX, sizeY, sizeZ);
+                const edgeMaterial = new THREE.LineBasicMaterial({
+                    color: 0x000000,
+                    linewidth: 1,
+                });
+                const wireframeOnly = wireframeOnlyCheckbox.checked;
+                const opacity = parseFloat(opacityRange.value);
+                opacityValue.textContent = opacity.toFixed(2);
+
+                for (let i = 0; i < countX; i++) {
+                    for (let j = 0; j < countY; j++) {
+                        for (let k = 0; k < countZ; k++) {
+                            const position = new THREE.Vector3(
+                                i * sizeX + sizeX / 2,
+                                j * sizeY + sizeY / 2,
+                                k * sizeZ + sizeZ / 2
+                            );
+
+                            if (!wireframeOnly) {
+                                const color = voxelColors[i][j][k];
+                                const material = new THREE.MeshStandardMaterial(
+                                    {
+                                        color: color,
+                                        transparent: true,
+                                        opacity: opacity,
+                                        roughness: 0.7,
+                                        metalness: 0.1,
+                                    }
+                                );
+                                const voxel = new THREE.Mesh(
+                                    geometry,
+                                    material
+                                );
+                                voxel.position.copy(position);
+                                voxelGroup.add(voxel);
+                            }
+
+                            const edges = new THREE.EdgesGeometry(geometry);
+                            const wireframe = new THREE.LineSegments(
+                                edges,
+                                edgeMaterial
+                            );
+                            wireframe.position.copy(position);
+                            voxelGroup.add(wireframe);
+                        }
+                    }
+                }
+            }
+
+            // --- NEW: 木組み構造を生成する関数 ---
+            function createTimberFrame(
+                countX,
+                countY,
+                countZ,
+                sizeX,
+                sizeY,
+                sizeZ
+            ) {
+                const beamThickness = Math.min(sizeX, sizeY, sizeZ) * 0.1; // 梁の太さを動的に調整
+                const woodMaterial = new THREE.MeshStandardMaterial({
+                    color: 0xbb8553, // SaddleBrown
+                    roughness: 0.8,
+                    metalness: 0.1,
+                });
+
+                // 柱 (Columns)
+                const columnGeom = new THREE.BoxGeometry(
+                    beamThickness,
+                    beamThickness,
+                    sizeZ
+                );
+                for (let i = 0; i <= countX; i++) {
+                    for (let j = 0; j <= countY; j++) {
+                        for (let k = 0; k < countZ; k++) {
+                            const column = new THREE.Mesh(
+                                columnGeom,
+                                woodMaterial
+                            );
+                            column.position.set(
+                                i * sizeX,
+                                j * sizeY,
+                                k * sizeZ + sizeZ / 2
+                            );
+                            voxelGroup.add(column);
+                        }
+                    }
+                }
+
+                // X方向の梁 (Beams along X)
+                const beamXLength = countX * sizeX + beamThickness;
+                const beamXGeom = new THREE.BoxGeometry(
+                    beamXLength,
+                    beamThickness,
+                    beamThickness
+                );
+                for (let k = 0; k <= countZ; k++) {
+                    for (let j = 0; j <= countY; j++) {
+                        const beam = new THREE.Mesh(beamXGeom, woodMaterial);
+                        // 端から端まで届くように位置を調整
+                        beam.position.set(
+                            (countX * sizeX) / 2,
+                            j * sizeY,
+                            k * sizeZ
+                        );
+                        voxelGroup.add(beam);
+                    }
+                }
+
+                // Y方向の梁 (Beams along Y)
+                const beamYLength = countY * sizeY + beamThickness;
+                const beamYGeom = new THREE.BoxGeometry(
+                    beamThickness,
+                    beamYLength,
+                    beamThickness
+                );
+                for (let k = 0; k <= countZ; k++) {
+                    for (let i = 0; i <= countX; i++) {
+                        const beam = new THREE.Mesh(beamYGeom, woodMaterial);
+                        // 端から端まで届くように位置を調整
+                        beam.position.set(
+                            i * sizeX,
+                            (countY * sizeY) / 2,
+                            k * sizeZ
+                        );
+                        voxelGroup.add(beam);
+                    }
+                }
+            }
+
+            // --- コントロールが変更されたときの処理 ---
+            function onControlsChange() {
+                const displayMode = document.querySelector(
+                    'input[name="displayMode"]:checked'
+                ).value;
+                // モードに応じてボクセル設定の表示/非表示を切り替え
+                voxelOptionsDiv.style.display =
+                    displayMode === "voxel" ? "block" : "none";
+
+                // 注視点を維持するために一時保存
+                const prevTarget = controls.target.clone();
+
+                updateModels();
+
+                // 注視点を元に戻す
+                controls.target.copy(prevTarget);
+            }
+
+            // --- ウィンドウリサイズ時の処理 ---
+            function onWindowResize() {
+                const headerEl = document.getElementById("site-header");
+                const headerHeight = headerEl
+                    ? Math.ceil(headerEl.getBoundingClientRect().height)
+                    : 0;
+                camera.aspect =
+                    window.innerWidth / (window.innerHeight - headerHeight);
+                camera.updateProjectionMatrix();
+                renderer.setSize(
+                    window.innerWidth,
+                    Math.max(1, window.innerHeight - headerHeight)
+                );
+                updateLayoutSizes();
+            }
+
+            // --- アニメーションループ ---
+            function animate() {
+                requestAnimationFrame(animate);
+                controls.update();
+                updateCameraInfo();
+                renderer.render(scene, camera);
+            }
+
+            // --- カメラ情報を更新する関数 ---
+            function updateCameraInfo() {
+                const positionEl = document.getElementById("camera-position");
+                const rotationEl = document.getElementById("camera-rotation");
+                const targetEl = document.getElementById("camera-target");
+
+                if (positionEl && rotationEl && targetEl) {
+                    positionEl.textContent = `(${camera.position.x.toFixed(1)}, ${camera.position.y.toFixed(1)}, ${camera.position.z.toFixed(1)})`;
+                    rotationEl.textContent = `(${((camera.rotation.x * 180) / Math.PI).toFixed(1)}°, ${((camera.rotation.y * 180) / Math.PI).toFixed(1)}°, ${((camera.rotation.z * 180) / Math.PI).toFixed(1)}°)`;
+                    targetEl.textContent = `(${controls.target.x.toFixed(1)}, ${controls.target.y.toFixed(1)}, ${controls.target.z.toFixed(1)})`;
+                }
+            }
+
+            // --- 実行 ---
+            init();
+
+            // --- 最小化・再表示ボタンの制御 ---
+            const controlsContainer =
+                document.getElementById("controls-container");
+            const minimizeBtn = document.getElementById("minimize-btn");
+            const showControlsBtn =
+                document.getElementById("show-controls-btn");
+
+            minimizeBtn.addEventListener("click", () => {
+                controlsContainer.classList.add("minimized");
+                showControlsBtn.classList.remove("hidden");
+            });
+            showControlsBtn.addEventListener("click", () => {
+                controlsContainer.classList.remove("minimized");
+                showControlsBtn.classList.add("hidden");
+            });
+
+            // --- ヘッダー高さに応じてCSS変数とUI位置・レンダラーサイズを更新 ---
+            function updateLayoutSizes() {
+                const headerEl = document.getElementById("site-header");
+                const headerHeight = headerEl
+                    ? Math.ceil(headerEl.getBoundingClientRect().height)
+                    : 0;
+                document.documentElement.style.setProperty(
+                    "--header-height",
+                    `${headerHeight}px`
+                );
+                if (renderer) {
+                    renderer.setSize(
+                        window.innerWidth,
+                        Math.max(1, window.innerHeight - headerHeight)
+                    );
+                }
+            }
+
+            // フォント読み込み後や画像ロード後にも再計算
+            window.addEventListener("load", updateLayoutSizes);
+            // 念のためタイマーでも一度再計算
+            setTimeout(updateLayoutSizes, 300);
+        </script>
+    </body>
+</html>
