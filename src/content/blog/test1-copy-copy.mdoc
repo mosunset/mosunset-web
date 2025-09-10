@@ -10,4 +10,63 @@ tags:
   - てst
   - てst1
 ---
-これはテストデータです
+# これはテストデータです
+
+これは普通のテキストです
+
+**これは太字です**
+
+*これは斜体です*
+
+~~これは取り消しです~~
+
+`これはコードブロックです`
+
+- これは箇条書き点です
+- 2行目
+  - 次の段落
+- 3行目
+  - 次の
+    - 次
+
+1. これは箇条書き数字です
+1. 2行目
+   - 次の段落
+1. 3行目
+   - 次の
+     - 次
+
+---
+
+これは[リンク](https://mosunset.com)です
+
+> これは引用です
+> 
+> 2行目
+
+```typescript
+const blogCollection = defineCollection({
+    type: "content",
+    schema: ({ image }) =>
+        z.object({
+            draft: z.boolean(),
+            visibility: z.enum(["public", "unlisted", "private"]),
+            publishedDate: z.date(),
+            updatedDate: z.date().optional(),
+            title: z.string(),
+            description: z.string().optional(),
+            thumbnail: image(),
+            category: z.enum([
+                "開発",
+                "専門技術",
+                "学習",
+                "ライフスタイル",
+                "趣味",
+                "レビュー",
+                "日記",
+                "その他",
+            ]),
+            tags: z.array(z.string()).optional(),
+        }),
+});
+```
