@@ -20,12 +20,14 @@
 		"@tailwindcss/vite": "^4.1.13",
 		"@types/react": "^19.1.12",
 		"@types/react-dom": "^19.1.9",
+		"@types/three": "^0.180.0",
 		"astro": "^5.13.5",
 		"astro-seo": "^0.8.4",
 		"react": "^19.1.1",
 		"react-dom": "^19.1.1",
 		"sharp": "^0.34.3",
-		"tailwindcss": "^4.1.13"
+		"tailwindcss": "^4.1.13",
+		"three": "^0.180.0"
 	},
 	"devDependencies": {
 		"@types/node": "^24.3.1",
