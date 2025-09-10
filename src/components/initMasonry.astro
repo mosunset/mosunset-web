@@ -27,18 +27,18 @@
     // DOMContentLoadedイベントは、初回ページロード時にDOMが完全に読み込まれた後に発生します。
     document.addEventListener("DOMContentLoaded", () => {
         initMasonry();
-        console.log("DOMContentLoaded: 初回ページロード時にMasonryを初期化");
+        // console.log("DOMContentLoaded: 初回ページロード時にMasonryを初期化");
     });
 
     // astro:after-swapイベントは、旧ページが新ページに置き換わった直後に発生します。
     document.addEventListener("astro:after-swap", () => {
         initMasonry();
-        console.log("astro:after-swap: 新ページに置き換わった直後にMasonryを初期化");
+        // console.log("astro:after-swap: 新ページに置き換わった直後にMasonryを初期化");
     });
 
     // astro:page-loadイベントは、新しいページが表示された後に発生します。
     document.addEventListener("astro:page-load", () => {
         initMasonry();
-        console.log("astro:page-load: 新しいページ表示後にMasonryを初期化");
+        // console.log("astro:page-load: 新しいページ表示後にMasonryを初期化");
     });
 </script>
