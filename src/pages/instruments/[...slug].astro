@@ -40,7 +40,9 @@ const { Content } = await entry.render(); // Markdown本文をHTMLコンポー�
                     clip-rule="evenodd"></path>
             </svg>
             <span class="text-sm"
-                ><span transition:name="instruments-title">楽器</span
+                ><span
+                    transition:persist-props
+                    transition:name="instruments-title">楽器</span
                 >一覧へ戻る</span
             >
         </a>
@@ -51,24 +53,28 @@ const { Content } = await entry.render(); // Markdown本文をHTMLコンポー�
             class="object-cover w-full max-w-lg mx-auto mb-8 rounded-lg shadow-lg"
             format="webp"
             alt={entry.data.name}
+            transition:persist-props
             transition:name={entry.slug + "-thumbnail"}
         />
 
         <div class="mb-8">
             <h1
                 class="text-3xl font-bold mb-4 text-gray-900"
+                transition:persist-props
                 transition:name={entry.slug + "-title"}
             >
                 {entry.data.name}
             </h1>
             <p
                 class="text-gray-600 mb-2 text-sm"
+                transition:persist-props
                 transition:name={entry.slug + "-brand"}
             >
                 ブランド: {entry.data.brand}
             </p>
             <p
                 class="text-gray-600 mb-2 text-sm"
+                transition:persist-props
                 transition:name={entry.slug + "-instrumentName"}
             >
                 楽器名: {entry.data.instrumentName}
@@ -92,6 +98,7 @@ const { Content } = await entry.render(); // Markdown本文をHTMLコンポー�
                     <time
                         class="block text-gray-600 mb-2 text-sm"
                         datetime={entry.data.purchaseDate.toISOString()}
+                        transition:persist-props
                         transition:name={entry.slug + "-purchaseDate"}
                     >
                         入手日:{" "}
@@ -126,6 +133,7 @@ const { Content } = await entry.render(); // Markdown本文をHTMLコンポー�
                 }
                 <span
                     class="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-xs font-medium"
+                    transition:persist-props
                     transition:name={entry.slug + "-type"}
                 >
                     {entry.data.type}

@@ -40,7 +40,9 @@ const { Content } = await entry.render(); // Markdown本文をHTMLコンポー�
                     clip-rule="evenodd"></path>
             </svg>
             <span class="text-sm"
-                ><span transition:name="qualifications-title">資格</span
+                ><span
+                    transition:persist-props
+                    transition:name="qualifications-title">資格</span
                 >一覧へ戻る</span
             >
         </a>
@@ -53,6 +55,7 @@ const { Content } = await entry.render(); // Markdown本文をHTMLコンポー�
                     class="object-cover w-full max-w-lg mx-auto mb-8 rounded-lg shadow-lg"
                     format="webp"
                     alt={entry.data.name}
+                    transition:persist-props
                     transition:name={entry.slug + "-thumbnail"}
                 />
             )
@@ -61,6 +64,7 @@ const { Content } = await entry.render(); // Markdown本文をHTMLコンポー�
         <div class="mb-8">
             <h1
                 class="text-3xl font-bold mb-4 text-gray-900"
+                transition:persist-props
                 transition:name={entry.slug + "-title"}
             >
                 {entry.data.name}{" "}<span
@@ -71,6 +75,7 @@ const { Content } = await entry.render(); // Markdown本文をHTMLコンポー�
             </h1>
             <p
                 class="text-gray-600 mb-2 text-sm"
+                transition:persist-props
                 transition:name={entry.slug + "-organization"}
             >
                 実施団体: {entry.data.organization}
@@ -94,6 +99,7 @@ const { Content } = await entry.render(); // Markdown本文をHTMLコンポー�
                     <time
                         class="block text-gray-600 mb-2 text-sm"
                         datetime={entry.data.acquiredDate.toISOString()}
+                        transition:persist-props
                         transition:name={entry.slug + "-acquiredDate"}
                     >
                         取得日:{" "}
@@ -113,6 +119,7 @@ const { Content } = await entry.render(); // Markdown本文をHTMLコンポー�
                     <time
                         class="block text-gray-600 mb-2 text-sm"
                         datetime={entry.data.validityPeriod.toISOString()}
+                        transition:persist-props
                         transition:name={entry.slug + "-validityPeriod"}
                     >
                         有効期限:{" "}
@@ -140,6 +147,7 @@ const { Content } = await entry.render(); // Markdown本文をHTMLコンポー�
                 }
                 <span
                     class="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-xs font-medium"
+                    transition:persist-props
                     transition:name={entry.slug + "-category"}
                 >
                     {entry.data.category}
@@ -149,6 +157,7 @@ const { Content } = await entry.render(); // Markdown本文をHTMLコンポー�
                     entry.data.tags && entry.data.tags.length > 0 && (
                         <div
                             class="flex gap-2"
+                            transition:persist-props
                             transition:name={entry.slug + "-tag"}
                         >
                             {entry.data.tags.map((tag) => (

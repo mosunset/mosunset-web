@@ -68,7 +68,9 @@ publicPosts.sort((a, b) => {
         }
     </style>
     <h1 class="text-3xl font-bold text-gray-900 mb-8">
-        <span transition:name="instruments-title">楽器</span>
+        <span transition:persist-props transition:name="instruments-title"
+            >楽器</span
+        >
     </h1>
     <div id="masonry-container" class="masonry-container">
         {
@@ -86,23 +88,27 @@ publicPosts.sort((a, b) => {
                                 format="webp"
                                 alt={post.data.name}
                                 class="w-full object-cover"
+                                transition:persist-props
                                 transition:name={post.slug + "-thumbnail"}
                             />
                             <div class="p-6">
                                 <h2
                                     class="text-xl font-semibold text-gray-900 mb-2 line-clamp-2"
+                                    transition:persist-props
                                     transition:name={post.slug + "-title"}
                                 >
                                     {post.data.name}
                                 </h2>
                                 <p
                                     class="text-gray-600 mb-2 text-sm"
+                                    transition:persist-props
                                     transition:name={post.slug + "-brand"}
                                 >
                                     ブランド: {post.data.brand}
                                 </p>
                                 <p
                                     class="text-gray-600 mb-2 text-sm"
+                                    transition:persist-props
                                     transition:name={
                                         post.slug + "-instrumentName"
                                     }
@@ -112,6 +118,7 @@ publicPosts.sort((a, b) => {
                                 <div class="flex flex-wrap gap-2 mb-3">
                                     <span
                                         class="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full"
+                                        transition:persist-props
                                         transition:name={post.slug + "-type"}
                                     >
                                         {post.data.type}
@@ -121,6 +128,7 @@ publicPosts.sort((a, b) => {
                                     <div class="flex flex-col gap-1 mt-auto">
                                         <time
                                             class="text-sm text-gray-500"
+                                            transition:persist-props
                                             transition:name={
                                                 post.slug + "-purchaseDate"
                                             }

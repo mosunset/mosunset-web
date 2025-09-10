@@ -70,7 +70,7 @@ publicPosts.sort(
         }
     </style>
     <h1 class="text-3xl font-bold text-gray-900 mb-8">
-        <span transition:name="book-title">蔵書</span>
+        <span transition:persist-props transition:name="book-title">蔵書</span>
     </h1>
     <div id="masonry-container" class="masonry-container">
         {
@@ -88,29 +88,34 @@ publicPosts.sort(
                                 format="webp"
                                 alt={post.data.title}
                                 class="w-full object-cover"
+                                transition:persist-props
                                 transition:name={post.slug + "-thumbnail"}
                             />
                             <div class="p-6">
                                 <h2
                                     class="text-xl font-semibold text-gray-900 mb-2 line-clamp-2"
+                                    transition:persist-props
                                     transition:name={post.slug + "-title"}
                                 >
                                     {post.data.title}
                                 </h2>
                                 <p
                                     class="text-gray-600 mb-2 text-sm"
+                                    transition:persist-props
                                     transition:name={post.slug + "-author"}
                                 >
                                     著者: {post.data.author}
                                 </p>
                                 <p
                                     class="text-gray-600 mb-2 text-sm"
+                                    transition:persist-props
                                     transition:name={post.slug + "-publisher"}
                                 >
                                     出版社: {post.data.publisher}
                                 </p>
                                 <time
                                     class="block text-gray-600 mb-2 text-sm"
+                                    transition:persist-props
                                     transition:name={
                                         post.slug + "-publishedDate"
                                     }
@@ -123,6 +128,7 @@ publicPosts.sort(
                                 {post.data.description && (
                                     <p
                                         class="text-gray-600 mb-3 line-clamp-3"
+                                        transition:persist-props
                                         transition:name={
                                             post.slug + "-description"
                                         }
@@ -133,6 +139,7 @@ publicPosts.sort(
                                 <div class="flex flex-wrap gap-2 mb-3">
                                     <span
                                         class="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full"
+                                        transition:persist-props
                                         transition:name={
                                             post.slug + "-category"
                                         }
@@ -141,7 +148,13 @@ publicPosts.sort(
                                     </span>
                                     {post.data.tags &&
                                         post.data.tags.length > 0 && (
-                                            <div class="flex gap-2" transition:name={post.slug + "-tag"}>
+                                            <div
+                                                class="flex gap-2"
+                                                transition:persist-props
+                                                transition:name={
+                                                    post.slug + "-tag"
+                                                }
+                                            >
                                                 {post.data.tags.map((tag) => (
                                                     <span class="px-2 py-1 bg-gray-100 text-gray-700 rounded text-xs">
                                                         #{tag}
@@ -151,17 +164,28 @@ publicPosts.sort(
                                         )}
                                 </div>
                                 <div class="flex flex-wrap gap-2 mb-3">
-                                    <span class="px-2 py-1 bg-green-100 text-green-800 text-xs rounded-full"
-                                    transition:name={post.slug + "-status"}>
+                                    <span
+                                        class="px-2 py-1 bg-green-100 text-green-800 text-xs rounded-full"
+                                        transition:persist-props
+                                        transition:name={post.slug + "-status"}
+                                    >
                                         {post.data.status}
                                     </span>
-                                    <span class="px-2 py-1 bg-purple-100 text-purple-800 text-xs rounded-full"
-                                    transition:name={post.slug + "-format"}>
+                                    <span
+                                        class="px-2 py-1 bg-purple-100 text-purple-800 text-xs rounded-full"
+                                        transition:persist-props
+                                        transition:name={post.slug + "-format"}
+                                    >
                                         {post.data.format}
                                     </span>
                                     {post.data.evaluation !== "未評価" && (
-                                        <span class="px-2 py-1 bg-yellow-100 text-yellow-800 text-xs rounded-full"
-                                        transition:name={post.slug + "-evaluation"}>
+                                        <span
+                                            class="px-2 py-1 bg-yellow-100 text-yellow-800 text-xs rounded-full"
+                                            transition:persist-props
+                                            transition:name={
+                                                post.slug + "-evaluation"
+                                            }
+                                        >
                                             ★{post.data.evaluation}
                                         </span>
                                     )}
