@@ -24,7 +24,7 @@ export const playgroundContent: PlaygroundContent[] = [
             category: "3D",
             tags: ["3D", "Block"],
             publishedDate: "2025-09-09",
-            thumbnail: "/3dblock/thumbnail.png",
+            thumbnail: "/src/assets/images/playground/3dblock/thumbnail.png",
         },
     },
     {
@@ -37,7 +37,7 @@ export const playgroundContent: PlaygroundContent[] = [
             category: "Image",
             tags: ["Image", "Masonry"],
             publishedDate: "2025-09-10",
-            thumbnail: "/masonryimage/thumbnail.png",
+            thumbnail: "/src/assets/images/playground/masonryimage/thumbnail.png",
         },
     },
 ];

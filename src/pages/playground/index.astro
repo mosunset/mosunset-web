@@ -24,7 +24,7 @@ publicPosts.sort(
 
 // サムネイル画像を静的解決（astro:assets 用）
 const images = import.meta.glob<{ default: ImageMetadata }>(
-    "/src/pages/playground/**/thumbnail.{jpeg,jpg,JPG,png,gif,webp}"
+    "/src/assets/images/playground/**/thumbnail.{jpeg,jpg,JPG,png,gif,webp}"
 );
 
 const resolvedImages: Record<string, ImageMetadata> = Object.fromEntries(
@@ -37,9 +37,7 @@ const resolvedImages: Record<string, ImageMetadata> = Object.fromEntries(
 );
 
 function getThumbnailMeta(thumbnailPath: string): ImageMetadata | undefined {
-    // e.g. "/3dblock/thumbnail.JPG" -> "/src/pages/playground/3dblock/thumbnail.JPG"
-    const absolutePath = "/src/pages/playground" + thumbnailPath;
-    return resolvedImages[absolutePath];
+    return resolvedImages[thumbnailPath];
 }
 ---
 
