@@ -102,7 +102,11 @@ function getThumbnailMeta(thumbnailPath: string): ImageMetadata | undefined {
             ) : (
                 publicPosts.map((post) => (
                     <article class="masonry-item bg-white border border-gray-200 rounded-lg shadow-sm hover:shadow-md transition-shadow overflow-hidden">
-                        <a href={`/playground/${post.slug}/`} class="block">
+                        <a
+                            href={`/playground/${post.slug}/`}
+                            class="block"
+                            data-astro-reload
+                        >
                             {/* 詳細ページへのリンク */}
                             <Image
                                 src={getThumbnailMeta(post.data.thumbnail)!}
