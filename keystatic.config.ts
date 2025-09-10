@@ -128,7 +128,7 @@ export default config({
                     // description: "記事の本文（Markdown形式）",
                     options: {
                         image: {
-                            directory: "/images/blog/",
+                            directory: "/public/images/blog/",
                             publicPath: "/images/blog/",
                         },
                     },
@@ -296,7 +296,7 @@ export default config({
                     // description: "本の本文（Markdown形式）",
                     options: {
                         image: {
-                            directory: "/images/books/",
+                            directory: "/public/images/books/",
                             publicPath: "/images/books/",
                         },
                     },
@@ -442,7 +442,7 @@ export default config({
                     // description: "記事の本文（Markdown形式）",
                     options: {
                         image: {
-                            directory: "/images/instruments/",
+                            directory: "/public/images/instruments/",
                             publicPath: "/images/instruments/",
                         },
                     },
@@ -601,7 +601,7 @@ export default config({
                     // description: "記事の本文（Markdown形式）",
                     options: {
                         image: {
-                            directory: "/images/qualifications/",
+                            directory: "/public/images/qualifications/",
                             publicPath: "/images/qualifications/",
                         },
                     },
