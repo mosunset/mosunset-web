@@ -27,4 +27,17 @@ export const playgroundContent: PlaygroundContent[] = [
             thumbnail: "/3dblock/thumbnail.png",
         },
     },
+    {
+        slug: "masonryimage",
+        data: {
+            draft: false,
+            visibility: "public",
+            title: "MasonryImage",
+            description: "レンガ積み画像を表示する",
+            category: "Image",
+            tags: ["Image", "Masonry"],
+            publishedDate: "2025-09-10",
+            thumbnail: "/masonryimage/thumbnail.png",
+        },
+    },
 ];
