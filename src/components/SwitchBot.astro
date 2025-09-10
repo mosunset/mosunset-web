@@ -41,7 +41,11 @@
                     >
                     </div>
                 </div>
-                <div id="di-labels-full" class="relative mt-2 h-6 w-full [writing-mode:vertical-rl] lg:[writing-mode:horizontal-tb]"></div>
+                <div
+                    id="di-labels-full"
+                    class="relative mt-2 h-6 w-full [writing-mode:vertical-rl] lg:[writing-mode:horizontal-tb]"
+                >
+                </div>
             </div>
         </div>
     </div>
@@ -250,7 +254,20 @@
     }
 
     if (document.readyState === "loading") {
-        document.addEventListener("DOMContentLoaded", fetchAndRender);
+        // DOMContentLoadedイベントは、初回ページロード時にDOMが完全に読み込まれた後に発生します。
+        document.addEventListener("DOMContentLoaded", () => {
+            fetchAndRender();
+        });
+
+        // astro:after-swapイベントは、旧ページが新ページに置き換わった直後に発生します。
+        document.addEventListener("astro:after-swap", () => {
+            fetchAndRender();
+        });
+
+        // astro:page-loadイベントは、新しいページが表示された後に発生します。
+        document.addEventListener("astro:page-load", () => {
+            fetchAndRender();
+        });
     } else {
         fetchAndRender();
     }
