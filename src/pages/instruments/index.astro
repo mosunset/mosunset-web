@@ -2,6 +2,7 @@
 import Layout from "@/layouts/Layout.astro";
 import { getCollection } from "astro:content";
 import { Image } from "astro:assets";
+import InitMasonry from "@/components/initMasonry.astro";
 
 // 'blog' コレクションから全記事を取得
 const allPosts = await getCollection("instruments");
@@ -147,111 +148,5 @@ publicPosts.sort((a, b) => {
             )
         }
     </div>
-    <script>
-        // Masonryライブラリの動的読み込み
-        function loadMasonry() {
-            return new Promise((resolve, reject) => {
-                // @ts-ignore
-                if (window.Masonry) {
-                    // @ts-ignore
-                    resolve(window.Masonry);
-                    return;
-                }
-
-                const script = document.createElement("script");
-                script.src =
-                    "https://unpkg.com/masonry-layout@4/dist/masonry.pkgd.min.js";
-                script.onload = () => {
-                    // @ts-ignore
-                    resolve(window.Masonry);
-                };
-                script.onerror = reject;
-                document.head.appendChild(script);
-            });
-        }
-
-        // Masonry.jsの初期化関数
-        async function initMasonry() {
-            const container = document.getElementById("masonry-container");
-            if (!container) return;
-
-            // Masonryライブラリを読み込み
-            try {
-                await loadMasonry();
-            } catch (error) {
-                console.error(
-                    "Masonryライブラリの読み込みに失敗しました:",
-                    error
-                );
-                return;
-            }
-
-            // 既存のMasonryインスタンスを破棄
-            // @ts-ignore
-            if (window.masonryInstance) {
-                // @ts-ignore
-                window.masonryInstance.destroy();
-                // @ts-ignore
-                window.masonryInstance = null;
-            }
-
-            // 画像の読み込み完了を待つ
-            const images = container.querySelectorAll("img");
-            let loadedImages = 0;
-
-            function checkAllImagesLoaded() {
-                loadedImages++;
-                if (loadedImages === images.length) {
-                    // 全ての画像が読み込まれたらMasonryを初期化
-                    createMasonry();
-                }
-            }
-
-            if (images.length === 0) {
-                // 画像がない場合は即座に初期化
-                createMasonry();
-            } else {
-                // 各画像の読み込み完了を監視
-                images.forEach((img) => {
-                    if (img.complete) {
-                        checkAllImagesLoaded();
-                    } else {
-                        img.addEventListener("load", checkAllImagesLoaded);
-                        img.addEventListener("error", checkAllImagesLoaded);
-                    }
-                });
-            }
-
-            function createMasonry() {
-                if (!container) return;
-
-                // アイテムを表示
-                const items = container.querySelectorAll(".masonry-item");
-                items.forEach((item) => {
-                    item.classList.add("loaded");
-                });
-
-                // Masonry.jsの初期化（左から右、上から下の順序）
-                // @ts-ignore
-                window.masonryInstance = new window.Masonry(container, {
-                    itemSelector: ".masonry-item",
-                    columnWidth: ".masonry-item",
-                    percentPosition: true,
-                    horizontalOrder: true, // 左から右の順序を保つ
-                    transitionDuration: "0.3s",
-                    gutter: 24, // カラム間の間隔（px）
-                });
-
-                // レイアウト完了後に再配置
-                // @ts-ignore
-                window.masonryInstance.layout();
-            }
-        }
-
-        // 初回読み込み時の初期化
-        document.addEventListener("DOMContentLoaded", initMasonry);
-
-        // View Transitions後の再初期化
-        document.addEventListener("astro:after-swap", initMasonry);
-    </script>
+    <InitMasonry />
 </Layout>

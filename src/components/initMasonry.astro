@@ -1,0 +1,34 @@
+---
+
+---
+
+<script is:inline>
+    const initMasonry = () => {
+        const container = document.getElementById("masonry-container");
+        if (!container) return;
+
+        const items = container.querySelectorAll(".masonry-item");
+        items.forEach((item) => item.classList.add("loaded"));
+
+        const msnry = new Masonry(container, {
+            itemSelector: ".masonry-item",
+            columnWidth: ".masonry-item",
+            percentPosition: true,
+            horizontalOrder: true,
+            transitionDuration: "0.1s",
+            gutter: 24,
+        });
+        imagesLoaded(container).on("progress", function () {
+            // layout Masonry after each image loads
+            msnry.layout();
+        });
+    };
+
+    document.addEventListener("DOMContentLoaded", () => {
+        initMasonry();
+    });
+
+    document.addEventListener("astro:after-swap", () => {
+        initMasonry();
+    });
+</script>
