@@ -458,7 +458,14 @@ export default config({
             slugField: "name",
             path: "src/content/qualifications/*",
             format: { contentField: "content" },
-            columns: ["draft", "visibility", "name", "status", "acquiredDate"],
+            columns: [
+                "draft",
+                "visibility",
+                "name",
+                "status",
+                "acquiredDate",
+                "category",
+            ],
             schema: {
                 draft: fields.checkbox({
                     label: "下書き",
