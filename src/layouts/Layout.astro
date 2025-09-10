@@ -3,6 +3,7 @@ import "@/styles/global.css";
 import { SEO } from "astro-seo";
 const { pathname } = Astro.url;
 import myImage from "@/assets/images/my.webp";
+import { ClientRouter } from 'astro:transitions';
 
 interface Props {
     title?: string;
@@ -36,8 +37,6 @@ const navLinkClass = (href: string) =>
         ? "font-medium text-blue-500 focus:outline-hidden"
         : "font-medium text-gray-700 hover:text-gray-500 hover:underline hover:underline-offset-2 focus:outline-hidden focus:text-gray-500 focus:underline focus:underline-offset-2";
 
-const navAriaCurrent = (href: string) =>
-    pathname.startsWith(href) ? "page" : undefined;
 ---
 
 <!doctype html>
@@ -65,7 +64,7 @@ const navAriaCurrent = (href: string) =>
                     type: "website",
                     url: "https://mosunset.com",
                     title: title,
-                    image: image,
+                    image: image.src,
                 },
             }}
             twitter={{
@@ -73,9 +72,10 @@ const navAriaCurrent = (href: string) =>
                 site: "@TMoSunset0",
                 title: title,
                 description: description,
-                image: image,
+                image: image.src,
             }}
         />
+        <ClientRouter />
     </head>
     <body class="flex flex-col min-h-dvh min-w-80 overflow-x-hidden">
         <header
@@ -94,11 +94,11 @@ const navAriaCurrent = (href: string) =>
                         class={navLinkClass("/blog")}
                         href="/blog">Blog</a
                     >
-                    <a
+                    <!-- <a
                         class={navLinkClass("/playground")}
                         href="/playground"
                         >Playground</a
-                    >
+                    > -->
                     <a
                         class={navLinkClass("/book")}
                         href="/book">Book</a
