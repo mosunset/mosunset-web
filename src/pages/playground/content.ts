@@ -24,7 +24,7 @@ export const playgroundContent: PlaygroundContent[] = [
             category: "3D",
             tags: ["3D", "Block"],
             publishedDate: "2025-09-09",
-            thumbnail: "/3dblock/thumbnail.JPG",
+            thumbnail: "/3dblock/thumbnail.png",
         },
     },
 ];
