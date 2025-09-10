@@ -69,7 +69,9 @@ publicPosts.sort(
             }
         }
     </style>
-    <h1 class="text-3xl font-bold text-gray-900 mb-8">蔵書</h1>
+    <h1 class="text-3xl font-bold text-gray-900 mb-8">
+        <span transition:name="book-title">蔵書</span>
+    </h1>
     <div id="masonry-container" class="masonry-container">
         {
             publicPosts.length === 0 ? (
@@ -86,48 +88,80 @@ publicPosts.sort(
                                 format="webp"
                                 alt={post.data.title}
                                 class="w-full object-cover"
+                                transition:name={post.slug + "-thumbnail"}
                             />
                             <div class="p-6">
-                                <h2 class="text-xl font-semibold text-gray-900 mb-2 line-clamp-2">
+                                <h2
+                                    class="text-xl font-semibold text-gray-900 mb-2 line-clamp-2"
+                                    transition:name={post.slug + "-title"}
+                                >
                                     {post.data.title}
                                 </h2>
-                                <p class="text-gray-600 mb-2 text-sm">
+                                <p
+                                    class="text-gray-600 mb-2 text-sm"
+                                    transition:name={post.slug + "-author"}
+                                >
                                     著者: {post.data.author}
                                 </p>
-                                <p class="text-gray-600 mb-2 text-sm">
+                                <p
+                                    class="text-gray-600 mb-2 text-sm"
+                                    transition:name={post.slug + "-publisher"}
+                                >
                                     出版社: {post.data.publisher}
                                 </p>
-                                <time class="block text-gray-600 mb-2 text-sm">
+                                <time
+                                    class="block text-gray-600 mb-2 text-sm"
+                                    transition:name={
+                                        post.slug + "-publishedDate"
+                                    }
+                                >
                                     出版日:{" "}
                                     {new Date(
                                         post.data.publishedDate
                                     ).toLocaleDateString("ja-JP")}
                                 </time>
                                 {post.data.description && (
-                                    <p class="text-gray-600 mb-3 line-clamp-3">
+                                    <p
+                                        class="text-gray-600 mb-3 line-clamp-3"
+                                        transition:name={
+                                            post.slug + "-description"
+                                        }
+                                    >
                                         {post.data.description}
                                     </p>
                                 )}
                                 <div class="flex flex-wrap gap-2 mb-3">
-                                    <span class="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full">
+                                    <span
+                                        class="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full"
+                                        transition:name={
+                                            post.slug + "-category"
+                                        }
+                                    >
                                         {post.data.category}
                                     </span>
                                     {post.data.tags &&
-                                        post.data.tags.map((tag) => (
-                                            <span class="px-2 py-1 bg-gray-100 text-gray-700 rounded text-xs">
-                                                {tag}
-                                            </span>
-                                        ))}
+                                        post.data.tags.length > 0 && (
+                                            <div class="flex gap-2" transition:name={post.slug + "-tag"}>
+                                                {post.data.tags.map((tag) => (
+                                                    <span class="px-2 py-1 bg-gray-100 text-gray-700 rounded text-xs">
+                                                        #{tag}
+                                                    </span>
+                                                ))}
+                                            </div>
+                                        )}
                                 </div>
                                 <div class="flex flex-wrap gap-2 mb-3">
-                                    <span class="px-2 py-1 bg-green-100 text-green-800 text-xs rounded-full">
+                                    <span class="px-2 py-1 bg-green-100 text-green-800 text-xs rounded-full"
+                                    transition:name={post.slug + "-status"}>
                                         {post.data.status}
                                     </span>
-                                    <span class="px-2 py-1 bg-purple-100 text-purple-800 text-xs rounded-full">
+                                    <span class="px-2 py-1 bg-purple-100 text-purple-800 text-xs rounded-full"
+                                    transition:name={post.slug + "-format"}>
                                         {post.data.format}
                                     </span>
                                     {post.data.evaluation !== "未評価" && (
-                                        <span class="px-2 py-1 bg-yellow-100 text-yellow-800 text-xs rounded-full">
+                                        <span class="px-2 py-1 bg-yellow-100 text-yellow-800 text-xs rounded-full"
+                                        transition:name={post.slug + "-evaluation"}>
                                             ★{post.data.evaluation}
                                         </span>
                                     )}

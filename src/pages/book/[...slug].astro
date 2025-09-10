@@ -39,7 +39,9 @@ const { Content } = await entry.render(); // Markdown本文をHTMLコンポー�
                     d="M11.03 3.97a.75.75 0 0 1 0 1.06l-6.22 6.22H21a.75.75 0 0 1 0 1.5H4.81l6.22 6.22a.75.75 0 1 1-1.06 1.06l-7.5-7.5a.75.75 0 0 1 0-1.06l7.5-7.5a.75.75 0 0 1 1.06 0Z"
                     clip-rule="evenodd"></path>
             </svg>
-            <span class="text-sm">蔵書一覧へ戻る</span>
+            <span class="text-sm"
+                ><span transition:name="book-title">蔵書</span>一覧へ戻る</span
+            >
         </a>
     </div>
     <div class="w-full max-w-2xl mx-auto">
@@ -48,19 +50,33 @@ const { Content } = await entry.render(); // Markdown本文をHTMLコンポー�
             class="object-cover w-full max-w-lg mx-auto mb-8 rounded-lg shadow-lg"
             format="webp"
             alt={entry.data.title}
+            transition:name={entry.slug + "-thumbnail"}
         />
 
         <div class="mb-8">
-            <h1 class="text-3xl font-bold mb-4 text-gray-900">
+            <h1
+                class="text-3xl font-bold mb-4 text-gray-900"
+                transition:name={entry.slug + "-title"}
+            >
                 {entry.data.title}
             </h1>
-            <p class="text-gray-600 mb-2 text-sm">
+            <p
+                class="text-gray-600 mb-2 text-sm"
+                transition:name={entry.slug + "-author"}
+            >
                 著者: {entry.data.author}
             </p>
-            <p class="text-gray-600 mb-2 text-sm">
+            <p
+                class="text-gray-600 mb-2 text-sm"
+                transition:name={entry.slug + "-publisher"}
+            >
                 出版社: {entry.data.publisher}
             </p>
-            <time class="block text-gray-600 mb-2 text-sm" datetime={entry.data.publishedDate.toISOString()}>
+            <time
+                class="block text-gray-600 mb-2 text-sm"
+                datetime={entry.data.publishedDate.toISOString()}
+                transition:name={entry.slug + "-publishedDate"}
+            >
                 出版日: {
                     entry.data.publishedDate.toLocaleDateString("ja-JP", {
                         year: "numeric",
@@ -71,7 +87,10 @@ const { Content } = await entry.render(); // Markdown本文をHTMLコンポー�
             </time>
             {
                 entry.data.description && (
-                    <p class="text-lg text-gray-600 mb-4">
+                    <p
+                        class="text-lg text-gray-600 mb-4"
+                        transition:name={entry.slug + "-description"}
+                    >
                         {entry.data.description}
                     </p>
                 )
@@ -90,13 +109,17 @@ const { Content } = await entry.render(); // Markdown本文をHTMLコンポー�
             >
                 <span
                     class="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-xs font-medium"
+                    transition:name={entry.slug + "-category"}
                 >
                     {entry.data.category}
                 </span>
 
                 {
                     entry.data.tags && entry.data.tags.length > 0 && (
-                        <div class="flex gap-2">
+                        <div
+                            class="flex gap-2"
+                            transition:name={entry.slug + "-tag"}
+                        >
                             {entry.data.tags.map((tag) => (
                                 <span class="px-2 py-1 bg-gray-100 text-gray-700 rounded text-xs">
                                     #{tag}
@@ -109,17 +132,28 @@ const { Content } = await entry.render(); // Markdown本文をHTMLコンポー�
             <div
                 class="flex flex-wrap items-center gap-4 text-sm text-gray-500"
             >
-                <span class="px-2 py-1 bg-green-100 text-green-800 text-xs rounded-full">
+                <span
+                    class="px-2 py-1 bg-green-100 text-green-800 text-xs rounded-full"
+                    transition:name={entry.slug + "-status"}
+                >
                     {entry.data.status}
                 </span>
-                <span class="px-2 py-1 bg-purple-100 text-purple-800 text-xs rounded-full">
+                <span
+                    class="px-2 py-1 bg-purple-100 text-purple-800 text-xs rounded-full"
+                    transition:name={entry.slug + "-format"}
+                >
                     {entry.data.format}
                 </span>
-                {entry.data.evaluation !== "未評価" && (
-                    <span class="px-2 py-1 bg-yellow-100 text-yellow-800 text-xs rounded-full">
-                        ★{entry.data.evaluation}
-                    </span>
-                )}
+                {
+                    entry.data.evaluation !== "未評価" && (
+                        <span
+                            class="px-2 py-1 bg-yellow-100 text-yellow-800 text-xs rounded-full"
+                            transition:name={entry.slug + "-evaluation"}
+                        >
+                            ★{entry.data.evaluation}
+                        </span>
+                    )
+                }
             </div>
         </div>
 
