@@ -90,11 +90,9 @@ const navLinkClass = (href: string) =>
                     class="flex flex-row items-center gap-5 mt-5 sm:justify-end sm:mt-0 sm:ps-5"
                 >
                     <a class={navLinkClass("/blog")} href="/blog">Blog</a>
-                    <!-- <a
-                        class={navLinkClass("/playground")}
-                        href="/playground"
+                    <a class={navLinkClass("/playground")} href="/playground"
                         >Playground</a
-                    > -->
+                    >
                     <a class={navLinkClass("/book")} href="/book">Book</a>
                     <a class={navLinkClass("/instruments")} href="/instruments"
                         >楽器</a
@@ -109,7 +107,6 @@ const navLinkClass = (href: string) =>
         <div class="container mx-auto px-4 sm:px-6 lg:px-8 flex-grow">
             <slot />
         </div>
-        <!-- ========== FOOTER ========== -->
         <footer class="w-full container mx-auto px-4 sm:px-6 lg:px-8 py-4">
             <div class="py-6 border-t border-gray-200">
                 <div class="flex flex-wrap justify-between items-center gap-2">
@@ -122,9 +119,6 @@ const navLinkClass = (href: string) =>
                             >
                         </p>
                     </div>
-                    <!-- End Col -->
-
-                    <!-- List -->
                     <ul class="flex flex-wrap items-center">
                         <li
                             class="inline-block relative pe-4 text-xs last:pe-0 last-of-type:before:hidden before:absolute before:top-1/2 before:end-1.5 before:-translate-y-1/2 before:size-[3px] before:rounded-full before:bg-gray-400"
@@ -145,11 +139,9 @@ const navLinkClass = (href: string) =>
                             </a>
                         </li>
                     </ul>
-                    <!-- End List -->
                 </div>
             </div>
         </footer>
-        <!-- ========== END FOOTER ========== -->
     </body>
 </html>
 
