@@ -22,7 +22,7 @@ export default defineConfig({
     }),
 
     prefetch: {
-        prefetchAll: true,
+        prefetchAll: false,
     },
 
     vite: {
