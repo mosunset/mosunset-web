@@ -1,55 +1,249 @@
 ---
+import Layout from "@/layouts/Layout.astro";
 import { getCollection } from "astro:content";
 import { Image } from "astro:assets";
-import Layout from "@/layouts/Layout.astro";
 
-// 'books' コレクションを取得
-const allBooks = await getCollection("books");
+// コレクションから全記事を取得
+const allPosts = await getCollection("books");
 
-// カテゴリ別や著者別でソートやグループ化も可能
-allBooks.sort((a, b) => a.data.title.localeCompare(b.data.title)); // タイトル順
+// 下書きを除外
+const publishedPosts = allPosts.filter((post) => !post.data.draft);
+
+// 公開範囲が公開以外のものを除外
+const publicPosts = publishedPosts.filter(
+    (post) => post.data.visibility === "public"
+);
+
+// 日付の新しい順に並び替え
+// 更新日が存在する場合は更新日を優先
+// 更新日が存在しない場合は公開日を優先
+publicPosts.sort(
+    (a, b) =>
+        new Date(b.data.publishedDate).getTime() -
+        new Date(a.data.publishedDate).getTime()
+);
 ---
 
-<Layout title="蔵書リスト">
-    <h1 class="text-3xl font-bold text-gray-900 mb-8">蔵書リスト</h1>
-    <div
-        class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6"
-    >
+<Layout title="蔵書一覧">
+    <style>
+        /* Masonryコンテナのスタイル */
+        .masonry-container {
+            width: 100%;
+        }
+
+        /* Masonryアイテムのスタイル */
+        .masonry-item {
+            width: 100%;
+            margin-bottom: 1.5rem;
+            opacity: 0;
+            transition: opacity 0.3s ease-in-out;
+        }
+
+        .masonry-item.loaded {
+            opacity: 1;
+        }
+
+        /* 画像のアスペクト比を保持 */
+        .masonry-item img {
+            width: 100%;
+            height: auto;
+            display: block;
+        }
+
+        /* レスポンシブ対応 - Masonry.jsが自動でカラム幅を計算するため、固定幅を設定 */
+        @media (min-width: 768px) {
+            .masonry-item {
+                width: calc(50% - 12px);
+            }
+        }
+
+        @media (min-width: 1024px) {
+            .masonry-item {
+                width: calc(33.333% - 16px);
+            }
+        }
+
+        @media (min-width: 1280px) {
+            .masonry-item {
+                width: calc(25% - 18px);
+            }
+        }
+    </style>
+    <h1 class="text-3xl font-bold text-gray-900 mb-8">蔵書</h1>
+    <div id="masonry-container" class="masonry-container">
         {
-            allBooks.map((book) => (
-                <div class="bg-white border border-gray-200 rounded-lg shadow-sm hover:shadow-md transition-shadow overflow-hidden">
-                    {book.data.coverImage && (
-                        <Image
-                            src={book.data.coverImage}
-                            format="webp"
-                            alt={`${book.data.title}の表紙`}
-                            class="w-full aspect-[4/3] object-cover"
-                        />
-                    )}
-                    <div class="p-6">
-                        <h3 class="text-xl font-semibold text-gray-900 mb-2">
-                            {book.data.title}
-                        </h3>
-                        <p class="text-gray-600 mb-3">
-                            著者: {book.data.author}
-                        </p>
-                        <div class="space-y-1">
-                            <p class="text-sm text-gray-500">
-                                カテゴリ: {book.data.category}
-                            </p>
-                            <p class="text-sm text-gray-500">
-                                状態: {book.data.status}
-                            </p>
-                            <p class="text-sm text-gray-500">
-                                形式: {book.data.format}
-                            </p>
-                        </div>
-                    </div>
+            publicPosts.length === 0 ? (
+                <div class="col-span-full text-center text-gray-500">
+                    <p>蔵書がありません</p>
                 </div>
-            ))
+            ) : (
+                publicPosts.map((post) => (
+                    <article class="masonry-item bg-white border border-gray-200 rounded-lg shadow-sm hover:shadow-md transition-shadow overflow-hidden">
+                        <a href={`/book/${post.slug}/`} class="block">
+                            {/* 詳細ページへのリンク */}
+                            <Image
+                                src={post.data.thumbnail}
+                                format="webp"
+                                alt={post.data.title}
+                                class="w-full object-cover"
+                            />
+                            <div class="p-6">
+                                <h2 class="text-xl font-semibold text-gray-900 mb-2 line-clamp-2">
+                                    {post.data.title}
+                                </h2>
+                                <p class="text-gray-600 mb-2 text-sm">
+                                    著者: {post.data.author}
+                                </p>
+                                <p class="text-gray-600 mb-2 text-sm">
+                                    出版社: {post.data.publisher}
+                                </p>
+                                <time class="block text-gray-600 mb-2 text-sm">
+                                    出版日:{" "}
+                                    {new Date(
+                                        post.data.publishedDate
+                                    ).toLocaleDateString("ja-JP")}
+                                </time>
+                                {post.data.description && (
+                                    <p class="text-gray-600 mb-3 line-clamp-3">
+                                        {post.data.description}
+                                    </p>
+                                )}
+                                <div class="flex flex-wrap gap-2 mb-3">
+                                    <span class="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full">
+                                        {post.data.category}
+                                    </span>
+                                    {post.data.tags &&
+                                        post.data.tags.map((tag) => (
+                                            <span class="px-2 py-1 bg-gray-100 text-gray-700 rounded text-xs">
+                                                {tag}
+                                            </span>
+                                        ))}
+                                </div>
+                                <div class="flex flex-wrap gap-2 mb-3">
+                                    <span class="px-2 py-1 bg-green-100 text-green-800 text-xs rounded-full">
+                                        {post.data.status}
+                                    </span>
+                                    <span class="px-2 py-1 bg-purple-100 text-purple-800 text-xs rounded-full">
+                                        {post.data.format}
+                                    </span>
+                                    {post.data.evaluation !== "未評価" && (
+                                        <span class="px-2 py-1 bg-yellow-100 text-yellow-800 text-xs rounded-full">
+                                            ★{post.data.evaluation}
+                                        </span>
+                                    )}
+                                </div>
+                            </div>
+                        </a>
+                    </article>
+                ))
+            )
         }
     </div>
-    <pre>
-{JSON.stringify(allBooks, null, 2)}
-    </pre>
+    <script>
+        // Masonryライブラリの動的読み込み
+        function loadMasonry() {
+            return new Promise((resolve, reject) => {
+                // @ts-ignore
+                if (window.Masonry) {
+                    // @ts-ignore
+                    resolve(window.Masonry);
+                    return;
+                }
+
+                const script = document.createElement("script");
+                script.src =
+                    "https://unpkg.com/masonry-layout@4/dist/masonry.pkgd.min.js";
+                script.onload = () => {
+                    // @ts-ignore
+                    resolve(window.Masonry);
+                };
+                script.onerror = reject;
+                document.head.appendChild(script);
+            });
+        }
+
+        // Masonry.jsの初期化関数
+        async function initMasonry() {
+            const container = document.getElementById("masonry-container");
+            if (!container) return;
+
+            // Masonryライブラリを読み込み
+            try {
+                await loadMasonry();
+            } catch (error) {
+                console.error(
+                    "Masonryライブラリの読み込みに失敗しました:",
+                    error
+                );
+                return;
+            }
+
+            // 既存のMasonryインスタンスを破棄
+            // @ts-ignore
+            if (window.masonryInstance) {
+                // @ts-ignore
+                window.masonryInstance.destroy();
+                // @ts-ignore
+                window.masonryInstance = null;
+            }
+
+            // 画像の読み込み完了を待つ
+            const images = container.querySelectorAll("img");
+            let loadedImages = 0;
+
+            function checkAllImagesLoaded() {
+                loadedImages++;
+                if (loadedImages === images.length) {
+                    // 全ての画像が読み込まれたらMasonryを初期化
+                    createMasonry();
+                }
+            }
+
+            if (images.length === 0) {
+                // 画像がない場合は即座に初期化
+                createMasonry();
+            } else {
+                // 各画像の読み込み完了を監視
+                images.forEach((img) => {
+                    if (img.complete) {
+                        checkAllImagesLoaded();
+                    } else {
+                        img.addEventListener("load", checkAllImagesLoaded);
+                        img.addEventListener("error", checkAllImagesLoaded);
+                    }
+                });
+            }
+
+            function createMasonry() {
+                if (!container) return;
+
+                // アイテムを表示
+                const items = container.querySelectorAll(".masonry-item");
+                items.forEach((item) => {
+                    item.classList.add("loaded");
+                });
+
+                // Masonry.jsの初期化（左から右、上から下の順序）
+                // @ts-ignore
+                window.masonryInstance = new window.Masonry(container, {
+                    itemSelector: ".masonry-item",
+                    columnWidth: ".masonry-item",
+                    percentPosition: true,
+                    horizontalOrder: true, // 左から右の順序を保つ
+                    transitionDuration: "0.3s",
+                    gutter: 24, // カラム間の間隔（px）
+                });
+
+                // レイアウト完了後に再配置
+                // @ts-ignore
+                window.masonryInstance.layout();
+            }
+        }
+
+        // 初回読み込み時の初期化
+        document.addEventListener("DOMContentLoaded", initMasonry);
+
+        // View Transitions後の再初期化
+        document.addEventListener("astro:after-swap", initMasonry);
+    </script>
 </Layout>

@@ -5,7 +5,7 @@ import Layout from "@/layouts/Layout.astro";
 
 // 1. Astroにどのページを生成すべきか教える
 export async function getStaticPaths() {
-    const allPosts = await getCollection("blog");
+    const allPosts = await getCollection("qualifications");
     // 下書きを除外
     const publishedPosts = allPosts.filter((post) => !post.data.draft);
 
@@ -25,9 +25,9 @@ const { entry } = Astro.props;
 const { Content } = await entry.render(); // Markdown本文をHTMLコンポーネントに変換
 ---
 
-<Layout title={entry.data.title}>
+<Layout title={entry.data.name}>
     <div class="w-full max-w-2xl mx-auto mb-8">
-        <a href="/blog" class="flex items-center gap-2">
+        <a href="/qualifications" class="flex items-center gap-2">
             <svg
                 xmlns="http://www.w3.org/2000/svg"
                 viewBox="0 0 24 24"
@@ -39,56 +39,86 @@ const { Content } = await entry.render(); // Markdown本文をHTMLコンポー�
                     d="M11.03 3.97a.75.75 0 0 1 0 1.06l-6.22 6.22H21a.75.75 0 0 1 0 1.5H4.81l6.22 6.22a.75.75 0 1 1-1.06 1.06l-7.5-7.5a.75.75 0 0 1 0-1.06l7.5-7.5a.75.75 0 0 1 1.06 0Z"
                     clip-rule="evenodd"></path>
             </svg>
-            <span class="text-sm">ブログ一覧へ戻る</span>
+            <span class="text-sm">資格一覧へ戻る</span>
         </a>
     </div>
     <div class="w-full max-w-2xl mx-auto">
-        <Image
-            src={entry.data.thumbnail}
-            class="object-cover w-full max-w-lg mx-auto mb-8 rounded-lg shadow-lg"
-            format="webp"
-            alt={entry.data.title}
-        />
+        {
+            entry.data.thumbnail && (
+                <Image
+                    src={entry.data.thumbnail}
+                    class="object-cover w-full max-w-lg mx-auto mb-8 rounded-lg shadow-lg"
+                    format="webp"
+                    alt={entry.data.name}
+                />
+            )
+        }
 
         <div class="mb-8">
             <h1 class="text-3xl font-bold mb-4 text-gray-900">
-                {entry.data.title}
+                {entry.data.name}{" "}<span
+                    class="px-2 py-1 bg-green-100 text-green-800 text-xs rounded-full"
+                >
+                    {entry.data.status}
+                </span>
             </h1>
+            <p class="text-gray-600 mb-2 text-sm">
+                実施団体: {entry.data.organization}
+            </p>
             {
-                entry.data.description && (
-                    <p class="text-lg text-gray-600 mb-4">
-                        {entry.data.description}
+                entry.data.score && (
+                    <p class="text-gray-600 mb-2 text-sm">
+                        スコア: {entry.data.score}
                     </p>
                 )
             }
+            {
+                entry.data.certificateNumber && (
+                    <p class="text-gray-600 mb-2 text-sm">
+                        証明書番号: {entry.data.certificateNumber}
+                    </p>
+                )
+            }
+            {
+                entry.data.acquiredDate && (
+                    <time
+                        class="block text-gray-600 mb-2 text-sm"
+                        datetime={entry.data.acquiredDate.toISOString()}
+                    >
+                        取得日:{" "}
+                        {new Date(entry.data.acquiredDate).toLocaleDateString(
+                            "ja-JP",
+                            {
+                                year: "numeric",
+                                month: "long",
+                                day: "numeric",
+                            }
+                        )}
+                    </time>
+                )
+            }
+            {
+                entry.data.validityPeriod && (
+                    <time
+                        class="block text-gray-600 mb-2 text-sm"
+                        datetime={entry.data.validityPeriod.toISOString()}
+                    >
+                        有効期限:{" "}
+                        {new Date(entry.data.validityPeriod).toLocaleDateString(
+                            "ja-JP",
+                            {
+                                year: "numeric",
+                                month: "long",
+                                day: "numeric",
+                            }
+                        )}
+                    </time>
+                )
+            }
+
             <div
                 class="flex flex-wrap items-center gap-4 text-sm text-gray-500 mb-4"
             >
-                <time datetime={entry.data.publishedDate.toISOString()}>
-                    公開: {
-                        entry.data.publishedDate.toLocaleDateString("ja-JP", {
-                            year: "numeric",
-                            month: "long",
-                            day: "numeric",
-                        })
-                    }
-                </time>
-                {
-                    entry.data.updatedDate && (
-                        <time datetime={entry.data.updatedDate.toISOString()}>
-                            更新:{" "}
-                            {entry.data.updatedDate.toLocaleDateString(
-                                "ja-JP",
-                                {
-                                    year: "numeric",
-                                    month: "long",
-                                    day: "numeric",
-                                }
-                            )}
-                        </time>
-                    )
-                }
-
                 {
                     entry.data.visibility === "unlisted" && (
                         <span class="px-3 py-1 bg-yellow-100 text-yellow-700 rounded-full text-xs font-medium">
@@ -96,11 +126,6 @@ const { Content } = await entry.render(); // Markdown本文をHTMLコンポー�
                         </span>
                     )
                 }
-            </div>
-
-            <div
-                class="flex flex-wrap items-center gap-4 text-sm text-gray-500"
-            >
                 <span
                     class="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-xs font-medium"
                 >

@@ -1,77 +1,246 @@
 ---
+import Layout from "@/layouts/Layout.astro";
 import { getCollection } from "astro:content";
 import { Image } from "astro:assets";
-import Layout from "@/layouts/Layout.astro";
-import myImage from "@/assets/images/my.webp";
 
-// 'qualifications' コレクションを取得
-const allQualifications = await getCollection("qualifications");
+// コレクションから全記事を取得
+const allPosts = await getCollection("qualifications");
 
+// 下書きを除外
+const publishedPosts = allPosts.filter((post) => !post.data.draft);
 
-// 取得日順でソートやカテゴリ別でグループ化も可能
-allQualifications.sort((a, b) => a.name.localeCompare(b.name)); // 名前順
+// 公開範囲が公開以外のものを除外
+const publicPosts = publishedPosts.filter(
+    (post) => post.data.visibility === "public"
+);
+
+// 日付の新しい順に並び替え
+// 更新日が存在する場合は更新日を優先
+// 更新日が存在しない場合は公開日を優先
+publicPosts.sort((a, b) => {
+    const typeA = a.data.category || "";
+    const typeB = b.data.category || "";
+    return typeA.localeCompare(typeB, "ja");
+});
 ---
 
-<Layout title="資格・試験">
-    <h1 class="text-3xl font-bold text-gray-900 mb-8">資格・試験</h1>
-    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {
-            allQualifications.map((qualification) => (
-                <div class="bg-white border border-gray-200 rounded-lg shadow-sm hover:shadow-md transition-shadow overflow-hidden">
-                    <Image
-                        src={qualification.certificateImage || myImage}
-                        format="webp"
-                        alt={`${qualification.name}の証明書`}
-                        class="w-full aspect-[4/3] object-cover"
-                    />
+<Layout title="資格一覧">
+    <style>
+        /* Masonryコンテナのスタイル */
+        .masonry-container {
+            width: 100%;
+        }
 
-                    <div class="p-6">
-                        <h3 class="text-xl font-semibold text-gray-900 mb-2">
-                            {qualification.name}
-                        </h3>
-                        <p class="text-gray-600 mb-1">
-                            実施団体: {qualification.organization}
-                        </p>
-                        <p class="text-gray-600 mb-1">
-                            カテゴリ: {qualification.category}
-                        </p>
-                        <div class="mb-2">
-                            <span
-                                class={`inline-block px-2 py-1 text-xs font-medium rounded ${
-                                    qualification.status === "取得済み"
-                                        ? "bg-green-100 text-green-800"
-                                        : qualification.status === "受験済み"
-                                          ? "bg-blue-100 text-blue-800"
-                                          : "bg-yellow-100 text-yellow-800"
-                                }`}
-                            >
-                                {qualification.status}
-                            </span>
-                        </div>
-                        {qualification.acquiredDate && (
-                            <p class="text-gray-600 mb-1">
-                                取得日:{" "}
-                                {qualification.acquiredDate.toLocaleDateString(
-                                    "ja-JP"
-                                )}
-                            </p>
-                        )}
-                        {qualification.score && (
-                            <p class="text-gray-600 mb-1">
-                                スコア: {qualification.score}
-                            </p>
-                        )}
-                        {qualification.memo && (
-                            <p class="text-gray-500 text-sm mt-3 italic">
-                                {qualification.memo}
-                            </p>
-                        )}
-                    </div>
+        /* Masonryアイテムのスタイル */
+        .masonry-item {
+            width: 100%;
+            margin-bottom: 1.5rem;
+            opacity: 0;
+            transition: opacity 0.3s ease-in-out;
+        }
+
+        .masonry-item.loaded {
+            opacity: 1;
+        }
+
+        /* 画像のアスペクト比を保持 */
+        .masonry-item img {
+            width: 100%;
+            height: auto;
+            display: block;
+        }
+
+        /* レスポンシブ対応 - Masonry.jsが自動でカラム幅を計算するため、固定幅を設定 */
+        @media (min-width: 768px) {
+            .masonry-item {
+                width: calc(50% - 12px);
+            }
+        }
+
+        @media (min-width: 1024px) {
+            .masonry-item {
+                width: calc(33.333% - 16px);
+            }
+        }
+
+        @media (min-width: 1280px) {
+            .masonry-item {
+                width: calc(25% - 18px);
+            }
+        }
+    </style>
+    <h1 class="text-3xl font-bold text-gray-900 mb-8">資格一覧</h1>
+    <div id="masonry-container" class="masonry-container">
+        {
+            publicPosts.length === 0 ? (
+                <div class="col-span-full text-center text-gray-500">
+                    <p>資格がありません</p>
                 </div>
-            ))
+            ) : (
+                publicPosts.map((post) => (
+                    <article class="masonry-item bg-white border border-gray-200 rounded-lg shadow-sm hover:shadow-md transition-shadow overflow-hidden">
+                        <a href={`/qualifications/${post.slug}/`} class="block">
+                            {/* 詳細ページへのリンク */}
+                            {post.data.thumbnail && (
+                                <Image
+                                    src={post.data.thumbnail}
+                                    format="webp"
+                                    alt={post.data.name}
+                                    class="w-full object-cover"
+                                />
+                            )}
+                            <div class="p-6">
+                                <h2 class="text-xl font-semibold text-gray-900 mb-2 line-clamp-2">
+                                    {post.data.name}{" "}
+                                    <span class="px-2 py-1 bg-green-100 text-green-800 text-xs rounded-full">
+                                        {post.data.status}
+                                    </span>
+                                </h2>
+                                <p class="text-gray-600 mb-2 text-sm">
+                                    実施団体: {post.data.organization}
+                                </p>
+                                <div class="flex flex-wrap gap-2 mb-3">
+                                    <span class="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full">
+                                        {post.data.category}
+                                    </span>
+
+                                    {post.data.tags &&
+                                        post.data.tags.map((tag) => (
+                                            <span class="px-2 py-1 bg-gray-100 text-gray-700 rounded text-xs">
+                                                {tag}
+                                            </span>
+                                        ))}
+                                </div>
+                                <div class="flex flex-col gap-1 mt-auto">
+                                    {post.data.acquiredDate && (
+                                        <time class="text-sm text-gray-500">
+                                            取得日:{" "}
+                                            {new Date(
+                                                post.data.acquiredDate
+                                            ).toLocaleDateString("ja-JP")}
+                                        </time>
+                                    )}
+                                    {post.data.validityPeriod && (
+                                        <time class="text-sm text-gray-500">
+                                            有効期限:{" "}
+                                            {new Date(
+                                                post.data.validityPeriod
+                                            ).toLocaleDateString("ja-JP")}
+                                        </time>
+                                    )}
+                                </div>
+                            </div>
+                        </a>
+                    </article>
+                ))
+            )
         }
     </div>
-    <pre>
-{JSON.stringify(allQualifications, null, 2)}
-    </pre>
+    <script>
+        // Masonryライブラリの動的読み込み
+        function loadMasonry() {
+            return new Promise((resolve, reject) => {
+                // @ts-ignore
+                if (window.Masonry) {
+                    // @ts-ignore
+                    resolve(window.Masonry);
+                    return;
+                }
+
+                const script = document.createElement("script");
+                script.src =
+                    "https://unpkg.com/masonry-layout@4/dist/masonry.pkgd.min.js";
+                script.onload = () => {
+                    // @ts-ignore
+                    resolve(window.Masonry);
+                };
+                script.onerror = reject;
+                document.head.appendChild(script);
+            });
+        }
+
+        // Masonry.jsの初期化関数
+        async function initMasonry() {
+            const container = document.getElementById("masonry-container");
+            if (!container) return;
+
+            // Masonryライブラリを読み込み
+            try {
+                await loadMasonry();
+            } catch (error) {
+                console.error(
+                    "Masonryライブラリの読み込みに失敗しました:",
+                    error
+                );
+                return;
+            }
+
+            // 既存のMasonryインスタンスを破棄
+            // @ts-ignore
+            if (window.masonryInstance) {
+                // @ts-ignore
+                window.masonryInstance.destroy();
+                // @ts-ignore
+                window.masonryInstance = null;
+            }
+
+            // 画像の読み込み完了を待つ
+            const images = container.querySelectorAll("img");
+            let loadedImages = 0;
+
+            function checkAllImagesLoaded() {
+                loadedImages++;
+                if (loadedImages === images.length) {
+                    // 全ての画像が読み込まれたらMasonryを初期化
+                    createMasonry();
+                }
+            }
+
+            if (images.length === 0) {
+                // 画像がない場合は即座に初期化
+                createMasonry();
+            } else {
+                // 各画像の読み込み完了を監視
+                images.forEach((img) => {
+                    if (img.complete) {
+                        checkAllImagesLoaded();
+                    } else {
+                        img.addEventListener("load", checkAllImagesLoaded);
+                        img.addEventListener("error", checkAllImagesLoaded);
+                    }
+                });
+            }
+
+            function createMasonry() {
+                if (!container) return;
+
+                // アイテムを表示
+                const items = container.querySelectorAll(".masonry-item");
+                items.forEach((item) => {
+                    item.classList.add("loaded");
+                });
+
+                // Masonry.jsの初期化（左から右、上から下の順序）
+                // @ts-ignore
+                window.masonryInstance = new window.Masonry(container, {
+                    itemSelector: ".masonry-item",
+                    columnWidth: ".masonry-item",
+                    percentPosition: true,
+                    horizontalOrder: true, // 左から右の順序を保つ
+                    transitionDuration: "0.3s",
+                    gutter: 24, // カラム間の間隔（px）
+                });
+
+                // レイアウト完了後に再配置
+                // @ts-ignore
+                window.masonryInstance.layout();
+            }
+        }
+
+        // 初回読み込み時の初期化
+        document.addEventListener("DOMContentLoaded", initMasonry);
+
+        // View Transitions後の再初期化
+        document.addEventListener("astro:after-swap", initMasonry);
+    </script>
 </Layout>

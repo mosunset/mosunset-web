@@ -1,0 +1,11 @@
+// tailwind.config.mjs
+
+/** @type {import('tailwindcss').Config} */
+export default {
+    content: ["./src/**/*.{astro,html,js,jsx,md,mdx,svelte,ts,tsx,vue}"],
+    theme: {
+        extend: {},
+    },
+    // ↓ この部分を確認してください
+    plugins: [require("@tailwindcss/typography")],
+};

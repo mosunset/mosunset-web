@@ -1,7 +1,7 @@
 ---
 import Layout from "@/layouts/Layout.astro";
 import { getCollection } from "astro:content";
-import { Image } from "astro:assets"; // 画像の表示には <Image> が必要
+import { Image } from "astro:assets";
 
 // 'blog' コレクションから全記事を取得
 const allPosts = await getCollection("blog");
@@ -25,10 +25,52 @@ publicPosts.sort(
 ---
 
 <Layout title="ブログ一覧">
+    <style>
+        /* Masonryコンテナのスタイル */
+        .masonry-container {
+            width: 100%;
+        }
+
+        /* Masonryアイテムのスタイル */
+        .masonry-item {
+            width: 100%;
+            margin-bottom: 1.5rem;
+            opacity: 0;
+            transition: opacity 0.3s ease-in-out;
+        }
+
+        .masonry-item.loaded {
+            opacity: 1;
+        }
+
+        /* 画像のアスペクト比を保持 */
+        .masonry-item img {
+            width: 100%;
+            height: auto;
+            display: block;
+        }
+
+        /* レスポンシブ対応 - Masonry.jsが自動でカラム幅を計算するため、固定幅を設定 */
+        @media (min-width: 768px) {
+            .masonry-item {
+                width: calc(50% - 12px);
+            }
+        }
+
+        @media (min-width: 1024px) {
+            .masonry-item {
+                width: calc(33.333% - 16px);
+            }
+        }
+
+        @media (min-width: 1280px) {
+            .masonry-item {
+                width: calc(25% - 18px);
+            }
+        }
+    </style>
     <h1 class="text-3xl font-bold text-gray-900 mb-8">ブログ</h1>
-    <div
-        class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6"
-    >
+    <div id="masonry-container" class="masonry-container">
         {
             publicPosts.length === 0 ? (
                 <div class="col-span-full text-center text-gray-500">
@@ -36,41 +78,44 @@ publicPosts.sort(
                 </div>
             ) : (
                 publicPosts.map((post) => (
-                    <div class="bg-white border border-gray-200 rounded-lg shadow-sm hover:shadow-md transition-shadow overflow-hidden">
+                    <article class="masonry-item bg-white border border-gray-200 rounded-lg shadow-sm hover:shadow-md transition-shadow overflow-hidden">
                         <a href={`/blog/${post.slug}/`} class="block">
                             {/* 詳細ページへのリンク */}
                             <Image
                                 src={post.data.thumbnail}
                                 format="webp"
-                                alt=""
+                                alt={post.data.title}
                                 class="w-full object-cover"
                             />
                             <div class="p-6">
-                                <h2 class="text-xl font-semibold text-gray-900 mb-2">
+                                <h2 class="text-xl font-semibold text-gray-900 mb-2 line-clamp-2">
                                     {post.data.title}
                                 </h2>
-                                <p class="text-gray-600 mb-3">
+                                <p class="text-gray-600 mb-3 line-clamp-3">
                                     {post.data.description}
                                 </p>
                                 <div class="flex flex-wrap gap-2 mb-3">
                                     <span class="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full">
                                         {post.data.category}
                                     </span>
-                                    {post.data.tags && post.data.tags.map((tag) => (
-                                        <span class="px-2 py-1 bg-gray-100 text-gray-700 text-xs rounded-full">
-                                            {tag}
-                                        </span>
-                                    ))}
+                                    {post.data.tags &&
+                                        post.data.tags.map((tag) => (
+                                            <span class="px-2 py-1 bg-gray-100 text-gray-700 rounded text-xs">
+                                                {tag}
+                                            </span>
+                                        ))}
                                 </div>
-                                <div class="flex flex-col gap-1">
+                                <div class="flex flex-col gap-1 mt-auto">
                                     <time class="text-sm text-gray-500">
-                                        公開日: {new Date(
+                                        公開日:{" "}
+                                        {new Date(
                                             post.data.publishedDate
                                         ).toLocaleDateString("ja-JP")}
                                     </time>
                                     {post.data.updatedDate && (
                                         <time class="text-sm text-gray-500">
-                                            更新日: {new Date(
+                                            更新日:{" "}
+                                            {new Date(
                                                 post.data.updatedDate
                                             ).toLocaleDateString("ja-JP")}
                                         </time>
@@ -78,12 +123,116 @@ publicPosts.sort(
                                 </div>
                             </div>
                         </a>
-                    </div>
+                    </article>
                 ))
             )
         }
     </div>
-    <pre>
-{JSON.stringify(allPosts, null, 2)}
-    </pre>
+    <script>
+        // Masonryライブラリの動的読み込み
+        function loadMasonry() {
+            return new Promise((resolve, reject) => {
+                // @ts-ignore
+                if (window.Masonry) {
+                    // @ts-ignore
+                    resolve(window.Masonry);
+                    return;
+                }
+
+                const script = document.createElement("script");
+                script.src =
+                    "https://unpkg.com/masonry-layout@4/dist/masonry.pkgd.min.js";
+                script.onload = () => {
+                    // @ts-ignore
+                    resolve(window.Masonry);
+                };
+                script.onerror = reject;
+                document.head.appendChild(script);
+            });
+        }
+
+        // Masonry.jsの初期化関数
+        async function initMasonry() {
+            const container = document.getElementById("masonry-container");
+            if (!container) return;
+
+            // Masonryライブラリを読み込み
+            try {
+                await loadMasonry();
+            } catch (error) {
+                console.error(
+                    "Masonryライブラリの読み込みに失敗しました:",
+                    error
+                );
+                return;
+            }
+
+            // 既存のMasonryインスタンスを破棄
+            // @ts-ignore
+            if (window.masonryInstance) {
+                // @ts-ignore
+                window.masonryInstance.destroy();
+                // @ts-ignore
+                window.masonryInstance = null;
+            }
+
+            // 画像の読み込み完了を待つ
+            const images = container.querySelectorAll("img");
+            let loadedImages = 0;
+
+            function checkAllImagesLoaded() {
+                loadedImages++;
+                if (loadedImages === images.length) {
+                    // 全ての画像が読み込まれたらMasonryを初期化
+                    createMasonry();
+                }
+            }
+
+            if (images.length === 0) {
+                // 画像がない場合は即座に初期化
+                createMasonry();
+            } else {
+                // 各画像の読み込み完了を監視
+                images.forEach((img) => {
+                    if (img.complete) {
+                        checkAllImagesLoaded();
+                    } else {
+                        img.addEventListener("load", checkAllImagesLoaded);
+                        img.addEventListener("error", checkAllImagesLoaded);
+                    }
+                });
+            }
+
+            function createMasonry() {
+                if (!container) return;
+
+                // アイテムを表示
+                const items = container.querySelectorAll(".masonry-item");
+                items.forEach((item) => {
+                    item.classList.add("loaded");
+                });
+
+                // Masonry.jsの初期化（左から右、上から下の順序）
+                // @ts-ignore
+                window.masonryInstance = new window.Masonry(container, {
+                    itemSelector: ".masonry-item",
+                    columnWidth: ".masonry-item",
+                    percentPosition: true,
+                    horizontalOrder: true, // 左から右の順序を保つ
+                    transitionDuration: "0.3s",
+                    gutter: 24, // カラム間の間隔（px）
+                });
+
+                // レイアウト完了後に再配置
+                // @ts-ignore
+                window.masonryInstance.layout();
+            }
+        }
+
+        // 初回読み込み時の初期化
+        document.addEventListener("DOMContentLoaded", initMasonry);
+
+        // View Transitions後の再初期化
+        document.addEventListener("astro:after-swap", initMasonry);
+    </script>
 </Layout>
