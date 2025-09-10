@@ -3,7 +3,7 @@ import "@/styles/global.css";
 import { SEO } from "astro-seo";
 const { pathname } = Astro.url;
 import myImage from "@/assets/images/my.webp";
-import { ClientRouter } from 'astro:transitions';
+import { ClientRouter } from "astro:transitions";
 
 interface Props {
     title?: string;
@@ -36,7 +36,6 @@ const navLinkClass = (href: string) =>
     pathname.startsWith(href)
         ? "font-medium text-blue-500 focus:outline-hidden"
         : "font-medium text-gray-700 hover:text-gray-500 hover:underline hover:underline-offset-2 focus:outline-hidden focus:text-gray-500 focus:underline focus:underline-offset-2";
-
 ---
 
 <!doctype html>
@@ -90,27 +89,19 @@ const navLinkClass = (href: string) =>
                 <div
                     class="flex flex-row items-center gap-5 mt-5 sm:justify-end sm:mt-0 sm:ps-5"
                 >
-                    <a
-                        class={navLinkClass("/blog")}
-                        href="/blog">Blog</a
-                    >
+                    <a class={navLinkClass("/blog")} href="/blog">Blog</a>
                     <!-- <a
                         class={navLinkClass("/playground")}
                         href="/playground"
                         >Playground</a
                     > -->
-                    <a
-                        class={navLinkClass("/book")}
-                        href="/book">Book</a
-                    >
-                    <a
-                        class={navLinkClass("/instruments")}
-                        href="/instruments">楽器</a
+                    <a class={navLinkClass("/book")} href="/book">Book</a>
+                    <a class={navLinkClass("/instruments")} href="/instruments"
+                        >楽器</a
                     >
                     <a
                         class={navLinkClass("/qualifications")}
-                        href="/qualifications"
-                        >資格・試験</a
+                        href="/qualifications">資格・試験</a
                     >
                 </div>
             </nav>
@@ -124,8 +115,10 @@ const navLinkClass = (href: string) =>
                 <div class="flex flex-wrap justify-between items-center gap-2">
                     <div>
                         <p class="text-xs text-gray-600">
-                            © 2025 <a href="/keystatic" target="_blank" class="text-gray-600"
-                                >mosunset.</a
+                            © 2025 <a
+                                href="/keystatic"
+                                target="_blank"
+                                class="text-gray-600">mosunset.</a
                             >
                         </p>
                     </div>
