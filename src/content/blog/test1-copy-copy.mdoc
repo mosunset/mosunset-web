@@ -10,4 +10,109 @@ tags:
   - てst
   - てst1
 ---
-これはテストデータです
+# これはテストデータです
+
+これは普通のテキストです
+
+**これは太字です**
+
+*これは斜体です*
+
+~~これは取り消しです~~
+
+`これはコードブロックです`
+
+- これは箇条書き点です
+- 2行目
+  - 次の段落
+- 3行目
+  - 次の
+    - 次
+
+1. これは箇条書き数字です
+1. 2行目
+   - 次の段落
+1. 3行目
+   - 次の
+     - 次
+
+---
+
+これは[リンク](https://mosunset.com)です
+
+> これは引用です
+> 
+> 2行目
+
+```typescript
+const blogCollection = defineCollection({
+    type: "content",
+    schema: ({ image }) =>
+        z.object({
+            draft: z.boolean(),
+            visibility: z.enum(["public", "unlisted", "private"]),
+            publishedDate: z.date(),
+            updatedDate: z.date().optional(),
+            title: z.string(),
+            description: z.string().optional(),
+            thumbnail: image(),
+            category: z.enum([
+                "開発",
+                "専門技術",
+                "学習",
+                "ライフスタイル",
+                "趣味",
+                "レビュー",
+                "日記",
+                "その他",
+            ]),
+            tags: z.array(z.string()).optional(),
+        }),
+});
+
+
+```
+
+{% table %}
+- **項目**
+- **金額**
+- **割合**
+---
+- **食費 合計**
+- **46,994円**
+- **22.57%**
+---
+- 食費
+- 18,803円
+- 9.03%
+---
+- 食料品
+- 9,897円
+- 4.75%
+---
+- 昼ご飯
+- 12,710円
+- 6.10%
+---
+- 夜ご飯
+- 4,585円
+- 2.20%
+---
+- その他食費
+- 999円
+- 0.48%
+---
+- **日用品 合計**
+- **41,284円**
+- **19.83%**
+---
+- 日用品
+- 39,744円
+- 19.09%
+---
+- その他日用品
+- 1,540円
+- 0.74%
+{% /table %}
+
+![](/images/blog/test1-copy-copy/%E6%9C%AA%E5%88%86%E9%A1%9E0023.JPG)![](/images/blog/test1-copy-copy/%E3%81%AE%E3%82%8A%E3%82%82%E3%81%AE%E7%B3%BB0011.jpg)
