@@ -2,6 +2,12 @@
 
 大改修5回目 今度こそ完全版にする!
 
+## 画像処理コマンド
+
+```bash
+find . -type f \( -iname "*.jpg" -o -iname "*.png" -o -iname "*.gif" -o -iname "*.webp" \) -exec magick mogrify -resize '1500x1500>' {} +
+```
+
 ## Keystatic CMS コレクション設定
 
 このプロジェクトでは、Keystatic CMSを使用してコンテンツを管理しています。以下は設定されているコレクションの詳細です。
