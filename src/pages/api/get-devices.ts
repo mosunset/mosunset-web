@@ -1,3 +1,5 @@
+import crypto from "node:crypto";
+
 // サーバーサイドでのみ .env 変数を読み込む
 export const prerender = false;
 const token = import.meta.env.SWITCHBOT_TOKEN;
@@ -26,7 +28,6 @@ export async function GET() {
 
     try {
         // SwitchBot APIの認証ヘッダーを生成
-        const crypto = await import("crypto");
         const timestamp = Date.now().toString();
         const nonce = Math.random().toString(36).substring(2, 15);
         const sign = crypto
