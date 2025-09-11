@@ -2,7 +2,7 @@
 import Layout from "@/layouts/Layout.astro";
 import { getCollection } from "astro:content";
 import { Image } from "astro:assets";
-import InitMasonry from "@/components/initMasonry.astro";
+import InitMasonry from "@/components/initMasonry/index.astro";
 
 // 'blog' コレクションから全記事を取得
 const allPosts = await getCollection("instruments");
@@ -82,7 +82,11 @@ publicPosts.sort((a, b) => {
             ) : (
                 publicPosts.map((post) => (
                     <article class="masonry-item bg-white border border-gray-200 rounded-lg shadow-sm hover:shadow-md transition-shadow overflow-hidden">
-                        <a href={`/instruments/${post.slug}/`} class="block" title={post.data.name}>
+                        <a
+                            href={`/instruments/${post.slug}/`}
+                            class="block"
+                            title={post.data.name}
+                        >
                             {/* 詳細ページへのリンク */}
                             <Image
                                 src={post.data.thumbnail}
