@@ -25,12 +25,14 @@ import { Image } from "astro:assets";
                     <div class="mt-6 flex flex-wrap gap-3">
                         <a
                             href="/blog"
+                            title="ブログを見る"
                             class="inline-flex items-center justify-center rounded-md bg-gray-900 px-4 py-2 text-white text-sm font-medium hover:bg-gray-800 focus:outline-hidden focus:ring-2 focus:ring-gray-400"
                         >
                             ブログを見る
                         </a>
                         <a
                             href="/playground"
+                            title="Playground で試す"
                             class="inline-flex items-center justify-center rounded-md border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-hidden focus:ring-2 focus:ring-gray-300"
                         >
                             Playground で試す
@@ -45,6 +47,7 @@ import { Image } from "astro:assets";
                             src={myImage}
                             format="webp"
                             alt="mosunset"
+                            title="mosunset"
                             class="h-full w-full object-cover"
                             loading="lazy"
                         />
@@ -66,13 +69,13 @@ import { Image } from "astro:assets";
                 そして楽器づくりのメモなどを公開しています。
             </p>
             <ul class="mt-6 grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <li class="rounded-lg border border-gray-200 p-4">
+                <li class="rounded-lg border border-gray-200 p-4" title="最近の関心">
                     <p class="text-sm text-gray-500">最近の関心</p>
                     <p class="mt-1 text-gray-800">
                         フロントエンド開発、UI/UX、型安全、音・ハードウェア
                     </p>
                 </li>
-                <li class="rounded-lg border border-gray-200 p-4">
+                <li class="rounded-lg border border-gray-200 p-4" title="活動">
                     <p class="text-sm text-gray-500">活動</p>
                     <p class="mt-1 text-gray-800">
                         ブログ更新、Playground での実験、楽器の試作

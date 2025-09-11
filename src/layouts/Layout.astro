@@ -87,22 +87,24 @@ const navLinkClass = (href: string) =>
                 <a
                     class="flex-none font-semibold text-xl text-black focus:outline-hidden focus:opacity-80"
                     href="/"
+                    title="mosunset"
                     aria-label="mosunset">mosunset</a
                 >
                 <div
                     class="flex flex-row items-center gap-5 mt-5 sm:justify-end sm:mt-0 sm:ps-5"
                 >
-                    <a class={navLinkClass("/blog")} href="/blog">Blog</a>
+                    <a class={navLinkClass("/blog")} href="/blog" title="Blog">Blog</a>
                     <a class={navLinkClass("/playground")} href="/playground"
-                        >Playground</a
+                        title="Playground">Playground</a
                     >
-                    <a class={navLinkClass("/book")} href="/book">Book</a>
+                    <a class={navLinkClass("/book")} href="/book" title="Book">Book</a>
                     <a class={navLinkClass("/instruments")} href="/instruments"
-                        >楽器</a
+                        title="楽器">楽器</a
                     >
                     <a
                         class={navLinkClass("/qualifications")}
-                        href="/qualifications">資格・試験</a
+                        href="/qualifications"
+                        title="資格・試験">資格・試験</a
                     >
                 </div>
             </nav>
@@ -121,6 +123,7 @@ const navLinkClass = (href: string) =>
                             © 2025 <a
                                 href="/keystatic"
                                 target="_blank"
+                                title="don't click"
                                 class="text-gray-600">mosunset.</a
                             >
                         </p>
@@ -134,6 +137,7 @@ const navLinkClass = (href: string) =>
                                 href="https://x.com/TMoSunset0"
                                 target="_blank"
                                 rel="noopener noreferrer"
+                                title="X (Twitter)"
                             >
                                 X (Twitter)
                             </a>
@@ -144,6 +148,7 @@ const navLinkClass = (href: string) =>
                                 href="https://github.com/mosunset"
                                 target="_blank"
                                 rel="noopener noreferrer"
+                                title="Github"
                             >
                                 Github
                             </a>

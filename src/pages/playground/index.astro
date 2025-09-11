@@ -103,6 +103,7 @@ function getThumbnailMeta(thumbnailPath: string): ImageMetadata | undefined {
                         <a
                             href={`/playground/${post.slug}/`}
                             class="block"
+                            title={post.data.title}
                             data-astro-reload
                         >
                             {/* 詳細ページへのリンク */}
@@ -110,6 +111,8 @@ function getThumbnailMeta(thumbnailPath: string): ImageMetadata | undefined {
                                 src={getThumbnailMeta(post.data.thumbnail)!}
                                 format="webp"
                                 alt={post.data.title}
+                                title={post.data.title}
+                                loading="lazy"
                                 class="w-full object-cover"
                                 transition:persist-props
                                 transition:name={post.slug + "-thumbnail"}

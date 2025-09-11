@@ -82,12 +82,14 @@ publicPosts.sort((a, b) => {
             ) : (
                 publicPosts.map((post) => (
                     <article class="masonry-item bg-white border border-gray-200 rounded-lg shadow-sm hover:shadow-md transition-shadow overflow-hidden">
-                        <a href={`/instruments/${post.slug}/`} class="block">
+                        <a href={`/instruments/${post.slug}/`} class="block" title={post.data.name}>
                             {/* 詳細ページへのリンク */}
                             <Image
                                 src={post.data.thumbnail}
                                 format="webp"
                                 alt={post.data.name}
+                                title={post.data.name}
+                                loading="lazy"
                                 class="w-full object-cover"
                                 transition:persist-props
                                 transition:name={post.slug + "-thumbnail"}

@@ -27,7 +27,7 @@ const { Content } = await entry.render(); // Markdown本文をHTMLコンポー�
 
 <Layout title={entry.data.title}>
     <div class="w-full max-w-2xl mx-auto mb-8">
-        <a href="/blog" class="flex items-center gap-2">
+        <a href="/blog" class="flex items-center gap-2" title="ブログ一覧へ戻る">
             <svg
                 xmlns="http://www.w3.org/2000/svg"
                 viewBox="0 0 24 24"
@@ -52,6 +52,8 @@ const { Content } = await entry.render(); // Markdown本文をHTMLコンポー�
             class="object-cover w-full max-w-lg mx-auto mb-8 rounded-lg shadow-lg"
             format="webp"
             alt={entry.data.title}
+            title={entry.data.title}
+            loading="lazy"
             transition:persist-props
             transition:name={entry.slug + "-thumbnail"}
         />
