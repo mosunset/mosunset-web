@@ -80,6 +80,7 @@ const navLinkClass = (href: string) =>
     </head>
     <body class="flex flex-col min-h-dvh min-w-80 overflow-x-hidden">
         <header
+            id="site-header"
             class="container mx-auto px-4 sm:px-6 lg:px-8 pb-8 flex flex-wrap sm:justify-start sm:flex-nowrap w-full bg-white text-sm py-3"
         >
             <nav class="w-full sm:flex sm:items-center sm:justify-between">
@@ -109,7 +110,7 @@ const navLinkClass = (href: string) =>
         <div class="container mx-auto px-4 sm:px-6 lg:px-8 flex-grow">
             <slot />
         </div>
-        <footer class="w-full container mx-auto px-4 sm:px-6 lg:px-8 py-4">
+        <footer class="w-full container mx-auto px-4 sm:px-6 lg:px-8 py-4 z-50">
             <div class="py-6 border-t border-gray-200">
                 <div class="flex flex-wrap justify-between items-center gap-2">
                     <div>

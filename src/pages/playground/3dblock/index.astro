@@ -1,65 +1,8 @@
 ---
-import "@/styles/global.css";
-import { SEO } from "astro-seo";
-import myImage from "@/assets/images/my.webp";
-import ClientRouter from "astro/components/ClientRouter.astro";
-const title = "Three.js インタラクティブ・ボクセルビューア (Z-up) | mosunset";
-const description =
-    "mosunsetのウェブサイト - ブログ、楽器、プレイグラウンドなどのコンテンツを提供しています";
-const image = myImage;
-const defaultKeywords: string[] = [
-    "mosunset",
-    "ブログ",
-    "楽器",
-    "プレイグラウンド",
-    "書籍",
-    "プログラミング",
-    "技術",
-];
-const keywords: string[] = defaultKeywords;
-const navLinkClass = (href: string) =>
-    Astro.url.pathname.startsWith(href)
-        ? "font-medium text-blue-500 focus:outline-hidden"
-        : "font-medium text-gray-700 hover:text-gray-500 hover:underline hover:underline-offset-2 focus:outline-hidden focus:text-gray-500 focus:underline focus:underline-offset-2";
+import Layout from "@/layouts/Layout.astro"
 ---
 
-<!doctype html>
-<html lang="ja">
-    <head>
-        <meta name="viewport" content="width=device-width" />
-        <link rel="icon" type="image/x-icon" href="/favicon.ico" />
-        <meta name="generator" content={Astro.generator} />
-        <meta name="keywords" content={keywords.join(",")} />
-        <meta name="author" content="mosunset" />
-        <meta name="publisher" content="mosunset" />
-        <SEO
-            title={title}
-            description={description}
-            canonical={`https://mosunset.com${Astro.url.pathname}`}
-            languageAlternates={[
-                {
-                    href: "https://mosunset.com",
-                    hrefLang: "ja",
-                },
-            ]}
-            charset="UTF-8"
-            openGraph={{
-                basic: {
-                    type: "website",
-                    url: "https://mosunset.com",
-                    title: title,
-                    image: image.src,
-                },
-            }}
-            twitter={{
-                card: "summary_large_image",
-                site: "@TMoSunset0",
-                title: title,
-                description: description,
-                image: image.src,
-            }}
-        />
-        <ClientRouter />
+<Layout title="Three.js インタラクティブ・ボクセルビューア (Z-up)">
         <style>
             :root {
                 --header-height: 0px;
@@ -147,37 +90,7 @@ const navLinkClass = (href: string) =>
             href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&display=swap"
             rel="stylesheet"
         />
-    </head>
 
-    <body>
-        <header
-            id="site-header"
-            class="container mx-auto px-4 sm:px-6 lg:px-8 pb-8 flex flex-wrap sm:justify-start sm:flex-nowrap w-full bg-white text-sm py-3"
-        >
-            <nav class="w-full sm:flex sm:items-center sm:justify-between">
-                <a
-                    class="flex-none font-semibold text-xl text-black focus:outline-hidden focus:opacity-80"
-                    href="/"
-                    aria-label="mosunset">mosunset</a
-                >
-                <div
-                    class="flex flex-row items-center gap-5 mt-5 sm:justify-end sm:mt-0 sm:ps-5"
-                >
-                    <a class={navLinkClass("/blog")} href="/blog">Blog</a>
-                    <a class={navLinkClass("/playground")} href="/playground"
-                        >Playground</a
-                    >
-                    <a class={navLinkClass("/book")} href="/book">Book</a>
-                    <a class={navLinkClass("/instruments")} href="/instruments"
-                        >楽器</a
-                    >
-                    <a
-                        class={navLinkClass("/qualifications")}
-                        href="/qualifications">資格・試験</a
-                    >
-                </div>
-            </nav>
-        </header>
         <!-- Three.jsの描画領域 -->
         <div id="canvas-container" class=""></div>
 
@@ -951,5 +864,4 @@ const navLinkClass = (href: string) =>
             // 念のためタイマーでも一度再計算
             setTimeout(updateLayoutSizes, 300);
         </script>
-    </body>
-</html>
+</Layout>
