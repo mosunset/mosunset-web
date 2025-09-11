@@ -253,22 +253,20 @@
         }
     }
 
-    if (document.readyState === "loading") {
-        // DOMContentLoadedイベントは、初回ページロード時にDOMが完全に読み込まれた後に発生します。
-        document.addEventListener("DOMContentLoaded", () => {
-            fetchAndRender();
-        });
-
-        // astro:after-swapイベントは、旧ページが新ページに置き換わった直後に発生します。
-        document.addEventListener("astro:after-swap", () => {
-            fetchAndRender();
-        });
-
-        // astro:page-loadイベントは、新しいページが表示された後に発生します。
-        document.addEventListener("astro:page-load", () => {
-            fetchAndRender();
-        });
-    } else {
+    // DOMContentLoadedイベントは、初回ページロード時にDOMが完全に読み込まれた後に発生します。
+    document.addEventListener("DOMContentLoaded", () => {
         fetchAndRender();
-    }
+    });
+
+    // astro:after-swapイベントは、旧ページが新ページに置き換わった直後に発生します。
+    document.addEventListener("astro:after-swap", () => {
+        fetchAndRender();
+    });
+
+    // astro:page-loadイベントは、新しいページが表示された後に発生します。
+    document.addEventListener("astro:page-load", () => {
+        fetchAndRender();
+    });
+
+    fetchAndRender();
 </script>
