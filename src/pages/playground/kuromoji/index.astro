@@ -1,0 +1,232 @@
+---
+import Layout from "@/layouts/Layout.astro";
+import { getCollection } from "astro:content";
+const allPosts = await getCollection("playground");
+const entry = allPosts.find(
+    (post) =>
+        post.id === Astro.url.pathname.replace("/playground/", "").slice(0, -1)
+);
+
+if (
+    !entry ||
+    entry.data.draft === true ||
+    entry.data.visibility === "private"
+) {
+    return new Response(null, {
+        status: 404,
+        statusText: "Not found",
+    });
+}
+---
+
+<Layout title={entry?.data.title}>
+    <h1 class="font-sans text-gray-800 font-bold m-5">Kuromoji</h1>
+    <div class="m-5 flex items-center gap-3">
+        <button
+            id="mic-start"
+            class="px-3 py-1 rounded bg-emerald-600 text-white shadow disabled:opacity-50"
+            >音声入力開始</button
+        >
+        <button
+            id="mic-stop"
+            class="px-3 py-1 rounded bg-gray-500 text-white shadow disabled:opacity-50"
+            disabled>停止</button
+        >
+        <span id="mic-status" class="text-sm text-gray-600"></span>
+    </div>
+    <textarea
+        id="input"
+        class="w-full p-2 text-lg border border-gray-300 rounded shadow-md"
+        placeholder="テキストを入力してください..."></textarea>
+    <div id="result" class="m-5"></div>
+</Layout>
+<script>
+    // @ts-nocheck
+    import "./kuromoji.js";
+
+    /** @type {any} */
+    const kuromoji = window.kuromoji;
+
+    /** @type {HTMLInputElement | null} */
+    const inputEl = document.getElementById("input");
+    /** @type {HTMLDivElement | null} */
+    const resultEl = document.getElementById("result");
+    /** @type {HTMLButtonElement | null} */
+    const micStartBtn = document.getElementById("mic-start");
+    /** @type {HTMLButtonElement | null} */
+    const micStopBtn = document.getElementById("mic-stop");
+    /** @type {HTMLSpanElement | null} */
+    const micStatusEl = document.getElementById("mic-status");
+
+    if (!inputEl || !resultEl) {
+        console.error("必要な DOM 要素が見つかりません");
+    }
+
+    function renderResult(tokens) {
+        if (!resultEl) return;
+        resultEl.innerHTML = "";
+
+        const columns = [
+            { key: "word_position", label: "位置" },
+            { key: "surface_form", label: "表層形" },
+            { key: "pos", label: "品詞" },
+            { key: "pos_detail_1", label: "品詞細分類1" },
+            { key: "pos_detail_2", label: "品詞細分類2" },
+            { key: "pos_detail_3", label: "品詞細分類3" },
+            { key: "conjugated_type", label: "活用型" },
+            { key: "conjugated_form", label: "活用形" },
+            { key: "basic_form", label: "基本形" },
+            { key: "reading", label: "読み" },
+            { key: "pronunciation", label: "発音" },
+            { key: "word_id", label: "ID" },
+            { key: "word_type", label: "語彙種別" },
+        ];
+
+        const table = document.createElement("table");
+        table.className =
+            "min-w-full text-sm border border-gray-200 rounded overflow-hidden shadow-sm";
+        const thead = document.createElement("thead");
+        const headerRow = document.createElement("tr");
+        headerRow.className = "bg-gray-50";
+        for (const col of columns) {
+            const th = document.createElement("th");
+            th.textContent = col.label;
+            th.className =
+                "px-3 py-2 text-left font-semibold text-gray-700 border-b border-gray-200";
+            headerRow.appendChild(th);
+        }
+        thead.appendChild(headerRow);
+        table.appendChild(thead);
+
+        const tbody = document.createElement("tbody");
+        if (tokens && tokens.length > 0) {
+            for (const token of tokens) {
+                const tr = document.createElement("tr");
+                tr.className = "odd:bg-white even:bg-gray-50";
+                for (const col of columns) {
+                    const td = document.createElement("td");
+                    const value = token[col.key] ?? "";
+                    td.textContent = String(value);
+                    td.className =
+                        "px-3 py-2 align-top border-b border-gray-100 text-gray-800";
+                    tr.appendChild(td);
+                }
+                tbody.appendChild(tr);
+            }
+        } else {
+            const tr = document.createElement("tr");
+            const td = document.createElement("td");
+            td.colSpan = columns.length;
+            td.className = "px-3 py-6 text-gray-500 text-center";
+            td.textContent = "ここに解析結果が表示されます";
+            tr.appendChild(td);
+            tbody.appendChild(tr);
+        }
+        table.appendChild(tbody);
+        resultEl.appendChild(table);
+    }
+
+    // 音声認識（Web Speech API）
+    let recognition = null;
+    try {
+        const SpeechRecognition =
+            window.SpeechRecognition || window.webkitSpeechRecognition;
+        if (SpeechRecognition) {
+            recognition = new SpeechRecognition();
+            recognition.lang = "ja-JP";
+            recognition.interimResults = true;
+            recognition.continuous = true;
+
+            recognition.onstart = () => {
+                if (micStatusEl) micStatusEl.textContent = "音声入力中...";
+                if (micStartBtn) micStartBtn.disabled = true;
+                if (micStopBtn) micStopBtn.disabled = false;
+            };
+            recognition.onend = () => {
+                if (micStatusEl) micStatusEl.textContent = "停止しました";
+                if (micStartBtn) micStartBtn.disabled = false;
+                if (micStopBtn) micStopBtn.disabled = true;
+            };
+            recognition.onerror = (e) => {
+                console.error(e);
+                if (micStatusEl)
+                    micStatusEl.textContent = "エラーが発生しました";
+            };
+            recognition.onresult = (event) => {
+                if (!inputEl) return;
+                let finalText = "";
+                let interimText = "";
+                for (let i = event.resultIndex; i < event.results.length; i++) {
+                    const res = event.results[i];
+                    if (res.isFinal) {
+                        finalText += res[0].transcript;
+                    } else {
+                        interimText += res[0].transcript;
+                    }
+                }
+                if (finalText) {
+                    const needsSpace =
+                        inputEl.value && !/\s$/.test(inputEl.value);
+                    inputEl.value =
+                        inputEl.value + (needsSpace ? " " : "") + finalText;
+                    const inputEvent = new Event("input");
+                    inputEl.dispatchEvent(inputEvent);
+                }
+                if (micStatusEl) {
+                    micStatusEl.textContent = interimText
+                        ? `入力中… ${interimText}`
+                        : "音声入力中...";
+                }
+            };
+
+            if (micStartBtn) {
+                micStartBtn.addEventListener("click", () => {
+                    try {
+                        recognition && recognition.start();
+                    } catch {}
+                });
+            }
+            if (micStopBtn) {
+                micStopBtn.addEventListener("click", () => {
+                    try {
+                        recognition && recognition.stop();
+                    } catch {}
+                });
+            }
+        } else {
+            if (micStatusEl)
+                micStatusEl.textContent = "このブラウザは音声入力に未対応です";
+            if (micStartBtn) micStartBtn.disabled = true;
+        }
+    } catch (e) {
+        console.error(e);
+        if (micStatusEl)
+            micStatusEl.textContent = "音声入力初期化に失敗しました";
+    }
+
+    kuromoji
+        .builder({ dicPath: "./dict/" })
+        .build(function (/** @type {any} */ err, /** @type {any} */ tokenizer) {
+            if (err) {
+                console.error(err);
+                if (resultEl)
+                    resultEl.textContent = "辞書の読み込みに失敗しました";
+                return;
+            }
+
+            const handleInput = () => {
+                if (!inputEl || !resultEl) return;
+                const text = inputEl.value.trim();
+                if (!text) {
+                    renderResult([]);
+                    return;
+                }
+                const tokens = tokenizer.tokenize(text);
+                renderResult(tokens);
+            };
+
+            if (inputEl) inputEl.addEventListener("input", handleInput);
+            // 初期表示（空の場合は何も表示しない）
+            handleInput();
+        });
+</script>

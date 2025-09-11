@@ -1,0 +1,11 @@
+draft: false
+visibility: public
+title: Kuromoji
+description: 文章を名詞や動詞、形容詞や副詞などに分解する、形態素解析ライブラリ
+category: NLP
+tags:
+    - NLP
+    - Morphological Analysis
+    - JavaScript
+publishedDate: 2025-09-12
+thumbnail: "@assets/images/playground/kuromoji/thumbnail.png"
