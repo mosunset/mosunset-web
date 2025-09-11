@@ -1,0 +1,218 @@
+---
+import Layout from "@/layouts/Layout.astro";
+---
+
+<Layout title="webyolo">
+    <style>
+        :root {
+            --header-height: 0px;
+            --footer-height: 0px;
+        }
+
+        #canvasframe {
+            width: 100%;
+            height: calc(100dvh - var(--header-height) - var(--footer-height));
+            position: relative;
+            top: 0;
+            left: 0;
+            overflow: auto; /* 必要なときにのみスクロールバーを表示 */
+            display: flex;
+            align-items: center; /* 垂直方向の中央揃え */
+            justify-content: center; /* 水平方向の中央揃え */
+        }
+
+        #canvas {
+            display: block;
+            width: 100%;
+            height: calc(100dvh - var(--header-height) - var(--footer-height));
+            object-fit: contain; /* 画像が引き伸ばされないようにする */
+        }
+    </style>
+    <style is:inline>
+        #canvas {
+            display: block;
+            width: 100%;
+            height: calc(100dvh - var(--header-height) - var(--footer-height));
+            object-fit: contain; /* 画像が引き伸ばされないようにする */
+        }
+    </style>
+
+    <div id="loadingMessage"></div>
+    <div id="canvasframe"></div>
+    <script
+        src="https://unpkg.com/ml5@0.12.2/dist/ml5.min.js"
+        type="text/javascript"
+        is:inline></script>
+    <script is:inline>
+        async function main() {
+            // ml5.jsが完全にロードされるまで待機
+            if (typeof ml5 === "undefined") {
+                console.error("ml5.jsがロードされていません");
+                return;
+            }
+
+            console.log("ml5.js version:", ml5.version);
+
+            let objectDetector;
+            try {
+                // 正しいAPIを使用してobjectDetectorを初期化
+                objectDetector = await ml5.objectDetector("cocossd", {});
+                console.log("ObjectDetector initialized successfully");
+            } catch (error) {
+                console.error("ObjectDetectorの初期化に失敗しました:", error);
+                return;
+            }
+
+            const canvasframe = document.getElementById("canvasframe");
+            let canvas = document.getElementById("canvas");
+            if (!canvas) {
+                canvas = document.createElement("canvas");
+                canvas.id = "canvas";
+                canvas.style.display = "block";
+                canvas.style.width = "100%";
+                canvas.style.height =
+                    "calc(100dvh - var(--header-height) - var(--footer-height))";
+                canvas.style.objectFit =
+                    "contain"; /* 画像が引き伸ばされないようにする */
+                canvasframe.appendChild(canvas);
+            }
+            const ctx = canvas.getContext("2d");
+            const offscreen = document.createElement("canvas");
+            const offscreenCtx = offscreen.getContext("2d");
+            const video = document.createElement("video");
+
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({
+                    audio: false,
+                    video: { facingMode: "environment" },
+                });
+
+                video.srcObject = stream;
+                video.onloadedmetadata = () => {
+                    video.play();
+                    canvas.width = offscreen.width = video.videoWidth;
+                    canvas.height = offscreen.height = video.videoHeight;
+                    tick();
+                };
+            } catch (err) {
+                console.error("カメラにアクセスできません:", err);
+                return;
+            }
+
+            function tick() {
+                offscreenCtx.drawImage(video, 0, 0);
+                ctx.drawImage(offscreen, 0, 0);
+
+                // オブジェクト検出を実行
+                if (objectDetector) {
+                    objectDetector.detect(video, (err, results) => {
+                        if (err) {
+                            console.log("Detection error:", err);
+                            return;
+                        }
+
+                        if (results && results.length > 0) {
+                            // console.log("Detected objects:", results);
+                            draw(results);
+                        }
+                    });
+                }
+
+                window.requestAnimationFrame(tick);
+            }
+
+            function draw(objects) {
+                // キャンバスをクリア
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+                // ビデオフレームを描画
+                ctx.drawImage(offscreen, 0, 0);
+
+                // 検出されたオブジェクトを描画
+                for (let i = 0; i < objects.length; i++) {
+                    const object = objects[i];
+
+                    // ラベルを描画
+                    ctx.font = "24px Arial";
+                    ctx.fillStyle = "red";
+                    ctx.fillText(
+                        object.label +
+                            " (" +
+                            Math.round(object.confidence * 100) +
+                            "%)",
+                        object.x + 4,
+                        object.y + 24
+                    );
+
+                    // バウンディングボックスを描画
+                    ctx.beginPath();
+                    ctx.rect(object.x, object.y, object.width, object.height);
+                    ctx.strokeStyle = "red";
+                    ctx.lineWidth = 3;
+                    ctx.stroke();
+                    ctx.closePath();
+                }
+            }
+        }
+
+        // ml5.jsがロードされた後にmain関数を実行
+        if (document.readyState === "loading") {
+            document.addEventListener("DOMContentLoaded", main);
+            // 読込中のメッセージを表示
+            const loadingMessage = document.createElement("div");
+            loadingMessage.className =
+                "relative flex items-center justify-center p-4";
+            loadingMessage.innerHTML = `
+                <svg class="mr-3 -ml-1 size-5 animate-spin text-black" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                読み込み中です。約25秒お待ちください…
+            `;
+            document
+                .getElementById("loadingMessage")
+                .appendChild(loadingMessage);
+
+            // main関数が完了したらメッセージを削除
+            main().then(() => {
+                const message = document.getElementById("loadingMessage");
+                if (message) {
+                    message.remove();
+                }
+            });
+        } else {
+            main();
+        }
+
+        // --- ヘッダー高さに応じてCSS変数とUI位置・レンダラーサイズを更新 ---
+        function updateLayoutSizes() {
+            const headerEl = document.getElementById("site-header");
+            const footerEl = document.getElementById("site-footer");
+            const headerHeight = headerEl
+                ? Math.ceil(headerEl.getBoundingClientRect().height)
+                : 0;
+            const footerHeight = footerEl
+                ? Math.ceil(footerEl.getBoundingClientRect().height)
+                : 0;
+            document.documentElement.style.setProperty(
+                "--header-height",
+                `${headerHeight}px`
+            );
+            document.documentElement.style.setProperty(
+                "--footer-height",
+                `${footerHeight}px`
+            );
+            if (renderer) {
+                renderer.setSize(
+                    window.innerWidth,
+                    Math.max(
+                        1,
+                        window.innerHeight - headerHeight - footerHeight
+                    )
+                );
+            }
+        }
+
+        // フォント読み込み後や画像ロード後にも再計算
+        window.addEventListener("load", updateLayoutSizes);
+        // 念のためタイマーでも一度再計算
+        setTimeout(updateLayoutSizes, 300);
+    </script>
+</Layout>

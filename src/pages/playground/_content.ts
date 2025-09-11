@@ -40,4 +40,17 @@ export const playgroundContent: PlaygroundContent[] = [
             thumbnail: "/src/assets/images/playground/masonryimage/thumbnail.png",
         },
     },
+    {
+        slug: "webyolo",
+        data: {
+            draft: false,
+            visibility: "public",
+            title: "WebYOLO",
+            description: "クライアントサイドJavaScriptだけで物体認識をする",
+            category: "AI",
+            tags: ["AI", "Object Recognition", "JavaScript"],
+            publishedDate: "2025-09-11",
+            thumbnail: "/src/assets/images/playground/webyolo/thumbnail.png",
+        },
+    },
 ];
