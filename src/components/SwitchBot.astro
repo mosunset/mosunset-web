@@ -64,7 +64,6 @@
             container.innerHTML = "<p>読み込み中...</p>";
         }
         try {
-            // ステップ3で作成した「自分のサーバーのAPIルート」を呼び出す
             const response = await fetch("/api/get-devices", {
                 cache: "no-store",
                 headers: {
