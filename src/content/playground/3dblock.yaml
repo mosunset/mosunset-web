@@ -1,0 +1,10 @@
+draft: false
+visibility: public
+title: 3DBlock
+description: 3Dブロックをいじる
+category: 3D
+tags:
+  - 3D
+  - Block
+publishedDate: 2025-09-09
+thumbnail: '@assets/images/playground/3dblock/thumbnail.png'

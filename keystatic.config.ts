@@ -615,5 +615,76 @@ export default config({
                 }),
             },
         }),
+
+        playground: collection({
+            label: "プレイグラウンド",
+            slugField: "title",
+            path: "src/content/playground/*",
+            entryLayout: "content",
+            columns: [
+                "draft",
+                "visibility",
+                "publishedDate",
+                "title",
+                "category",
+            ],
+            schema: {
+                draft: fields.checkbox({
+                    label: "下書き",
+                }),
+                visibility: fields.select({
+                    label: "公開範囲",
+                    options: [
+                        { label: "公開", value: "public" },
+                        { label: "非公開", value: "private" },
+                        { label: "限定公開", value: "unlisted" },
+                    ],
+                    defaultValue: "public",
+                }),
+                title: fields.slug({
+                    name: {
+                        label: "タイトル",
+                        // description: "記事のタイトル",
+                        validation: {
+                            isRequired: true,
+                        },
+                    },
+                }),
+                description: fields.text({
+                    label: "説明",
+                    validation: {
+                        isRequired: true,
+                    },
+                }),
+                category: fields.text({
+                    label: "カテゴリー",
+                    validation: {
+                        isRequired: true,
+                    },
+                }),
+                tags: fields.array(fields.text({ label: "タグ" }), {
+                    label: "タグ",
+                    // description: "記事に関連するタグのリスト",
+                    itemLabel: (props) => props.value || "タグ",
+                }),
+                publishedDate: fields.date({
+                    label: "公開日",
+                    validation: {
+                        isRequired: true,
+                    },
+                }),
+                updatedDate: fields.date({
+                    label: "更新日",
+                }),
+                thumbnail: fields.image({
+                    label: "サムネイル",
+                    directory: "src/assets/images/playground/",
+                    publicPath: "@assets/images/playground/",
+                    validation: {
+                        isRequired: true,
+                    },
+                }),
+            },
+        }),
     },
 });

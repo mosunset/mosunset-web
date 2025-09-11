@@ -157,6 +157,22 @@ const qualificationsCollection = defineCollection({
         }),
 });
 
+const playgroundCollection = defineCollection({
+    type: "data",
+    schema: ({ image }) =>
+        z.object({
+            draft: z.boolean(),
+            visibility: z.enum(["public", "unlisted", "private"]),
+            title: z.string(),
+            description: z.string(),
+            category: z.string(),
+            tags: z.array(z.string()).optional(),
+            publishedDate: z.date(),
+            updatedDate: z.date().optional(),
+            thumbnail: image(),
+        }),
+});
+
 /**
  * Astroにすべてのコレクションを登録
  * ----------------------------------------
@@ -168,4 +184,5 @@ export const collections = {
     books: booksCollection,
     instruments: instrumentsCollection,
     qualifications: qualificationsCollection,
+    playground: playgroundCollection,
 };

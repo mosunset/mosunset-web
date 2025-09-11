@@ -1,8 +1,15 @@
 ---
 import Layout from "@/layouts/Layout.astro";
+import { getCollection } from "astro:content";
+const allPosts = await getCollection("playground");
+const entry = allPosts.find(
+    (post) =>
+        post.id ===
+        Astro.url.pathname.replace("/playground/", "").slice(0, -1)
+);
 ---
 
-<Layout title="webyolo">
+<Layout title={entry?.data.title}>
     <style>
         :root {
             --header-height: 0px;

@@ -1,11 +1,10 @@
 ---
 import Layout from "@/layouts/Layout.astro";
-import type { ImageMetadata } from "astro";
 import { Image } from "astro:assets";
-import { playgroundContent } from "./_content";
+import { getCollection } from "astro:content";
 
-// 'blog' コレクションから全記事を取得
-const allPosts = playgroundContent;
+// コレクションから全記事を取得
+const allPosts = await getCollection("playground");
 
 // 下書きを除外
 const publishedPosts = allPosts.filter((post) => !post.data.draft);
@@ -21,24 +20,6 @@ publicPosts.sort(
         new Date(b.data.publishedDate).getTime() -
         new Date(a.data.publishedDate).getTime()
 );
-
-// サムネイル画像を静的解決（astro:assets 用）
-const images = import.meta.glob<{ default: ImageMetadata }>(
-    "/src/assets/images/playground/**/thumbnail.{jpeg,jpg,JPG,png,gif,webp}"
-);
-
-const resolvedImages: Record<string, ImageMetadata> = Object.fromEntries(
-    await Promise.all(
-        Object.entries(images).map(async ([path, loader]) => {
-            const mod = await loader();
-            return [path, mod.default as ImageMetadata];
-        })
-    )
-);
-
-function getThumbnailMeta(thumbnailPath: string): ImageMetadata | undefined {
-    return resolvedImages[thumbnailPath];
-}
 ---
 
 <Layout title="Playground一覧">
@@ -101,27 +82,27 @@ function getThumbnailMeta(thumbnailPath: string): ImageMetadata | undefined {
                 publicPosts.map((post) => (
                     <article class="masonry-item bg-white border border-gray-200 rounded-lg shadow-sm hover:shadow-md transition-shadow overflow-hidden">
                         <a
-                            href={`/playground/${post.slug}/`}
+                            href={`/playground/${post.id}/`}
                             class="block"
                             title={post.data.title}
                             data-astro-reload
                         >
                             {/* 詳細ページへのリンク */}
                             <Image
-                                src={getThumbnailMeta(post.data.thumbnail)!}
+                                src={post.data.thumbnail}
                                 format="webp"
                                 alt={post.data.title}
                                 title={post.data.title}
                                 loading="lazy"
                                 class="w-full object-cover"
                                 transition:persist-props
-                                transition:name={post.slug + "-thumbnail"}
+                                transition:name={post.id + "-thumbnail"}
                             />
                             <div class="p-6">
                                 <h2
                                     class="text-xl font-semibold text-gray-900 mb-2 line-clamp-2"
                                     transition:persist-props
-                                    transition:name={post.slug + "-title"}
+                                    transition:name={post.id + "-title"}
                                 >
                                     {post.data.title}
                                 </h2>
@@ -130,7 +111,7 @@ function getThumbnailMeta(thumbnailPath: string): ImageMetadata | undefined {
                                         class="text-gray-600 mb-3 line-clamp-3"
                                         transition:persist-props
                                         transition:name={
-                                            post.slug + "-description"
+                                            post.id + "-description"
                                         }
                                     >
                                         {post.data.description}
@@ -140,9 +121,7 @@ function getThumbnailMeta(thumbnailPath: string): ImageMetadata | undefined {
                                     <span
                                         class="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full"
                                         transition:persist-props
-                                        transition:name={
-                                            post.slug + "-category"
-                                        }
+                                        transition:name={post.id + "-category"}
                                     >
                                         {post.data.category}
                                     </span>
@@ -152,7 +131,7 @@ function getThumbnailMeta(thumbnailPath: string): ImageMetadata | undefined {
                                                 class="flex gap-2"
                                                 transition:persist-props
                                                 transition:name={
-                                                    post.slug + "-tag"
+                                                    post.id + "-tag"
                                                 }
                                             >
                                                 {post.data.tags.map((tag) => (
@@ -168,7 +147,7 @@ function getThumbnailMeta(thumbnailPath: string): ImageMetadata | undefined {
                                         class="text-sm text-gray-500"
                                         transition:persist-props
                                         transition:name={
-                                            post.slug + "-publishedDate"
+                                            post.id + "-publishedDate"
                                         }
                                     >
                                         公開日:{" "}
@@ -181,7 +160,7 @@ function getThumbnailMeta(thumbnailPath: string): ImageMetadata | undefined {
                                             class="text-sm text-gray-500"
                                             transition:persist-props
                                             transition:name={
-                                                post.slug + "-updatedDate"
+                                                post.id + "-updatedDate"
                                             }
                                         >
                                             更新日:{" "}
