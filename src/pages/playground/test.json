@@ -4,7 +4,11 @@
   "title": "test",
   "description": "asdf",
   "category": "asdf",
-  "tags": [],
+  "tags": [
+    "test",
+    "asdf"
+  ],
   "publishedDate": "2025-09-11",
+  "updatedDate": "2025-09-12",
   "thumbnail": "@assets/images/playground/test/thumbnail.png"
 }
