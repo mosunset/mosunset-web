@@ -11,9 +11,9 @@
 		"cf-typegen": "wrangler types"
 	},
 	"dependencies": {
-		"@astrojs/cloudflare": "^12.6.7",
-		"@astrojs/markdoc": "^0.15.5",
-		"@astrojs/react": "^4.3.0",
+		"@astrojs/cloudflare": "^12.6.8",
+		"@astrojs/markdoc": "^0.15.6",
+		"@astrojs/react": "^4.3.1",
 		"@keystatic/astro": "^5.0.6",
 		"@keystatic/core": "^0.5.48",
 		"@tailwindcss/typography": "^0.5.16",
@@ -21,7 +21,7 @@
 		"@types/react": "^19.1.12",
 		"@types/react-dom": "^19.1.9",
 		"@types/three": "^0.180.0",
-		"astro": "^5.13.5",
+		"astro": "^5.13.7",
 		"astro-seo": "^0.8.4",
 		"react": "^19.1.1",
 		"react-dom": "^19.1.1",
@@ -31,6 +31,6 @@
 	},
 	"devDependencies": {
 		"@types/node": "^24.3.1",
-		"wrangler": "^4.34.0"
+		"wrangler": "^4.35.0"
 	}
 }
