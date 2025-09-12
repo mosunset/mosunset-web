@@ -7,7 +7,7 @@
     import "./imagesloaded.pkgd.min.js";
 
     // Masonryのインスタンスを保持するためのグローバル変数を定義
-    let masonryInstance: { destroy: () => void; layout: () => void; };
+    let masonryInstance: { destroy: () => void; layout: () => void };
 
     const initMasonry = () => {
         const container = document.getElementById("masonry-container");
@@ -45,4 +45,6 @@
 
     // AstroのView Transitionsでページが切り替わった直後に再初期化
     document.addEventListener("astro:after-swap", initMasonry);
+
+    document.addEventListener("astro:page-load", initMasonry);
 </script>
