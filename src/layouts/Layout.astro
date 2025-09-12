@@ -3,7 +3,7 @@ import "@/styles/global.css";
 import { SEO } from "astro-seo";
 const { pathname } = Astro.url;
 import myImage from "@/assets/images/my.webp";
-// import { ClientRouter } from "astro:transitions";
+import { ClientRouter } from "astro:transitions";
 
 interface Props {
     title?: string;
@@ -74,7 +74,7 @@ const navLinkClass = (href: string) =>
                 image: image.src,
             }}
         />
-        <!-- <ClientRouter /> -->
+        <ClientRouter />
     </head>
     <body class="flex flex-col min-h-dvh min-w-80 overflow-x-hidden">
         <header
