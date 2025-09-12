@@ -40,17 +40,13 @@ if (
         placeholder="テキストを入力してください..."></textarea>
     <div id="result" class="m-5"></div>
 </Layout>
+<script src="/playground/kuromoji/kuromoji.js" is:inline></script>
 <script>
-    // @ts-nocheck
-    import "./kuromoji.js";
-
     /** @type {any} */
     const kuromoji = window.kuromoji;
 
     /** @type {HTMLInputElement | null} */
     const inputEl = document.getElementById("input");
-    /** @type {HTMLDivElement | null} */
-    const resultEl = document.getElementById("result");
     /** @type {HTMLButtonElement | null} */
     const micStartBtn = document.getElementById("mic-start");
     /** @type {HTMLButtonElement | null} */
@@ -58,11 +54,9 @@ if (
     /** @type {HTMLSpanElement | null} */
     const micStatusEl = document.getElementById("mic-status");
 
-    if (!inputEl || !resultEl) {
-        console.error("必要な DOM 要素が見つかりません");
-    }
-
+    // renderResult関数をグローバルスコープで定義
     function renderResult(tokens) {
+        const resultEl = document.getElementById("result");
         if (!resultEl) return;
         resultEl.innerHTML = "";
 
@@ -204,29 +198,71 @@ if (
             micStatusEl.textContent = "音声入力初期化に失敗しました";
     }
 
-    kuromoji
-        .builder({ dicPath: "./dict/" })
-        .build(function (/** @type {any} */ err, /** @type {any} */ tokenizer) {
-            if (err) {
-                console.error(err);
-                if (resultEl)
-                    resultEl.textContent = "辞書の読み込みに失敗しました";
-                return;
+    // グローバル変数としてhandleInput関数を保持
+    let globalHandleInput = null;
+
+    function main() {
+        // DOM要素を再取得
+        const inputEl = document.getElementById("input");
+        const resultEl = document.getElementById("result");
+
+        if (!inputEl || !resultEl) {
+            console.error("必要な DOM 要素が見つかりません");
+            return;
+        }
+
+        // kuromojiが利用可能かチェック
+        if (!kuromoji || typeof kuromoji.builder !== "function") {
+            console.error("kuromojiが読み込まれていません");
+            if (resultEl) {
+                resultEl.textContent =
+                    "kuromojiライブラリの読み込みに失敗しました";
             }
+            return;
+        }
 
-            const handleInput = () => {
-                if (!inputEl || !resultEl) return;
-                const text = inputEl.value.trim();
-                if (!text) {
-                    renderResult([]);
-                    return;
+        // 既存のイベントリスナーを削除
+        if (inputEl && globalHandleInput) {
+            inputEl.removeEventListener("input", globalHandleInput);
+        }
+
+        kuromoji
+            .builder({ dicPath: "/playground/kuromoji/dict/" })
+            .build(
+                function (
+                    /** @type {any} */ err,
+                    /** @type {any} */ tokenizer
+                ) {
+                    if (err) {
+                        console.error(err);
+                        if (resultEl)
+                            resultEl.textContent =
+                                "辞書の読み込みに失敗しました";
+                        return;
+                    }
+
+                    const handleInput = () => {
+                        if (!inputEl || !resultEl) return;
+                        const text = inputEl.value.trim();
+                        if (!text) {
+                            renderResult([]);
+                            return;
+                        }
+                        const tokens = tokenizer.tokenize(text);
+                        renderResult(tokens);
+                    };
+
+                    // グローバル変数に保存
+                    globalHandleInput = handleInput;
+
+                    if (inputEl) inputEl.addEventListener("input", handleInput);
+                    // 初期表示（空の場合は何も表示しない）
+                    handleInput();
                 }
-                const tokens = tokenizer.tokenize(text);
-                renderResult(tokens);
-            };
+            );
+    }
 
-            if (inputEl) inputEl.addEventListener("input", handleInput);
-            // 初期表示（空の場合は何も表示しない）
-            handleInput();
-        });
+    // DOMContentLoadedとastro:after-swapの両方でmain関数を実行
+    document.addEventListener("DOMContentLoaded", main);
+    document.addEventListener("astro:after-swap", main);
 </script>
