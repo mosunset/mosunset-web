@@ -1,47 +1,48 @@
 ---
-
+// initMasonry/index.astro
 ---
 
 <script>
     import "./masonry.pkgd.min.js";
     import "./imagesloaded.pkgd.min.js";
 
+    // Masonryのインスタンスを保持するためのグローバル変数を定義
+    let masonryInstance: { destroy: () => void; layout: () => void; };
+
     const initMasonry = () => {
         const container = document.getElementById("masonry-container");
-        if (!container) return;
+        if (!container) return; // コンテナがなければ処理を中断
 
-        const items = container.querySelectorAll(".masonry-item");
-        items.forEach((item) => item.classList.add("loaded"));
+        // 既存のインスタンスがあれば破棄する (AstroのView Transitionsで必須)
+        if (masonryInstance) {
+            masonryInstance.destroy();
+        }
 
-        const msnry = new Masonry(container, {
+        // 先にMasonryのインスタンスを初期化
+        masonryInstance = new Masonry(container, {
             itemSelector: ".masonry-item",
             columnWidth: ".masonry-item",
             percentPosition: true,
             horizontalOrder: true,
-            transitionDuration: "0.1s",
+            transitionDuration: "0.2s",
             gutter: 24,
         });
-        imagesLoaded(container).on("progress", function () {
-            // layout Masonry after each image loads
-            msnry.layout();
+
+        // imagesLoadedを使用して、コンテナ内の画像の読み込みを監視
+        // 画像が1つ読み込まれるたびに 'progress' イベントが発生
+        imagesLoaded(container).on("progress", () => {
+            // Masonryのレイアウトを再計算して適用
+            masonryInstance.layout();
         });
+
+        // Masonryアイテムを可視化（CSSでのアニメーション用）
+        const items = container.querySelectorAll(".masonry-item");
+        items.forEach((item) => item.classList.add("loaded"));
     };
 
-    // DOMContentLoadedイベントは、初回ページロード時にDOMが完全に読み込まれた後に発生します。
-    document.addEventListener("DOMContentLoaded", () => {
-        initMasonry();
-        // console.log("DOMContentLoaded: 初回ページロード時にMasonryを初期化");
-    });
+    // DOMが完全に読み込まれた初回ロード時に初期化
+    document.addEventListener("DOMContentLoaded", initMasonry);
 
-    // astro:after-swapイベントは、旧ページが新ページに置き換わった直後に発生します。
-    document.addEventListener("astro:after-swap", () => {
-        initMasonry();
-        // console.log("astro:after-swap: 新ページに置き換わった直後にMasonryを初期化");
-    });
-
-    // astro:page-loadイベントは、新しいページが表示された後に発生します。
-    document.addEventListener("astro:page-load", () => {
-        initMasonry();
-        // console.log("astro:page-load: 新しいページ表示後にMasonryを初期化");
-    });
+    // AstroのView Transitionsでページが切り替わった直後に再初期化
+    document.addEventListener("astro:after-swap", initMasonry);
 </script>
