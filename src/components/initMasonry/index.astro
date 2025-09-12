@@ -46,5 +46,6 @@
     // AstroのView Transitionsでページが切り替わった直後に再初期化
     document.addEventListener("astro:after-swap", initMasonry);
 
+    // Astroのページが読み込まれた直後に初期化
     document.addEventListener("astro:page-load", initMasonry);
 </script>
