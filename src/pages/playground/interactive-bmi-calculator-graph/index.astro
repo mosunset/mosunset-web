@@ -1,0 +1,665 @@
+---
+import Layout from "@/layouts/Layout.astro";
+import { getCollection } from "astro:content";
+const allPosts = await getCollection("playground");
+const entry = allPosts.find(
+    (post) =>
+        post.id === Astro.url.pathname.replace("/playground/", "").slice(0, -1)
+);
+
+if (
+    !entry ||
+    entry.data.draft === true ||
+    entry.data.visibility === "private"
+) {
+    return new Response(null, {
+        status: 404,
+        statusText: "Not found",
+    });
+}
+---
+
+<Layout title={entry?.data.title}>
+    <div class="flex items-center justify-center min-h-screen p-4">
+        <div class="w-full max-w-5xl mx-auto p-4 sm:p-6 md:p-8">
+            <header class="mb-6 text-center">
+                <h1 class="text-2xl sm:text-3xl font-bold text-gray-800">
+                    二次元BMIグラフ
+                </h1>
+                <p class="text-gray-600 mt-1">
+                    身長と体重を入力して、グラフ上のあなたの位置を確認しましょう。(WHOの基準)
+                </p>
+            </header>
+
+            <!-- コントロールパネル -->
+            <div class="bg-gray-50 p-6 rounded-xl mb-6 shadow-inner">
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6 items-center">
+                    <!-- 入力欄 -->
+                    <div
+                        class="md:col-span-2 grid grid-cols-1 sm:grid-cols-2 gap-6"
+                    >
+                        <div>
+                            <label
+                                for="height-input"
+                                class="block text-lg font-medium text-gray-700 mb-2"
+                                >身長 (cm)</label
+                            >
+                            <input
+                                id="height-input"
+                                type="number"
+                                value="170"
+                                step="0.1"
+                                class="w-full text-center font-semibold text-lg bg-white border border-gray-300 rounded-md shadow-sm p-3 focus:ring-indigo-500 focus:border-indigo-500"
+                            />
+                        </div>
+                        <div>
+                            <label
+                                for="weight-input"
+                                class="block text-lg font-medium text-gray-700 mb-2"
+                                >体重 (kg)</label
+                            >
+                            <input
+                                id="weight-input"
+                                type="number"
+                                value="70"
+                                step="0.1"
+                                class="w-full text-center font-semibold text-lg bg-white border border-gray-300 rounded-md shadow-sm p-3 focus:ring-indigo-500 focus:border-indigo-500"
+                            />
+                        </div>
+                    </div>
+
+                    <!-- BMI表示 -->
+                    <div
+                        class="text-center bg-white p-4 rounded-lg border border-gray-200 w-full h-full flex flex-col justify-center"
+                    >
+                        <p class="text-lg font-medium text-gray-700">
+                            あなたのBMI
+                        </p>
+                        <p
+                            id="bmi-display"
+                            class="text-4xl font-bold text-indigo-600 my-1"
+                        >
+                            24.2
+                        </p>
+                        <p
+                            id="bmi-status"
+                            class="text-lg font-semibold text-gray-800 rounded-full px-4 py-1 transition-colors duration-300"
+                        >
+                            普通体重
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- グラフ表示エリア -->
+            <div class="w-full h-[500px] bg-white rounded-lg p-4">
+                <canvas id="bmiChart"></canvas>
+            </div>
+
+            <!-- 判定基準表 -->
+            <div class="mt-8 grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <!-- WHO基準 -->
+                <div
+                    class="bg-white rounded-lg p-6 shadow-sm border border-gray-200"
+                >
+                    <h3
+                        class="text-lg font-semibold text-gray-800 mb-4 text-center"
+                    >
+                        世界保健機関(WHO)の判定基準
+                    </h3>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-sm">
+                            <thead>
+                                <tr class="bg-gray-50">
+                                    <th
+                                        class="px-3 py-2 text-left font-medium text-gray-700"
+                                        >BMI値</th
+                                    >
+                                    <th
+                                        class="px-3 py-2 text-left font-medium text-gray-700"
+                                        >判定</th
+                                    >
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-gray-200">
+                                <tr>
+                                    <td class="px-3 py-2 text-gray-600"
+                                        >16未満</td
+                                    >
+                                    <td
+                                        class="px-3 py-2 font-medium text-red-600"
+                                        >痩せすぎ</td
+                                    >
+                                </tr>
+                                <tr>
+                                    <td class="px-3 py-2 text-gray-600"
+                                        >16.00〜16.99以下</td
+                                    >
+                                    <td
+                                        class="px-3 py-2 font-medium text-orange-600"
+                                        >痩せ</td
+                                    >
+                                </tr>
+                                <tr>
+                                    <td class="px-3 py-2 text-gray-600"
+                                        >17.00〜18.49以下</td
+                                    >
+                                    <td
+                                        class="px-3 py-2 font-medium text-yellow-600"
+                                        >痩せぎみ</td
+                                    >
+                                </tr>
+                                <tr>
+                                    <td class="px-3 py-2 text-gray-600"
+                                        >18.50〜24.99以下</td
+                                    >
+                                    <td
+                                        class="px-3 py-2 font-medium text-green-600"
+                                        >普通体重</td
+                                    >
+                                </tr>
+                                <tr>
+                                    <td class="px-3 py-2 text-gray-600"
+                                        >25.00〜29.99以下</td
+                                    >
+                                    <td
+                                        class="px-3 py-2 font-medium text-yellow-600"
+                                        >前肥満</td
+                                    >
+                                </tr>
+                                <tr>
+                                    <td class="px-3 py-2 text-gray-600"
+                                        >30.00〜34.99以下</td
+                                    >
+                                    <td
+                                        class="px-3 py-2 font-medium text-orange-600"
+                                        >肥満(1度)</td
+                                    >
+                                </tr>
+                                <tr>
+                                    <td class="px-3 py-2 text-gray-600"
+                                        >35.00〜39.99以下</td
+                                    >
+                                    <td
+                                        class="px-3 py-2 font-medium text-red-600"
+                                        >肥満(2度)</td
+                                    >
+                                </tr>
+                                <tr>
+                                    <td class="px-3 py-2 text-gray-600"
+                                        >40.00以上</td
+                                    >
+                                    <td
+                                        class="px-3 py-2 font-medium text-red-700"
+                                        >肥満(3度)</td
+                                    >
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- 日本肥満学会基準 -->
+                <div
+                    class="bg-white rounded-lg p-6 shadow-sm border border-gray-200"
+                >
+                    <h3
+                        class="text-lg font-semibold text-gray-800 mb-4 text-center"
+                    >
+                        日本肥満学会の判定基準
+                    </h3>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-sm">
+                            <thead>
+                                <tr class="bg-gray-50">
+                                    <th
+                                        class="px-3 py-2 text-left font-medium text-gray-700"
+                                        >BMI値</th
+                                    >
+                                    <th
+                                        class="px-3 py-2 text-left font-medium text-gray-700"
+                                        >判定</th
+                                    >
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-gray-200">
+                                <tr>
+                                    <td class="px-3 py-2 text-gray-600"
+                                        >18.5未満</td
+                                    >
+                                    <td
+                                        class="px-3 py-2 font-medium text-yellow-600"
+                                        >低体重(痩せ型)</td
+                                    >
+                                </tr>
+                                <tr>
+                                    <td class="px-3 py-2 text-gray-600"
+                                        >18.5〜25未満</td
+                                    >
+                                    <td
+                                        class="px-3 py-2 font-medium text-green-600"
+                                        >普通体重</td
+                                    >
+                                </tr>
+                                <tr>
+                                    <td class="px-3 py-2 text-gray-600"
+                                        >25〜30未満</td
+                                    >
+                                    <td
+                                        class="px-3 py-2 font-medium text-yellow-600"
+                                        >肥満(1度)</td
+                                    >
+                                </tr>
+                                <tr>
+                                    <td class="px-3 py-2 text-gray-600"
+                                        >30〜35未満</td
+                                    >
+                                    <td
+                                        class="px-3 py-2 font-medium text-orange-600"
+                                        >肥満(2度)</td
+                                    >
+                                </tr>
+                                <tr>
+                                    <td class="px-3 py-2 text-gray-600"
+                                        >35〜40未満</td
+                                    >
+                                    <td
+                                        class="px-3 py-2 font-medium text-red-600"
+                                        >肥満(3度)</td
+                                    >
+                                </tr>
+                                <tr>
+                                    <td class="px-3 py-2 text-gray-600"
+                                        >40以上</td
+                                    >
+                                    <td
+                                        class="px-3 py-2 font-medium text-red-700"
+                                        >肥満(4度)</td
+                                    >
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</Layout>
+
+<!-- Chart.jsを読み込み -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<script>
+    const main = () => {
+        // --- DOM要素の取得 ---
+        const heightInput = document.getElementById("height-input");
+        const weightInput = document.getElementById("weight-input");
+        const bmiDisplay = document.getElementById("bmi-display");
+        const bmiStatus = document.getElementById("bmi-status");
+        const ctx = document.getElementById("bmiChart")?.getContext("2d");
+
+        if (!ctx) return; // グラフ要素が見つからない場合は終了
+
+        // --- BMI計算とステータス判定 ---
+        const calculateBMI = (weight, heightCm) => {
+            if (heightCm <= 0) return 0;
+            const heightM = heightCm / 100;
+            return weight / (heightM * heightM);
+        };
+        // 身長(cm)から体重(kg)を計算
+        const calculateWeight = (heightCm, bmi) => bmi * (heightCm / 100) ** 2;
+
+        const getBmiStatus = (bmi) => {
+            if (bmi < 16)
+                return {
+                    text: "痩せすぎ",
+                    color: "bg-red-100",
+                    textColor: "text-red-800",
+                };
+            if (bmi < 17)
+                return {
+                    text: "痩せ",
+                    color: "bg-orange-100",
+                    textColor: "text-orange-800",
+                };
+            if (bmi < 18.5)
+                return {
+                    text: "痩せぎみ",
+                    color: "bg-yellow-100",
+                    textColor: "text-yellow-800",
+                };
+            if (bmi < 25)
+                return {
+                    text: "普通体重",
+                    color: "bg-green-100",
+                    textColor: "text-green-800",
+                };
+            if (bmi < 30)
+                return {
+                    text: "前肥満",
+                    color: "bg-yellow-100",
+                    textColor: "text-yellow-800",
+                };
+            if (bmi < 35)
+                return {
+                    text: "肥満(1度)",
+                    color: "bg-orange-100",
+                    textColor: "text-orange-800",
+                };
+            if (bmi < 40)
+                return {
+                    text: "肥満(2度)",
+                    color: "bg-red-100",
+                    textColor: "text-red-800",
+                };
+            return {
+                text: "肥満(3度)",
+                color: "bg-red-200",
+                textColor: "text-red-900",
+            };
+        };
+
+        // --- グラフデータ生成 ---
+        const BMI_LINES = [
+            {
+                value: 16,
+                label: "BMI 16 (痩せすぎ)",
+                color: "rgba(239, 68, 68, 0.7)",
+            },
+            {
+                value: 17,
+                label: "BMI 17 (痩せ)",
+                color: "rgba(249, 115, 22, 0.7)",
+            },
+            {
+                value: 18.5,
+                label: "BMI 18.5 (痩せぎみ)",
+                color: "rgba(234, 179, 8, 0.7)",
+            },
+            {
+                value: 22,
+                label: "BMI 22 (標準)",
+                color: "rgba(34, 197, 94, 0.9)",
+                borderDash: [5, 5],
+            },
+            {
+                value: 25,
+                label: "BMI 25 (前肥満)",
+                color: "rgba(234, 179, 8, 0.7)",
+            },
+            {
+                value: 30,
+                label: "BMI 30 (肥満1度)",
+                color: "rgba(249, 115, 22, 0.7)",
+            },
+            {
+                value: 35,
+                label: "BMI 35 (肥満2度)",
+                color: "rgba(239, 68, 68, 0.7)",
+            },
+            {
+                value: 40,
+                label: "BMI 40 (肥満3度)",
+                color: "rgba(159, 18, 57, 0.7)",
+            },
+        ];
+
+        // BMIの線グラフ用データセットを生成
+        const generateBmiLineDatasets = () => {
+            const datasets = [];
+            const minHeight = 120,
+                maxHeight = 200;
+
+            BMI_LINES.forEach((line) => {
+                const data = [];
+                for (let h = minHeight; h <= maxHeight; h++) {
+                    data.push({ x: h, y: calculateWeight(h, line.value) });
+                }
+                datasets.push({
+                    type: "line",
+                    label: line.label,
+                    data: data,
+                    borderColor: line.color,
+                    borderWidth: 2,
+                    pointRadius: 0,
+                    fill: false,
+                    tension: 0.1,
+                    borderDash: line.borderDash || [], // 点線スタイルを適用
+                });
+            });
+            return datasets;
+        };
+
+        // --- 背景色分けプラグイン ---
+        const backgroundRegionsPlugin = {
+            id: "backgroundRegions",
+            beforeDatasetsDraw(chart, args, options) {
+                const {
+                    ctx,
+                    chartArea: { top, bottom, left, right },
+                    scales: { x, y },
+                } = chart;
+                ctx.save();
+
+                const fillRegions = [
+                    {
+                        bmiUpper: 16,
+                        bmiLower: 0,
+                        color: "rgba(239, 68, 68, 0.2)",
+                    }, // 痩せすぎ Red
+                    {
+                        bmiUpper: 17,
+                        bmiLower: 16,
+                        color: "rgba(249, 115, 22, 0.2)",
+                    }, // 痩せ Orange
+                    {
+                        bmiUpper: 18.5,
+                        bmiLower: 17,
+                        color: "rgba(234, 179, 8, 0.2)",
+                    }, // 痩せぎみ Yellow
+                    {
+                        bmiUpper: 25,
+                        bmiLower: 18.5,
+                        color: "rgba(34, 197, 94, 0.15)",
+                    }, // 普通体重 Green
+                    {
+                        bmiUpper: 30,
+                        bmiLower: 25,
+                        color: "rgba(234, 179, 8, 0.2)",
+                    }, // 前肥満 Yellow
+                    {
+                        bmiUpper: 35,
+                        bmiLower: 30,
+                        color: "rgba(249, 115, 22, 0.2)",
+                    }, // 肥満1度 Orange
+                    {
+                        bmiUpper: 40,
+                        bmiLower: 35,
+                        color: "rgba(239, 68, 68, 0.2)",
+                    }, // 肥満2度 Red
+                    {
+                        bmiUpper: 100,
+                        bmiLower: 40,
+                        color: "rgba(159, 18, 57, 0.2)",
+                    }, // 肥満3度 Dark Red
+                ];
+
+                const fillBetweenBmiLines = (bmiLower, bmiUpper, color) => {
+                    ctx.fillStyle = color;
+                    ctx.beginPath();
+
+                    // Draw top line (bmiUpper) from left to right
+                    let isFirstPoint = true;
+                    for (let h = x.min; h <= x.max; h += 2) {
+                        // step by 2 for performance
+                        const w = calculateWeight(h, bmiUpper);
+                        const px = x.getPixelForValue(h);
+                        const py = y.getPixelForValue(
+                            Math.min(Math.max(w, y.min), y.max)
+                        );
+                        if (isFirstPoint) {
+                            ctx.moveTo(px, py);
+                            isFirstPoint = false;
+                        } else {
+                            ctx.lineTo(px, py);
+                        }
+                    }
+                    // Ensure the path reaches the right edge
+                    const lastWUpper = calculateWeight(x.max, bmiUpper);
+                    ctx.lineTo(
+                        x.getPixelForValue(x.max),
+                        y.getPixelForValue(
+                            Math.min(Math.max(lastWUpper, y.min), y.max)
+                        )
+                    );
+
+                    // Draw bottom line (bmiLower) from right to left
+                    for (let h = x.max; h >= x.min; h -= 2) {
+                        const w = calculateWeight(h, bmiLower);
+                        const px = x.getPixelForValue(h);
+                        const py = y.getPixelForValue(
+                            Math.min(Math.max(w, y.min), y.max)
+                        );
+                        ctx.lineTo(px, py);
+                    }
+                    // Ensure the path reaches the left edge
+                    const lastWLower = calculateWeight(x.min, bmiLower);
+                    ctx.lineTo(
+                        x.getPixelForValue(x.min),
+                        y.getPixelForValue(
+                            Math.min(Math.max(lastWLower, y.min), y.max)
+                        )
+                    );
+
+                    ctx.closePath();
+                    ctx.fill();
+                };
+
+                fillRegions.forEach((region) => {
+                    fillBetweenBmiLines(
+                        region.bmiLower,
+                        region.bmiUpper,
+                        region.color
+                    );
+                });
+
+                ctx.restore();
+            },
+        };
+
+        // --- グラフの初期化 ---
+        Chart.register(backgroundRegionsPlugin); // プラグインを登録
+
+        const bmiChart = new Chart(ctx, {
+            data: {
+                datasets: [
+                    ...generateBmiLineDatasets(),
+                    // ユーザーの位置を示すデータセット
+                    {
+                        type: "scatter",
+                        label: "あなたの位置",
+                        data: [],
+                        backgroundColor: "rgba(79, 70, 229, 1)",
+                        borderColor: "rgba(255, 255, 255, 1)",
+                        borderWidth: 2,
+                        pointRadius: 8,
+                        pointHoverRadius: 10,
+                        order: -1, // 常に最前面に表示
+                    },
+                ],
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    x: {
+                        type: "linear",
+                        position: "bottom",
+                        title: {
+                            display: true,
+                            text: "身長 (cm)",
+                            font: { size: 14 },
+                        },
+                        min: 120,
+                        max: 200,
+                    },
+                    y: {
+                        title: {
+                            display: true,
+                            text: "体重 (kg)",
+                            font: { size: 14 },
+                        },
+                        min: 30,
+                        max: 130,
+                    },
+                },
+                plugins: {
+                    tooltip: {
+                        callbacks: {
+                            label: function (context) {
+                                if (context.dataset.label === "あなたの位置") {
+                                    const bmi = calculateBMI(
+                                        context.parsed.y,
+                                        context.parsed.x
+                                    );
+                                    return `身長: ${context.parsed.x.toFixed(1)}cm, 体重: ${context.parsed.y.toFixed(1)}kg, BMI: ${bmi.toFixed(1)}`;
+                                }
+                                return context.dataset.label;
+                            },
+                        },
+                    },
+                },
+            },
+        });
+
+        // --- UI全体の更新関数 ---
+        const updateApp = () => {
+            const height = parseFloat(heightInput.value);
+            const weight = parseFloat(weightInput.value);
+
+            if (isNaN(height) || isNaN(weight)) return;
+
+            // BMI表示を更新
+            const bmi = calculateBMI(weight, height);
+            bmiDisplay.textContent = bmi.toFixed(1);
+            const status = getBmiStatus(bmi);
+            bmiStatus.textContent = status.text;
+
+            // BMIステータスの色分けを更新
+            let statusClasses;
+            const currentBmi = parseFloat(bmiDisplay.textContent);
+            if (currentBmi < 16) statusClasses = "bg-red-100 text-red-800";
+            else if (currentBmi < 17)
+                statusClasses = "bg-orange-100 text-orange-800";
+            else if (currentBmi < 18.5)
+                statusClasses = "bg-yellow-100 text-yellow-800";
+            else if (currentBmi < 25)
+                statusClasses = "bg-green-100 text-green-800";
+            else if (currentBmi < 30)
+                statusClasses = "bg-yellow-100 text-yellow-800";
+            else if (currentBmi < 35)
+                statusClasses = "bg-orange-100 text-orange-800";
+            else if (currentBmi < 40) statusClasses = "bg-red-100 text-red-800";
+            else statusClasses = "bg-red-200 text-red-900";
+
+            bmiStatus.className = `text-lg font-semibold rounded-full px-4 py-1 transition-colors duration-300 ${statusClasses}`;
+
+            // グラフ上のユーザーの位置を更新
+            bmiChart.data.datasets[bmiChart.data.datasets.length - 1].data = [
+                { x: height, y: weight },
+            ];
+            bmiChart.update();
+        };
+
+        // --- イベントリスナーの設定 ---
+        heightInput.addEventListener("input", updateApp);
+        weightInput.addEventListener("input", updateApp);
+
+        // --- 初期表示 ---
+        updateApp();
+    };
+
+    // DOMContentLoadedとastro:after-swapの両方でmain関数を実行
+    document.addEventListener("DOMContentLoaded", main);
+    document.addEventListener("astro:after-swap", main);
+</script>
