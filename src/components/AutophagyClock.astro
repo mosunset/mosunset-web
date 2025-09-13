@@ -1,0 +1,303 @@
+---
+// ここはサーバーサイド（ビルド時）
+---
+
+<style>
+    body {
+        font-family: "Inter", "Noto Sans JP", sans-serif;
+        touch-action: manipulation; /* Disable double-tap to zoom */
+    }
+    .progress-ring__circle {
+        transition: stroke-dashoffset 0.5s;
+        transform: rotate(-90deg);
+        transform-origin: 50% 50%;
+    }
+</style>
+<section class="py-14 sm:py-20 border-t border-gray-200">
+    <div class="mx-auto max-w-4xl">
+        <div id="timer-view" class="rounded-2xl p-6 text-center">
+            <h1 class="text-3xl font-bold text-center text-teal-400 mb-2">
+                オートファジー時計
+            </h1>
+            <p class="text-center text-gray-400 mb-6">
+                食事: 12:00 - 20:00 / 断食: 20:00 - 12:00
+            </p>
+            <!-- 現在時刻表示 -->
+            <div class="mb-6">
+                <p class="text-lg text-gray-400">現在時刻</p>
+                <p id="current-time" class="text-4xl font-bold tracking-wider">
+                    00:00:00
+                </p>
+            </div>
+
+            <!-- カウントダウンとプログレス表示 -->
+            <div
+                class="relative w-64 h-64 mx-auto mb-6 flex items-center justify-center"
+            >
+                <svg class="w-full h-full" viewBox="0 0 120 120">
+                    <circle
+                        class="text-gray-700"
+                        stroke-width="8"
+                        stroke="currentColor"
+                        fill="transparent"
+                        r="56"
+                        cx="60"
+                        cy="60"></circle>
+                    <circle
+                        id="progress-circle"
+                        class="progress-ring__circle text-teal-400"
+                        stroke-width="8"
+                        stroke-linecap="round"
+                        stroke="currentColor"
+                        fill="transparent"
+                        r="56"
+                        cx="60"
+                        cy="60"></circle>
+                </svg>
+                <div class="absolute flex flex-col items-center justify-center">
+                    <p
+                        id="timer-label"
+                        class="text-sm font-semibold text-gray-300"
+                    >
+                        次の食事まで
+                    </p>
+                    <p id="countdown" class="text-4xl font-bold">00:00:00</p>
+                </div>
+            </div>
+
+            <!-- ステータス表示 -->
+            <div
+                class="rounded-lg p-4 h-20 flex items-center justify-center mb-6"
+            >
+                <p
+                    id="status-display"
+                    class="text-lg font-semibold text-center"
+                >
+                </p>
+            </div>
+
+            <!-- ブログリンク -->
+            <div class="mt-8 text-center">
+                <p class="text-gray-500 text-sm">
+                    オートファジーについて詳しく知りたい方は
+                    <a
+                        href="https://mosunset/blog/autophagy"
+                        class="text-teal-600 hover:text-teal-700 underline font-medium"
+                    >
+                        こちら
+                    </a>
+                    のブログ記事をご覧ください
+                </p>
+            </div>
+        </div>
+    </div>
+</section>
+<script>
+    const currentTimeDisplay = document.getElementById("current-time");
+    const timerLabel = document.getElementById("timer-label");
+    const countdownDisplay = document.getElementById("countdown");
+    const statusDisplay = document.getElementById("status-display");
+    const progressCircle = document.getElementById(
+        "progress-circle"
+    ) as SVGCircleElement | null;
+
+    let timerInterval: NodeJS.Timeout | undefined;
+    // 食事開始時間を12:00に固定
+    const eatingStartHour = 12;
+    const eatingStartMinute = 0;
+
+    // SVG円の円周を計算
+    if (!progressCircle) {
+        throw new Error("Progress circle element not found");
+    }
+    const radius = progressCircle.r.baseVal.value;
+    const circumference = 2 * Math.PI * radius;
+    progressCircle.style.strokeDasharray = `${circumference} ${circumference}`;
+    progressCircle.style.strokeDashoffset = circumference.toString();
+
+    function setProgress(percent: number) {
+        if (!progressCircle) return;
+        const offset = circumference - (percent / 100) * circumference;
+        progressCircle.style.strokeDashoffset = offset.toString();
+    }
+
+    // 現在時刻を更新する関数
+    function updateCurrentTime() {
+        if (!currentTimeDisplay) return;
+        const now = new Date();
+        currentTimeDisplay.textContent = now.toLocaleTimeString("ja-JP");
+    }
+
+    function formatTime(ms: number) {
+        if (ms < 0) ms = 0;
+        const totalSeconds = Math.floor(ms / 1000);
+        const hours = Math.floor(totalSeconds / 3600);
+        const minutes = Math.floor((totalSeconds % 3600) / 60);
+        const seconds = totalSeconds % 60;
+        return `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
+    }
+
+    // メインのタイマーロジック
+    function updateTimer() {
+        const now = new Date();
+
+        const eatingStartTime = new Date(now);
+        eatingStartTime.setHours(eatingStartHour, eatingStartMinute, 0, 0);
+
+        const eatingEndTime = new Date(eatingStartTime);
+        eatingEndTime.setHours(eatingStartTime.getHours() + 8);
+
+        let isFasting = false;
+        let targetTime;
+        let fastingStartTime;
+
+        // 現在が食事時間か断食時間かを判断
+        if (now >= eatingStartTime && now < eatingEndTime) {
+            isFasting = false;
+            targetTime = eatingEndTime;
+        } else {
+            isFasting = true;
+            if (now < eatingStartTime) {
+                // 今日の食事時間前 -> 昨日の食事終了後から断食中
+                targetTime = eatingStartTime;
+                fastingStartTime = new Date(eatingEndTime);
+                fastingStartTime.setDate(fastingStartTime.getDate() - 1);
+            } else {
+                // 今日の食事時間後 -> 今日の食事終了後から断食中
+                targetTime = new Date(eatingStartTime);
+                targetTime.setDate(targetTime.getDate() + 1);
+                fastingStartTime = eatingEndTime;
+            }
+        }
+
+        const remainingTime = targetTime.getTime() - now.getTime();
+        if (countdownDisplay) {
+            countdownDisplay.textContent = formatTime(remainingTime);
+        }
+
+        if (isFasting) {
+            // 断食中の処理
+            if (timerLabel) {
+                timerLabel.textContent = "次の食事OK時間まで";
+            }
+            const totalFastingDuration = 16 * 60 * 60 * 1000;
+            const elapsedFastingTime =
+                now.getTime() - (fastingStartTime?.getTime() || 0);
+            const progress = Math.min(
+                100,
+                (elapsedFastingTime / totalFastingDuration) * 100
+            );
+
+            setProgress(progress);
+
+            if (progress < 25) {
+                // 0-4 hours
+                if (statusDisplay) {
+                    statusDisplay.textContent = "断食中 - 最初の4時間";
+                }
+                if (progressCircle) {
+                    progressCircle.classList.remove(
+                        "text-yellow-400",
+                        "text-orange-400",
+                        "text-red-500"
+                    );
+                    progressCircle.classList.add("text-teal-400");
+                }
+            } else if (progress < 50) {
+                // 4-8 hours
+                if (statusDisplay) {
+                    statusDisplay.textContent = "断食中 - 4-8時間経過";
+                }
+                if (progressCircle) {
+                    progressCircle.classList.remove(
+                        "text-teal-400",
+                        "text-orange-400",
+                        "text-red-500"
+                    );
+                    progressCircle.classList.add("text-yellow-400");
+                }
+            } else if (progress < 75) {
+                // 8-12 hours
+                if (statusDisplay) {
+                    statusDisplay.textContent = "断食中 - 8-12時間経過";
+                }
+                if (progressCircle) {
+                    progressCircle.classList.remove(
+                        "text-teal-400",
+                        "text-yellow-400",
+                        "text-red-500"
+                    );
+                    progressCircle.classList.add("text-orange-400");
+                }
+            } else {
+                // 12-16 hours
+                if (statusDisplay) {
+                    statusDisplay.textContent =
+                        "断食中 - 12-16時間経過（オートファジー活性化期）";
+                }
+                if (progressCircle) {
+                    progressCircle.classList.remove(
+                        "text-teal-400",
+                        "text-yellow-400",
+                        "text-orange-400"
+                    );
+                    progressCircle.classList.add("text-red-500");
+                }
+            }
+        } else {
+            // 食事時間中の処理
+            if (timerLabel) {
+                timerLabel.textContent = "次の絶食時間まで";
+            }
+            if (statusDisplay) {
+                statusDisplay.textContent = "食事を楽しんでください！";
+            }
+
+            // 食事時間の進行状況を計算（8時間の食事期間）
+            const totalEatingDuration = 8 * 60 * 60 * 1000; // 8時間をミリ秒で
+            const elapsedEatingTime = now.getTime() - eatingStartTime.getTime();
+            const eatingProgress = Math.min(
+                100,
+                (elapsedEatingTime / totalEatingDuration) * 100
+            );
+
+            setProgress(eatingProgress);
+            if (progressCircle) {
+                progressCircle.classList.remove(
+                    "text-yellow-400",
+                    "text-orange-400",
+                    "text-red-500"
+                );
+                progressCircle.classList.add("text-teal-400");
+            }
+        }
+    }
+
+    // ページ読み込み時にタイマーを初期化して開始する関数
+    function initializeClock() {
+        updateCurrentTime();
+        updateTimer();
+
+        // 1秒ごとにタイマーを更新
+        setInterval(updateCurrentTime, 1000);
+        timerInterval = setInterval(updateTimer, 1000);
+    }
+
+    // 初期化時にプログレスを0に設定し、時計を開始
+    const main = () => {
+        setProgress(0);
+        initializeClock();
+    };
+
+    // DOMContentLoadedイベントは、初回ページロード時にDOMが完全に読み込まれた後に発生します。
+    document.addEventListener("DOMContentLoaded", () => {
+        main();
+    });
+
+    // astro:after-swapイベントは、旧ページが新ページに置き換わった直後に発生します。
+    document.addEventListener("astro:after-swap", () => {
+        main();
+    });
+
+    main();
+</script>
