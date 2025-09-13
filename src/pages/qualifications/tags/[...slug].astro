@@ -1,0 +1,287 @@
+---
+import Layout from "@/layouts/Layout.astro";
+import { getCollection } from "astro:content";
+import { Image } from "astro:assets";
+import InitMasonry from "@/components/initMasonry/index.astro";
+
+// URLパラメータからタグを取得
+export async function getStaticPaths() {
+    const allPosts = await getCollection("qualifications");
+    const publishedPosts = allPosts.filter((post) => !post.data.draft);
+    const publicPosts = publishedPosts.filter(
+        (post) => post.data.visibility === "public"
+    );
+
+    // タグごとにグループ化
+    const postsByTag = publicPosts.reduce(
+        (acc, post) => {
+            if (post.data.tags && post.data.tags.length > 0) {
+                post.data.tags.forEach((tag) => {
+                    if (!acc[tag]) {
+                        acc[tag] = [];
+                    }
+                    acc[tag].push(post);
+                });
+            }
+            return acc;
+        },
+        {} as Record<string, typeof publicPosts>
+    );
+
+    // 各タグのパスを生成
+    return Object.keys(postsByTag).map((tag) => ({
+        params: { slug: tag },
+        props: { tag, postsByTag },
+    }));
+}
+
+const { tag, postsByTag } = Astro.props;
+
+// 指定されたタグの記事を取得
+const tagPosts = postsByTag[tag] || [];
+
+// タグ内のカードを取得日でソート
+tagPosts.sort(
+    (a, b) =>
+        new Date(b.data.acquiredDate || "2000-01-01").getTime() -
+        new Date(a.data.acquiredDate || "2000-01-01").getTime()
+);
+
+// 他のタグ一覧を取得（現在のタグを除く）
+const otherTags = Object.keys(postsByTag)
+    .filter((t) => t !== tag)
+    .sort((a, b) => a.localeCompare(b, "ja"));
+---
+
+<Layout title="タグ - 資格一覧">
+    <style>
+        /* Masonryコンテナのスタイル */
+        .masonry-container {
+            width: 100%;
+        }
+        /* Masonryアイテムのスタイル */
+        .masonry-item {
+            width: 100%;
+            margin-bottom: 1.5rem;
+            opacity: 0;
+            transition: opacity 0.3s ease-in-out;
+        }
+
+        .masonry-item.loaded {
+            opacity: 1;
+        }
+
+        /* 画像のアスペクト比を保持 */
+        .masonry-item img {
+            width: 100%;
+            height: auto;
+            display: block;
+        }
+
+        /* レスポンシブ対応 - Masonry.jsが自動でカラム幅を計算するため、固定幅を設定 */
+        @media (min-width: 768px) {
+            .masonry-item {
+                width: calc(50% - 12px);
+            }
+        }
+
+        @media (min-width: 1024px) {
+            .masonry-item {
+                width: calc(33.333% - 16px);
+            }
+        }
+
+        @media (min-width: 1280px) {
+            .masonry-item {
+                width: calc(25% - 18px);
+            }
+        }
+    </style>
+    <h1 class="text-3xl font-bold text-gray-900 mb-8">
+        <span transition:persist-props transition:name="qualifications-title"
+            >タグ：#{tag}</span
+        >
+    </h1>
+
+    <!-- 指定されたタグのカード表示 -->
+    <div class="mb-8">
+        {
+            tagPosts.length === 0 ? (
+                <div class="text-center text-gray-500">
+                    <p>このタグには資格がありません</p>
+                </div>
+            ) : (
+                <div>
+                    <div id="masonry-container" class="masonry-container">
+                        {tagPosts.map((post) => (
+                            <article class="masonry-item bg-white border border-gray-200 rounded-lg shadow-sm hover:shadow-md transition-shadow overflow-hidden">
+                                <div class="relative">
+                                    {/* 詳細ページへのリンク */}
+                                    {post.data.thumbnail && (
+                                        <Image
+                                            src={post.data.thumbnail}
+                                            format="webp"
+                                            alt={post.data.name}
+                                            title={post.data.name}
+                                            loading="lazy"
+                                            class="w-full object-cover"
+                                            transition:persist-props
+                                            transition:name={
+                                                post.slug + "-thumbnail"
+                                            }
+                                        />
+                                    )}
+                                    <div class="p-6">
+                                        <h2
+                                            class="text-xl font-semibold text-gray-900 mb-2 line-clamp-2"
+                                            transition:persist-props
+                                            transition:name={
+                                                post.slug + "-title"
+                                            }
+                                        >
+                                            {post.data.name}{" "}
+                                            <span class="px-2 py-1 bg-green-100 text-green-800 text-xs rounded-full">
+                                                {post.data.status}
+                                            </span>
+                                        </h2>
+                                        <p
+                                            class="text-gray-600 mb-2 text-sm"
+                                            transition:persist-props
+                                            transition:name={
+                                                post.slug + "-organization"
+                                            }
+                                        >
+                                            実施団体: {post.data.organization}
+                                        </p>
+                                        <div class="flex flex-wrap gap-2 mb-3">
+                                            <a
+                                                href={`/qualifications/categorys/${post.data.category}`}
+                                                class="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full z-50"
+                                                title={post.data.category}
+                                                transition:persist-props
+                                                transition:name={
+                                                    post.slug + "-category"
+                                                }
+                                            >
+                                                {post.data.category}
+                                            </a>
+
+                                            {post.data.tags &&
+                                                post.data.tags.length > 0 && (
+                                                    <div
+                                                        class="flex gap-2 z-50"
+                                                        transition:persist-props
+                                                        transition:name={
+                                                            post.slug + "-tag"
+                                                        }
+                                                    >
+                                                        {post.data.tags.map(
+                                                            (tagItem) => (
+                                                                <a
+                                                                    href={`/qualifications/tags/${tagItem}`}
+                                                                    title={
+                                                                        tagItem
+                                                                    }
+                                                                    class={`px-2 py-1 text-xs rounded z-50 ${
+                                                                        tagItem ===
+                                                                        tag
+                                                                            ? "bg-green-100 text-green-700"
+                                                                            : "bg-gray-100 text-gray-700"
+                                                                    }`}
+                                                                >
+                                                                    #{tagItem}
+                                                                </a>
+                                                            )
+                                                        )}
+                                                    </div>
+                                                )}
+                                        </div>
+                                        <div class="flex flex-col gap-1 mt-auto">
+                                            {post.data.acquiredDate && (
+                                                <time
+                                                    class="text-sm text-gray-500"
+                                                    transition:persist-props
+                                                    transition:name={
+                                                        post.slug +
+                                                        "-acquiredDate"
+                                                    }
+                                                >
+                                                    取得日:{" "}
+                                                    {new Date(
+                                                        post.data.acquiredDate
+                                                    ).toLocaleDateString(
+                                                        "ja-JP"
+                                                    )}
+                                                </time>
+                                            )}
+                                            {post.data.validityPeriod && (
+                                                <time
+                                                    class="text-sm text-gray-500"
+                                                    transition:persist-props
+                                                    transition:name={
+                                                        post.slug +
+                                                        "-validityPeriod"
+                                                    }
+                                                >
+                                                    有効期限:{" "}
+                                                    {new Date(
+                                                        post.data.validityPeriod
+                                                    ).toLocaleDateString(
+                                                        "ja-JP"
+                                                    )}
+                                                </time>
+                                            )}
+                                        </div>
+                                    </div>
+                                    <a
+                                        href={`/qualifications/item/${post.slug}/`}
+                                        class="absolute inset-0"
+                                        title={post.data.name}
+                                    />
+                                </div>
+                            </article>
+                        ))}
+                    </div>
+                    <InitMasonry id="masonry-container" item=".masonry-item" />
+                </div>
+            )
+        }
+    </div>
+
+    <!-- 他のタグへのリンク -->
+    {
+        otherTags.length > 0 && (
+            <div class="mt-12">
+                <h2 class="text-2xl font-bold text-gray-800 mb-6 pb-2 border-b-2 border-gray-200">
+                    他のタグ
+                </h2>
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {otherTags.map((t) => (
+                        <a
+                            title={t}
+                            href={`/qualifications/tags/${t}`}
+                            class="block p-6 bg-white hover:bg-green-50 rounded-lg border border-gray-300 shadow-sm hover:shadow-md transition-shadow"
+                        >
+                            <h3 class="text-lg font-semibold text-gray-900 mb-2">
+                                #{t}
+                            </h3>
+                            <p class="text-sm text-gray-600">
+                                {postsByTag[t].length}件の資格
+                            </p>
+                        </a>
+                    ))}
+                    <a
+                        title="タグ一覧を見る"
+                        href={`/qualifications/tags/`}
+                        class="block p-6 bg-green-100 hover:bg-green-200 rounded-lg border border-green-300 shadow-sm hover:shadow-md transition-shadow"
+                    >
+                        <h3 class="text-lg font-semibold text-green-900 mb-2">
+                            タグ一覧を見る
+                        </h3>
+                        <p class="text-sm text-green-600">すべてのタグを見る</p>
+                    </a>
+                </div>
+            </div>
+        )
+    }
+</Layout>

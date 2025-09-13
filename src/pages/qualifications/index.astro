@@ -82,11 +82,7 @@ publicPosts.sort(
             ) : (
                 publicPosts.map((post) => (
                     <article class="masonry-item bg-white border border-gray-200 rounded-lg shadow-sm hover:shadow-md transition-shadow overflow-hidden">
-                        <a
-                            href={`/qualifications/${post.slug}/`}
-                            class="block"
-                            title={post.data.name}
-                        >
+                        <div class="relative">
                             {/* 詳細ページへのリンク */}
                             {post.data.thumbnail && (
                                 <Image
@@ -121,29 +117,35 @@ publicPosts.sort(
                                     実施団体: {post.data.organization}
                                 </p>
                                 <div class="flex flex-wrap gap-2 mb-3">
-                                    <span
-                                        class="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full"
+                                    <a
+                                        href={`/qualifications/categorys/${post.data.category}`}
+                                        class="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full z-50"
+                                        title={post.data.category}
                                         transition:persist-props
                                         transition:name={
                                             post.slug + "-category"
                                         }
                                     >
                                         {post.data.category}
-                                    </span>
+                                    </a>
 
                                     {post.data.tags &&
                                         post.data.tags.length > 0 && (
                                             <div
-                                                class="flex gap-2"
+                                                class="flex gap-2 z-50"
                                                 transition:persist-props
                                                 transition:name={
                                                     post.slug + "-tag"
                                                 }
                                             >
                                                 {post.data.tags.map((tag) => (
-                                                    <span class="px-2 py-1 bg-gray-100 text-gray-700 rounded text-xs">
+                                                    <a
+                                                        href={`/qualifications/tags/${tag}`}
+                                                        title={tag}
+                                                        class="px-2 py-1 bg-gray-100 text-gray-700 rounded text-xs z-50"
+                                                    >
                                                         #{tag}
-                                                    </span>
+                                                    </a>
                                                 ))}
                                             </div>
                                         )}
@@ -179,7 +181,12 @@ publicPosts.sort(
                                     )}
                                 </div>
                             </div>
-                        </a>
+                            <a
+                                href={`/qualifications/item/${post.slug}/`}
+                                class="absolute inset-0"
+                                title={post.data.name}
+                            />
+                        </div>
                     </article>
                 ))
             )
