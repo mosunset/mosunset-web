@@ -1,5 +1,5 @@
 ---
-draft: false
+draft: true
 visibility: public
 publishedDate: 2025-09-12
 updatedDate: 2025-09-13
@@ -57,7 +57,7 @@ tags:
 if (window.ai) {
   console.log("✅ Built-in AI is available.");
   const capabilities = await ai.assistant.capabilities();
-  console.log("Model availability:", capabilities.available); 
+  console.log("Model availability:", capabilities.available);
   // 初回は 'after-download'、その後 'readily' と表示されるはずです
 } else {
   console.log("❌ Built-in AI is not available.");
