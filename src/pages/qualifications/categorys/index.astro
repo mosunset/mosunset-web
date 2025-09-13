@@ -1,8 +1,8 @@
 ---
 import Layout from "@/layouts/Layout.astro";
 import { getCollection } from "astro:content";
-import { Image } from "astro:assets";
 import InitMasonry from "@/components/initMasonry/index.astro";
+import QualificationCard from "@/components/QualificationCard.astro";
 
 // コレクションから全記事を取得
 const allPosts = await getCollection("qualifications");
@@ -49,43 +49,6 @@ const sortedCategories = Object.keys(postsByCategory).sort((a, b) =>
         .masonry-container {
             width: 100%;
         }
-       /* Masonryアイテムのスタイル */
-        .masonry-item {
-            width: 100%;
-            margin-bottom: 1.5rem;
-            opacity: 0;
-            transition: opacity 0.3s ease-in-out;
-        }
-
-        .masonry-item.loaded {
-            opacity: 1;
-        }
-
-        /* 画像のアスペクト比を保持 */
-        .masonry-item img {
-            width: 100%;
-            height: auto;
-            display: block;
-        }
-
-        /* レスポンシブ対応 - Masonry.jsが自動でカラム幅を計算するため、固定幅を設定 */
-        @media (min-width: 768px) {
-            .masonry-item {
-                width: calc(50% - 12px);
-            }
-        }
-
-        @media (min-width: 1024px) {
-            .masonry-item {
-                width: calc(33.333% - 16px);
-            }
-        }
-
-        @media (min-width: 1280px) {
-            .masonry-item {
-                width: calc(25% - 18px);
-            }
-        }
     </style>
     <h1 class="text-3xl font-bold text-gray-900 mb-8">
         <span transition:persist-props transition:name="qualifications-title"
@@ -112,132 +75,10 @@ const sortedCategories = Object.keys(postsByCategory).sort((a, b) =>
                             class="masonry-container"
                         >
                             {postsByCategory[category].map((post) => (
-                                <article
-                                    class={`masonry-item-${index} masonry-item bg-white border border-gray-200 rounded-lg shadow-sm hover:shadow-md transition-shadow overflow-hidden`}
-                                >
-                                    <div class="relative">
-                                        {/* 詳細ページへのリンク */}
-                                        {post.data.thumbnail && (
-                                            <Image
-                                                src={post.data.thumbnail}
-                                                format="webp"
-                                                alt={post.data.name}
-                                                title={post.data.name}
-                                                loading="lazy"
-                                                class="w-full object-cover"
-                                                transition:persist-props
-                                                transition:name={
-                                                    post.slug + "-thumbnail"
-                                                }
-                                            />
-                                        )}
-                                        <div class="p-6">
-                                            <h2
-                                                class="text-xl font-semibold text-gray-900 mb-2 line-clamp-2"
-                                                transition:persist-props
-                                                transition:name={
-                                                    post.slug + "-title"
-                                                }
-                                            >
-                                                {post.data.name}{" "}
-                                                <span class="px-2 py-1 bg-green-100 text-green-800 text-xs rounded-full">
-                                                    {post.data.status}
-                                                </span>
-                                            </h2>
-                                            <p
-                                                class="text-gray-600 mb-2 text-sm"
-                                                transition:persist-props
-                                                transition:name={
-                                                    post.slug + "-organization"
-                                                }
-                                            >
-                                                実施団体:{" "}
-                                                {post.data.organization}
-                                            </p>
-                                            <div class="flex flex-wrap gap-2 mb-3">
-                                                <a
-                                                    href={`/qualifications/categorys/${post.data.category}`}
-                                                    class="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full z-50"
-                                                    title={post.data.category}
-                                                    transition:persist-props
-                                                    transition:name={
-                                                        post.slug + "-category"
-                                                    }
-                                                >
-                                                    {post.data.category}
-                                                </a>
-
-                                                {post.data.tags &&
-                                                    post.data.tags.length >
-                                                        0 && (
-                                                        <div
-                                                            class="flex gap-2 z-50"
-                                                            transition:persist-props
-                                                            transition:name={
-                                                                post.slug +
-                                                                "-tag"
-                                                            }
-                                                        >
-                                                            {post.data.tags.map(
-                                                                (tag) => (
-                                                                    <a
-                                                                        href={`/qualifications/tags/${tag}`}
-                                                                        title={
-                                                                            tag
-                                                                        }
-                                                                        class="px-2 py-1 bg-gray-100 text-gray-700 rounded text-xs z-50"
-                                                                    >
-                                                                        #{tag}
-                                                                    </a>
-                                                                )
-                                                            )}
-                                                        </div>
-                                                    )}
-                                            </div>
-                                            <div class="flex flex-col gap-1 mt-auto">
-                                                {post.data.acquiredDate && (
-                                                    <time
-                                                        class="text-sm text-gray-500"
-                                                        transition:persist-props
-                                                        transition:name={
-                                                            post.slug +
-                                                            "-acquiredDate"
-                                                        }
-                                                    >
-                                                        取得日:{" "}
-                                                        {new Date(
-                                                            post.data.acquiredDate
-                                                        ).toLocaleDateString(
-                                                            "ja-JP"
-                                                        )}
-                                                    </time>
-                                                )}
-                                                {post.data.validityPeriod && (
-                                                    <time
-                                                        class="text-sm text-gray-500"
-                                                        transition:persist-props
-                                                        transition:name={
-                                                            post.slug +
-                                                            "-validityPeriod"
-                                                        }
-                                                    >
-                                                        有効期限:{" "}
-                                                        {new Date(
-                                                            post.data.validityPeriod
-                                                        ).toLocaleDateString(
-                                                            "ja-JP"
-                                                        )}
-                                                    </time>
-                                                )}
-                                            </div>
-                                        </div>
-                                        <a
-                                            href={`/qualifications/item/${post.slug}/`}
-                                            class="absolute inset-0"
-                                            title={post.data.name}
-                                        />
-                                    </div>
-                                </article>
+                                <QualificationCard
+                                    qualification={post}
+                                    masonryClass={`masonry-item-${index}`}
+                                />
                             ))}
                         </div>
                     </div>
