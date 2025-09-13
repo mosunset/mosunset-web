@@ -36,7 +36,7 @@ if (
                 <div class="grid grid-cols-1 md:grid-cols-3 gap-6 items-center">
                     <!-- 入力欄 -->
                     <div
-                        class="md:col-span-2 grid grid-cols-1 sm:grid-cols-2 gap-6"
+                        class="md:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-6"
                     >
                         <div>
                             <label
@@ -49,7 +49,18 @@ if (
                                 type="number"
                                 value="170"
                                 step="0.1"
-                                class="w-full text-center font-semibold text-lg bg-white border border-gray-300 rounded-md shadow-sm p-3 focus:ring-indigo-500 focus:border-indigo-500"
+                                min="120"
+                                max="200"
+                                class="w-full text-center font-semibold text-lg bg-white border border-gray-300 rounded-md shadow-sm p-3 focus:ring-indigo-500 focus:border-indigo-500 mb-2"
+                            />
+                            <input
+                                id="height-slider"
+                                type="range"
+                                min="120"
+                                max="200"
+                                value="170"
+                                step="0.1"
+                                class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer slider"
                             />
                         </div>
                         <div>
@@ -63,7 +74,18 @@ if (
                                 type="number"
                                 value="70"
                                 step="0.1"
-                                class="w-full text-center font-semibold text-lg bg-white border border-gray-300 rounded-md shadow-sm p-3 focus:ring-indigo-500 focus:border-indigo-500"
+                                min="30"
+                                max="120"
+                                class="w-full text-center font-semibold text-lg bg-white border border-gray-300 rounded-md shadow-sm p-3 focus:ring-indigo-500 focus:border-indigo-500 mb-2"
+                            />
+                            <input
+                                id="weight-slider"
+                                type="range"
+                                min="30"
+                                max="120"
+                                value="70"
+                                step="0.1"
+                                class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer slider"
                             />
                         </div>
                     </div>
@@ -289,11 +311,50 @@ if (
 <!-- Chart.jsを読み込み -->
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
+<style>
+    /* スライダーのスタイル */
+    .slider {
+        -webkit-appearance: none;
+        appearance: none;
+        background: #e5e7eb;
+        outline: none;
+        border-radius: 0.5rem;
+    }
+
+    .slider::-webkit-slider-thumb {
+        -webkit-appearance: none;
+        appearance: none;
+        width: 20px;
+        height: 20px;
+        background: #4f46e5;
+        cursor: pointer;
+        border-radius: 50%;
+        border: 2px solid #ffffff;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+    }
+
+    .slider::-moz-range-thumb {
+        width: 20px;
+        height: 20px;
+        background: #4f46e5;
+        cursor: pointer;
+        border-radius: 50%;
+        border: 2px solid #ffffff;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+    }
+
+    .slider:focus {
+        box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
+    }
+</style>
+
 <script>
     const main = () => {
         // --- DOM要素の取得 ---
         const heightInput = document.getElementById("height-input");
         const weightInput = document.getElementById("weight-input");
+        const heightSlider = document.getElementById("height-slider");
+        const weightSlider = document.getElementById("weight-slider");
         const bmiDisplay = document.getElementById("bmi-display");
         const bmiStatus = document.getElementById("bmi-status");
         const ctx = document.getElementById("bmiChart")?.getContext("2d");
@@ -590,7 +651,7 @@ if (
                             font: { size: 14 },
                         },
                         min: 30,
-                        max: 130,
+                        max: 120,
                     },
                 },
                 plugins: {
@@ -652,8 +713,22 @@ if (
         };
 
         // --- イベントリスナーの設定 ---
-        heightInput.addEventListener("input", updateApp);
-        weightInput.addEventListener("input", updateApp);
+        heightInput.addEventListener("input", () => {
+            heightSlider.value = heightInput.value;
+            updateApp();
+        });
+        weightInput.addEventListener("input", () => {
+            weightSlider.value = weightInput.value;
+            updateApp();
+        });
+        heightSlider.addEventListener("input", () => {
+            heightInput.value = heightSlider.value;
+            updateApp();
+        });
+        weightSlider.addEventListener("input", () => {
+            weightInput.value = weightSlider.value;
+            updateApp();
+        });
 
         // --- 初期表示 ---
         updateApp();
