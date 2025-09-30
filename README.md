@@ -4,8 +4,10 @@
 
 ## 画像処理コマンド
 
+以下のコマンドは、カレントディレクトリ以下のすべての「.jpg」「.gif」「.webp」画像ファイルを再帰的に検索し、ImageMagickの`mogrify`コマンドを使って、各画像の最大幅・最大高さを1500ピクセル以内にリサイズします（縦横比は維持され、すでに小さい画像はそのままです）。
+
 ```bash
-find . -type f \( -iname "*.jpg" -o -iname "*.png" -o -iname "*.gif" -o -iname "*.webp" \) -exec magick mogrify -resize '1500x1500>' {} +
+find . -type f \( -iname "*.jpg" -o -iname "*.gif" -o -iname "*.webp" \) -exec magick mogrify -resize '1500x1500>' {} +
 ```
 
 ## Keystatic CMS コレクション設定
