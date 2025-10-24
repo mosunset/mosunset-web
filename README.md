@@ -12,6 +12,12 @@
 find . -type f \( -iname "*.jpg" -o -iname "*.gif" -o -iname "*.webp" \) -exec magick mogrify -resize '1500x1500>' {} +
 ```
 
+以下のコマンドは、カレントディレクトリ以下のすべての「.jpg」「.gif」画像ファイルを再帰的に検索し、ImageMagickの`mogrify`コマンドを使って、各画像を「.webp」形式に変換します。
+
+```bash
+find . -type f \( -iname "*.jpg" -o -iname "*.gif" \) -exec magick mogrify -format webp -resize '1500x1500>' {} +
+```
+
 ## Keystatic CMS コレクション設定
 
 このプロジェクトでは、Keystatic CMSを使用してコンテンツを管理しています。以下は設定されているコレクションの詳細です。
