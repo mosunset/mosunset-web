@@ -11,8 +11,11 @@ import markdoc from "@astrojs/markdoc";
 
 import keystatic from "@keystatic/astro";
 
+import sitemap from "@astrojs/sitemap";
+
 // https://astro.build/config
 export default defineConfig({
+    site: 'https://mosunset.com',
     adapter: cloudflare({
         platformProxy: {
             enabled: true,
@@ -32,5 +35,5 @@ export default defineConfig({
         },
     },
 
-    integrations: [react(), markdoc(), keystatic()],
+    integrations: [react(), markdoc(), keystatic(), sitemap()],
 });
