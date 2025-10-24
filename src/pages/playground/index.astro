@@ -1,8 +1,8 @@
 ---
 import Layout from "@/layouts/Layout.astro";
-import { Image } from "astro:assets";
 import { getCollection } from "astro:content";
 import InitMasonry from "@/components/initMasonry/index.astro";
+import PlaygroundCard from "@/components/Card/PlaygroundCard.astro";
 
 // コレクションから全記事を取得
 const allPosts = await getCollection("playground");
@@ -29,44 +29,6 @@ publicPosts.sort(
         .masonry-container {
             width: 100%;
         }
-
-        /* Masonryアイテムのスタイル */
-        .masonry-item {
-            width: 100%;
-            margin-bottom: 1.5rem;
-            opacity: 0;
-            transition: opacity 0.3s ease-in-out;
-        }
-
-        .masonry-item.loaded {
-            opacity: 1;
-        }
-
-        /* 画像のアスペクト比を保持 */
-        .masonry-item img {
-            width: 100%;
-            height: auto;
-            display: block;
-        }
-
-        /* レスポンシブ対応 - Masonry.jsが自動でカラム幅を計算するため、固定幅を設定 */
-        @media (min-width: 768px) {
-            .masonry-item {
-                width: calc(50% - 12px);
-            }
-        }
-
-        @media (min-width: 1024px) {
-            .masonry-item {
-                width: calc(33.333% - 16px);
-            }
-        }
-
-        @media (min-width: 1280px) {
-            .masonry-item {
-                width: calc(25% - 18px);
-            }
-        }
     </style>
     <h1 class="text-3xl font-bold text-gray-900 mb-8">
         <span transition:persist-props transition:name="playground-title"
@@ -81,99 +43,7 @@ publicPosts.sort(
                 </div>
             ) : (
                 publicPosts.map((post) => (
-                    <article class="masonry-item bg-white border border-gray-200 rounded-lg shadow-sm hover:shadow-md transition-shadow overflow-hidden">
-                        <a
-                            href={`/playground/${post.id}/`}
-                            class="block"
-                            title={post.data.title}
-                            data-astro-reload
-                        >
-                            {/* 詳細ページへのリンク */}
-                            <Image
-                                src={post.data.thumbnail}
-                                format="webp"
-                                alt={post.data.title}
-                                title={post.data.title}
-                                loading="lazy"
-                                class="w-full object-cover"
-                                transition:persist-props
-                                transition:name={post.id + "-thumbnail"}
-                            />
-                            <div class="p-6">
-                                <h2
-                                    class="text-xl font-semibold text-gray-900 mb-2 line-clamp-2"
-                                    transition:persist-props
-                                    transition:name={post.id + "-title"}
-                                >
-                                    {post.data.title}
-                                </h2>
-                                {post.data.description && (
-                                    <p
-                                        class="text-gray-600 mb-3 line-clamp-3"
-                                        transition:persist-props
-                                        transition:name={
-                                            post.id + "-description"
-                                        }
-                                    >
-                                        {post.data.description}
-                                    </p>
-                                )}
-                                <div class="flex flex-wrap gap-2 mb-3">
-                                    <span
-                                        class="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full"
-                                        transition:persist-props
-                                        transition:name={post.id + "-category"}
-                                    >
-                                        {post.data.category}
-                                    </span>
-                                    {post.data.tags &&
-                                        post.data.tags.length > 0 && (
-                                            <div
-                                                class="flex gap-2"
-                                                transition:persist-props
-                                                transition:name={
-                                                    post.id + "-tag"
-                                                }
-                                            >
-                                                {post.data.tags.map((tag) => (
-                                                    <span class="px-2 py-1 bg-gray-100 text-gray-700 rounded text-xs">
-                                                        #{tag}
-                                                    </span>
-                                                ))}
-                                            </div>
-                                        )}
-                                </div>
-                                <div class="flex flex-col gap-1 mt-auto">
-                                    <time
-                                        class="text-sm text-gray-500"
-                                        transition:persist-props
-                                        transition:name={
-                                            post.id + "-publishedDate"
-                                        }
-                                    >
-                                        公開日:{" "}
-                                        {new Date(
-                                            post.data.publishedDate
-                                        ).toLocaleDateString("ja-JP")}
-                                    </time>
-                                    {post.data.updatedDate && (
-                                        <time
-                                            class="text-sm text-gray-500"
-                                            transition:persist-props
-                                            transition:name={
-                                                post.id + "-updatedDate"
-                                            }
-                                        >
-                                            更新日:{" "}
-                                            {new Date(
-                                                post.data.updatedDate
-                                            ).toLocaleDateString("ja-JP")}
-                                        </time>
-                                    )}
-                                </div>
-                            </div>
-                        </a>
-                    </article>
+                    <PlaygroundCard playground={post} />
                 ))
             )
         }

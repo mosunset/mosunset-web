@@ -1,0 +1,17 @@
+---
+export interface Props {
+    description: string;
+    transitionName: string;
+    maxLines?: number;
+}
+
+const { description, transitionName, maxLines = 3 } = Astro.props;
+---
+
+<p
+    class={`text-gray-600 mb-3 line-clamp-${maxLines}`}
+    transition:persist-props
+    transition:name={transitionName}
+>
+    {description}
+</p>

@@ -1,0 +1,62 @@
+---
+import BaseCard from './BaseCard.astro';
+import CardTitle from './CardTitle.astro';
+import CardMetaInfo from './CardMetaInfo.astro';
+import CardTags from './CardTags.astro';
+import CardDate from './CardDate.astro';
+
+export interface Props {
+    qualification: any; // qualifications collectionの型
+    highlightTag?: string; // ハイライトするタグ（オプション）
+    masonryClass?: string; // Masonry用のクラス名（オプション）
+}
+
+const { qualification, highlightTag, masonryClass = "" } = Astro.props;
+const post = qualification;
+---
+
+<BaseCard
+    href={`/qualifications/item/${post.slug}/`}
+    title={post.data.name}
+    thumbnail={post.data.thumbnail ? {
+        src: post.data.thumbnail,
+        transitionName: post.slug + "-thumbnail"
+    } : undefined}
+    masonryClass={masonryClass}
+>
+    <CardTitle
+        title={post.data.name}
+        status={post.data.status}
+        transitionName={post.slug + "-title"}
+    />
+
+    <CardMetaInfo
+        label="実施団体"
+        value={post.data.organization}
+        transitionName={post.slug + "-organization"}
+    />
+
+    <CardTags
+        category={post.data.category}
+        tags={post.data.tags}
+        highlightTag={highlightTag}
+        transitionName={post.slug + "-tag"}
+    />
+
+    <div class="flex flex-col gap-1 mt-auto">
+        {post.data.acquiredDate && (
+            <CardDate
+                date={new Date(post.data.acquiredDate)}
+                label="取得日"
+                transitionName={post.slug + "-acquiredDate"}
+            />
+        )}
+        {post.data.validityPeriod && (
+            <CardDate
+                date={new Date(post.data.validityPeriod)}
+                label="有効期限"
+                transitionName={post.slug + "-validityPeriod"}
+            />
+        )}
+    </div>
+</BaseCard>

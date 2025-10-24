@@ -1,0 +1,59 @@
+---
+import BaseCard from './BaseCard.astro';
+import CardTitle from './CardTitle.astro';
+import CardDescription from './CardDescription.astro';
+import CardTags from './CardTags.astro';
+import CardDate from './CardDate.astro';
+
+export interface Props {
+    playground: any; // playground collectionの型
+    masonryClass?: string; // Masonry用のクラス名（オプション）
+}
+
+const { playground, masonryClass = "" } = Astro.props;
+const post = playground;
+---
+
+<BaseCard
+    href={`/playground/${post.id}/`}
+    title={post.data.title}
+    thumbnail={post.data.thumbnail ? {
+        src: post.data.thumbnail,
+        transitionName: post.id + "-thumbnail"
+    } : undefined}
+    masonryClass={masonryClass}
+>
+    <CardTitle
+        title={post.data.title}
+        transitionName={post.id + "-title"}
+    />
+
+    {post.data.description && (
+        <CardDescription
+            description={post.data.description}
+            transitionName={post.id + "-description"}
+        />
+    )}
+
+    <CardTags
+        category={post.data.category}
+        tags={post.data.tags}
+        transitionName={post.id + "-tag"}
+    />
+
+    <div class="flex flex-col gap-1 mt-auto">
+        <CardDate
+            date={new Date(post.data.publishedDate)}
+            label="公開日"
+            transitionName={post.id + "-publishedDate"}
+        />
+
+        {post.data.updatedDate && (
+            <CardDate
+                date={new Date(post.data.updatedDate)}
+                label="更新日"
+                transitionName={post.id + "-updatedDate"}
+            />
+        )}
+    </div>
+</BaseCard>

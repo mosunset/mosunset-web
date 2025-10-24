@@ -1,0 +1,84 @@
+---
+import BaseCard from './BaseCard.astro';
+import CardTitle from './CardTitle.astro';
+import CardMetaInfo from './CardMetaInfo.astro';
+import CardDescription from './CardDescription.astro';
+import CardTags from './CardTags.astro';
+import CardDate from './CardDate.astro';
+import CardBadge from './CardBadge.astro';
+import { Image } from "astro:assets";
+
+export interface Props {
+    book: any; // books collectionの型
+    masonryClass?: string; // Masonry用のクラス名（オプション）
+}
+
+const { book, masonryClass = "" } = Astro.props;
+const post = book;
+---
+
+<BaseCard
+    href={`/book/${post.slug}/`}
+    title={post.data.title}
+    thumbnail={post.data.thumbnail ? {
+        src: post.data.thumbnail,
+        transitionName: post.slug + "-thumbnail"
+    } : undefined}
+    masonryClass={masonryClass}
+>
+    <CardTitle
+        title={post.data.title}
+        transitionName={post.slug + "-title"}
+    />
+
+    <CardMetaInfo
+        label="著者"
+        value={post.data.author}
+        transitionName={post.slug + "-author"}
+    />
+
+    <CardMetaInfo
+        label="出版社"
+        value={post.data.publisher}
+        transitionName={post.slug + "-publisher"}
+    />
+
+    <CardDate
+        date={new Date(post.data.publishedDate)}
+        label="出版日"
+        transitionName={post.slug + "-publishedDate"}
+    />
+
+    {post.data.description && (
+        <CardDescription
+            description={post.data.description}
+            transitionName={post.slug + "-description"}
+        />
+    )}
+
+    <CardTags
+        category={post.data.category}
+        tags={post.data.tags}
+        transitionName={post.slug + "-tag"}
+    />
+
+    <div class="flex flex-wrap gap-2 mb-3">
+        <CardBadge
+            text={post.data.status}
+            variant="green"
+            transitionName={post.slug + "-status"}
+        />
+        <CardBadge
+            text={post.data.format}
+            variant="purple"
+            transitionName={post.slug + "-format"}
+        />
+        {post.data.evaluation !== "未評価" && (
+            <CardBadge
+                text={`★${post.data.evaluation}`}
+                variant="yellow"
+                transitionName={post.slug + "-evaluation"}
+            />
+        )}
+    </div>
+</BaseCard>

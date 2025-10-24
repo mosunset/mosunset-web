@@ -1,0 +1,60 @@
+---
+import BaseCard from './BaseCard.astro';
+import CardTitle from './CardTitle.astro';
+import CardMetaInfo from './CardMetaInfo.astro';
+import CardDate from './CardDate.astro';
+import CardBadge from './CardBadge.astro';
+
+export interface Props {
+    instrument: any; // instruments collectionの型
+    masonryClass?: string; // Masonry用のクラス名（オプション）
+}
+
+const { instrument, masonryClass = "" } = Astro.props;
+const post = instrument;
+---
+
+<BaseCard
+    href={`/instruments/${post.slug}/`}
+    title={post.data.name}
+    thumbnail={post.data.thumbnail ? {
+        src: post.data.thumbnail,
+        transitionName: post.slug + "-thumbnail"
+    } : undefined}
+    masonryClass={masonryClass}
+>
+    <CardTitle
+        title={post.data.name}
+        transitionName={post.slug + "-title"}
+    />
+
+    <CardMetaInfo
+        label="ブランド"
+        value={post.data.brand}
+        transitionName={post.slug + "-brand"}
+    />
+
+    <CardMetaInfo
+        label="楽器名"
+        value={post.data.instrumentName}
+        transitionName={post.slug + "-instrumentName"}
+    />
+
+    <div class="flex flex-wrap gap-2 mb-3">
+        <CardBadge
+            text={post.data.type}
+            variant="blue"
+            transitionName={post.slug + "-type"}
+        />
+    </div>
+
+    {post.data.purchaseDate && (
+        <div class="flex flex-col gap-1 mt-auto">
+            <CardDate
+                date={new Date(post.data.purchaseDate)}
+                label="入手日"
+                transitionName={post.slug + "-purchaseDate"}
+            />
+        </div>
+    )}
+</BaseCard>

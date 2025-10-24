@@ -1,0 +1,22 @@
+---
+export interface Props {
+    title: string;
+    status?: string;
+    transitionName: string;
+}
+
+const { title, status, transitionName } = Astro.props;
+---
+
+<h2
+    class="text-xl font-semibold text-gray-900 mb-2 line-clamp-2"
+    transition:persist-props
+    transition:name={transitionName}
+>
+    {title}{" "}
+    {status && (
+        <span class="px-2 py-1 bg-green-100 text-green-800 text-xs rounded-full">
+            {status}
+        </span>
+    )}
+</h2>
