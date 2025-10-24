@@ -1,0 +1,13 @@
+[project]
+name = "add-book"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "opencv-python==4.10.0.84",
+    "pillow==10.4.0",
+    "python-dotenv==1.0.1",
+    "pyzbar==0.1.9",
+    "requests==2.32.3",
+]
