@@ -4,15 +4,16 @@ export interface Props {
     tags?: string[];
     highlightTag?: string;
     transitionName: string;
+    basePath?: string; // ベースパス（例: '/blog', '/book', '/instruments'など）
 }
 
-const { category, tags, highlightTag, transitionName } = Astro.props;
+const { category, tags, highlightTag, transitionName, basePath = '/qualifications' } = Astro.props;
 ---
 
 <div class="flex flex-wrap gap-2 mb-3">
     {category && (
         <a
-            href={`/qualifications/categorys/${category}`}
+            href={`${basePath}/categorys/${category}`}
             class="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full z-50"
             title={category}
             transition:persist-props
@@ -26,7 +27,7 @@ const { category, tags, highlightTag, transitionName } = Astro.props;
         <>
             {tags.map((tag: string) => (
                 <a
-                    href={`/qualifications/tags/${tag}`}
+                    href={`${basePath}/tags/${tag}`}
                     title={tag}
                     class={`px-2 py-1 text-xs rounded z-50 ${
                         highlightTag && tag === highlightTag

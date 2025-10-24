@@ -1,0 +1,93 @@
+---
+import Layout from "@/layouts/Layout.astro";
+import { getCollection } from "astro:content";
+import InitMasonry from "@/components/initMasonry/index.astro";
+import PlaygroundCard from "@/components/Card/PlaygroundCard.astro";
+
+// コレクションから全記事を取得
+const allPosts = await getCollection("playground");
+
+// 下書きを除外
+const publishedPosts = allPosts.filter((post) => !post.data.draft);
+
+// 公開範囲が公開以外のものを除外
+const publicPosts = publishedPosts.filter(
+    (post) => post.data.visibility === "public"
+);
+
+// タグごとにグループ化
+const postsByTag = publicPosts.reduce(
+    (acc, post) => {
+        if (post.data.tags && post.data.tags.length > 0) {
+            post.data.tags.forEach((tag) => {
+                if (!acc[tag]) {
+                    acc[tag] = [];
+                }
+                acc[tag].push(post);
+            });
+        }
+        return acc;
+    },
+    {} as Record<string, typeof publicPosts>
+);
+
+// 各タグ内のカードを公開日でソート
+Object.keys(postsByTag).forEach((tag) => {
+    postsByTag[tag].sort(
+        (a, b) =>
+            new Date(b.data.updatedDate || b.data.publishedDate).getTime() -
+            new Date(a.data.updatedDate || a.data.publishedDate).getTime()
+    );
+});
+
+// タグ名でソート
+const sortedTags = Object.keys(postsByTag).sort((a, b) =>
+    a.localeCompare(b, "ja")
+);
+---
+
+<Layout title="タグ - Playground一覧">
+    <style>
+        /* Masonryコンテナのスタイル */
+        .masonry-container {
+            width: 100%;
+        }
+    </style>
+    <h1 class="text-3xl font-bold text-gray-900 mb-8">
+        <span transition:persist-props transition:name="playground-title"
+            >タグ：Playground</span
+        >
+    </h1>
+    <div>
+        {
+            sortedTags.length === 0 ? (
+                <div class="col-span-full text-center text-gray-500">
+                    <p>タグがありません</p>
+                </div>
+            ) : (
+                sortedTags.map((tag, index) => (
+                    <div class="tag-section mb-6">
+                        <h2
+                            id={tag}
+                            class="text-2xl font-bold text-gray-800 mb-6 pb-2 border-b-2 border-green-200"
+                        >
+                            #{tag}
+                        </h2>
+                        <div
+                            id={`masonry-container-${index}`}
+                            class="masonry-container"
+                        >
+                            {postsByTag[tag].map((post) => (
+                                <PlaygroundCard
+                                    playground={post}
+                                    masonryClass={`masonry-item-${index}`}
+                                />
+                            ))}
+                        </div>
+                    </div>
+                        <InitMasonry id={`masonry-container-${index}`} item={`.masonry-item-${index}`} />
+                ))
+            )
+        }
+    </div>
+</Layout>

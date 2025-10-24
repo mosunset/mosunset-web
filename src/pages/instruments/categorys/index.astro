@@ -1,0 +1,90 @@
+---
+import Layout from "@/layouts/Layout.astro";
+import { getCollection } from "astro:content";
+import InitMasonry from "@/components/initMasonry/index.astro";
+import InstrumentCard from "@/components/Card/InstrumentCard.astro";
+
+// コレクションから全記事を取得
+const allPosts = await getCollection("instruments");
+
+// 下書きを除外
+const publishedPosts = allPosts.filter((post) => !post.data.draft);
+
+// 公開範囲が公開以外のものを除外
+const publicPosts = publishedPosts.filter(
+    (post) => post.data.visibility === "public"
+);
+
+// カテゴリー（楽器の種類）ごとにグループ化
+const postsByCategory = publicPosts.reduce(
+    (acc, post) => {
+        const category = post.data.type; // instrumentsではtypeフィールドがカテゴリーの役割
+        if (!acc[category]) {
+            acc[category] = [];
+        }
+        acc[category].push(post);
+        return acc;
+    },
+    {} as Record<string, typeof publicPosts>
+);
+
+// 各カテゴリー内のカードを入手日でソート
+Object.keys(postsByCategory).forEach((category) => {
+    postsByCategory[category].sort(
+        (a, b) =>
+            new Date(b.data.purchaseDate || "2000-01-01").getTime() -
+            new Date(a.data.purchaseDate || "2000-01-01").getTime()
+    );
+});
+
+// カテゴリー名でソート
+const sortedCategories = Object.keys(postsByCategory).sort((a, b) =>
+    a.localeCompare(b, "ja")
+);
+---
+
+<Layout title="カテゴリー - 楽器一覧">
+    <style>
+        /* Masonryコンテナのスタイル */
+        .masonry-container {
+            width: 100%;
+        }
+    </style>
+    <h1 class="text-3xl font-bold text-gray-900 mb-8">
+        <span transition:persist-props transition:name="instruments-title"
+            >カテゴリー：楽器</span
+        >
+    </h1>
+    <div>
+        {
+            sortedCategories.length === 0 ? (
+                <div class="col-span-full text-center text-gray-500">
+                    <p>楽器がありません</p>
+                </div>
+            ) : (
+                sortedCategories.map((category, index) => (
+                    <div class="category-section mb-6">
+                        <h2
+                            id={category}
+                            class="text-2xl font-bold text-gray-800 mb-6 pb-2 border-b-2 border-blue-200"
+                        >
+                            {category}
+                        </h2>
+                        <div
+                            id={`masonry-container-${index}`}
+                            class="masonry-container"
+                        >
+                            {postsByCategory[category].map((post) => (
+                                <InstrumentCard
+                                    instrument={post}
+                                    masonryClass={`masonry-item-${index}`}
+                                />
+                            ))}
+                        </div>
+                    </div>
+                        <InitMasonry id={`masonry-container-${index}`} item={`.masonry-item-${index}`} />
+                ))
+            )
+        }
+    </div>
+</Layout>

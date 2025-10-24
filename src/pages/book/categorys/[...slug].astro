@@ -1,0 +1,124 @@
+---
+import Layout from "@/layouts/Layout.astro";
+import { getCollection } from "astro:content";
+import InitMasonry from "@/components/initMasonry/index.astro";
+import BookCard from "@/components/Card/BookCard.astro";
+
+// URLパラメータからカテゴリーを取得
+export async function getStaticPaths() {
+    const allPosts = await getCollection("books");
+    const publishedPosts = allPosts.filter((post) => !post.data.draft);
+    const publicPosts = publishedPosts.filter(
+        (post) => post.data.visibility === "public"
+    );
+
+    // カテゴリーごとにグループ化
+    const postsByCategory = publicPosts.reduce(
+        (acc, post) => {
+            const category = post.data.category;
+            if (!acc[category]) {
+                acc[category] = [];
+            }
+            acc[category].push(post);
+            return acc;
+        },
+        {} as Record<string, typeof publicPosts>
+    );
+
+    // 各カテゴリーのパスを生成
+    return Object.keys(postsByCategory).map((category) => ({
+        params: { slug: category },
+        props: { category, postsByCategory },
+    }));
+}
+
+const { category, postsByCategory } = Astro.props;
+
+// 指定されたカテゴリーの記事を取得
+const categoryPosts = postsByCategory[category] || [];
+
+// カテゴリー内のカードを出版日でソート
+categoryPosts.sort(
+    (a, b) =>
+        new Date(b.data.publishedDate).getTime() -
+        new Date(a.data.publishedDate).getTime()
+);
+
+// 他のカテゴリー一覧を取得（現在のカテゴリーを除く）
+const otherCategories = Object.keys(postsByCategory)
+    .filter((cat) => cat !== category)
+    .sort((a, b) => a.localeCompare(b, "ja"));
+---
+
+<Layout title="カテゴリー - 蔵書一覧">
+    <style>
+        /* Masonryコンテナのスタイル */
+        .masonry-container {
+            width: 100%;
+        }
+    </style>
+    <h1 class="text-3xl font-bold text-gray-900 mb-8">
+        <span transition:persist-props transition:name="book-title"
+            >カテゴリー：{category}</span
+        >
+    </h1>
+
+    <!-- 指定されたカテゴリーのカード表示 -->
+    <div class="mb-8">
+        {
+            categoryPosts.length === 0 ? (
+                <div class="text-center text-gray-500">
+                    <p>このカテゴリーには蔵書がありません</p>
+                </div>
+            ) : (
+                <div>
+                    <div id="masonry-container" class="masonry-container">
+                        {categoryPosts.map((post) => (
+                            <BookCard book={post} />
+                        ))}
+                    </div>
+                    <InitMasonry id="masonry-container" item=".masonry-item" />
+                </div>
+            )
+        }
+    </div>
+
+    <!-- 他のカテゴリーへのリンク -->
+    {
+        otherCategories.length > 0 && (
+            <div class="mt-12">
+                <h2 class="text-2xl font-bold text-gray-800 mb-6 pb-2 border-b-2 border-gray-200">
+                    他のカテゴリー
+                </h2>
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {otherCategories.map((cat) => (
+                        <a
+                            title={cat}
+                            href={`/book/categorys/${cat}`}
+                            class="block p-6 bg-white hover:bg-blue-50 rounded-lg border border-gray-300 shadow-sm hover:shadow-md transition-shadow"
+                        >
+                            <h3 class="text-lg font-semibold text-gray-900 mb-2">
+                                {cat}
+                            </h3>
+                            <p class="text-sm text-gray-600">
+                                {postsByCategory[cat].length}件の蔵書
+                            </p>
+                        </a>
+                    ))}
+                    <a
+                        title="カテゴリー一覧を見る"
+                        href={`/book/categorys/`}
+                        class="block p-6 bg-blue-100 hover:bg-blue-200 rounded-lg border border-blue-300 shadow-sm hover:shadow-md transition-shadow"
+                    >
+                        <h3 class="text-lg font-semibold text-blue-900 mb-2">
+                            カテゴリー一覧を見る
+                        </h3>
+                        <p class="text-sm text-blue-600">
+                            すべてのカテゴリーを見る
+                        </p>
+                    </a>
+                </div>
+            </div>
+        )
+    }
+</Layout>

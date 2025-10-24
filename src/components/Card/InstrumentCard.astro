@@ -3,7 +3,7 @@ import BaseCard from './BaseCard.astro';
 import CardTitle from './CardTitle.astro';
 import CardMetaInfo from './CardMetaInfo.astro';
 import CardDate from './CardDate.astro';
-import CardBadge from './CardBadge.astro';
+import CardTags from './CardTags.astro';
 
 export interface Props {
     instrument: any; // instruments collectionの型
@@ -40,13 +40,12 @@ const post = instrument;
         transitionName={post.slug + "-instrumentName"}
     />
 
-    <div class="flex flex-wrap gap-2 mb-3">
-        <CardBadge
-            text={post.data.type}
-            variant="blue"
-            transitionName={post.slug + "-type"}
-        />
-    </div>
+    <CardTags
+        category={post.data.type}
+        tags={post.data.tags}
+        transitionName={post.slug + "-tag"}
+        basePath="/instruments"
+    />
 
     {post.data.purchaseDate && (
         <div class="flex flex-col gap-1 mt-auto">
