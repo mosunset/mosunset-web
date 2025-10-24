@@ -8,10 +8,49 @@ export interface Props {
 const { description, transitionName, maxLines = 3 } = Astro.props;
 ---
 
-<p
-    class={`text-gray-600 mb-3 line-clamp-${maxLines}`}
+{/*
+  3行より超えそうなら「...」にする
+  line-clampで切れる場合は、末尾に...が付加されるので UI はOK
+  さらに、実際にdescriptionがmaxLinesで全て表示されているかをJSで判定し、「...」のみ表示するUIにする
+*/}
+<div
+    class={`overflow-clip relative text-gray-600 mb-3 line-clamp-${maxLines}`}
     transition:persist-props
     transition:name={transitionName}
 >
-    {description}
-</p>
+    <span id="card-desc-text" style="white-space:pre-line;">{description}</span>
+    <span id="card-desc-ellipsis" style="display:none;">...</span>
+</div>
+<script type="text/javascript" is:inline>
+    // Note: is:inline for Astro
+    // 判定は1回だけ、サーバサイドでhydration後にのみ
+    window.addEventListener('DOMContentLoaded', () => {
+        const desc = document.getElementById('card-desc-text');
+        const ellipsis = document.getElementById('card-desc-ellipsis');
+        if (desc) {
+            // 一時的に制限解除して全高を計る
+            const origWebkitLineClamp = desc.parentElement?.style.webkitLineClamp;
+            const origDisplay = desc.style.display;
+            desc.parentElement?.classList.remove('line-clamp-3', 'line-clamp-2', 'line-clamp-1');
+            desc.parentElement?.style.setProperty('webkitLineClamp', 'unset');
+            desc.style.display = 'block';
+            const fullHeight = desc.scrollHeight;
+            // 再度line-clampクラス適用
+            desc.parentElement?.classList.add(`line-clamp-${Astro.props.maxLines ?? 3}`);
+            void origWebkitLineClamp;
+            desc.style.display = origDisplay;
+            // 現表示の最大高さ取得
+            const clampEl = desc.parentElement;
+            if (clampEl) {
+                const clampHeight = clampEl.clientHeight;
+                if (fullHeight > clampHeight + 1) {
+                    // 超えてる → description非表示 + ...表示
+                    desc.style.display = 'none';
+                    if (ellipsis) {
+                        ellipsis.style.display = 'inline';
+                    }
+                }
+            }
+        }
+    });
+</script>
