@@ -27,6 +27,9 @@ export default defineConfig({
 
     vite: {
         plugins: [tailwindcss()],
+        ssr: {
+            external: ["node:crypto"],
+        },
     },
 
     integrations: [react(), markdoc(), keystatic()],

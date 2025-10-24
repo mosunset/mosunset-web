@@ -2,71 +2,37 @@
 import { getCollection } from "astro:content";
 import { Image } from "astro:assets";
 import Layout from "@/layouts/Layout.astro";
+import ArticleDetailPage from "@/components/Pages/Article/ArticleDetailPage.astro";
+import { SECTION_CONFIGS } from "@/components/Pages/utils";
+
+const config = SECTION_CONFIGS.instruments;
 
 // 1. Astroにどのページを生成すべきか教える
 export async function getStaticPaths() {
     const allPosts = await getCollection("instruments");
-    // 下書きを除外
     const publishedPosts = allPosts.filter((post) => !post.data.draft);
-
-    // 公開範囲が非公開のものを除外
     const publicPosts = publishedPosts.filter(
         (post) => post.data.visibility !== "private"
     );
 
     return publicPosts.map((post) => ({
         params: { slug: post.slug },
-        props: { entry: post }, // ページコンポーネントに記事データ(entry)を渡す
+        props: { entry: post },
     }));
 }
 
-// 2. propsで記事データを受け取る
 const { entry } = Astro.props;
-const { Content } = await entry.render(); // Markdown本文をHTMLコンポーネントに変換
 ---
 
 <Layout title={entry.data.name}>
-    <div class="w-full max-w-2xl mx-auto mb-8">
-        <a href="/instruments" class="flex items-center gap-2" title="楽器一覧へ戻る">
-            <svg
-                xmlns="http://www.w3.org/2000/svg"
-                viewBox="0 0 24 24"
-                fill="currentColor"
-                class="w-6 h-6"
-            >
-                <path
-                    fill-rule="evenodd"
-                    d="M11.03 3.97a.75.75 0 0 1 0 1.06l-6.22 6.22H21a.75.75 0 0 1 0 1.5H4.81l6.22 6.22a.75.75 0 1 1-1.06 1.06l-7.5-7.5a.75.75 0 0 1 0-1.06l7.5-7.5a.75.75 0 0 1 1.06 0Z"
-                    clip-rule="evenodd"></path>
-            </svg>
-            <span class="text-sm"
-                ><span
-                    transition:persist-props
-                    transition:name="instruments-title">楽器</span
-                >一覧へ戻る</span
-            >
-        </a>
-    </div>
-    <div class="w-full max-w-2xl mx-auto">
-        <Image
-            src={entry.data.thumbnail}
-            class="object-cover w-full max-w-lg mx-auto mb-8 rounded-lg shadow-lg"
-            format="webp"
-            alt={entry.data.name}
-            title={entry.data.name}
-            loading="lazy"
-            transition:persist-props
-            transition:name={entry.slug + "-thumbnail"}
-        />
-
-        <div class="mb-8">
-            <h1
-                class="text-3xl font-bold mb-4 text-gray-900"
-                transition:persist-props
-                transition:name={entry.slug + "-title"}
-            >
-                {entry.data.name}
-            </h1>
+    <ArticleDetailPage
+        entry={entry}
+        sectionName={config.sectionName}
+        sectionSlug={config.sectionSlug}
+        transitionName={config.transitionName}
+        titleField="name"
+    >
+        <Fragment slot="metadata">
             <p
                 class="text-gray-600 mb-2 text-sm"
                 transition:persist-props
@@ -122,55 +88,52 @@ const { Content } = await entry.render(); // Markdown本文をHTMLコンポー�
                       )
                     : null
             }
+        </Fragment>
 
-            <div
-                class="flex flex-wrap items-center gap-4 text-sm text-gray-500 mb-4"
+        <Fragment slot="category-tags">
+            {
+                entry.data.visibility === "unlisted" && (
+                    <span class="px-3 py-1 bg-yellow-100 text-yellow-700 rounded-full text-xs font-medium">
+                        限定公開
+                    </span>
+                )
+            }
+            <a
+                href={`/instruments/categorys/${entry.data.type}`}
+                title={entry.data.type}
+                class="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-xs font-medium"
+                transition:persist-props
+                transition:name={entry.slug + "-type"}
             >
-                {
-                    entry.data.visibility === "unlisted" && (
-                        <span class="px-3 py-1 bg-yellow-100 text-yellow-700 rounded-full text-xs font-medium mb-4 inline-block">
-                            限定公開
-                        </span>
-                    )
-                }
-                <span
-                    class="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-xs font-medium"
-                    transition:persist-props
-                    transition:name={entry.slug + "-type"}
-                >
-                    {entry.data.type}
-                </span>
-                <span
-                    class="px-2 py-1 bg-green-100 text-green-800 text-xs rounded-full"
-                >
-                    {entry.data.status}
-                </span>
-            </div>
-        </div>
+                {entry.data.type}
+            </a>
+            <span
+                class="px-2 py-1 bg-green-100 text-green-800 text-xs rounded-full"
+            >
+                {entry.data.status}
+            </span>
+        </Fragment>
 
-        {
-            entry.data.images && entry.data.images.length > 0 && (
-                <div class="mb-8">
-                    <h2 class="text-xl font-bold mb-4 text-gray-900">写真</h2>
-
-                    <div class="grid grid-cols-1 gap-4">
-                        {entry.data.images.map((image) => (
-                            <Image
-                                src={image}
-                                class="object-cover w-full rounded shadow-lg hover:opacity-90 transition-opacity"
-                                format="webp"
-                                alt={entry.data.name}
-                            />
-                        ))}
+        <Fragment slot="additional-content">
+            {
+                entry.data.images && entry.data.images.length > 0 && (
+                    <div class="mb-8">
+                        <h2 class="text-xl font-bold mb-4 text-gray-900">
+                            写真
+                        </h2>
+                        <div class="grid grid-cols-1 gap-4">
+                            {entry.data.images.map((image) => (
+                                <Image
+                                    src={image}
+                                    class="object-cover w-full rounded shadow-lg hover:opacity-90 transition-opacity"
+                                    format="webp"
+                                    alt={entry.data.name}
+                                />
+                            ))}
+                        </div>
                     </div>
-                </div>
-            )
-        }
-
-        <hr class="mb-4 text-gray-200" />
-
-        <article class="prose mx-auto">
-            <Content />
-        </article>
-    </div>
+                )
+            }
+        </Fragment>
+    </ArticleDetailPage>
 </Layout>

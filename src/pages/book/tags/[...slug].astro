@@ -1,51 +1,33 @@
 ---
 import Layout from "@/layouts/Layout.astro";
-import { getCollection } from "astro:content";
-import InitMasonry from "@/components/initMasonry/index.astro";
 import BookCard from "@/components/Card/BookCard.astro";
+import TagDetailPage from "@/components/Pages/Tags/TagDetailPage.astro";
+import {
+    getPublicPosts,
+    getPostsByTagSorted,
+    generateTagPaths,
+    sortPostsByDate,
+    SECTION_CONFIGS,
+} from "@/components/Pages/utils";
+
+const config = SECTION_CONFIGS.books;
 
 // URLパラメータからタグを取得
 export async function getStaticPaths() {
-    const allPosts = await getCollection("books");
-    const publishedPosts = allPosts.filter((post) => !post.data.draft);
-    const publicPosts = publishedPosts.filter(
-        (post) => post.data.visibility === "public"
+    const publicPosts = await getPublicPosts(
+        SECTION_CONFIGS.books.collectionName
     );
-
-    // タグごとにグループ化
-    const postsByTag = publicPosts.reduce(
-        (acc, post) => {
-            if (post.data.tags && post.data.tags.length > 0) {
-                post.data.tags.forEach((tag) => {
-                    if (!acc[tag]) {
-                        acc[tag] = [];
-                    }
-                    acc[tag].push(post);
-                });
-            }
-            return acc;
-        },
-        {} as Record<string, typeof publicPosts>
+    const postsByTag = getPostsByTagSorted(
+        publicPosts,
+        SECTION_CONFIGS.books.sortField
     );
-
-    // 各タグのパスを生成
-    return Object.keys(postsByTag).map((tag) => ({
-        params: { slug: tag },
-        props: { tag, postsByTag },
-    }));
+    return generateTagPaths(postsByTag);
 }
 
 const { tag, postsByTag } = Astro.props;
 
-// 指定されたタグの記事を取得
-const tagPosts = postsByTag[tag] || [];
-
-// タグ内のカードを出版日でソート
-tagPosts.sort(
-    (a, b) =>
-        new Date(b.data.publishedDate).getTime() -
-        new Date(a.data.publishedDate).getTime()
-);
+// 指定されたタグの記事を取得してソート
+const tagPosts = sortPostsByDate(postsByTag[tag] || [], config.sortField);
 
 // 他のタグ一覧を取得（現在のタグを除く）
 const otherTags = Object.keys(postsByTag)
@@ -54,72 +36,16 @@ const otherTags = Object.keys(postsByTag)
 ---
 
 <Layout title="タグ - 蔵書一覧">
-    <style>
-        /* Masonryコンテナのスタイル */
-        .masonry-container {
-            width: 100%;
-        }
-    </style>
-    <h1 class="text-3xl font-bold text-gray-900 mb-8">
-        <span transition:persist-props transition:name="book-title"
-            >タグ：#{tag}</span
-        >
-    </h1>
-
-    <!-- 指定されたタグのカード表示 -->
-    <div class="mb-8">
-        {
-            tagPosts.length === 0 ? (
-                <div class="text-center text-gray-500">
-                    <p>このタグには蔵書がありません</p>
-                </div>
-            ) : (
-                <div>
-                    <div id="masonry-container" class="masonry-container">
-                        {tagPosts.map((post) => (
-                            <BookCard book={post} />
-                        ))}
-                    </div>
-                    <InitMasonry id="masonry-container" item=".masonry-item" />
-                </div>
-            )
-        }
-    </div>
-
-    <!-- 他のタグへのリンク -->
-    {
-        otherTags.length > 0 && (
-            <div class="mt-12">
-                <h2 class="text-2xl font-bold text-gray-800 mb-6 pb-2 border-b-2 border-gray-200">
-                    他のタグ
-                </h2>
-                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                    {otherTags.map((t) => (
-                        <a
-                            title={t}
-                            href={`/book/tags/${t}`}
-                            class="block p-6 bg-white hover:bg-green-50 rounded-lg border border-gray-300 shadow-sm hover:shadow-md transition-shadow"
-                        >
-                            <h3 class="text-lg font-semibold text-gray-900 mb-2">
-                                #{t}
-                            </h3>
-                            <p class="text-sm text-gray-600">
-                                {postsByTag[t].length}件の蔵書
-                            </p>
-                        </a>
-                    ))}
-                    <a
-                        title="タグ一覧を見る"
-                        href={`/book/tags/`}
-                        class="block p-6 bg-green-100 hover:bg-green-200 rounded-lg border border-green-300 shadow-sm hover:shadow-md transition-shadow"
-                    >
-                        <h3 class="text-lg font-semibold text-green-900 mb-2">
-                            タグ一覧を見る
-                        </h3>
-                        <p class="text-sm text-green-600">すべてのタグを見る</p>
-                    </a>
-                </div>
-            </div>
-        )
-    }
+    <TagDetailPage
+        tag={tag}
+        tagPosts={tagPosts}
+        otherTags={otherTags}
+        postsByTag={postsByTag}
+        sectionName={config.sectionName}
+        sectionSlug={config.sectionSlug}
+        transitionName={config.transitionName}
+        accentColor="green"
+        CardComponent={BookCard}
+        countLabel={config.countLabel}
+    />
 </Layout>

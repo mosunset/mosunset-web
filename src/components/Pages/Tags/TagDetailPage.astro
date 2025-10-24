@@ -1,0 +1,119 @@
+---
+import InitMasonry from "@/components/initMasonry/index.astro";
+
+interface Props {
+    tag: string;
+    tagPosts: any[];
+    otherTags: string[];
+    postsByTag: Record<string, any[]>;
+    sectionName: string;
+    sectionSlug: string;
+    transitionName: string;
+    accentColor?: string;
+    CardComponent: any;
+    highlightTag?: boolean;
+    countLabel?: string;
+}
+
+const {
+    tag,
+    tagPosts,
+    otherTags,
+    postsByTag,
+    sectionName,
+    sectionSlug,
+    transitionName,
+    accentColor = "green",
+    CardComponent,
+    highlightTag = false,
+    countLabel = "件の記事",
+} = Astro.props;
+---
+
+<style>
+    /* Masonryコンテナのスタイル */
+    .masonry-container {
+        width: 100%;
+    }
+</style>
+
+<h1 class="text-3xl font-bold text-gray-900 mb-8">
+    <span transition:persist-props transition:name={transitionName}
+        >タグ：#{tag}</span
+    >
+</h1>
+
+<!-- 指定されたタグのカード表示 -->
+<div class="mb-8">
+    {
+        tagPosts.length === 0 ? (
+            <div class="text-center text-gray-500">
+                <p>このタグには{sectionName}がありません</p>
+            </div>
+        ) : (
+            <div>
+                <div id="masonry-container" class="masonry-container">
+                    {tagPosts.map((post) => (
+                        <CardComponent
+                            {...{
+                                [sectionName === "ブログ"
+                                    ? "blog"
+                                    : sectionName === "蔵書"
+                                      ? "book"
+                                      : sectionName === "資格"
+                                        ? "qualification"
+                                        : sectionName === "楽器"
+                                          ? "instrument"
+                                          : "playground"]: post,
+                            }}
+                            highlightTag={highlightTag ? tag : undefined}
+                        />
+                    ))}
+                </div>
+                <InitMasonry id="masonry-container" item=".masonry-item" />
+            </div>
+        )
+    }
+</div>
+
+<!-- 他のタグへのリンク -->
+{
+    otherTags.length > 0 && (
+        <div class="mt-12">
+            <h2 class="text-2xl font-bold text-gray-800 mb-6 pb-2 border-b-2 border-gray-200">
+                他のタグ
+            </h2>
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {otherTags.map((t) => (
+                    <a
+                        title={t}
+                        href={`/${sectionSlug}/tags/${t}`}
+                        class={`block p-6 bg-white hover:bg-${accentColor}-50 rounded-lg border border-gray-300 shadow-sm hover:shadow-md transition-shadow`}
+                    >
+                        <h3 class="text-lg font-semibold text-gray-900 mb-2">
+                            #{t}
+                        </h3>
+                        <p class="text-sm text-gray-600">
+                            {postsByTag[t].length}
+                            {countLabel}
+                        </p>
+                    </a>
+                ))}
+                <a
+                    title="タグ一覧を見る"
+                    href={`/${sectionSlug}/tags/`}
+                    class={`block p-6 bg-${accentColor}-100 hover:bg-${accentColor}-200 rounded-lg border border-${accentColor}-300 shadow-sm hover:shadow-md transition-shadow`}
+                >
+                    <h3
+                        class={`text-lg font-semibold text-${accentColor}-900 mb-2`}
+                    >
+                        タグ一覧を見る
+                    </h3>
+                    <p class={`text-sm text-${accentColor}-600`}>
+                        すべてのタグを見る
+                    </p>
+                </a>
+            </div>
+        </div>
+    )
+}

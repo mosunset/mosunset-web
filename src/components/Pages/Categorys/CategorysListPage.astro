@@ -1,0 +1,82 @@
+---
+import InitMasonry from "@/components/initMasonry/index.astro";
+
+interface Props {
+    postsByCategory: Record<string, any[]>;
+    sectionName: string;
+    transitionName: string;
+    borderColor?: string;
+    CardComponent: any;
+}
+
+const {
+    postsByCategory,
+    sectionName,
+    transitionName,
+    borderColor = "border-blue-200",
+    CardComponent,
+} = Astro.props;
+
+// カテゴリー名でソート
+const sortedCategories = Object.keys(postsByCategory).sort((a, b) =>
+    a.localeCompare(b, "ja")
+);
+---
+
+<style>
+    /* Masonryコンテナのスタイル */
+    .masonry-container {
+        width: 100%;
+    }
+</style>
+
+<h1 class="text-3xl font-bold text-gray-900 mb-8">
+    <span transition:persist-props transition:name={transitionName}
+        >カテゴリー：{sectionName}</span
+    >
+</h1>
+<div>
+    {
+        sortedCategories.length === 0 ? (
+            <div class="col-span-full text-center text-gray-500">
+                <p>{sectionName}がありません</p>
+            </div>
+        ) : (
+            sortedCategories.map((category, index) => (
+                <div class="category-section mb-6">
+                    <h2
+                        id={category}
+                        class={`text-2xl font-bold text-gray-800 mb-6 pb-2 border-b-2 ${borderColor}`}
+                    >
+                        {category}
+                    </h2>
+                    <div
+                        id={`masonry-container-${index}`}
+                        class="masonry-container"
+                    >
+                        {postsByCategory[category].map((post) => (
+                            <CardComponent
+                                {...{
+                                    [sectionName === "ブログ"
+                                        ? "blog"
+                                        : sectionName === "蔵書"
+                                          ? "book"
+                                          : sectionName === "資格"
+                                            ? "qualification"
+                                            : sectionName === "楽器"
+                                              ? "instrument"
+                                              : "playground"]: post,
+                                }}
+                                masonryClass={`masonry-item-${index}`}
+                            />
+                        ))}
+                    </div>
+                    <InitMasonry
+                        id={`masonry-container-${index}`}
+                        item={`.masonry-item-${index}`}
+                    />
+                </div>
+            ))
+        )
+    }
+</div>

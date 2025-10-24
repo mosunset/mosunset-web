@@ -1,93 +1,28 @@
 ---
 import Layout from "@/layouts/Layout.astro";
-import { getCollection } from "astro:content";
-import InitMasonry from "@/components/initMasonry/index.astro";
 import BlogCard from "@/components/Card/BlogCard.astro";
+import TagsListPage from "@/components/Pages/Tags/TagsListPage.astro";
+import {
+    getPublicPosts,
+    getPostsByTagSorted,
+    SECTION_CONFIGS,
+} from "@/components/Pages/utils";
 
-// コレクションから全記事を取得
-const allPosts = await getCollection("blog");
+const config = SECTION_CONFIGS.blog;
 
-// 下書きを除外
-const publishedPosts = allPosts.filter((post) => !post.data.draft);
+// コレクションから公開記事を取得
+const publicPosts = await getPublicPosts(config.collectionName);
 
-// 公開範囲が公開以外のものを除外
-const publicPosts = publishedPosts.filter(
-    (post) => post.data.visibility === "public"
-);
-
-// タグごとにグループ化
-const postsByTag = publicPosts.reduce(
-    (acc, post) => {
-        if (post.data.tags && post.data.tags.length > 0) {
-            post.data.tags.forEach((tag) => {
-                if (!acc[tag]) {
-                    acc[tag] = [];
-                }
-                acc[tag].push(post);
-            });
-        }
-        return acc;
-    },
-    {} as Record<string, typeof publicPosts>
-);
-
-// 各タグ内のカードを公開日でソート
-Object.keys(postsByTag).forEach((tag) => {
-    postsByTag[tag].sort(
-        (a, b) =>
-            new Date(b.data.updatedDate || b.data.publishedDate).getTime() -
-            new Date(a.data.updatedDate || a.data.publishedDate).getTime()
-    );
-});
-
-// タグ名でソート
-const sortedTags = Object.keys(postsByTag).sort((a, b) =>
-    a.localeCompare(b, "ja")
-);
+// タグごとにグループ化してソート
+const postsByTag = getPostsByTagSorted(publicPosts, config.sortField);
 ---
 
 <Layout title="タグ - ブログ一覧">
-    <style>
-        /* Masonryコンテナのスタイル */
-        .masonry-container {
-            width: 100%;
-        }
-    </style>
-    <h1 class="text-3xl font-bold text-gray-900 mb-8">
-        <span transition:persist-props transition:name="blog-title"
-            >タグ：ブログ</span
-        >
-    </h1>
-    <div>
-        {
-            sortedTags.length === 0 ? (
-                <div class="col-span-full text-center text-gray-500">
-                    <p>タグがありません</p>
-                </div>
-            ) : (
-                sortedTags.map((tag, index) => (
-                    <div class="tag-section mb-6">
-                        <h2
-                            id={tag}
-                            class="text-2xl font-bold text-gray-800 mb-6 pb-2 border-b-2 border-green-200"
-                        >
-                            #{tag}
-                        </h2>
-                        <div
-                            id={`masonry-container-${index}`}
-                            class="masonry-container"
-                        >
-                            {postsByTag[tag].map((post) => (
-                                <BlogCard
-                                    blog={post}
-                                    masonryClass={`masonry-item-${index}`}
-                                />
-                            ))}
-                        </div>
-                    </div>
-                        <InitMasonry id={`masonry-container-${index}`} item={`.masonry-item-${index}`} />
-                ))
-            )
-        }
-    </div>
+    <TagsListPage
+        postsByTag={postsByTag}
+        sectionName={config.sectionName}
+        transitionName={config.transitionName}
+        borderColor="border-green-200"
+        CardComponent={BlogCard}
+    />
 </Layout>

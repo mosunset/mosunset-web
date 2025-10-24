@@ -1,71 +1,36 @@
 ---
 import { getCollection } from "astro:content";
-import { Image } from "astro:assets";
 import Layout from "@/layouts/Layout.astro";
+import ArticleDetailPage from "@/components/Pages/Article/ArticleDetailPage.astro";
+import { SECTION_CONFIGS } from "@/components/Pages/utils";
+
+const config = SECTION_CONFIGS.books;
 
 // 1. Astroにどのページを生成すべきか教える
 export async function getStaticPaths() {
     const allPosts = await getCollection("books");
-    // 下書きを除外
     const publishedPosts = allPosts.filter((post) => !post.data.draft);
-
-    // 公開範囲が非公開のものを除外
     const publicPosts = publishedPosts.filter(
         (post) => post.data.visibility !== "private"
     );
 
     return publicPosts.map((post) => ({
         params: { slug: post.slug },
-        props: { entry: post }, // ページコンポーネントに記事データ(entry)を渡す
+        props: { entry: post },
     }));
 }
 
-// 2. propsで記事データを受け取る
 const { entry } = Astro.props;
-const { Content } = await entry.render(); // Markdown本文をHTMLコンポーネントに変換
 ---
 
 <Layout title={entry.data.title}>
-    <div class="w-full max-w-2xl mx-auto mb-8">
-        <a href="/book" class="flex items-center gap-2" title="蔵書一覧へ戻る">
-            <svg
-                xmlns="http://www.w3.org/2000/svg"
-                viewBox="0 0 24 24"
-                fill="currentColor"
-                class="w-6 h-6"
-            >
-                <path
-                    fill-rule="evenodd"
-                    d="M11.03 3.97a.75.75 0 0 1 0 1.06l-6.22 6.22H21a.75.75 0 0 1 0 1.5H4.81l6.22 6.22a.75.75 0 1 1-1.06 1.06l-7.5-7.5a.75.75 0 0 1 0-1.06l7.5-7.5a.75.75 0 0 1 1.06 0Z"
-                    clip-rule="evenodd"></path>
-            </svg>
-            <span class="text-sm"
-                ><span transition:persist-props transition:name="book-title"
-                    >蔵書</span
-                >一覧へ戻る</span
-            >
-        </a>
-    </div>
-    <div class="w-full max-w-2xl mx-auto">
-        <Image
-            src={entry.data.thumbnail}
-            class="object-cover w-full max-w-lg mx-auto mb-8 rounded-lg shadow-lg"
-            format="webp"
-            alt={entry.data.title}
-            title={entry.data.title}
-            loading="lazy"
-            transition:persist-props
-            transition:name={entry.slug + "-thumbnail"}
-        />
-
-        <div class="mb-8">
-            <h1
-                class="text-3xl font-bold mb-4 text-gray-900"
-                transition:persist-props
-                transition:name={entry.slug + "-title"}
-            >
-                {entry.data.title}
-            </h1>
+    <ArticleDetailPage
+        entry={entry}
+        sectionName={config.sectionName}
+        sectionSlug={config.sectionSlug}
+        transitionName={config.transitionName}
+    >
+        <Fragment slot="metadata">
             <p
                 class="text-gray-600 mb-2 text-sm"
                 transition:persist-props
@@ -86,7 +51,8 @@ const { Content } = await entry.render(); // Markdown本文をHTMLコンポー�
                 transition:persist-props
                 transition:name={entry.slug + "-publishedDate"}
             >
-                出版日: {
+                出版日:{" "}
+                {
                     entry.data.publishedDate.toLocaleDateString("ja-JP", {
                         year: "numeric",
                         month: "long",
@@ -113,69 +79,63 @@ const { Content } = await entry.render(); // Markdown本文をHTMLコンポー�
                     </span>
                 )
             }
+        </Fragment>
 
-            <div
-                class="flex flex-wrap items-center gap-4 text-sm text-gray-500 mb-3"
+        <Fragment slot="category-tags">
+            <a
+                href={`/book/categorys/${entry.data.category}`}
+                title={entry.data.category}
+                class="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-xs font-medium"
+                transition:persist-props
+                transition:name={entry.slug + "-category"}
             >
-                <span
-                    class="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-xs font-medium"
-                    transition:persist-props
-                    transition:name={entry.slug + "-category"}
-                >
-                    {entry.data.category}
-                </span>
+                {entry.data.category}
+            </a>
 
-                {
-                    entry.data.tags && entry.data.tags.length > 0 && (
-                        <div
-                            class="flex gap-2"
-                            transition:persist-props
-                            transition:name={entry.slug + "-tag"}
-                        >
-                            {entry.data.tags.map((tag) => (
-                                <span class="px-2 py-1 bg-gray-100 text-gray-700 rounded text-xs">
-                                    #{tag}
-                                </span>
-                            ))}
-                        </div>
-                    )
-                }
-            </div>
-            <div
-                class="flex flex-wrap items-center gap-4 text-sm text-gray-500"
+            {
+                entry.data.tags && entry.data.tags.length > 0 && (
+                    <div
+                        class="flex gap-2"
+                        transition:persist-props
+                        transition:name={entry.slug + "-tag"}
+                    >
+                        {entry.data.tags.map((tag) => (
+                            <a
+                                href={`/book/tags/${tag}`}
+                                title={tag}
+                                class="px-2 py-1 bg-gray-100 text-gray-700 rounded text-xs"
+                            >
+                                #{tag}
+                            </a>
+                        ))}
+                    </div>
+                )
+            }
+            <span
+                class="px-2 py-1 bg-green-100 text-green-800 text-xs rounded-full"
+                transition:persist-props
+                transition:name={entry.slug + "-status"}
             >
-                <span
-                    class="px-2 py-1 bg-green-100 text-green-800 text-xs rounded-full"
-                    transition:persist-props
-                    transition:name={entry.slug + "-status"}
-                >
-                    {entry.data.status}
-                </span>
-                <span
-                    class="px-2 py-1 bg-purple-100 text-purple-800 text-xs rounded-full"
-                    transition:persist-props
-                    transition:name={entry.slug + "-format"}
-                >
-                    {entry.data.format}
-                </span>
-                {
-                    entry.data.evaluation !== "未評価" && (
-                        <span
-                            class="px-2 py-1 bg-yellow-100 text-yellow-800 text-xs rounded-full"
-                            transition:persist-props
-                            transition:name={entry.slug + "-evaluation"}
-                        >
-                            ★{entry.data.evaluation}
-                        </span>
-                    )
-                }
-            </div>
-        </div>
-
-        <hr class="mb-4 text-gray-200" />
-
-        <article class="prose mx-auto">
-            <Content />
-        </article>
-    </div>
+                {entry.data.status}
+            </span>
+            <span
+                class="px-2 py-1 bg-purple-100 text-purple-800 text-xs rounded-full"
+                transition:persist-props
+                transition:name={entry.slug + "-format"}
+            >
+                {entry.data.format}
+            </span>
+            {
+                entry.data.evaluation !== "未評価" && (
+                    <span
+                        class="px-2 py-1 bg-yellow-100 text-yellow-800 text-xs rounded-full"
+                        transition:persist-props
+                        transition:name={entry.slug + "-evaluation"}
+                    >
+                        ★{entry.data.evaluation}
+                    </span>
+                )
+            }
+        </Fragment>
+    </ArticleDetailPage>
 </Layout>

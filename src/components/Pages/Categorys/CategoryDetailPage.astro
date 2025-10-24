@@ -1,0 +1,116 @@
+---
+import InitMasonry from "@/components/initMasonry/index.astro";
+
+interface Props {
+    category: string;
+    categoryPosts: any[];
+    otherCategories: string[];
+    postsByCategory: Record<string, any[]>;
+    sectionName: string;
+    sectionSlug: string;
+    transitionName: string;
+    accentColor?: string;
+    CardComponent: any;
+    countLabel?: string;
+}
+
+const {
+    category,
+    categoryPosts,
+    otherCategories,
+    postsByCategory,
+    sectionName,
+    sectionSlug,
+    transitionName,
+    accentColor = "blue",
+    CardComponent,
+    countLabel = "件の記事",
+} = Astro.props;
+---
+
+<style>
+    /* Masonryコンテナのスタイル */
+    .masonry-container {
+        width: 100%;
+    }
+</style>
+
+<h1 class="text-3xl font-bold text-gray-900 mb-8">
+    <span transition:persist-props transition:name={transitionName}
+        >カテゴリー：{category}</span
+    >
+</h1>
+
+<!-- 指定されたカテゴリーのカード表示 -->
+<div class="mb-8">
+    {
+        categoryPosts.length === 0 ? (
+            <div class="text-center text-gray-500">
+                <p>このカテゴリーには{sectionName}がありません</p>
+            </div>
+        ) : (
+            <div>
+                <div id="masonry-container" class="masonry-container">
+                    {categoryPosts.map((post) => (
+                        <CardComponent
+                            {...{
+                                [sectionName === "ブログ"
+                                    ? "blog"
+                                    : sectionName === "蔵書"
+                                      ? "book"
+                                      : sectionName === "資格"
+                                        ? "qualification"
+                                        : sectionName === "楽器"
+                                          ? "instrument"
+                                          : "playground"]: post,
+                            }}
+                        />
+                    ))}
+                </div>
+                <InitMasonry id="masonry-container" item=".masonry-item" />
+            </div>
+        )
+    }
+</div>
+
+<!-- 他のカテゴリーへのリンク -->
+{
+    otherCategories.length > 0 && (
+        <div class="mt-12">
+            <h2 class="text-2xl font-bold text-gray-800 mb-6 pb-2 border-b-2 border-gray-200">
+                他のカテゴリー
+            </h2>
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {otherCategories.map((cat) => (
+                    <a
+                        title={cat}
+                        href={`/${sectionSlug}/categorys/${cat}`}
+                        class={`block p-6 bg-white hover:bg-${accentColor}-50 rounded-lg border border-gray-300 shadow-sm hover:shadow-md transition-shadow`}
+                    >
+                        <h3 class="text-lg font-semibold text-gray-900 mb-2">
+                            {cat}
+                        </h3>
+                        <p class="text-sm text-gray-600">
+                            {postsByCategory[cat].length}
+                            {countLabel}
+                        </p>
+                    </a>
+                ))}
+                <a
+                    title="カテゴリー一覧を見る"
+                    href={`/${sectionSlug}/categorys/`}
+                    class={`block p-6 bg-${accentColor}-100 hover:bg-${accentColor}-200 rounded-lg border border-${accentColor}-300 shadow-sm hover:shadow-md transition-shadow`}
+                >
+                    <h3
+                        class={`text-lg font-semibold text-${accentColor}-900 mb-2`}
+                    >
+                        カテゴリー一覧を見る
+                    </h3>
+                    <p class={`text-sm text-${accentColor}-600`}>
+                        すべてのカテゴリーを見る
+                    </p>
+                </a>
+            </div>
+        </div>
+    )
+}
