@@ -64,19 +64,25 @@ if (
 <script src="/playground/kuromoji/kuromoji.js" is:inline></script>
 <script>
     /** @type {any} */
-    const kuromoji = window.kuromoji;
+    const kuromoji = (window as any).kuromoji;
 
     /** @type {HTMLInputElement | null} */
-    const inputEl = document.getElementById("input");
+    const inputEl = document.getElementById("input") as HTMLInputElement | null;
     /** @type {HTMLButtonElement | null} */
-    const micStartBtn = document.getElementById("mic-start");
+    const micStartBtn = document.getElementById(
+        "mic-start"
+    ) as HTMLButtonElement | null;
     /** @type {HTMLButtonElement | null} */
-    const micStopBtn = document.getElementById("mic-stop");
+    const micStopBtn = document.getElementById(
+        "mic-stop"
+    ) as HTMLButtonElement | null;
     /** @type {HTMLSpanElement | null} */
-    const micStatusEl = document.getElementById("mic-status");
+    const micStatusEl = document.getElementById(
+        "mic-status"
+    ) as HTMLSpanElement | null;
 
     // renderResult関数をグローバルスコープで定義
-    function renderResult(tokens) {
+    function renderResult(tokens: any[]) {
         const resultEl = document.getElementById("result");
         if (!resultEl) return;
         resultEl.innerHTML = "";
@@ -142,10 +148,11 @@ if (
     }
 
     // 音声認識（Web Speech API）
-    let recognition = null;
+    let recognition: any = null;
     try {
         const SpeechRecognition =
-            window.SpeechRecognition || window.webkitSpeechRecognition;
+            (window as any).SpeechRecognition ||
+            (window as any).webkitSpeechRecognition;
         if (SpeechRecognition) {
             recognition = new SpeechRecognition();
             recognition.lang = "ja-JP";
@@ -162,12 +169,12 @@ if (
                 if (micStartBtn) micStartBtn.disabled = false;
                 if (micStopBtn) micStopBtn.disabled = true;
             };
-            recognition.onerror = (e) => {
+            recognition.onerror = (e: any) => {
                 console.error(e);
                 if (micStatusEl)
                     micStatusEl.textContent = "エラーが発生しました";
             };
-            recognition.onresult = (event) => {
+            recognition.onresult = (event: any) => {
                 if (!inputEl) return;
                 let finalText = "";
                 let interimText = "";
@@ -220,11 +227,13 @@ if (
     }
 
     // グローバル変数としてhandleInput関数を保持
-    let globalHandleInput = null;
+    let globalHandleInput: (() => void) | null = null;
 
     function main() {
         // DOM要素を再取得
-        const inputEl = document.getElementById("input");
+        const inputEl = document.getElementById(
+            "input"
+        ) as HTMLInputElement | null;
         const resultEl = document.getElementById("result");
 
         if (!inputEl || !resultEl) {
@@ -249,38 +258,32 @@ if (
 
         kuromoji
             .builder({ dicPath: "/playground/kuromoji/dict/" })
-            .build(
-                function (
-                    /** @type {any} */ err,
-                    /** @type {any} */ tokenizer
-                ) {
-                    if (err) {
-                        console.error(err);
-                        if (resultEl)
-                            resultEl.textContent =
-                                "辞書の読み込みに失敗しました";
+            .build(function (err: any, tokenizer: any) {
+                if (err) {
+                    console.error(err);
+                    if (resultEl)
+                        resultEl.textContent = "辞書の読み込みに失敗しました";
+                    return;
+                }
+
+                const handleInput = () => {
+                    if (!inputEl || !resultEl) return;
+                    const text = inputEl.value.trim();
+                    if (!text) {
+                        renderResult([]);
                         return;
                     }
+                    const tokens = tokenizer.tokenize(text);
+                    renderResult(tokens);
+                };
 
-                    const handleInput = () => {
-                        if (!inputEl || !resultEl) return;
-                        const text = inputEl.value.trim();
-                        if (!text) {
-                            renderResult([]);
-                            return;
-                        }
-                        const tokens = tokenizer.tokenize(text);
-                        renderResult(tokens);
-                    };
+                // グローバル変数に保存
+                globalHandleInput = handleInput;
 
-                    // グローバル変数に保存
-                    globalHandleInput = handleInput;
-
-                    if (inputEl) inputEl.addEventListener("input", handleInput);
-                    // 初期表示（空の場合は何も表示しない）
-                    handleInput();
-                }
-            );
+                if (inputEl) inputEl.addEventListener("input", handleInput);
+                // 初期表示（空の場合は何も表示しない）
+                handleInput();
+            });
     }
 
     // ページ読み込み時に実行
