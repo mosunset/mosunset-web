@@ -734,7 +734,10 @@ if (
         updateApp();
     };
 
-    // DOMContentLoadedとastro:after-swapの両方でmain関数を実行
-    document.addEventListener("DOMContentLoaded", main);
-    document.addEventListener("astro:after-swap", main);
+    // ページ読み込み時に実行
+    if (document.readyState === "loading") {
+        document.addEventListener("DOMContentLoaded", main);
+    } else {
+        main();
+    }
 </script>

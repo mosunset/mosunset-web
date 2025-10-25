@@ -1,21 +1,16 @@
 ---
 export interface Props {
     description: string;
-    transitionName: string;
 }
 
-const { description, transitionName } = Astro.props;
+const { description } = Astro.props;
 ---
 
 <div
     class="relative mb-3 overflow-hidden card-description-container"
     style="line-height: 1.5rem;"
 >
-    <div
-        class="text-gray-600 card-description-text"
-        transition:persist-props
-        transition:name={transitionName}
-    >
+    <div class="text-gray-600 card-description-text">
         {description}
     </div>
 </div>
@@ -119,7 +114,4 @@ const { description, transitionName } = Astro.props;
     } else {
         initCardDescriptionScroll();
     }
-
-    // Astroのビュー遷移後にも実行
-    document.addEventListener("astro:page-load", initCardDescriptionScroll);
 </script>

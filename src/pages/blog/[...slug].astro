@@ -28,16 +28,11 @@ const { entry } = Astro.props;
         entry={entry}
         sectionName={config.sectionName}
         sectionSlug={config.sectionSlug}
-        transitionName={config.transitionName}
     >
         <Fragment slot="metadata">
             {
                 entry.data.description && (
-                    <p
-                        class="text-lg text-gray-600 mb-4"
-                        transition:persist-props
-                        transition:name={entry.slug + "-description"}
-                    >
+                    <p class="text-lg text-gray-600 mb-4">
                         {entry.data.description}
                     </p>
                 )
@@ -45,11 +40,7 @@ const { entry } = Astro.props;
             <div
                 class="flex flex-wrap items-center gap-4 text-sm text-gray-500 mb-4"
             >
-                <time
-                    datetime={entry.data.publishedDate.toISOString()}
-                    transition:persist-props
-                    transition:name={entry.slug + "-publishedDate"}
-                >
+                <time datetime={entry.data.publishedDate.toISOString()}>
                     公開:{" "}
                     {
                         entry.data.publishedDate.toLocaleDateString("ja-JP", {
@@ -61,11 +52,7 @@ const { entry } = Astro.props;
                 </time>
                 {
                     entry.data.updatedDate && (
-                        <time
-                            datetime={entry.data.updatedDate.toISOString()}
-                            transition:persist-props
-                            transition:name={entry.slug + "-updatedDate"}
-                        >
+                        <time datetime={entry.data.updatedDate.toISOString()}>
                             更新:{" "}
                             {entry.data.updatedDate.toLocaleDateString(
                                 "ja-JP",
@@ -94,19 +81,13 @@ const { entry } = Astro.props;
                 href={`/blog/categorys/${entry.data.category}`}
                 title={entry.data.category}
                 class="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-xs font-medium"
-                transition:persist-props
-                transition:name={entry.slug + "-category"}
             >
                 {entry.data.category}
             </a>
 
             {
                 entry.data.tags && entry.data.tags.length > 0 && (
-                    <div
-                        class="flex gap-2"
-                        transition:persist-props
-                        transition:name={entry.slug + "-tag"}
-                    >
+                    <div class="flex gap-2">
                         {entry.data.tags.map((tag) => (
                             <a
                                 href={`/blog/tags/${tag}`}

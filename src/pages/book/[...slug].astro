@@ -28,28 +28,17 @@ const { entry } = Astro.props;
         entry={entry}
         sectionName={config.sectionName}
         sectionSlug={config.sectionSlug}
-        transitionName={config.transitionName}
     >
         <Fragment slot="metadata">
-            <p
-                class="text-gray-600 mb-2 text-sm"
-                transition:persist-props
-                transition:name={entry.slug + "-author"}
-            >
+            <p class="text-gray-600 mb-2 text-sm">
                 著者: {entry.data.author}
             </p>
-            <p
-                class="text-gray-600 mb-2 text-sm"
-                transition:persist-props
-                transition:name={entry.slug + "-publisher"}
-            >
+            <p class="text-gray-600 mb-2 text-sm">
                 出版社: {entry.data.publisher}
             </p>
             <time
                 class="block text-gray-600 mb-2 text-sm"
                 datetime={entry.data.publishedDate.toISOString()}
-                transition:persist-props
-                transition:name={entry.slug + "-publishedDate"}
             >
                 出版日:{" "}
                 {
@@ -62,11 +51,7 @@ const { entry } = Astro.props;
             </time>
             {
                 entry.data.description && (
-                    <p
-                        class="text-lg text-gray-600 mb-4"
-                        transition:persist-props
-                        transition:name={entry.slug + "-description"}
-                    >
+                    <p class="text-lg text-gray-600 mb-4">
                         {entry.data.description}
                     </p>
                 )
@@ -86,19 +71,13 @@ const { entry } = Astro.props;
                 href={`/book/categorys/${entry.data.category}`}
                 title={entry.data.category}
                 class="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-xs font-medium"
-                transition:persist-props
-                transition:name={entry.slug + "-category"}
             >
                 {entry.data.category}
             </a>
 
             {
                 entry.data.tags && entry.data.tags.length > 0 && (
-                    <div
-                        class="flex gap-2"
-                        transition:persist-props
-                        transition:name={entry.slug + "-tag"}
-                    >
+                    <div class="flex gap-2">
                         {entry.data.tags.map((tag) => (
                             <a
                                 href={`/book/tags/${tag}`}
@@ -113,25 +92,17 @@ const { entry } = Astro.props;
             }
             <span
                 class="px-2 py-1 bg-green-100 text-green-800 text-xs rounded-full"
-                transition:persist-props
-                transition:name={entry.slug + "-status"}
             >
                 {entry.data.status}
             </span>
             <span
                 class="px-2 py-1 bg-purple-100 text-purple-800 text-xs rounded-full"
-                transition:persist-props
-                transition:name={entry.slug + "-format"}
             >
                 {entry.data.format}
             </span>
             {
                 entry.data.evaluation !== "未評価" && (
-                    <span
-                        class="px-2 py-1 bg-yellow-100 text-yellow-800 text-xs rounded-full"
-                        transition:persist-props
-                        transition:name={entry.slug + "-evaluation"}
-                    >
+                    <span class="px-2 py-1 bg-yellow-100 text-yellow-800 text-xs rounded-full">
                         ★{entry.data.evaluation}
                     </span>
                 )

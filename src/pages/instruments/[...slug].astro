@@ -29,22 +29,13 @@ const { entry } = Astro.props;
         entry={entry}
         sectionName={config.sectionName}
         sectionSlug={config.sectionSlug}
-        transitionName={config.transitionName}
         titleField="name"
     >
         <Fragment slot="metadata">
-            <p
-                class="text-gray-600 mb-2 text-sm"
-                transition:persist-props
-                transition:name={entry.slug + "-brand"}
-            >
+            <p class="text-gray-600 mb-2 text-sm">
                 ブランド: {entry.data.brand}
             </p>
-            <p
-                class="text-gray-600 mb-2 text-sm"
-                transition:persist-props
-                transition:name={entry.slug + "-instrumentName"}
-            >
+            <p class="text-gray-600 mb-2 text-sm">
                 楽器名: {entry.data.instrumentName}
             </p>
             {
@@ -66,8 +57,6 @@ const { entry } = Astro.props;
                     <time
                         class="block text-gray-600 mb-2 text-sm"
                         datetime={entry.data.purchaseDate.toISOString()}
-                        transition:persist-props
-                        transition:name={entry.slug + "-purchaseDate"}
                     >
                         入手日:{" "}
                         {entry.data.purchaseDate.toLocaleDateString("ja-JP", {
@@ -102,8 +91,6 @@ const { entry } = Astro.props;
                 href={`/instruments/categorys/${entry.data.type}`}
                 title={entry.data.type}
                 class="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-xs font-medium"
-                transition:persist-props
-                transition:name={entry.slug + "-type"}
             >
                 {entry.data.type}
             </a>

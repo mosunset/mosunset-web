@@ -1,9 +1,9 @@
 ---
-import BaseCard from './BaseCard.astro';
-import CardTitle from './CardTitle.astro';
-import CardDescription from './CardDescription.astro';
-import CardTags from './CardTags.astro';
-import CardDate from './CardDate.astro';
+import BaseCard from "./BaseCard.astro";
+import CardTitle from "./CardTitle.astro";
+import CardDescription from "./CardDescription.astro";
+import CardTags from "./CardTags.astro";
+import CardDate from "./CardDate.astro";
 
 export interface Props {
     blog: any; // blog collectionの型
@@ -17,44 +17,37 @@ const post = blog;
 <BaseCard
     href={`/blog/${post.slug}/`}
     title={post.data.title}
-    thumbnail={post.data.thumbnail ? {
-        src: post.data.thumbnail,
-        transitionName: post.slug + "-thumbnail"
-    } : undefined}
+    thumbnail={post.data.thumbnail
+        ? {
+              src: post.data.thumbnail,
+          }
+        : undefined}
     masonryClass={masonryClass}
 >
-    <CardTitle
-        title={post.data.title}
-        transitionName={post.slug + "-title"}
-    />
+    <CardTitle title={post.data.title} />
 
-    {post.data.description && (
-        <CardDescription
-            description={post.data.description}
-            transitionName={post.slug + "-description"}
-        />
-    )}
+    {
+        post.data.description && (
+            <CardDescription description={post.data.description} />
+        )
+    }
 
     <CardTags
         category={post.data.category}
         tags={post.data.tags}
-        transitionName={post.slug + "-tag"}
         basePath="/blog"
     />
 
     <div class="flex flex-col gap-1 mt-auto">
-        <CardDate
-            date={new Date(post.data.publishedDate)}
-            label="公開日"
-            transitionName={post.slug + "-publishedDate"}
-        />
+        <CardDate date={new Date(post.data.publishedDate)} label="公開日" />
 
-        {post.data.updatedDate && (
-            <CardDate
-                date={new Date(post.data.updatedDate)}
-                label="更新日"
-                transitionName={post.slug + "-updatedDate"}
-            />
-        )}
+        {
+            post.data.updatedDate && (
+                <CardDate
+                    date={new Date(post.data.updatedDate)}
+                    label="更新日"
+                />
+            )
+        }
     </div>
 </BaseCard>

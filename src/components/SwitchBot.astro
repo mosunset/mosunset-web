@@ -252,15 +252,10 @@
         }
     }
 
-    // DOMContentLoadedイベントは、初回ページロード時にDOMが完全に読み込まれた後に発生します。
-    document.addEventListener("DOMContentLoaded", () => {
+    // ページ読み込み時に実行
+    if (document.readyState === "loading") {
+        document.addEventListener("DOMContentLoaded", fetchAndRender);
+    } else {
         fetchAndRender();
-    });
-
-    // astro:after-swapイベントは、旧ページが新ページに置き換わった直後に発生します。
-    document.addEventListener("astro:after-swap", () => {
-        fetchAndRender();
-    });
-
-    fetchAndRender();
+    }
 </script>

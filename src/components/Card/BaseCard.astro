@@ -12,28 +12,26 @@ export interface Props {
 const { href, title, thumbnail, masonryClass = "", children } = Astro.props;
 ---
 
-<article class={`masonry-item bg-white border border-gray-200 rounded-lg shadow-sm hover:shadow-md transition-shadow overflow-hidden ${masonryClass}`}>
+<article
+    class={`masonry-item bg-white border border-gray-200 rounded-lg shadow-sm hover:shadow-md transition-shadow overflow-hidden ${masonryClass}`}
+>
     <div class="relative">
-        {thumbnail && (
-            <Image
-                src={thumbnail.src}
-                format="webp"
-                alt={title}
-                title={title}
-                loading="lazy"
-                class="w-full object-cover"
-                transition:persist-props
-                transition:name={thumbnail.transitionName}
-            />
-        )}
+        {
+            thumbnail && (
+                <Image
+                    src={thumbnail.src}
+                    format="webp"
+                    alt={title}
+                    title={title}
+                    loading="lazy"
+                    class="w-full object-cover"
+                />
+            )
+        }
         <div class="p-6">
             <slot />
         </div>
-        <a
-            href={href}
-            class="absolute inset-0"
-            title={title}
-        ></a>
+        <a href={href} class="absolute inset-0" title={title}></a>
     </div>
 </article>
 

@@ -9,7 +9,6 @@ export type SectionConfig = {
         | "playground";
     sectionName: string;
     sectionSlug: string;
-    transitionName: string;
     sortField?: string | readonly string[];
     countLabel?: string;
     categoryField?: string;
@@ -172,7 +171,6 @@ export const SECTION_CONFIGS = {
         collectionName: "blog" as const,
         sectionName: "ブログ",
         sectionSlug: "blog",
-        transitionName: "blog-title",
         sortField: ["updatedDate", "publishedDate"],
         countLabel: "件の記事",
     },
@@ -180,7 +178,6 @@ export const SECTION_CONFIGS = {
         collectionName: "books" as const,
         sectionName: "蔵書",
         sectionSlug: "book",
-        transitionName: "book-title",
         sortField: "publishedDate",
         countLabel: "件の蔵書",
     },
@@ -188,7 +185,6 @@ export const SECTION_CONFIGS = {
         collectionName: "qualifications" as const,
         sectionName: "資格",
         sectionSlug: "qualifications",
-        transitionName: "qualifications-title",
         sortField: "acquiredDate",
         countLabel: "件の資格",
     },
@@ -196,7 +192,6 @@ export const SECTION_CONFIGS = {
         collectionName: "instruments" as const,
         sectionName: "楽器",
         sectionSlug: "instruments",
-        transitionName: "instruments-title",
         sortField: "purchaseDate",
         countLabel: "件の楽器",
         categoryField: "type", // instrumentsではtypeフィールドをカテゴリーとして使用
@@ -205,7 +200,6 @@ export const SECTION_CONFIGS = {
         collectionName: "playground" as const,
         sectionName: "Playground",
         sectionSlug: "playground",
-        transitionName: "playground-title",
         sortField: "publishedDate",
         countLabel: "件のプロジェクト",
     },

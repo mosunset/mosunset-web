@@ -28,28 +28,11 @@ const { entry } = Astro.props;
         entry={entry}
         sectionName={config.sectionName}
         sectionSlug={config.sectionSlug}
-        transitionName={config.transitionName}
         titleField="name"
         showThumbnail={!!entry.data.thumbnail}
     >
         <Fragment slot="metadata">
-            <h1
-                class="text-3xl font-bold mb-4 text-gray-900"
-                transition:persist-props
-                transition:name={entry.slug + "-title"}
-            >
-                {entry.data.name}{" "}
-                <span
-                    class="px-2 py-1 bg-green-100 text-green-800 text-xs rounded-full"
-                >
-                    {entry.data.status}
-                </span>
-            </h1>
-            <p
-                class="text-gray-600 mb-2 text-sm"
-                transition:persist-props
-                transition:name={entry.slug + "-organization"}
-            >
+            <p class="text-gray-600 mb-2 text-sm">
                 実施団体: {entry.data.organization}
             </p>
             {
@@ -71,8 +54,6 @@ const { entry } = Astro.props;
                     <time
                         class="block text-gray-600 mb-2 text-sm"
                         datetime={entry.data.acquiredDate.toISOString()}
-                        transition:persist-props
-                        transition:name={entry.slug + "-acquiredDate"}
                     >
                         取得日:{" "}
                         {new Date(entry.data.acquiredDate).toLocaleDateString(
@@ -91,8 +72,6 @@ const { entry } = Astro.props;
                     <time
                         class="block text-gray-600 mb-2 text-sm"
                         datetime={entry.data.validityPeriod.toISOString()}
-                        transition:persist-props
-                        transition:name={entry.slug + "-validityPeriod"}
                     >
                         有効期限:{" "}
                         {new Date(entry.data.validityPeriod).toLocaleDateString(
@@ -116,23 +95,22 @@ const { entry } = Astro.props;
                     </span>
                 )
             }
+            <span
+                class="px-2 py-1 bg-green-100 text-green-800 text-xs rounded-full"
+            >
+                {entry.data.status}
+            </span>
             <a
                 href={`/qualifications/categorys/${entry.data.category}`}
                 title={entry.data.category}
                 class="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-xs font-medium"
-                transition:persist-props
-                transition:name={entry.slug + "-category"}
             >
                 {entry.data.category}
             </a>
 
             {
                 entry.data.tags && entry.data.tags.length > 0 && (
-                    <div
-                        class="flex gap-2"
-                        transition:persist-props
-                        transition:name={entry.slug + "-tag"}
-                    >
+                    <div class="flex gap-2">
                         {entry.data.tags.map((tag) => (
                             <a
                                 href={`/qualifications/tags/${tag}`}

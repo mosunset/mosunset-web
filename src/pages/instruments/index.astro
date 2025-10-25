@@ -30,11 +30,7 @@ publicPosts.sort((a, b) => {
             width: 100%;
         }
     </style>
-    <h1 class="text-3xl font-bold text-gray-900 mb-8">
-        <span transition:persist-props transition:name="instruments-title"
-            >楽器</span
-        >
-    </h1>
+    <h1 class="text-3xl font-bold text-gray-900 mb-8">楽器</h1>
     <div id="masonry-container" class="masonry-container">
         {
             publicPosts.length === 0 ? (
@@ -42,9 +38,7 @@ publicPosts.sort((a, b) => {
                     <p>楽器がありません</p>
                 </div>
             ) : (
-                publicPosts.map((post) => (
-                    <InstrumentCard instrument={post} />
-                ))
+                publicPosts.map((post) => <InstrumentCard instrument={post} />)
             )
         }
     </div>

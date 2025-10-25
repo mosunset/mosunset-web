@@ -8,7 +8,6 @@ interface Props {
     postsByCategory: Record<string, any[]>;
     sectionName: string;
     sectionSlug: string;
-    transitionName: string;
     accentColor?: string;
     CardComponent: any;
     countLabel?: string;
@@ -21,7 +20,6 @@ const {
     postsByCategory,
     sectionName,
     sectionSlug,
-    transitionName,
     accentColor = "blue",
     CardComponent,
     countLabel = "件の記事",
@@ -36,9 +34,7 @@ const {
 </style>
 
 <h1 class="text-3xl font-bold text-gray-900 mb-8">
-    <span transition:persist-props transition:name={transitionName}
-        >カテゴリー：{category}</span
-    >
+    カテゴリー：{category}
 </h1>
 
 <!-- 指定されたカテゴリーのカード表示 -->

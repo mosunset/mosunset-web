@@ -2,16 +2,11 @@
 export interface Props {
     date: Date;
     label: string;
-    transitionName: string;
 }
 
-const { date, label, transitionName } = Astro.props;
+const { date, label } = Astro.props;
 ---
 
-<time
-    class="text-sm text-gray-500"
-    transition:persist-props
-    transition:name={transitionName}
->
+<time class="text-sm text-gray-500">
     {label}: {date.toLocaleDateString("ja-JP")}
 </time>

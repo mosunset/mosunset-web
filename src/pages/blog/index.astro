@@ -32,10 +32,7 @@ publicPosts.sort(
             width: 100%;
         }
     </style>
-    <h1 class="text-3xl font-bold text-gray-900 mb-8">
-        <span transition:persist-props transition:name="blog-title">ブログ</span
-        >
-    </h1>
+    <h1 class="text-3xl font-bold text-gray-900 mb-8">ブログ</h1>
     <div id="masonry-container" class="masonry-container">
         {
             publicPosts.length === 0 ? (
@@ -43,9 +40,7 @@ publicPosts.sort(
                     <p>記事がありません</p>
                 </div>
             ) : (
-                publicPosts.map((post) => (
-                    <BlogCard blog={post} />
-                ))
+                publicPosts.map((post) => <BlogCard blog={post} />)
             )
         }
     </div>

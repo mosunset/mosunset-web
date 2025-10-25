@@ -2,16 +2,11 @@
 export interface Props {
     label: string;
     value: string;
-    transitionName: string;
 }
 
-const { label, value, transitionName } = Astro.props;
+const { label, value } = Astro.props;
 ---
 
-<p
-    class="text-gray-600 mb-2 text-sm"
-    transition:persist-props
-    transition:name={transitionName}
->
+<p class="text-gray-600 mb-2 text-sm">
     {label}: {value}
 </p>

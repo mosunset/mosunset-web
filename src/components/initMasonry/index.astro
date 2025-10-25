@@ -60,17 +60,10 @@ const {
         items.forEach((el) => el.classList.add("loaded"));
     };
 
-    // Astroのライフサイクルイベントに対応
-    // ページの初回読み込み完了時
-    document.addEventListener("astro:page-load", initMasonry);
-    // View Transitionsによるページ切り替え完了時
-    document.addEventListener("astro:after-swap", initMasonry);
-
-    // View Transitionsによるページ切り替え前にクリーンアップ処理を行う
-    document.addEventListener("astro:before-swap", () => {
-        if (masonryInstance) {
-            masonryInstance.destroy();
-            masonryInstance = null; // インスタンスへの参照をクリア
-        }
-    });
+    // ページ読み込み時に実行
+    if (document.readyState === "loading") {
+        document.addEventListener("DOMContentLoaded", initMasonry);
+    } else {
+        initMasonry();
+    }
 </script>

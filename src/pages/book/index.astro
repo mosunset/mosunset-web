@@ -32,9 +32,7 @@ publicPosts.sort(
             width: 100%;
         }
     </style>
-    <h1 class="text-3xl font-bold text-gray-900 mb-8">
-        <span transition:persist-props transition:name="book-title">蔵書</span>
-    </h1>
+    <h1 class="text-3xl font-bold text-gray-900 mb-8">蔵書</h1>
     <div id="masonry-container" class="masonry-container">
         {
             publicPosts.length === 0 ? (
@@ -42,14 +40,13 @@ publicPosts.sort(
                     <p>蔵書がありません</p>
                 </div>
             ) : (
-                publicPosts.map((post) => (
-                    <BookCard book={post} />
-                ))
+                publicPosts.map((post) => <BookCard book={post} />)
             )
         }
     </div>
     <InitMasonry />
     <p class="text-gray-500 my-4">
-        本の情報は楽天Books APIやGoogle Books APIから取得し、AI（Gemma-3-12b-it）によって自動的に整形・補完されています。そのため、一部内容について正確性が損なわれている場合があります。正式な情報は必ずご自身でもご確認ください。
+        本の情報は楽天Books APIやGoogle Books
+        APIから取得し、AI（Gemma-3-12b-it）によって自動的に整形・補完されています。そのため、一部内容について正確性が損なわれている場合があります。正式な情報は必ずご自身でもご確認ください。
     </p>
 </Layout>

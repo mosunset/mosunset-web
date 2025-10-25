@@ -4,7 +4,6 @@ import InitMasonry from "@/components/initMasonry/index.astro";
 interface Props {
     postsByTag: Record<string, any[]>;
     sectionName: string;
-    transitionName: string;
     borderColor?: string;
     CardComponent: any;
     highlightTag?: boolean;
@@ -13,7 +12,6 @@ interface Props {
 const {
     postsByTag,
     sectionName,
-    transitionName,
     borderColor = "border-green-200",
     CardComponent,
     highlightTag = false,
@@ -33,9 +31,7 @@ const sortedTags = Object.keys(postsByTag).sort((a, b) =>
 </style>
 
 <h1 class="text-3xl font-bold text-gray-900 mb-8">
-    <span transition:persist-props transition:name={transitionName}
-        >タグ：{sectionName}</span
-    >
+    タグ：{sectionName}
 </h1>
 <div>
     {

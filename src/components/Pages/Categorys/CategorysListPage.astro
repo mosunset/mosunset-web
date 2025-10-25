@@ -4,7 +4,6 @@ import InitMasonry from "@/components/initMasonry/index.astro";
 interface Props {
     postsByCategory: Record<string, any[]>;
     sectionName: string;
-    transitionName: string;
     borderColor?: string;
     CardComponent: any;
 }
@@ -12,7 +11,6 @@ interface Props {
 const {
     postsByCategory,
     sectionName,
-    transitionName,
     borderColor = "border-blue-200",
     CardComponent,
 } = Astro.props;
@@ -31,9 +29,7 @@ const sortedCategories = Object.keys(postsByCategory).sort((a, b) =>
 </style>
 
 <h1 class="text-3xl font-bold text-gray-900 mb-8">
-    <span transition:persist-props transition:name={transitionName}
-        >カテゴリー：{sectionName}</span
-    >
+    カテゴリー：{sectionName}
 </h1>
 <div>
     {

@@ -5,7 +5,6 @@ interface Props {
     entry: any;
     sectionName: string;
     sectionSlug: string;
-    transitionName: string;
     titleField?: string;
     thumbnailField?: string;
     showThumbnail?: boolean;
@@ -15,7 +14,6 @@ const {
     entry,
     sectionName,
     sectionSlug,
-    transitionName,
     titleField = "title",
     thumbnailField = "thumbnail",
     showThumbnail = true,
@@ -43,11 +41,7 @@ const thumbnail = entry.data[thumbnailField];
                 d="M11.03 3.97a.75.75 0 0 1 0 1.06l-6.22 6.22H21a.75.75 0 0 1 0 1.5H4.81l6.22 6.22a.75.75 0 1 1-1.06 1.06l-7.5-7.5a.75.75 0 0 1 0-1.06l7.5-7.5a.75.75 0 0 1 1.06 0Z"
                 clip-rule="evenodd"></path>
         </svg>
-        <span class="text-sm"
-            ><span transition:persist-props transition:name={transitionName}
-                >{sectionName}</span
-            >一覧へ戻る</span
-        >
+        <span class="text-sm">{sectionName}一覧へ戻る</span>
     </a>
 </div>
 <div class="w-full max-w-2xl mx-auto">
@@ -60,18 +54,12 @@ const thumbnail = entry.data[thumbnailField];
                 alt={title}
                 title={title}
                 loading="lazy"
-                transition:persist-props
-                transition:name={entry.slug + "-thumbnail"}
             />
         )
     }
 
     <div class="mb-8">
-        <h1
-            class="text-3xl font-bold mb-4 text-gray-900"
-            transition:persist-props
-            transition:name={entry.slug + "-title"}
-        >
+        <h1 class="text-3xl font-bold mb-4 text-gray-900">
             {title}
         </h1>
 
