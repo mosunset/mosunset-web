@@ -10,60 +10,18 @@ const {
 } = Astro.props;
 ---
 
-<script src="https://unpkg.com/masonry-layout@4/dist/masonry.pkgd.min.js"
-></script>
-<script src="https://unpkg.com/imagesloaded@5/imagesloaded.pkgd.min.js"
-></script>
-
 <script define:vars={{ id, item, gutter, transitionDuration }}>
-    // Masonryのインスタンスを保持するためのグローバル変数
-    let masonryInstance = null;
-
-    const initMasonry = () => {
-        // propsから渡されたidを持つコンテナ要素を取得
-        const container = document.getElementById(id);
-
-        // コンテナが存在しない場合は処理を中断し、コンソールに警告を表示
-        if (!container) {
-            // console.warn(`Masonry container with id #${id} not found.`);
-            return;
+    // 各インスタンスでは変数を使ってグローバル関数を呼び出すだけ
+    const executeInit = () => {
+        if (window.__masonryInit) {
+            window.__masonryInit(id, item, gutter, transitionDuration);
         }
-
-        // 既存のインスタンスがあれば破棄する
-        if (masonryInstance) {
-            masonryInstance.destroy();
-        }
-
-        // Masonryの新しいインスタンスを初期化
-        masonryInstance = new Masonry(container, {
-            itemSelector: item,
-            columnWidth: item,
-            // percentPosition: true  ... カラム幅をパーセント(percent)指定として解釈する（レスポンシブに推奨）
-            percentPosition: true,
-            // horizontalOrder: true  ... itemsをDOM順に左から右に配置する
-            horizontalOrder: false,
-            // propsから渡された値を使用
-            transitionDuration: transitionDuration,
-            gutter: gutter,
-        });
-
-        // imagesLoadedを使ってコンテナ内の画像の読み込みを監視
-        imagesLoaded(container).on("progress", () => {
-            // 画像が読み込まれるたびにレイアウトを再計算
-            if (masonryInstance) {
-                masonryInstance.layout();
-            }
-        });
-
-        // Masonryアイテムを可視化（CSSでのアニメーション用）
-        const items = container.querySelectorAll(item);
-        items.forEach((el) => el.classList.add("loaded"));
     };
 
     // ページ読み込み時に実行
     if (document.readyState === "loading") {
-        document.addEventListener("DOMContentLoaded", initMasonry);
+        document.addEventListener("DOMContentLoaded", executeInit);
     } else {
-        initMasonry();
+        executeInit();
     }
 </script>
