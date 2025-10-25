@@ -8,21 +8,127 @@ export interface Props {
 const { title, status, transitionName } = Astro.props;
 ---
 
-<h2
-    class="text-xl font-semibold text-gray-900 mb-2 line-clamp-2"
-    transition:persist-props
-    transition:name={transitionName}
+<div
+    class="relative mb-2 overflow-hidden card-title-container"
+    style="line-height: 1.75rem;"
 >
-    {title}{" "}
-    {status && (
-        <span
-            class={`px-2 py-1 text-xs rounded-full
-                ${status === "取得済み"
-                    ? "bg-green-100 text-green-800"
-                    : "bg-yellow-100 text-yellow-800"}
-            `}
-        >
-            {status}
-        </span>
-    )}
-</h2>
+    <h2
+        class="text-xl font-semibold text-gray-900 card-title-text"
+        transition:persist-props
+        transition:name={transitionName}
+    >
+        {title}{" "}
+        {
+            status && (
+                <span
+                    class={`px-2 py-1 text-xs rounded-full
+                    ${
+                        status === "取得済み"
+                            ? "bg-green-100 text-green-800"
+                            : "bg-yellow-100 text-yellow-800"
+                    }
+                `}
+                >
+                    {status}
+                </span>
+            )
+        }
+    </h2>
+</div>
+
+<style>
+    .card-title-container {
+        max-height: 3.5rem;
+    }
+</style>
+
+<script>
+    function initCardTitleScroll() {
+        const containers = document.querySelectorAll(".card-title-container");
+
+        containers.forEach((container) => {
+            const textElement = container.querySelector(
+                ".card-title-text"
+            ) as HTMLElement;
+            if (!textElement) return;
+
+            const containerEl = container as HTMLElement;
+            const lineHeight = 1.75; // rem
+            const maxLines = 2;
+            const maxHeight = lineHeight * maxLines * 16; // remをpxに変換（1rem = 16px）
+
+            // テキストの実際の高さを確認
+            const textHeight = textElement.scrollHeight;
+
+            // 2行未満の場合は内容に合わせた高さにする
+            if (textHeight <= maxHeight) {
+                containerEl.style.height = textHeight + "px";
+                containerEl.style.maxHeight = "none";
+                return;
+            }
+
+            // 2行以上の場合は2行分の高さに固定してスクロールアニメーションを適用
+            containerEl.style.height = maxHeight + "px";
+
+            // 行数を計算
+            const totalLines = Math.ceil(textHeight / (lineHeight * 16));
+            const scrollSteps = totalLines - maxLines;
+
+            // 各行ごとにスクロールするキーフレームアニメーションを動的に生成
+            const animationName = `scrollTitle-${Math.random().toString(36).substr(2, 9)}`;
+            const keyframes = generateScrollKeyframes(
+                animationName,
+                scrollSteps,
+                lineHeight * 16
+            );
+
+            // スタイルシートにキーフレームを追加
+            const styleSheet = document.createElement("style");
+            styleSheet.textContent = keyframes;
+            document.head.appendChild(styleSheet);
+
+            // アニメーションを適用（1行あたり2秒）
+            const duration = (scrollSteps + 1) * 2;
+            textElement.style.animation = `${animationName} ${duration}s ease-in-out infinite`;
+        });
+    }
+
+    function generateScrollKeyframes(
+        animationName: string,
+        scrollSteps: number,
+        lineHeight: number
+    ) {
+        const totalSteps = scrollSteps + 1; // 最初の位置 + スクロールステップ数
+        const percentPerStep = 100 / (totalSteps * 2); // 各ステップでの停止時間を考慮
+
+        let keyframes = `@keyframes ${animationName} {\n`;
+
+        // 最初の位置で停止
+        keyframes += `  0%, ${percentPerStep}% {\n    transform: translateY(0);\n  }\n`;
+
+        // 各行ごとにスクロール
+        for (let i = 1; i <= scrollSteps; i++) {
+            const startPercent = percentPerStep * (i * 2 - 1);
+            const stopPercent = percentPerStep * (i * 2);
+            const translateY = -lineHeight * i;
+            keyframes += `  ${startPercent}%, ${stopPercent}% {\n    transform: translateY(${translateY}px);\n  }\n`;
+        }
+
+        // 最後の位置で停止してから最初に戻る
+        const returnStartPercent = percentPerStep * (scrollSteps * 2 + 1);
+        keyframes += `  ${returnStartPercent}%, 100% {\n    transform: translateY(0);\n  }\n`;
+
+        keyframes += `}`;
+        return keyframes;
+    }
+
+    // ページ読み込み時に実行
+    if (document.readyState === "loading") {
+        document.addEventListener("DOMContentLoaded", initCardTitleScroll);
+    } else {
+        initCardTitleScroll();
+    }
+
+    // Astroのビュー遷移後にも実行
+    document.addEventListener("astro:page-load", initCardTitleScroll);
+</script>

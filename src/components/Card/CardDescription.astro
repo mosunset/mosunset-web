@@ -2,55 +2,124 @@
 export interface Props {
     description: string;
     transitionName: string;
-    maxLines?: number;
 }
 
-const { description, transitionName, maxLines = 3 } = Astro.props;
+const { description, transitionName } = Astro.props;
 ---
 
-{/*
-  3行より超えそうなら「...」にする
-  line-clampで切れる場合は、末尾に...が付加されるので UI はOK
-  さらに、実際にdescriptionがmaxLinesで全て表示されているかをJSで判定し、「...」のみ表示するUIにする
-*/}
 <div
-    class={`overflow-clip relative text-gray-600 mb-3 line-clamp-${maxLines}`}
-    transition:persist-props
-    transition:name={transitionName}
+    class="relative mb-3 overflow-hidden card-description-container"
+    style="line-height: 1.5rem;"
 >
-    <span id="card-desc-text" style="white-space:pre-line;">{description}</span>
-    <span id="card-desc-ellipsis" style="display:none;">...</span>
+    <div
+        class="text-gray-600 card-description-text"
+        transition:persist-props
+        transition:name={transitionName}
+    >
+        {description}
+    </div>
 </div>
-<script type="text/javascript" is:inline>
-    // Note: is:inline for Astro
-    // 判定は1回だけ、サーバサイドでhydration後にのみ
-    window.addEventListener('DOMContentLoaded', () => {
-        const desc = document.getElementById('card-desc-text');
-        const ellipsis = document.getElementById('card-desc-ellipsis');
-        if (desc) {
-            // 一時的に制限解除して全高を計る
-            const origWebkitLineClamp = desc.parentElement?.style.webkitLineClamp;
-            const origDisplay = desc.style.display;
-            desc.parentElement?.classList.remove('line-clamp-3', 'line-clamp-2', 'line-clamp-1');
-            desc.parentElement?.style.setProperty('webkitLineClamp', 'unset');
-            desc.style.display = 'block';
-            const fullHeight = desc.scrollHeight;
-            // 再度line-clampクラス適用
-            desc.parentElement?.classList.add(`line-clamp-${Astro.props.maxLines ?? 3}`);
-            void origWebkitLineClamp;
-            desc.style.display = origDisplay;
-            // 現表示の最大高さ取得
-            const clampEl = desc.parentElement;
-            if (clampEl) {
-                const clampHeight = clampEl.clientHeight;
-                if (fullHeight > clampHeight + 1) {
-                    // 超えてる → description非表示 + ...表示
-                    desc.style.display = 'none';
-                    if (ellipsis) {
-                        ellipsis.style.display = 'inline';
-                    }
-                }
+
+<style>
+    .card-description-container {
+        max-height: 6rem;
+    }
+</style>
+
+<script>
+    function initCardDescriptionScroll() {
+        const containers = document.querySelectorAll(
+            ".card-description-container"
+        );
+
+        containers.forEach((container) => {
+            const textElement = container.querySelector(
+                ".card-description-text"
+            ) as HTMLElement;
+            if (!textElement) return;
+
+            const containerEl = container as HTMLElement;
+            const lineHeight = 1.5; // rem
+            const maxLines = 4;
+            const maxHeight = lineHeight * maxLines * 16; // remをpxに変換（1rem = 16px）
+
+            // テキストの実際の高さを確認
+            const textHeight = textElement.scrollHeight;
+
+            // 4行未満の場合は内容に合わせた高さにする
+            if (textHeight <= maxHeight) {
+                containerEl.style.height = textHeight + "px";
+                containerEl.style.maxHeight = "none";
+                return;
             }
+
+            // 4行以上の場合は4行分の高さに固定してスクロールアニメーションを適用
+            containerEl.style.height = maxHeight + "px";
+
+            // 行数を計算
+            const totalLines = Math.ceil(textHeight / (lineHeight * 16));
+            const scrollSteps = totalLines - maxLines;
+            const linesPerScroll = 2; // 2行ずつスクロール
+            const scrollStepsPerTwo = Math.ceil(scrollSteps / linesPerScroll);
+
+            // 2行ごとにスクロールするキーフレームアニメーションを動的に生成
+            const animationName = `scrollDescription-${Math.random().toString(36).substr(2, 9)}`;
+            const keyframes = generateScrollKeyframes(
+                animationName,
+                scrollStepsPerTwo,
+                lineHeight * 16 * linesPerScroll // 2行分の高さ
+            );
+
+            // スタイルシートにキーフレームを追加
+            const styleSheet = document.createElement("style");
+            styleSheet.textContent = keyframes;
+            document.head.appendChild(styleSheet);
+
+            // アニメーションを適用（2行あたり3秒）
+            const duration = (scrollStepsPerTwo + 1) * 3;
+            textElement.style.animation = `${animationName} ${duration}s ease-in-out infinite`;
+        });
+    }
+
+    function generateScrollKeyframes(
+        animationName: string,
+        scrollSteps: number,
+        scrollDistance: number
+    ) {
+        const totalSteps = scrollSteps + 1; // 最初の位置 + スクロールステップ数
+        const percentPerStep = 100 / (totalSteps * 2); // 各ステップでの停止時間を考慮
+
+        let keyframes = `@keyframes ${animationName} {\n`;
+
+        // 最初の位置で停止
+        keyframes += `  0%, ${percentPerStep}% {\n    transform: translateY(0);\n  }\n`;
+
+        // 2行ごとにスクロール
+        for (let i = 1; i <= scrollSteps; i++) {
+            const startPercent = percentPerStep * (i * 2 - 1);
+            const stopPercent = percentPerStep * (i * 2);
+            const translateY = -scrollDistance * i;
+            keyframes += `  ${startPercent}%, ${stopPercent}% {\n    transform: translateY(${translateY}px);\n  }\n`;
         }
-    });
+
+        // 最後の位置で停止してから最初に戻る
+        const returnStartPercent = percentPerStep * (scrollSteps * 2 + 1);
+        keyframes += `  ${returnStartPercent}%, 100% {\n    transform: translateY(0);\n  }\n`;
+
+        keyframes += `}`;
+        return keyframes;
+    }
+
+    // ページ読み込み時に実行
+    if (document.readyState === "loading") {
+        document.addEventListener(
+            "DOMContentLoaded",
+            initCardDescriptionScroll
+        );
+    } else {
+        initCardDescriptionScroll();
+    }
+
+    // Astroのビュー遷移後にも実行
+    document.addEventListener("astro:page-load", initCardDescriptionScroll);
 </script>
