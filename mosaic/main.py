@@ -48,7 +48,7 @@ MOSAIC_MARGIN_RATIO = 0.20  # 20%のマージン
 ADD_SALT_PEPPER_NOISE = True
 
 # ごま塩ノイズの密度（0.0～1.0、値が大きいほどノイズが多い）
-NOISE_AMOUNT = 0.10  # 10%のピクセルにノイズを追加
+NOISE_AMOUNT = 0.20  # 10%のピクセルにノイズを追加
 
 
 # =========================

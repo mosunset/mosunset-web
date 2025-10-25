@@ -564,9 +564,9 @@ class MosaicEditorApp:
             elif handle in ['ne', 'sw']:
                 self.canvas.config(cursor='size_ne_sw')
             elif handle in ['n', 's']:
-                self.canvas.config(cursor='size_ns')
+                self.canvas.config(cursor='sb_v_double_arrow')
             elif handle in ['e', 'w']:
-                self.canvas.config(cursor='size_ew')
+                self.canvas.config(cursor='sb_h_double_arrow')
         else:
             # デフォルトのカーソル
             self.canvas.config(cursor='cross')
