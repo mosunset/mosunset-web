@@ -77,38 +77,30 @@ const {
 {
     otherCategories.length > 0 && (
         <div class="mt-12">
-            <h2 class="text-2xl font-bold text-gray-800 mb-6 pb-2 border-b-2 border-gray-200">
+            <h2 class="text-xl font-bold text-gray-800 mb-4 pb-2 border-b border-gray-200">
                 他のカテゴリー
             </h2>
-            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div class="flex flex-wrap gap-2">
                 {otherCategories.map((cat) => (
                     <a
                         title={cat}
                         href={`/${sectionSlug}/categorys/${cat}`}
-                        class={`block p-6 bg-white hover:bg-${accentColor}-50 rounded-lg border border-gray-300 shadow-sm hover:shadow-md transition-shadow`}
+                        class={`inline-flex items-center gap-2 px-3 py-2 bg-white hover:bg-${accentColor}-50 rounded border border-gray-300 shadow-sm hover:shadow transition-shadow whitespace-nowrap`}
                     >
-                        <h3 class="text-lg font-semibold text-gray-900 mb-2">
+                        <span class="font-semibold text-gray-900 text-base">
                             {cat}
-                        </h3>
-                        <p class="text-sm text-gray-600">
-                            {postsByCategory[cat].length}
-                            {countLabel}
-                        </p>
+                        </span>
+                        <span class="text-xs text-gray-600">
+                            {postsByCategory[cat].length}件
+                        </span>
                     </a>
                 ))}
                 <a
                     title="カテゴリー一覧を見る"
                     href={`/${sectionSlug}/categorys/`}
-                    class={`block p-6 bg-${accentColor}-100 hover:bg-${accentColor}-200 rounded-lg border border-${accentColor}-300 shadow-sm hover:shadow-md transition-shadow`}
+                    class={`inline-flex items-center gap-2 px-3 py-2 bg-${accentColor}-100 hover:bg-${accentColor}-200 rounded border border-${accentColor}-300 shadow-sm hover:shadow transition-shadow font-semibold text-${accentColor}-900 whitespace-nowrap text-base`}
                 >
-                    <h3
-                        class={`text-lg font-semibold text-${accentColor}-900 mb-2`}
-                    >
-                        カテゴリー一覧を見る
-                    </h3>
-                    <p class={`text-sm text-${accentColor}-600`}>
-                        すべてのカテゴリーを見る
-                    </p>
+                    カテゴリー一覧を見る →
                 </a>
             </div>
         </div>
