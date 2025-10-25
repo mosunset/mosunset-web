@@ -15,7 +15,13 @@ const { title, status, transitionName } = Astro.props;
 >
     {title}{" "}
     {status && (
-        <span class="px-2 py-1 bg-green-100 text-green-800 text-xs rounded-full">
+        <span
+            class={`px-2 py-1 text-xs rounded-full
+                ${status === "取得済み"
+                    ? "bg-green-100 text-green-800"
+                    : "bg-yellow-100 text-yellow-800"}
+            `}
+        >
             {status}
         </span>
     )}
