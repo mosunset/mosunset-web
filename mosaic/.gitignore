@@ -1,0 +1,27 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+env/
+ENV/
+
+# 環境変数
+.env
+
+# 出力ファイル
+output/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+.venv
+
+rakuten
+
+qualifications
