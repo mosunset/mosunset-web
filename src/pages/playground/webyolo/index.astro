@@ -50,6 +50,12 @@ if (
     <div id="canvasframe"></div>
     <script>
         import "https://unpkg.com/ml5@0.12.2/dist/ml5.min.js";
+
+        // ml5のグローバル型定義
+        declare global {
+            const ml5: any;
+        }
+
         async function main() {
             // ml5.jsが完全にロードされるまで待機
             if (typeof ml5 === "undefined") {
