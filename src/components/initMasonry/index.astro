@@ -38,8 +38,10 @@ const {
         masonryInstance = new Masonry(container, {
             itemSelector: item,
             columnWidth: item,
+            // percentPosition: true  ... カラム幅をパーセント(percent)指定として解釈する（レスポンシブに推奨）
             percentPosition: true,
-            horizontalOrder: true,
+            // horizontalOrder: true  ... itemsをDOM順に左から右に配置する
+            horizontalOrder: false,
             // propsから渡された値を使用
             transitionDuration: transitionDuration,
             gutter: gutter,
