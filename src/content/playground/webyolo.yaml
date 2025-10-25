@@ -1,11 +1,14 @@
 draft: false
 visibility: public
-title: WebYOLO
-description: クライアントサイドJavaScriptだけで物体認識をする
-category: AI
+title: WebYOLO | ブラウザだけで動く高速物体認識AIデモ
+description: >-
+    WebYOLOは、追加ソフト不要・クライアントサイドJavaScript“だけ”で動作する物体認識（Object Detection）デモです。画像やカメラ映像に写った物体をリアルタイムで検出し、枠やラベル付きで表示します。面倒なセットアップ不要、すべてブラウザで完結。AI技術やディープラーニング、YOLOモデルの仕組みを体験したい方におすすめです。
+category: AI・人工知能
 tags:
     - AI
-    - Object Recognition
+    - 物体認識
     - JavaScript
+    - YOLO
+    - ブラウザAI
 publishedDate: 2025-09-11
-thumbnail: "@assets/images/playground/webyolo/thumbnail.png"
+thumbnail: '@assets/images/playground/webyolo/thumbnail.png'

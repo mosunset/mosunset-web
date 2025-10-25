@@ -1,11 +1,14 @@
 draft: false
 visibility: public
-title: Kuromoji
-description: 文章を名詞や動詞、形容詞や副詞などに分解する、形態素解析ライブラリ
-category: NLP
+title: Kuromoji | 日本語形態素解析デモ・ブラウザ音声入力対応
+description: >-
+    Kuromojiは日本語テキストを、名詞・動詞・形容詞・副詞などの品詞単位に即座に分解する形態素解析デモです。テキスト入力に加え、ブラウザの音声認識機能を利用して話した内容もリアルタイムで解析できます。NLPや日本語処理の学習、テキスト分析、研究などに最適です。
+category: 自然言語処理
 tags:
     - NLP
-    - Morphological Analysis
+    - 形態素解析
     - JavaScript
+    - 日本語
+    - テキスト解析
 publishedDate: 2025-09-12
-thumbnail: "@assets/images/playground/kuromoji/thumbnail.png"
+thumbnail: '@assets/images/playground/kuromoji/thumbnail.png'

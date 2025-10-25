@@ -1,10 +1,14 @@
 draft: false
 visibility: public
-title: 3DBlock
-description: 3Dブロックをいじる
-category: 3D
+title: 3DBlock | かんたん3D回転＆ブロック操作デモ
+description: >-
+  3Dブロックをドラッグでぐりぐり動かして、視点や形を自由に変えられるインタラクティブデモです。Web技術だけで3D表現や操作感を手軽に体験可能！回転・拡大縮小や、さまざまなブロック装飾で「触れる3D」の楽しさを気軽にチェック。ビジュアル学習やWebGL/Three.js入門にもぴったりです。
+category: 3D・ビジュアル
 tags:
   - 3D
-  - Block
+  - ブロック
+  - インタラクティブ
+  - WebGL
+  - Three.js
 publishedDate: 2025-09-09
 thumbnail: '@assets/images/playground/3dblock/thumbnail.png'

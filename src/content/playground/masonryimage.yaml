@@ -1,10 +1,13 @@
 draft: false
 visibility: public
-title: MasonryImage
-description: レンガ積み画像を表示する
-category: Image
+title: MasonryImage | おしゃれなレンガ風画像レイアウトデモ
+description: >-
+    MasonryImageは、画像をPinterest風にレンガ（masonry）状に自動レイアウト表示できるデモです。高さの異なる画像をすき間なくきれいに並べ、写真ギャラリーやポートフォリオなど、ビジュアル重視のWebページ制作に最適です。動的な配置・レスポンシブにも対応し、画像数や画面サイズに応じて美しく調整されます。使い方次第でおしゃれな画像一覧表示が簡単に実現できます。
+category: 画像・ギャラリー
 tags:
-  - Image
-  - Masonry
+    - 画像
+    - Masonry
+    - ギャラリー
+    - レイアウト
 publishedDate: 2025-09-10
 thumbnail: '@assets/images/playground/masonryimage/thumbnail.png'
