@@ -308,9 +308,6 @@ if (
     </div>
 </Layout>
 
-<!-- Chart.jsを読み込み -->
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-
 <style>
     /* スライダーのスタイル */
     .slider {
@@ -348,29 +345,52 @@ if (
     }
 </style>
 
+<!-- Chart.jsを読み込み -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js" is:inline></script>
 <script>
     const main = () => {
         // --- DOM要素の取得 ---
-        const heightInput = document.getElementById("height-input");
-        const weightInput = document.getElementById("weight-input");
-        const heightSlider = document.getElementById("height-slider");
-        const weightSlider = document.getElementById("weight-slider");
+        const heightInput = document.getElementById(
+            "height-input"
+        ) as HTMLInputElement | null;
+        const weightInput = document.getElementById(
+            "weight-input"
+        ) as HTMLInputElement | null;
+        const heightSlider = document.getElementById(
+            "height-slider"
+        ) as HTMLInputElement | null;
+        const weightSlider = document.getElementById(
+            "weight-slider"
+        ) as HTMLInputElement | null;
         const bmiDisplay = document.getElementById("bmi-display");
         const bmiStatus = document.getElementById("bmi-status");
-        const ctx = document.getElementById("bmiChart")?.getContext("2d");
+        const canvas = document.getElementById(
+            "bmiChart"
+        ) as HTMLCanvasElement | null;
+        const ctx = canvas?.getContext("2d");
 
-        if (!ctx) return; // グラフ要素が見つからない場合は終了
+        if (
+            !ctx ||
+            !heightInput ||
+            !weightInput ||
+            !heightSlider ||
+            !weightSlider ||
+            !bmiDisplay ||
+            !bmiStatus
+        )
+            return; // 必要な要素が見つからない場合は終了
 
         // --- BMI計算とステータス判定 ---
-        const calculateBMI = (weight, heightCm) => {
+        const calculateBMI = (weight: number, heightCm: number): number => {
             if (heightCm <= 0) return 0;
             const heightM = heightCm / 100;
             return weight / (heightM * heightM);
         };
         // 身長(cm)から体重(kg)を計算
-        const calculateWeight = (heightCm, bmi) => bmi * (heightCm / 100) ** 2;
+        const calculateWeight = (heightCm: number, bmi: number): number =>
+            bmi * (heightCm / 100) ** 2;
 
-        const getBmiStatus = (bmi) => {
+        const getBmiStatus = (bmi: number) => {
             if (bmi < 16)
                 return {
                     text: "痩せすぎ",
@@ -466,13 +486,13 @@ if (
         ];
 
         // BMIの線グラフ用データセットを生成
-        const generateBmiLineDatasets = () => {
-            const datasets = [];
+        const generateBmiLineDatasets = (): any[] => {
+            const datasets: any[] = [];
             const minHeight = 120,
                 maxHeight = 200;
 
             BMI_LINES.forEach((line) => {
-                const data = [];
+                const data: { x: number; y: number }[] = [];
                 for (let h = minHeight; h <= maxHeight; h++) {
                     data.push({ x: h, y: calculateWeight(h, line.value) });
                 }
@@ -494,7 +514,7 @@ if (
         // --- 背景色分けプラグイン ---
         const backgroundRegionsPlugin = {
             id: "backgroundRegions",
-            beforeDatasetsDraw(chart, args, options) {
+            beforeDatasetsDraw(chart: any, args: any, options: any) {
                 const {
                     ctx,
                     chartArea: { top, bottom, left, right },
@@ -545,7 +565,11 @@ if (
                     }, // 肥満3度 Dark Red
                 ];
 
-                const fillBetweenBmiLines = (bmiLower, bmiUpper, color) => {
+                const fillBetweenBmiLines = (
+                    bmiLower: number,
+                    bmiUpper: number,
+                    color: string
+                ) => {
                     ctx.fillStyle = color;
                     ctx.beginPath();
 
@@ -609,9 +633,9 @@ if (
         };
 
         // --- グラフの初期化 ---
-        Chart.register(backgroundRegionsPlugin); // プラグインを登録
+        (window as any).Chart.register(backgroundRegionsPlugin); // プラグインを登録
 
-        const bmiChart = new Chart(ctx, {
+        const bmiChart = new (window as any).Chart(ctx, {
             data: {
                 datasets: [
                     ...generateBmiLineDatasets(),
@@ -657,7 +681,7 @@ if (
                 plugins: {
                     tooltip: {
                         callbacks: {
-                            label: function (context) {
+                            label: function (context: any) {
                                 if (context.dataset.label === "あなたの位置") {
                                     const bmi = calculateBMI(
                                         context.parsed.y,
