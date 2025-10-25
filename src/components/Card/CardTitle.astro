@@ -60,19 +60,24 @@ const { title, status, transitionName } = Astro.props;
             // テキストの実際の高さを確認
             const textHeight = textElement.scrollHeight;
 
-            // 2行未満の場合は内容に合わせた高さにする
-            if (textHeight <= maxHeight) {
+            // 2行以内の場合は内容に合わせた高さにする（若干のマージンを持たせる）
+            if (textHeight <= maxHeight + 2) {
                 containerEl.style.height = textHeight + "px";
                 containerEl.style.maxHeight = "none";
                 return;
             }
 
-            // 2行以上の場合は2行分の高さに固定してスクロールアニメーションを適用
+            // 2行を超える場合は2行分の高さに固定してスクロールアニメーションを適用
             containerEl.style.height = maxHeight + "px";
 
             // 行数を計算
             const totalLines = Math.ceil(textHeight / (lineHeight * 16));
             const scrollSteps = totalLines - maxLines;
+
+            // スクロールステップが0以下の場合はアニメーションを適用しない
+            if (scrollSteps <= 0) {
+                return;
+            }
 
             // 各行ごとにスクロールするキーフレームアニメーションを動的に生成
             const animationName = `scrollTitle-${Math.random().toString(36).substr(2, 9)}`;
