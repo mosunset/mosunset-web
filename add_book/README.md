@@ -28,6 +28,8 @@ export LM_STUDIO_MODEL="your-model-name"
 
 ## 使い方
 
+### 方法1: カメラでバーコードをスキャン
+
 ```bash
 python main.py
 ```
@@ -39,6 +41,21 @@ python main.py
 5. mdocファイルと画像が出力フォルダに保存される
 
 ESCキーでカメラを終了できます。
+
+### 方法2: 楽天Books APIを使用（rakutenフォルダのISBNファイルを処理）
+
+```bash
+python rakuten_processor.py
+```
+
+1. `rakuten`フォルダ内の全ての`.mdoc`ファイルからISBNを抽出
+2. 各ISBNについて楽天Books APIで情報を取得
+3. `itemCaption`を本文として使用
+4. AIが`itemCaption`の要約を生成してdescriptionに設定
+5. AIがカテゴリとタグを決定
+6. mdocファイルと画像が出力フォルダに保存される
+
+この方法では、Google Books APIではなく楽天Books APIを使用します。
 
 ## 仕様
 

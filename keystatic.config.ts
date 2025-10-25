@@ -8,16 +8,16 @@ export default config({
         /**
          * ▼ ローカル開発用 ▼
          */
-        // kind: "local",
+        kind: "local",
 
         /**
          * ▼ 本番環境（Cloudflare Pagesなど）へのデプロイ時 ▼
          */
-        kind: "github",
-        repo: {
-            owner: "mosunset",
-            name: "mosunset-web",
-        },
+        // kind: "github",
+        // repo: {
+        //     owner: "mosunset",
+        //     name: "mosunset-web",
+        // },
     },
 
     /**
