@@ -7,19 +7,14 @@ const { description } = Astro.props;
 ---
 
 <div
-    class="relative mb-3 overflow-hidden card-description-container"
-    style="line-height: 1.5rem;"
+    class="relative mb-3 overflow-hidden card-description-container leading-6 max-h-24"
 >
     <div class="text-gray-600 card-description-text">
         {description}
     </div>
 </div>
 
-<style>
-    .card-description-container {
-        max-height: 6rem;
-    }
-</style>
+
 
 <script>
     function initCardDescriptionScroll() {

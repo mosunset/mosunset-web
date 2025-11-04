@@ -102,7 +102,7 @@ const navLinkClass = (href: string) =>
 
                 // Masonryアイテムを可視化（CSSでのアニメーション用）
                 const items = container.querySelectorAll(item);
-                items.forEach((el) => el.classList.add("loaded"));
+                items.forEach((el) => el.classList.add("opacity-100"));
             };
         </script>
         <SEO
@@ -222,12 +222,3 @@ const navLinkClass = (href: string) =>
         </footer>
     </body>
 </html>
-
-<style>
-    html,
-    body {
-        margin: 0;
-        width: 100%;
-        height: 100%;
-    }
-</style>

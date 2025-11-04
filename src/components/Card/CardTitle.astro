@@ -8,8 +8,7 @@ const { title, status } = Astro.props;
 ---
 
 <div
-    class="relative mb-2 overflow-hidden card-title-container"
-    style="line-height: 1.75rem;"
+    class="relative mb-2 overflow-hidden card-title-container leading-7 max-h-[3.5rem]"
 >
     <h2 class="text-xl font-semibold text-gray-900 card-title-text">
         {title}{" "}
@@ -31,11 +30,7 @@ const { title, status } = Astro.props;
     </h2>
 </div>
 
-<style>
-    .card-title-container {
-        max-height: 3.5rem;
-    }
-</style>
+
 
 <script>
     function initCardTitleScroll() {

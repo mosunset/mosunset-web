@@ -34,12 +34,11 @@ const {
                 <a
                     href={`${basePath}/tags/${tag}`}
                     title={tag}
-                    class={`px-2 py-1 text-xs rounded z-50 ${
+                    class={`px-2 py-1 text-xs rounded z-50 break-words max-w-full ${
                         highlightTag && tag === highlightTag
                             ? "bg-green-100 text-green-700"
                             : "bg-gray-100 text-gray-700"
                     }`}
-                    style="word-break: break-word; max-width: 100%;"
                 >
                     #{tag}
                 </a>

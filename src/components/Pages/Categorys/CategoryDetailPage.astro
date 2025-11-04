@@ -26,12 +26,7 @@ const {
 } = Astro.props;
 ---
 
-<style>
-    /* Masonryコンテナのスタイル */
-    .masonry-container {
-        width: 100%;
-    }
-</style>
+
 
 <h1 class="text-3xl font-bold text-gray-900 mb-8">
     カテゴリー：{category}
@@ -46,7 +41,7 @@ const {
             </div>
         ) : (
             <div>
-                <div id="masonry-container" class="masonry-container">
+                <div id="masonry-container" class="masonry-container w-full">
                     {categoryPosts.map((post) => (
                         <CardComponent
                             {...{

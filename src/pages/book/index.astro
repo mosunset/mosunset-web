@@ -26,14 +26,8 @@ publicPosts.sort(
 ---
 
 <Layout title="蔵書一覧">
-    <style>
-        /* Masonryコンテナのスタイル */
-        .masonry-container {
-            width: 100%;
-        }
-    </style>
     <h1 class="text-3xl font-bold text-gray-900 mb-8">蔵書</h1>
-    <div id="masonry-container" class="masonry-container">
+    <div id="masonry-container" class="masonry-container w-full">
         {
             publicPosts.length === 0 ? (
                 <div class="col-span-full text-center text-gray-500">

@@ -36,8 +36,7 @@
                     </div>
                     <div
                         id="di-pointer-full"
-                        class="absolute -top-1 h-6 w-0.5 bg-black"
-                        style="left: 0px;"
+                        class="absolute -top-1 h-6 w-0.5 bg-black left-0"
                     >
                     </div>
                 </div>
@@ -247,7 +246,7 @@
             }
         } catch (error) {
             if (container) {
-                container.innerHTML = `<p style="color: red;">エラーが発生しました: ${error instanceof Error ? error.message : "Unknown error"}</p>`;
+                container.innerHTML = `<p class="text-red-500">エラーが発生しました: ${error instanceof Error ? error.message : "Unknown error"}</p>`;
             }
         }
     }

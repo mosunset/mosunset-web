@@ -23,12 +23,7 @@ const sortedTags = Object.keys(postsByTag).sort((a, b) =>
 );
 ---
 
-<style>
-    /* Masonryコンテナのスタイル */
-    .masonry-container {
-        width: 100%;
-    }
-</style>
+
 
 <h1 class="text-3xl font-bold text-gray-900 mb-8">
     タグ：{sectionName}
@@ -50,7 +45,7 @@ const sortedTags = Object.keys(postsByTag).sort((a, b) =>
                     </h2>
                     <div
                         id={`masonry-container-${index}`}
-                        class="masonry-container"
+                        class="masonry-container w-full"
                     >
                         {postsByTag[tag].map((post) => (
                             <CardComponent
