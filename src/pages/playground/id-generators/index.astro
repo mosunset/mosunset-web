@@ -1,0 +1,192 @@
+---
+import Layout from "@/layouts/Layout.astro";
+import { getCollection } from "astro:content";
+const allPosts = await getCollection("playground");
+const entry = allPosts.find(
+    (post) =>
+        post.id === Astro.url.pathname.replace("/playground/", "").slice(0, -1)
+);
+
+if (
+    !entry ||
+    entry.data.draft === true ||
+    entry.data.visibility === "private"
+) {
+    return new Response(null, {
+        status: 404,
+        statusText: "Not found",
+    });
+}
+---
+
+<Layout title={entry?.data.title}>
+    <style>
+        .container {
+            max-width: 960px;
+            margin: 0 auto;
+            padding: 1rem;
+        }
+        .controls {
+            margin-bottom: 1rem;
+        }
+        .btn {
+            padding: 0.5rem 0.75rem;
+            border: 1px solid #e5e7eb;
+            border-radius: 0.375rem;
+            background: #f9fafb;
+            cursor: pointer;
+        }
+        .btn:hover {
+            background: #f3f4f6;
+        }
+        .list {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 0.75rem;
+        }
+        .item {
+            display: grid;
+            grid-template-columns: 160px minmax(0, 1fr);
+            gap: 0.75rem;
+            align-items: center;
+        }
+        .label {
+            color: #374151;
+            font-weight: 600;
+        }
+        .input {
+            padding: 0.5rem 0.75rem;
+            border: 1px solid #e5e7eb;
+            border-radius: 0.375rem;
+            font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
+                "Liberation Mono", "Courier New", monospace;
+            white-space: nowrap;
+            overflow: auto;
+        }
+        .desc {
+            color: #6b7280;
+            font-size: 0.875rem;
+            grid-column: 1 / -1;
+            margin-top: 0.25rem;
+        }
+        @media (max-width: 640px) {
+            .item {
+                grid-template-columns: 1fr;
+                align-items: start;
+            }
+        }
+    </style>
+
+    <div class="container">
+        <h1 class="text-3xl font-bold text-gray-900 mb-6">ID Generators</h1>
+        <div class="controls">
+            <button class="btn" id="regen-all">再生成</button>
+        </div>
+
+        <div class="list">
+            <div class="item">
+                <div class="label">UUID v4</div>
+                <input id="uuidv4" class="input" readonly />
+                <div class="desc">
+                    128bit乱数ベース（RFC 4122）。36文字（ハイフン含む）、形式:
+                    xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx。順序性なし、Web
+                    Crypto由来の強乱数。
+                </div>
+            </div>
+            <div class="item">
+                <div class="label">UUID v7</div>
+                <input id="uuidv7" class="input" readonly />
+                <div class="desc">
+                    タイムスタンプ先頭の時系列UUID（RFC
+                    9562）。36文字（ハイフン含む）。ミリ秒精度で辞書順ソート可能、分散環境での挿入順最適。
+                </div>
+            </div>
+            <div class="item">
+                <div class="label">ULID</div>
+                <input id="ulid" class="input" readonly />
+                <div class="desc">
+                    26文字のCrockford
+                    Base32。先頭48bitがミリ秒時刻＋80bit乱数で辞書順ソート可能。URL/ファイル名に安全。
+                </div>
+            </div>
+            <div class="item">
+                <div class="label">Cuid2</div>
+                <input id="cuid2" class="input" readonly />
+                <div class="desc">
+                    約24文字の小文字英数字。URLセーフ、偏りの少ない分布で衝突耐性を強化。分散生成・人手扱いに適合。
+                </div>
+            </div>
+            <div class="item">
+                <div class="label">NanoID</div>
+                <input id="nanoid" class="input" readonly />
+                <div class="desc">
+                    既定21文字、URLセーフ（A–Z a–z 0–9 _
+                    -）。高速度・高エントロピーの短いID。長さは用途に応じ可変。
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+        // CDN imports
+        import { v7 as uuidv7 } from "https://esm.sh/uuid@10.0.0";
+        import { ulid } from "https://esm.sh/ulid@2.3.0";
+        import { createId as createCuid2 } from "https://esm.sh/@paralleldrive/cuid2@2.2.2";
+        import { nanoid } from "https://esm.sh/nanoid@5.0.7";
+
+        const $ = (id) => document.getElementById(id);
+
+        function setValue(id, value) {
+            const el = $(id);
+            if (el) {
+                el.value = value;
+            }
+        }
+
+        // Generators
+        function genUUIDv4() {
+            try {
+                const v = crypto.randomUUID();
+                setValue("uuidv4", v);
+            } catch (e) {
+                setValue(
+                    "uuidv4",
+                    "このブラウザは crypto.randomUUID() に未対応です"
+                );
+            }
+        }
+
+        function genUUIDv7() {
+            setValue("uuidv7", uuidv7());
+        }
+
+        function genULID() {
+            setValue("ulid", ulid());
+        }
+
+        function genCuid2() {
+            setValue("cuid2", createCuid2());
+        }
+
+        function genNanoID() {
+            setValue("nanoid", nanoid());
+        }
+
+        function regenAll() {
+            genUUIDv4();
+            genUUIDv7();
+            genULID();
+            genCuid2();
+            genNanoID();
+        }
+
+        // Wire button
+        document.addEventListener("DOMContentLoaded", () => {
+            const btn = document.getElementById("regen-all");
+            if (btn) btn.addEventListener("click", regenAll);
+
+            // 初期生成（ページ表示時）
+            regenAll();
+        });
+    </script>
+</Layout>
