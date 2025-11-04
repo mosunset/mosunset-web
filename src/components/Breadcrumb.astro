@@ -1,0 +1,47 @@
+---
+const { pathname } = Astro.url;
+
+// 例: "/blog/categorys/react" -> ["blog", "categorys", "react"]
+const segments = pathname.split("/").filter(Boolean);
+
+// 表示条件はレイアウト側でも制御するが、単体でも安全に
+const shouldShow = segments.length >= 2;
+
+const buildCrumbs = () => {
+    const crumbs: { name: string; href: string }[] = [];
+    // Home
+    crumbs.push({ name: "Home", href: "/" });
+
+    let currentPath = "";
+    for (const segment of segments) {
+        currentPath += `/${segment}`;
+        const label = decodeURIComponent(segment)
+            .replace(/-/g, " ");
+        crumbs.push({ name: label, href: currentPath });
+    }
+    return crumbs;
+};
+
+const crumbs = buildCrumbs();
+---
+
+{shouldShow && (
+    <nav class="w-full py-2 mb-4 text-sm" aria-label="Breadcrumb">
+        <ol class="flex flex-wrap items-center gap-1 text-gray-600">
+            {crumbs.map((c, idx) => (
+                <li class="flex items-center">
+                    {idx === crumbs.length - 1 ? (
+                        <span class="text-gray-900" aria-current="page">{c.name}</span>
+                    ) : (
+                        <a href={c.href} class="hover:underline hover:underline-offset-2 focus:outline-hidden focus:underline focus:underline-offset-2">
+                            {c.name}
+                        </a>
+                    )}
+                    {idx < crumbs.length - 1 && (
+                        <span class="px-2 text-gray-400">/</span>
+                    )}
+                </li>
+            ))}
+        </ol>
+    </nav>
+)}

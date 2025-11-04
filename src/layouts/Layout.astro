@@ -3,6 +3,7 @@ import "@/styles/global.css";
 import { SEO } from "astro-seo";
 const { pathname } = Astro.url;
 import myImage from "@/assets/images/my.webp";
+import Breadcrumb from "@/components/Breadcrumb.astro";
 
 interface Props {
     title?: string;
@@ -173,6 +174,9 @@ const navLinkClass = (href: string) =>
             </nav>
         </header>
         <div class="container mx-auto px-4 sm:px-6 lg:px-8 flex-grow">
+            {pathname.split("/").filter(Boolean).length >= 2 && (
+                <Breadcrumb />
+            )}
             <slot />
         </div>
         <footer
