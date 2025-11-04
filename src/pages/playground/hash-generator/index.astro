@@ -1,0 +1,233 @@
+---
+import Layout from "@/layouts/Layout.astro";
+import { getCollection } from "astro:content";
+const allPosts = await getCollection("playground");
+const entry = allPosts.find(
+    (post) =>
+        post.id === Astro.url.pathname.replace("/playground/", "").slice(0, -1)
+);
+
+if (
+    !entry ||
+    entry.data.draft === true ||
+    entry.data.visibility === "private"
+) {
+    return new Response(null, {
+        status: 404,
+        statusText: "Not found",
+    });
+}
+---
+
+<Layout title={entry?.data.title}>
+    <div class="max-w-[960px] mx-auto p-4">
+        <h1 class="text-3xl font-bold text-gray-900 mb-6">
+            ハッシュ生成ツール
+        </h1>
+
+        <!-- 入力フォーム -->
+        <div class="mb-6">
+            <label
+                for="inputText"
+                class="block text-gray-700 font-semibold mb-2"
+                >入力テキスト</label
+            >
+            <textarea
+                id="inputText"
+                rows="4"
+                class="w-full p-2 px-3 border border-gray-300 rounded"
+                placeholder="テキストを入力すると、ハッシュが自動で計算されます..."
+            ></textarea>
+        </div>
+
+        <!-- 結果表示 -->
+        <div>
+            <div class="flex justify-between items-center mb-3">
+                <h2 class="text-gray-700 font-semibold">ハッシュ一覧</h2>
+                <div
+                    id="loadingSpinner"
+                    class="border-2 border-gray-200 border-t-gray-500 rounded-full w-5 h-5 animate-spin hidden"
+                >
+                </div>
+            </div>
+
+            <div
+                id="resultsContainer"
+                class="grid grid-cols-1 lg:grid-cols-2 gap-3"
+            >
+                <!-- ハッシュ結果はここに動的に挿入されます -->
+            </div>
+        </div>
+    </div>
+
+    <!-- CryptoJS CDN (コア) -->
+    <script
+        src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.2.0/crypto-js.min.js"
+        defer></script>
+    <!-- CryptoJS 追加コンポーネント (SHA224) -->
+    <script
+        src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.2.0/sha224.min.js"
+        defer></script>
+
+    <script>
+        // CryptoJSの読み込みを待つ関数
+        function waitForCryptoJS(callback) {
+            if (typeof CryptoJS !== "undefined") {
+                callback();
+            } else {
+                setTimeout(() => waitForCryptoJS(callback), 50);
+            }
+        }
+
+        // ユーザーがリクエストしたアルゴリズムのリスト
+        const algorithms = [
+            "md5",
+            "sha1",
+            "sha256",
+            "sha224",
+            "sha384",
+            "sha512",
+            "ripeMD160",
+            "md5(md5_hex)",
+            "md5-half",
+            "MySQL 4.1+ (sha1(sha1_bin))",
+        ];
+
+        let inputEl;
+        let resultsContainer;
+        let loadingSpinner;
+        let debounceTimer;
+
+        // 1. 各アルゴリズムの結果表示欄を動的に生成
+        function initializeResultFields() {
+            algorithms.forEach((algo) => {
+                // サニタイズされたID（CSSセレクタとして有効なもの）
+                const safeId = `hash-result-${algo.replace(/[^a-zA-Z0-9]/g, "-")}`;
+
+                const fieldHtml = `
+                    <div class="grid grid-cols-[140px_minmax(0,1fr)] sm:grid-cols-1 gap-3 items-center sm:items-start">
+                        <div class="text-gray-700 font-semibold text-sm">${algo}</div>
+                        <input type="text" readonly id="${safeId}" class="p-2 px-3 border border-gray-300 rounded font-mono text-sm whitespace-nowrap overflow-auto" value="">
+                    </div>
+                `;
+                resultsContainer.innerHTML += fieldHtml;
+            });
+        }
+
+        // 2. ハッシュ計算ロジック（単一）
+        function calculateHash(input, algo) {
+            try {
+                // (入力が空の場合、CryptoJSは特定の固定ハッシュを返すため、そのまま実行する)
+
+                switch (algo) {
+                    // --- CryptoJS 標準CDNでサポート ---
+                    case "md5":
+                        return CryptoJS.MD5(input).toString();
+                    case "sha1":
+                        return CryptoJS.SHA1(input).toString();
+                    case "sha256":
+                        return CryptoJS.SHA256(input).toString();
+                    case "sha384":
+                        return CryptoJS.SHA384(input).toString();
+                    case "sha512":
+                        return CryptoJS.SHA512(input).toString();
+                    case "ripeMD160":
+                        return CryptoJS.RIPEMD160(input).toString();
+
+                    // --- CryptoJS 追加コンポーネントでサポート ---
+                    case "sha224":
+                        // SHA224がロードされているかチェック
+                        if (typeof CryptoJS.SHA224 === "function") {
+                            return CryptoJS.SHA224(input).toString();
+                        }
+                        return `[${algo}] ライブラリ読込失敗`;
+
+                    // --- カスタム実装 ---
+                    case "md5(md5_hex)":
+                        // 1. 内部のMD5を計算 (Hex文字列)
+                        const md5Hex = CryptoJS.MD5(input).toString(
+                            CryptoJS.enc.Hex
+                        );
+                        // 2. そのHex文字列を再度MD5にかける
+                        return CryptoJS.MD5(md5Hex).toString(CryptoJS.enc.Hex);
+
+                    case "md5-half":
+                        // MD5ハッシュ（32文字のHex）の中央16文字（8バイト）
+                        return CryptoJS.MD5(input)
+                            .toString(CryptoJS.enc.Hex)
+                            .slice(8, 24);
+
+                    case "MySQL 4.1+ (sha1(sha1_bin))":
+                        // SHA1の結果 (WordArray) を、そのまま再度SHA1にかける
+                        const sha1Input = CryptoJS.SHA1(input);
+                        return CryptoJS.SHA1(sha1Input).toString(
+                            CryptoJS.enc.Hex
+                        );
+
+                    default:
+                        return "不明なアルゴリズム";
+                }
+            } catch (e) {
+                console.error(`ハッシュ生成エラー (${algo}):`, e);
+                return `エラー: ${e.message}`;
+            }
+        }
+
+        // 3. すべてのハッシュを更新する関数
+        function updateAllHashes() {
+            if (!loadingSpinner || !inputEl) return;
+
+            loadingSpinner.classList.remove("hidden"); // スピナー表示
+            const input = inputEl.value;
+
+            // 非同期で計算を実行（UIのブロッキングを防ぐため）
+            // (入力が空の場合でも計算を実行するように、早期returnのifブロックを削除)
+
+            // 計算を実行
+            setTimeout(() => {
+                algorithms.forEach((algo) => {
+                    const safeId = `hash-result-${algo.replace(/[^a-zA-Z0-9]/g, "-")}`;
+                    const resultEl = document.getElementById(safeId);
+
+                    if (resultEl) {
+                        resultEl.value = calculateHash(input, algo);
+                    }
+                });
+                if (loadingSpinner) {
+                    loadingSpinner.classList.add("hidden"); // スピナー非表示
+                }
+            }, 10); // 10ms待つことでUIがスピナーを先に描画できるようにする
+        }
+
+        // 5. 初期化実行
+        document.addEventListener("DOMContentLoaded", () => {
+            inputEl = document.getElementById("inputText");
+            resultsContainer = document.getElementById("resultsContainer");
+            loadingSpinner = document.getElementById("loadingSpinner");
+
+            if (!inputEl || !resultsContainer || !loadingSpinner) {
+                console.error("必要な要素が見つかりません");
+                return;
+            }
+
+            // CryptoJSの読み込みを待ってから初期化
+            waitForCryptoJS(() => {
+                initializeResultFields();
+
+                // 4. inputイベントリスナー（デバウンス付き）
+                inputEl.addEventListener("input", () => {
+                    // 既存のタイマーをクリア
+                    clearTimeout(debounceTimer);
+                    // スピナーを即時表示（入力があったことをフィードバック）
+                    loadingSpinner.classList.remove("hidden");
+
+                    // 250ms待ってから計算を実行（入力が速すぎる場合の負荷軽減）
+                    debounceTimer = setTimeout(updateAllHashes, 250);
+                });
+
+                // ★ ページ読み込み時に空文字列のハッシュを計算して表示する ★
+                updateAllHashes();
+            });
+        });
+    </script>
+</Layout>

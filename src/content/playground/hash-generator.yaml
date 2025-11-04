@@ -1,0 +1,14 @@
+draft: false
+visibility: public
+title: ハッシュ生成ツール | MD5・SHA1・SHA256等のハッシュ計算
+description: >-
+    テキストを入力すると、MD5・SHA1・SHA256・SHA224・SHA384・SHA512・RipeMD160などの各種ハッシュ値をリアルタイムで計算・表示するツールです。md5(md5_hex)、md5-half、MySQL 4.1+ (sha1(sha1_bin))などのカスタムハッシュも対応しています。
+category: ユーティリティ
+tags:
+    - ハッシュ
+    - MD5
+    - SHA
+    - CryptoJS
+    - JavaScript
+publishedDate: 2025-01-27
+thumbnail: '@assets/images/playground/hash-generator/thumbnail.png'
