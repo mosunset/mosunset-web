@@ -94,6 +94,21 @@ const { entry } = Astro.props;
             >
                 {entry.data.type}
             </a>
+            {
+                entry.data.tags && entry.data.tags.length > 0 && (
+                    <div class="flex gap-2">
+                        {entry.data.tags.map((tag) => (
+                            <a
+                                href={`/instruments/tags/${tag}`}
+                                title={tag}
+                                class="px-2 py-1 bg-gray-100 text-gray-700 rounded text-xs"
+                            >
+                                #{tag}
+                            </a>
+                        ))}
+                    </div>
+                )
+            }
             <span
                 class="px-2 py-1 bg-green-100 text-green-800 text-xs rounded-full"
             >

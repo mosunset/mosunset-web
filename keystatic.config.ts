@@ -426,6 +426,10 @@ export default config({
                     description: "楽器の入手価格",
                     defaultValue: 0,
                 }),
+                tags: fields.array(fields.text({ label: "タグ" }), {
+                    label: "タグ",
+                    itemLabel: (props) => props.value || "タグ",
+                }),
                 status: fields.select({
                     label: "ステータス",
                     description: "楽器のステータス",

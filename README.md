@@ -76,6 +76,7 @@ find . -type f \( -iname "*.jpg" -o -iname "*.gif" \) -exec magick mogrify -form
   - 楽器の写真 (image)
   - 購入日 (date)
   - 購入価格 (number)
+  - タグ (array) - 楽器の特徴や用途など
   - ステータス select - 使用中、修理中、修理済み、売却済み
   - 本文 (markdoc) - 改造履歴やメモなど
 

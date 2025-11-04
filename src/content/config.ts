@@ -107,6 +107,7 @@ const instrumentsCollection = defineCollection({
             images: z.array(image()).optional(),
             purchaseDate: z.date().optional(),
             purchasePrice: z.number().optional(),
+            tags: z.array(z.string()).optional(),
             status: z.enum(["使用中", "修理中", "修理済み", "売却済み"]),
         }),
 });

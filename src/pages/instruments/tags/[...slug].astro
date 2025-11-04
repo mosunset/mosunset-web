@@ -1,0 +1,50 @@
+---
+import Layout from "@/layouts/Layout.astro";
+import InstrumentCard from "@/components/Card/InstrumentCard.astro";
+import TagDetailPage from "@/components/Pages/Tags/TagDetailPage.astro";
+import {
+    getPublicPosts,
+    getPostsByTagSorted,
+    generateTagPaths,
+    sortPostsByDate,
+    SECTION_CONFIGS,
+} from "@/components/Pages/utils";
+
+const config = SECTION_CONFIGS.instruments;
+
+// URLパラメータからタグを取得
+export async function getStaticPaths() {
+    const publicPosts = await getPublicPosts(
+        SECTION_CONFIGS.instruments.collectionName
+    );
+    const postsByTag = getPostsByTagSorted(
+        publicPosts,
+        SECTION_CONFIGS.instruments.sortField
+    );
+    return generateTagPaths(postsByTag);
+}
+
+const { tag, postsByTag } = Astro.props;
+
+// 指定されたタグの記事を取得してソート
+const tagPosts = sortPostsByDate(postsByTag[tag] || [], config.sortField);
+
+// 他のタグ一覧を取得（現在のタグを除く）
+const otherTags = Object.keys(postsByTag)
+    .filter((t) => t !== tag)
+    .sort((a, b) => a.localeCompare(b, "ja"));
+---
+
+<Layout title="タグ - 楽器一覧">
+    <TagDetailPage
+        tag={tag}
+        tagPosts={tagPosts}
+        otherTags={otherTags}
+        postsByTag={postsByTag}
+        sectionName={config.sectionName}
+        sectionSlug={config.sectionSlug}
+        accentColor="green"
+        CardComponent={InstrumentCard}
+        countLabel={config.countLabel}
+    />
+</Layout>
