@@ -4,41 +4,89 @@ visibility: public
 publishedDate: 2024-07-25
 title: YouTube のサムネイルを再生ページに表示する拡張機能
 description: YouTubeについてのChrome拡張機能を作った
-thumbnail: "@assets/images/blog/youtube-watch-thumbnails/thumbnail.webp"
+thumbnail: '@assets/images/blog/youtube-watch-thumbnails/thumbnail.webp'
 category: 学習
 tags:
-    - YouTube
-    - Chrome拡張機能
-    - JavaScript
+  - YouTube
+  - 拡張機能
+  - React
+  - TypeScript
 ---
+YouTubeの動画再生ページで、その動画のサムネイル画像を表示・確認できるブラウザ拡張機能[YouTube Watch Thumbnails](https://chromewebstore.google.com/detail/youtube-watch-thumbnails/aobeafpjgdgakpagffmlkfeognaiigci?hl=ja)を開発しました。
 
-YouTubeの動画再生ページで、その動画のサムネイル画像を表示できるChrome拡張機能[Youtube Watch Thumbnails](https://chromewebstore.google.com/detail/youtube-watch-thumbnails/aobeafpjgdgakpagffmlkfeognaiigci?hl=ja)を開発しました。
+現在は**Chrome**と**Firefox**の両方で利用可能です。
 
 ## 開発の背景
 
 YouTubeで動画を視聴しているとき、「この動画のサムネイル画像をもう一度確認したい」と思ったことはありませんか？通常、動画再生ページではサムネイルを見ることができず、検索結果や関連動画一覧に戻る必要があります。
+
 この拡張機能は、そうしたちょっとした不便を解消するために作りました。
 
 ## 主な機能
 
-- **再生ページでサムネイル表示**
-  動画再生中でも、ワンクリックでサムネイルを確認できます。
-- **高解像度対応**
-  YouTubeが提供する最高解像度のサムネイル画像を表示します。
-- **シンプルなUI**
-  動画視聴の邪魔にならないデザインです。
+### 1. 再生ページでサムネイル表示
 
-## Chrome Web Storeで公開中
+動画再生ページ（`/watch`）で、チャンネルアイコンの横にサムネイル画像を自動表示します。動画を再生中でも、ワンクリックでサムネイルを確認できます。
+
+### 2. ホバーで拡大表示
+
+サムネイル画像にマウスをホバーすると、元のサイズの1.75倍に拡大表示されます。レイアウトを崩さずに、スムーズなトランジションで拡大されます。
+
+### 3. 全サイズのサムネイル一覧
+
+サムネイル画像をクリックすると、専用のページが開き、その動画のすべての解像度のサムネイルを一覧表示します。
+
+- **対応形式**: WebP形式とJPG形式の両方
+- **表示サイズ**: 幅 × 高さの情報も表示
+- **解像度**: `maxresdefault`（1280×720）、`hq720`、`sddefault`、`hqdefault`など、利用可能なすべてのサイズ
+
+### 4. ポップアップからもアクセス
+
+ブラウザの拡張機能アイコンをクリックすると、現在のタブで再生中の動画のサムネイルが表示されます。YouTube以外のページでは、適切な案内メッセージが表示されます。
+
+### 5. プライバシー重視
+
+- **データ収集なし**: ユーザーのデータを一切収集・送信しません
+- **ローカル動作**: すべての処理はブラウザ内で完結します
+- **外部API不使用**: サムネイル画像はYouTubeの公開CDNから直接取得します
+
+## Chrome Web Store / Firefox Add-ons で公開中
 
 誰でも無料でインストールできます。
-[Chrome Web Storeでインストール](https://chromewebstore.google.com/detail/youtube-watch-thumbnails/aobeafpjgdgakpagffmlkfeognaiigci?hl=ja)
+
+- [**Chrome Web Storeでインストール**](https://chromewebstore.google.com/detail/youtube-watch-thumbnails/aobeafpjgdgakpagffmlkfeognaiigci?hl=ja)
+- [**Firefox Add-onsでインストール**](https://addons.mozilla.org/ja/firefox/addon/youtube-watch-thumbnails/)
 
 ## 技術的な実装
 
-ソースコードはGitHubで公開しています（ドキュメント整備中）。
-[GitHubリポジトリ](https://github.com/mosunset/youtube_watch_thumbnails)
+ソースコードはGitHubで公開しています。
 
-Chrome Extension Manifest V3を使用し、YouTubeのAPIを活用してサムネイル画像を取得しています。
+[**GitHubリポジトリ**](https://github.com/mosunset/youtube_watch_thumbnails)
+
+### 技術スタック
+
+- **フレームワーク**: WXT（クロスブラウザ対応の拡張機能フレームワーク）
+- **UI**: React 19.1.1 + TypeScript 5.9.2
+- **スタイリング**: Tailwind CSS 4.1.16
+- **ビルドツール**: Vite（WXT内蔵）
+
+### アーキテクチャ
+
+- **Manifest V3**（Chrome）/ **Manifest V2**（Firefox）対応
+- **Content Script**: YouTubeページにサムネイルを動的に挿入
+- **Background Script**: タブ管理とメッセージング
+- **Popup**: ReactベースのUI
+- **Thumbnail View**: 専用の独立ページで全サイズのサムネイルを表示
+
+### 動作原理
+
+1. YouTubeの動画ページを検出
+1. URLから動画IDを自動抽出
+1. YouTubeの公開CDN（`i.ytimg.com`）からサムネイル画像を取得
+1. DOM操作でチャンネルアイコンの横にサムネイルを表示
+1. クリックで専用ページを開き、全サイズのサムネイルを一覧表示
+
+外部APIは使用せず、すべての処理はクライアント側で完結します。
 
 ---
 
