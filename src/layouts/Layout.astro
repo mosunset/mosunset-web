@@ -48,6 +48,20 @@ const navLinkClass = (href: string) =>
         <meta name="keywords" content={keywords.join(",")} />
         <meta name="author" content="mosunset" />
         <meta name="publisher" content="mosunset" />
+        <!-- Google tag (gtag.js) -->
+        <script
+            async
+            src="https://www.googletagmanager.com/gtag/js?id=G-7KJ6SEPD5R"
+        ></script>
+        <script>
+            window.dataLayer = window.dataLayer || [];
+            function gtag() {
+                dataLayer.push(arguments);
+            }
+            gtag("js", new Date());
+
+            gtag("config", "G-7KJ6SEPD5R");
+        </script>
         <!-- Masonry関連のスクリプト（1回のみ読み込み） -->
         <script
             src="https://unpkg.com/masonry-layout@4/dist/masonry.pkgd.min.js"
@@ -174,9 +188,7 @@ const navLinkClass = (href: string) =>
             </nav>
         </header>
         <div class="container mx-auto px-4 sm:px-6 lg:px-8 flex-grow">
-            {pathname.split("/").filter(Boolean).length >= 2 && (
-                <Breadcrumb />
-            )}
+            {pathname.split("/").filter(Boolean).length >= 2 && <Breadcrumb />}
             <slot />
         </div>
         <footer
