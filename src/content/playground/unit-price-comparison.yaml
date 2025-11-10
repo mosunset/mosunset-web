@@ -1,0 +1,13 @@
+draft: false
+visibility: public
+title: どっちがお得？ 単価比較ツール | 3商品の価格比較で最安値を瞬時に判定
+description: >-
+  2~3つの商品の金額と量を入力するだけで、単位あたりの価格を自動計算し、最もお得な商品を緑色でハイライト表示するシンプルな価格比較ツール。スーパーでの買い物やネットショッピング時に、パッケージサイズが異なる商品の中から最安値を素早く見つけられます。g、ml、個など、あらゆる単位に対応。直感的な操作で、賢い買い物をサポートします。
+category: ライフスタイル
+tags:
+  - 価格比較
+  - 買い物
+  - 計算ツール
+  - 単価計算
+publishedDate: 2025-01-27
+thumbnail: '@assets/images/playground/unit-price-comparison/thumbnail.png'

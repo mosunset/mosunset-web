@@ -1,0 +1,824 @@
+---
+import Layout from "@/layouts/Layout.astro";
+import { getCollection } from "astro:content";
+const allPosts = await getCollection("playground");
+const entry = allPosts.find(
+    (post) =>
+        post.id === Astro.url.pathname.replace("/playground/", "").slice(0, -1)
+);
+
+if (
+    !entry ||
+    entry.data.draft === true ||
+    entry.data.visibility === "private"
+) {
+    return new Response(null, {
+        status: 404,
+        statusText: "Not found",
+    });
+}
+---
+
+<Layout title={entry?.data.title}>
+    <div class="min-h-screen flex items-center justify-center p-4">
+        <div class="w-full max-w-2xl p-1 sm:p-2">
+            <h1
+                class="text-2xl sm:text-3xl font-bold text-center text-gray-800 mb-8"
+            >
+                どっちがお得？ 単価比較ツール
+            </h1>
+            <p class="text-center text-gray-600 mb-8">
+                3つの商品の金額と量を入力してください。<br />
+                一番お得な商品（単位あたりの金額が安い）を緑色でハイライトします。
+            </p>
+
+            <div class="space-y-6">
+                <!-- --- 商品 A --- -->
+                <div
+                    id="itemA-card"
+                    class="border border-gray-200 rounded-xl p-5 transition-all duration-300"
+                >
+                    <h2 class="text-xl font-semibold text-blue-600 mb-4">
+                        商品 A
+                    </h2>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div>
+                            <label
+                                for="priceA"
+                                class="block text-sm font-medium text-gray-700 mb-1"
+                                >金額 (円)</label
+                            >
+                            <input
+                                type="number"
+                                id="priceA"
+                                placeholder="例: 1000"
+                                class="w-full p-3 border border-gray-300 rounded-lg shadow-sm focus:ring-blue-500 focus:border-blue-500"
+                            />
+                            <div class="mt-2 space-y-2">
+                                <div class="grid grid-cols-4 gap-2">
+                                    <button
+                                        type="button"
+                                        class="quick-input-btn px-2 py-1 text-xs bg-blue-100 text-blue-700 rounded-md hover:bg-blue-200 transition-colors"
+                                        data-target="priceA"
+                                        data-value="10000"
+                                    >
+                                        +10,000
+                                    </button>
+                                    <button
+                                        type="button"
+                                        class="quick-input-btn px-2 py-1 text-xs bg-blue-100 text-blue-700 rounded-md hover:bg-blue-200 transition-colors"
+                                        data-target="priceA"
+                                        data-value="5000"
+                                    >
+                                        +5,000
+                                    </button>
+                                    <button
+                                        type="button"
+                                        class="quick-input-btn px-2 py-1 text-xs bg-blue-100 text-blue-700 rounded-md hover:bg-blue-200 transition-colors"
+                                        data-target="priceA"
+                                        data-value="1000"
+                                    >
+                                        +1,000
+                                    </button>
+                                    <button
+                                        type="button"
+                                        class="quick-input-btn px-2 py-1 text-xs bg-blue-100 text-blue-700 rounded-md hover:bg-blue-200 transition-colors"
+                                        data-target="priceA"
+                                        data-value="500"
+                                    >
+                                        +500
+                                    </button>
+                                </div>
+                                <div class="grid grid-cols-5 gap-2">
+                                    <button
+                                        type="button"
+                                        class="quick-input-btn px-2 py-1 text-xs bg-blue-100 text-blue-700 rounded-md hover:bg-blue-200 transition-colors"
+                                        data-target="priceA"
+                                        data-value="100"
+                                    >
+                                        +100
+                                    </button>
+                                    <button
+                                        type="button"
+                                        class="quick-input-btn px-2 py-1 text-xs bg-blue-100 text-blue-700 rounded-md hover:bg-blue-200 transition-colors"
+                                        data-target="priceA"
+                                        data-value="50"
+                                    >
+                                        +50
+                                    </button>
+                                    <button
+                                        type="button"
+                                        class="quick-input-btn px-2 py-1 text-xs bg-blue-100 text-blue-700 rounded-md hover:bg-blue-200 transition-colors"
+                                        data-target="priceA"
+                                        data-value="10"
+                                    >
+                                        +10
+                                    </button>
+                                    <button
+                                        type="button"
+                                        class="quick-input-btn px-2 py-1 text-xs bg-blue-100 text-blue-700 rounded-md hover:bg-blue-200 transition-colors"
+                                        data-target="priceA"
+                                        data-value="5"
+                                    >
+                                        +5
+                                    </button>
+                                    <button
+                                        type="button"
+                                        class="quick-input-btn px-2 py-1 text-xs bg-blue-100 text-blue-700 rounded-md hover:bg-blue-200 transition-colors"
+                                        data-target="priceA"
+                                        data-value="1"
+                                    >
+                                        +1
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                        <div>
+                            <label
+                                for="unitA"
+                                class="block text-sm font-medium text-gray-700 mb-1"
+                                >量 (g, ml, 個など)</label
+                            >
+                            <input
+                                type="number"
+                                id="unitA"
+                                placeholder="例: 500"
+                                class="w-full p-3 border border-gray-300 rounded-lg shadow-sm focus:ring-blue-500 focus:border-blue-500"
+                            />
+                            <div class="mt-2 space-y-2">
+                                <div class="grid grid-cols-4 gap-2">
+                                    <button
+                                        type="button"
+                                        class="quick-input-btn px-2 py-1 text-xs bg-blue-100 text-blue-700 rounded-md hover:bg-blue-200 transition-colors"
+                                        data-target="unitA"
+                                        data-value="10000"
+                                    >
+                                        +10,000
+                                    </button>
+                                    <button
+                                        type="button"
+                                        class="quick-input-btn px-2 py-1 text-xs bg-blue-100 text-blue-700 rounded-md hover:bg-blue-200 transition-colors"
+                                        data-target="unitA"
+                                        data-value="5000"
+                                    >
+                                        +5,000
+                                    </button>
+                                    <button
+                                        type="button"
+                                        class="quick-input-btn px-2 py-1 text-xs bg-blue-100 text-blue-700 rounded-md hover:bg-blue-200 transition-colors"
+                                        data-target="unitA"
+                                        data-value="1000"
+                                    >
+                                        +1,000
+                                    </button>
+                                    <button
+                                        type="button"
+                                        class="quick-input-btn px-2 py-1 text-xs bg-blue-100 text-blue-700 rounded-md hover:bg-blue-200 transition-colors"
+                                        data-target="unitA"
+                                        data-value="500"
+                                    >
+                                        +500
+                                    </button>
+                                </div>
+                                <div class="grid grid-cols-5 gap-2">
+                                    <button
+                                        type="button"
+                                        class="quick-input-btn px-2 py-1 text-xs bg-blue-100 text-blue-700 rounded-md hover:bg-blue-200 transition-colors"
+                                        data-target="unitA"
+                                        data-value="100"
+                                    >
+                                        +100
+                                    </button>
+                                    <button
+                                        type="button"
+                                        class="quick-input-btn px-2 py-1 text-xs bg-blue-100 text-blue-700 rounded-md hover:bg-blue-200 transition-colors"
+                                        data-target="unitA"
+                                        data-value="50"
+                                    >
+                                        +50
+                                    </button>
+                                    <button
+                                        type="button"
+                                        class="quick-input-btn px-2 py-1 text-xs bg-blue-100 text-blue-700 rounded-md hover:bg-blue-200 transition-colors"
+                                        data-target="unitA"
+                                        data-value="10"
+                                    >
+                                        +10
+                                    </button>
+                                    <button
+                                        type="button"
+                                        class="quick-input-btn px-2 py-1 text-xs bg-blue-100 text-blue-700 rounded-md hover:bg-blue-200 transition-colors"
+                                        data-target="unitA"
+                                        data-value="5"
+                                    >
+                                        +5
+                                    </button>
+                                    <button
+                                        type="button"
+                                        class="quick-input-btn px-2 py-1 text-xs bg-blue-100 text-blue-700 rounded-md hover:bg-blue-200 transition-colors"
+                                        data-target="unitA"
+                                        data-value="1"
+                                    >
+                                        +1
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div
+                        id="resultA"
+                        class="mt-4 text-center text-lg font-bold text-gray-800 bg-gray-50 rounded-lg p-3 h-14 flex items-center justify-center"
+                    >
+                        --- 円 / 1単位あたり
+                    </div>
+                </div>
+
+                <!-- --- 商品 B --- -->
+                <div
+                    id="itemB-card"
+                    class="border border-gray-200 rounded-xl p-5 transition-all duration-300"
+                >
+                    <h2 class="text-xl font-semibold text-green-600 mb-4">
+                        商品 B
+                    </h2>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div>
+                            <label
+                                for="priceB"
+                                class="block text-sm font-medium text-gray-700 mb-1"
+                                >金額 (円)</label
+                            >
+                            <input
+                                type="number"
+                                id="priceB"
+                                placeholder="例: 1200"
+                                class="w-full p-3 border border-gray-300 rounded-lg shadow-sm focus:ring-green-500 focus:border-green-500"
+                            />
+                            <div class="mt-2 space-y-2">
+                                <div class="grid grid-cols-4 gap-2">
+                                    <button
+                                        type="button"
+                                        class="quick-input-btn px-2 py-1 text-xs bg-green-100 text-green-700 rounded-md hover:bg-green-200 transition-colors"
+                                        data-target="priceB"
+                                        data-value="10000"
+                                    >
+                                        +10,000
+                                    </button>
+                                    <button
+                                        type="button"
+                                        class="quick-input-btn px-2 py-1 text-xs bg-green-100 text-green-700 rounded-md hover:bg-green-200 transition-colors"
+                                        data-target="priceB"
+                                        data-value="5000"
+                                    >
+                                        +5,000
+                                    </button>
+                                    <button
+                                        type="button"
+                                        class="quick-input-btn px-2 py-1 text-xs bg-green-100 text-green-700 rounded-md hover:bg-green-200 transition-colors"
+                                        data-target="priceB"
+                                        data-value="1000"
+                                    >
+                                        +1,000
+                                    </button>
+                                    <button
+                                        type="button"
+                                        class="quick-input-btn px-2 py-1 text-xs bg-green-100 text-green-700 rounded-md hover:bg-green-200 transition-colors"
+                                        data-target="priceB"
+                                        data-value="500"
+                                    >
+                                        +500
+                                    </button>
+                                </div>
+                                <div class="grid grid-cols-5 gap-2">
+                                    <button
+                                        type="button"
+                                        class="quick-input-btn px-2 py-1 text-xs bg-green-100 text-green-700 rounded-md hover:bg-green-200 transition-colors"
+                                        data-target="priceB"
+                                        data-value="100"
+                                    >
+                                        +100
+                                    </button>
+                                    <button
+                                        type="button"
+                                        class="quick-input-btn px-2 py-1 text-xs bg-green-100 text-green-700 rounded-md hover:bg-green-200 transition-colors"
+                                        data-target="priceB"
+                                        data-value="50"
+                                    >
+                                        +50
+                                    </button>
+                                    <button
+                                        type="button"
+                                        class="quick-input-btn px-2 py-1 text-xs bg-green-100 text-green-700 rounded-md hover:bg-green-200 transition-colors"
+                                        data-target="priceB"
+                                        data-value="10"
+                                    >
+                                        +10
+                                    </button>
+                                    <button
+                                        type="button"
+                                        class="quick-input-btn px-2 py-1 text-xs bg-green-100 text-green-700 rounded-md hover:bg-green-200 transition-colors"
+                                        data-target="priceB"
+                                        data-value="5"
+                                    >
+                                        +5
+                                    </button>
+                                    <button
+                                        type="button"
+                                        class="quick-input-btn px-2 py-1 text-xs bg-green-100 text-green-700 rounded-md hover:bg-green-200 transition-colors"
+                                        data-target="priceB"
+                                        data-value="1"
+                                    >
+                                        +1
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                        <div>
+                            <label
+                                for="unitB"
+                                class="block text-sm font-medium text-gray-700 mb-1"
+                                >量 (g, ml, 個など)</label
+                            >
+                            <input
+                                type="number"
+                                id="unitB"
+                                placeholder="例: 600"
+                                class="w-full p-3 border border-gray-300 rounded-lg shadow-sm focus:ring-green-500 focus:border-green-500"
+                            />
+                            <div class="mt-2 space-y-2">
+                                <div class="grid grid-cols-4 gap-2">
+                                    <button
+                                        type="button"
+                                        class="quick-input-btn px-2 py-1 text-xs bg-green-100 text-green-700 rounded-md hover:bg-green-200 transition-colors"
+                                        data-target="unitB"
+                                        data-value="10000"
+                                    >
+                                        +10,000
+                                    </button>
+                                    <button
+                                        type="button"
+                                        class="quick-input-btn px-2 py-1 text-xs bg-green-100 text-green-700 rounded-md hover:bg-green-200 transition-colors"
+                                        data-target="unitB"
+                                        data-value="5000"
+                                    >
+                                        +5,000
+                                    </button>
+                                    <button
+                                        type="button"
+                                        class="quick-input-btn px-2 py-1 text-xs bg-green-100 text-green-700 rounded-md hover:bg-green-200 transition-colors"
+                                        data-target="unitB"
+                                        data-value="1000"
+                                    >
+                                        +1,000
+                                    </button>
+                                    <button
+                                        type="button"
+                                        class="quick-input-btn px-2 py-1 text-xs bg-green-100 text-green-700 rounded-md hover:bg-green-200 transition-colors"
+                                        data-target="unitB"
+                                        data-value="500"
+                                    >
+                                        +500
+                                    </button>
+                                </div>
+                                <div class="grid grid-cols-5 gap-2">
+                                    <button
+                                        type="button"
+                                        class="quick-input-btn px-2 py-1 text-xs bg-green-100 text-green-700 rounded-md hover:bg-green-200 transition-colors"
+                                        data-target="unitB"
+                                        data-value="100"
+                                    >
+                                        +100
+                                    </button>
+                                    <button
+                                        type="button"
+                                        class="quick-input-btn px-2 py-1 text-xs bg-green-100 text-green-700 rounded-md hover:bg-green-200 transition-colors"
+                                        data-target="unitB"
+                                        data-value="50"
+                                    >
+                                        +50
+                                    </button>
+                                    <button
+                                        type="button"
+                                        class="quick-input-btn px-2 py-1 text-xs bg-green-100 text-green-700 rounded-md hover:bg-green-200 transition-colors"
+                                        data-target="unitB"
+                                        data-value="10"
+                                    >
+                                        +10
+                                    </button>
+                                    <button
+                                        type="button"
+                                        class="quick-input-btn px-2 py-1 text-xs bg-green-100 text-green-700 rounded-md hover:bg-green-200 transition-colors"
+                                        data-target="unitB"
+                                        data-value="5"
+                                    >
+                                        +5
+                                    </button>
+                                    <button
+                                        type="button"
+                                        class="quick-input-btn px-2 py-1 text-xs bg-green-100 text-green-700 rounded-md hover:bg-green-200 transition-colors"
+                                        data-target="unitB"
+                                        data-value="1"
+                                    >
+                                        +1
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div
+                        id="resultB"
+                        class="mt-4 text-center text-lg font-bold text-gray-800 bg-gray-50 rounded-lg p-3 h-14 flex items-center justify-center"
+                    >
+                        --- 円 / 1単位あたり
+                    </div>
+                </div>
+
+                <!-- --- 商品 C --- -->
+                <div
+                    id="itemC-card"
+                    class="border border-gray-200 rounded-xl p-5 transition-all duration-300"
+                >
+                    <h2 class="text-xl font-semibold text-purple-600 mb-4">
+                        商品 C
+                    </h2>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div>
+                            <label
+                                for="priceC"
+                                class="block text-sm font-medium text-gray-700 mb-1"
+                                >金額 (円)</label
+                            >
+                            <input
+                                type="number"
+                                id="priceC"
+                                placeholder="例: 800"
+                                class="w-full p-3 border border-gray-300 rounded-lg shadow-sm focus:ring-purple-500 focus:border-purple-500"
+                            />
+                            <div class="mt-2 space-y-2">
+                                <div class="grid grid-cols-4 gap-2">
+                                    <button
+                                        type="button"
+                                        class="quick-input-btn px-2 py-1 text-xs bg-purple-100 text-purple-700 rounded-md hover:bg-purple-200 transition-colors"
+                                        data-target="priceC"
+                                        data-value="10000"
+                                    >
+                                        +10,000
+                                    </button>
+                                    <button
+                                        type="button"
+                                        class="quick-input-btn px-2 py-1 text-xs bg-purple-100 text-purple-700 rounded-md hover:bg-purple-200 transition-colors"
+                                        data-target="priceC"
+                                        data-value="5000"
+                                    >
+                                        +5,000
+                                    </button>
+                                    <button
+                                        type="button"
+                                        class="quick-input-btn px-2 py-1 text-xs bg-purple-100 text-purple-700 rounded-md hover:bg-purple-200 transition-colors"
+                                        data-target="priceC"
+                                        data-value="1000"
+                                    >
+                                        +1,000
+                                    </button>
+                                    <button
+                                        type="button"
+                                        class="quick-input-btn px-2 py-1 text-xs bg-purple-100 text-purple-700 rounded-md hover:bg-purple-200 transition-colors"
+                                        data-target="priceC"
+                                        data-value="500"
+                                    >
+                                        +500
+                                    </button>
+                                </div>
+                                <div class="grid grid-cols-5 gap-2">
+                                    <button
+                                        type="button"
+                                        class="quick-input-btn px-2 py-1 text-xs bg-purple-100 text-purple-700 rounded-md hover:bg-purple-200 transition-colors"
+                                        data-target="priceC"
+                                        data-value="100"
+                                    >
+                                        +100
+                                    </button>
+                                    <button
+                                        type="button"
+                                        class="quick-input-btn px-2 py-1 text-xs bg-purple-100 text-purple-700 rounded-md hover:bg-purple-200 transition-colors"
+                                        data-target="priceC"
+                                        data-value="50"
+                                    >
+                                        +50
+                                    </button>
+                                    <button
+                                        type="button"
+                                        class="quick-input-btn px-2 py-1 text-xs bg-purple-100 text-purple-700 rounded-md hover:bg-purple-200 transition-colors"
+                                        data-target="priceC"
+                                        data-value="10"
+                                    >
+                                        +10
+                                    </button>
+                                    <button
+                                        type="button"
+                                        class="quick-input-btn px-2 py-1 text-xs bg-purple-100 text-purple-700 rounded-md hover:bg-purple-200 transition-colors"
+                                        data-target="priceC"
+                                        data-value="5"
+                                    >
+                                        +5
+                                    </button>
+                                    <button
+                                        type="button"
+                                        class="quick-input-btn px-2 py-1 text-xs bg-purple-100 text-purple-700 rounded-md hover:bg-purple-200 transition-colors"
+                                        data-target="priceC"
+                                        data-value="1"
+                                    >
+                                        +1
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                        <div>
+                            <label
+                                for="unitC"
+                                class="block text-sm font-medium text-gray-700 mb-1"
+                                >量 (g, ml, 個など)</label
+                            >
+                            <input
+                                type="number"
+                                id="unitC"
+                                placeholder="例: 350"
+                                class="w-full p-3 border border-gray-300 rounded-lg shadow-sm focus:ring-purple-500 focus:border-purple-500"
+                            />
+                            <div class="mt-2 space-y-2">
+                                <div class="grid grid-cols-4 gap-2">
+                                    <button
+                                        type="button"
+                                        class="quick-input-btn px-2 py-1 text-xs bg-purple-100 text-purple-700 rounded-md hover:bg-purple-200 transition-colors"
+                                        data-target="unitC"
+                                        data-value="10000"
+                                    >
+                                        +10,000
+                                    </button>
+                                    <button
+                                        type="button"
+                                        class="quick-input-btn px-2 py-1 text-xs bg-purple-100 text-purple-700 rounded-md hover:bg-purple-200 transition-colors"
+                                        data-target="unitC"
+                                        data-value="5000"
+                                    >
+                                        +5,000
+                                    </button>
+                                    <button
+                                        type="button"
+                                        class="quick-input-btn px-2 py-1 text-xs bg-purple-100 text-purple-700 rounded-md hover:bg-purple-200 transition-colors"
+                                        data-target="unitC"
+                                        data-value="1000"
+                                    >
+                                        +1,000
+                                    </button>
+                                    <button
+                                        type="button"
+                                        class="quick-input-btn px-2 py-1 text-xs bg-purple-100 text-purple-700 rounded-md hover:bg-purple-200 transition-colors"
+                                        data-target="unitC"
+                                        data-value="500"
+                                    >
+                                        +500
+                                    </button>
+                                </div>
+                                <div class="grid grid-cols-5 gap-2">
+                                    <button
+                                        type="button"
+                                        class="quick-input-btn px-2 py-1 text-xs bg-purple-100 text-purple-700 rounded-md hover:bg-purple-200 transition-colors"
+                                        data-target="unitC"
+                                        data-value="100"
+                                    >
+                                        +100
+                                    </button>
+                                    <button
+                                        type="button"
+                                        class="quick-input-btn px-2 py-1 text-xs bg-purple-100 text-purple-700 rounded-md hover:bg-purple-200 transition-colors"
+                                        data-target="unitC"
+                                        data-value="50"
+                                    >
+                                        +50
+                                    </button>
+                                    <button
+                                        type="button"
+                                        class="quick-input-btn px-2 py-1 text-xs bg-purple-100 text-purple-700 rounded-md hover:bg-purple-200 transition-colors"
+                                        data-target="unitC"
+                                        data-value="10"
+                                    >
+                                        +10
+                                    </button>
+                                    <button
+                                        type="button"
+                                        class="quick-input-btn px-2 py-1 text-xs bg-purple-100 text-purple-700 rounded-md hover:bg-purple-200 transition-colors"
+                                        data-target="unitC"
+                                        data-value="5"
+                                    >
+                                        +5
+                                    </button>
+                                    <button
+                                        type="button"
+                                        class="quick-input-btn px-2 py-1 text-xs bg-purple-100 text-purple-700 rounded-md hover:bg-purple-200 transition-colors"
+                                        data-target="unitC"
+                                        data-value="1"
+                                    >
+                                        +1
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div
+                        id="resultC"
+                        class="mt-4 text-center text-lg font-bold text-gray-800 bg-gray-50 rounded-lg p-3 h-14 flex items-center justify-center"
+                    >
+                        --- 円 / 1単位あたり
+                    </div>
+                </div>
+            </div>
+
+            <!-- --- ボタン --- -->
+            <div class="mt-8 flex justify-center">
+                <button
+                    id="resetButton"
+                    class="w-full max-w-xs bg-gray-600 text-white py-3 rounded-lg font-semibold shadow-md hover:bg-gray-700 transition-all duration-300"
+                >
+                    リセット
+                </button>
+            </div>
+        </div>
+    </div>
+</Layout>
+
+<script>
+    const main = () => {
+        // --- DOM要素の取得 ---
+        const items = [
+            {
+                priceEl: document.getElementById(
+                    "priceA"
+                ) as HTMLInputElement | null,
+                unitEl: document.getElementById(
+                    "unitA"
+                ) as HTMLInputElement | null,
+                resultEl: document.getElementById(
+                    "resultA"
+                ) as HTMLElement | null,
+                cardEl: document.getElementById(
+                    "itemA-card"
+                ) as HTMLElement | null,
+            },
+            {
+                priceEl: document.getElementById(
+                    "priceB"
+                ) as HTMLInputElement | null,
+                unitEl: document.getElementById(
+                    "unitB"
+                ) as HTMLInputElement | null,
+                resultEl: document.getElementById(
+                    "resultB"
+                ) as HTMLElement | null,
+                cardEl: document.getElementById(
+                    "itemB-card"
+                ) as HTMLElement | null,
+            },
+            {
+                priceEl: document.getElementById(
+                    "priceC"
+                ) as HTMLInputElement | null,
+                unitEl: document.getElementById(
+                    "unitC"
+                ) as HTMLInputElement | null,
+                resultEl: document.getElementById(
+                    "resultC"
+                ) as HTMLElement | null,
+                cardEl: document.getElementById(
+                    "itemC-card"
+                ) as HTMLElement | null,
+            },
+        ];
+
+        const resetButton = document.getElementById("resetButton");
+
+        if (
+            !resetButton ||
+            items.some(
+                (item) =>
+                    !item.priceEl ||
+                    !item.unitEl ||
+                    !item.resultEl ||
+                    !item.cardEl
+            )
+        ) {
+            console.error("必要な要素が見つかりません");
+            return;
+        }
+
+        // nullチェック後の型安全な参照
+        const safeItems = items.map((item) => ({
+            priceEl: item.priceEl!,
+            unitEl: item.unitEl!,
+            resultEl: item.resultEl!,
+            cardEl: item.cardEl!,
+        }));
+
+        // --- ハイライト用のクラス ---
+        const highlightClass = "border-4 border-green-500 shadow-lg";
+        const defaultClass = "border border-gray-200";
+
+        // --- 計算とハイライト処理 ---
+        function calculateAndHighlight() {
+            let minUnitPrice = Infinity;
+            const unitPrices: number[] = [];
+
+            // 1. 全てのハイライトをリセット
+            safeItems.forEach((item) => {
+                item.cardEl.className = item.cardEl.className.replace(
+                    highlightClass,
+                    defaultClass
+                );
+            });
+
+            // 2. 各商品の単価を計算
+            safeItems.forEach((item) => {
+                const price = parseFloat(item.priceEl.value);
+                const unit = parseFloat(item.unitEl.value);
+                if (price > 0 && unit > 0) {
+                    const unitPrice = price / unit;
+                    item.resultEl.textContent = `${parseFloat(unitPrice.toFixed(8)).toString()} 円 / 1単位あたり`;
+                    unitPrices.push(unitPrice);
+
+                    // 最小単価を更新
+                    if (unitPrice < minUnitPrice) {
+                        minUnitPrice = unitPrice;
+                    }
+                } else {
+                    item.resultEl.textContent = "--- 円 / 1単位あたり";
+                    unitPrices.push(Infinity); // 計算不能な場合は比較対象外
+                }
+            });
+
+            // 3. 最小単価のアイテムをハイライト
+            if (minUnitPrice !== Infinity) {
+                safeItems.forEach((item, index) => {
+                    if (unitPrices[index] === minUnitPrice) {
+                        item.cardEl.className = item.cardEl.className.replace(
+                            defaultClass,
+                            highlightClass
+                        );
+                    }
+                });
+            }
+        }
+
+        // --- リセット処理 ---
+        function resetAll() {
+            safeItems.forEach((item) => {
+                item.priceEl.value = "";
+                item.unitEl.value = "";
+                item.resultEl.textContent = "--- 円 / 1単位あたり";
+                item.cardEl.className = item.cardEl.className.replace(
+                    highlightClass,
+                    defaultClass
+                );
+            });
+        }
+
+        // --- イベントリスナーの設定 ---
+        resetButton.addEventListener("click", resetAll);
+
+        // 入力時に自動計算（Enterキーでも反応するように）
+        safeItems.forEach((item) => {
+            item.priceEl.addEventListener("input", calculateAndHighlight);
+            item.unitEl.addEventListener("input", calculateAndHighlight);
+        });
+
+        // --- クイック入力ボタンの処理 ---
+        const quickInputButtons = document.querySelectorAll(".quick-input-btn");
+        quickInputButtons.forEach((button) => {
+            button.addEventListener("click", () => {
+                const targetId = button.getAttribute("data-target");
+                const valueStr = button.getAttribute("data-value");
+                if (!targetId || !valueStr) return;
+
+                const value = parseFloat(valueStr);
+                const targetInput = document.getElementById(
+                    targetId
+                ) as HTMLInputElement | null;
+
+                if (targetInput) {
+                    const currentValue = parseFloat(targetInput.value) || 0;
+                    targetInput.value = (currentValue + value).toString();
+                    // inputイベントを発火して自動計算をトリガー
+                    targetInput.dispatchEvent(
+                        new Event("input", { bubbles: true })
+                    );
+                }
+            });
+        });
+    };
+
+    // ページ読み込み時に実行
+    if (document.readyState === "loading") {
+        document.addEventListener("DOMContentLoaded", main);
+    } else {
+        main();
+    }
+</script>
