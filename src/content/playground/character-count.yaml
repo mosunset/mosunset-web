@@ -1,0 +1,14 @@
+draft: false
+visibility: public
+title: 文字数カウント | リアルタイム文字数・行数・バイト数カウントツール
+description: >-
+  テキストを入力するだけで、リアルタイムに文字数・行数・バイト数をカウントするツールです。改行除く文字数、改行・空白除く文字数、UTF-8/UTF-16/Shift-JISの各文字コードでのバイト数も表示します。入力データは一切サーバーに送信されません。
+category: ユーティリティ
+tags:
+  - 文字数
+  - カウント
+  - 原稿用紙
+  - バイト数
+  - 文字コード
+publishedDate: 2025-01-27
+thumbnail: '@assets/images/playground/character-count/thumbnail.png'

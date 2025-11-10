@@ -1,0 +1,385 @@
+---
+import Layout from "@/layouts/Layout.astro";
+import { getCollection } from "astro:content";
+const allPosts = await getCollection("playground");
+const entry = allPosts.find(
+    (post) =>
+        post.id === Astro.url.pathname.replace("/playground/", "").slice(0, -1)
+);
+
+if (
+    !entry ||
+    entry.data.draft === true ||
+    entry.data.visibility === "private"
+) {
+    return new Response(null, {
+        status: 404,
+        statusText: "Not found",
+    });
+}
+---
+
+<Layout title={entry?.data.title}>
+    <div class="max-w-[960px] mx-auto p-4">
+        <h1 class="text-3xl font-bold text-gray-900 mb-6">文字数カウント</h1>
+
+        <!-- 入力テキストエリア -->
+        <div class="mb-6">
+            <div class="relative">
+                <textarea
+                    id="inputText"
+                    rows="10"
+                    class="w-full p-4 border border-gray-300 rounded-lg shadow-sm focus:ring-blue-500 focus:border-blue-500 resize-y"
+                    placeholder="文字数を数えたい文章を入力または貼り付けてください..."
+                ></textarea>
+                <button
+                    id="voiceInputButton"
+                    type="button"
+                    class="absolute bottom-4 right-4 p-3 bg-blue-600 text-white rounded-full shadow-md hover:bg-blue-700 transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+                    title="音声入力"
+                >
+                    <svg
+                        id="voiceIcon"
+                        xmlns="http://www.w3.org/2000/svg"
+                        class="h-6 w-6"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                    >
+                        <path
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                            stroke-width="2"
+                            d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"
+                        ></path>
+                    </svg>
+                    <svg
+                        id="stopIcon"
+                        xmlns="http://www.w3.org/2000/svg"
+                        class="h-6 w-6 hidden"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                    >
+                        <path
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                            stroke-width="2"
+                            d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                        <path
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                            stroke-width="2"
+                            d="M9 10a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1h-4a1 1 0 01-1-1v-4z"
+                        ></path>
+                    </svg>
+                </button>
+            </div>
+            <div id="voiceStatus" class="mt-2 text-sm text-gray-600 hidden">
+            </div>
+        </div>
+
+        <!-- カウント結果 -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <!-- 文字数 -->
+            <div class="bg-white border border-gray-200 rounded-lg p-4">
+                <div class="text-sm text-gray-600 mb-1">文字数</div>
+                <div id="charCount" class="text-2xl font-bold text-gray-800">
+                    0
+                </div>
+                <div class="text-xs text-gray-500 mt-1">文字</div>
+            </div>
+
+            <!-- 改行除く -->
+            <div class="bg-white border border-gray-200 rounded-lg p-4">
+                <div class="text-sm text-gray-600 mb-1">改行除く</div>
+                <div
+                    id="charCountNoNewline"
+                    class="text-2xl font-bold text-gray-800"
+                >
+                    0
+                </div>
+                <div class="text-xs text-gray-500 mt-1">文字</div>
+            </div>
+
+            <!-- 改行・空白除く -->
+            <div class="bg-white border border-gray-200 rounded-lg p-4">
+                <div class="text-sm text-gray-600 mb-1">改行・空白除く</div>
+                <div
+                    id="charCountNoWhitespace"
+                    class="text-2xl font-bold text-gray-800"
+                >
+                    0
+                </div>
+                <div class="text-xs text-gray-500 mt-1">文字</div>
+            </div>
+
+            <!-- 行数 -->
+            <div class="bg-white border border-gray-200 rounded-lg p-4">
+                <div class="text-sm text-gray-600 mb-1">行数</div>
+                <div id="lineCount" class="text-2xl font-bold text-gray-800">
+                    0
+                </div>
+                <div class="text-xs text-gray-500 mt-1">行</div>
+            </div>
+
+            <!-- UTF-8バイト数 -->
+            <div class="bg-white border border-gray-200 rounded-lg p-4">
+                <div class="text-sm text-gray-600 mb-1">UTF-8 バイト数</div>
+                <div id="utf8Bytes" class="text-2xl font-bold text-gray-800">
+                    0
+                </div>
+                <div class="text-xs text-gray-500 mt-1">バイト</div>
+            </div>
+
+            <!-- UTF-16バイト数 -->
+            <div class="bg-white border border-gray-200 rounded-lg p-4">
+                <div class="text-sm text-gray-600 mb-1">UTF-16 バイト数</div>
+                <div id="utf16Bytes" class="text-2xl font-bold text-gray-800">
+                    0
+                </div>
+                <div class="text-xs text-gray-500 mt-1">バイト</div>
+            </div>
+
+            <!-- Shift-JISバイト数 -->
+            <div class="bg-white border border-gray-200 rounded-lg p-4">
+                <div class="text-sm text-gray-600 mb-1">Shift-JIS バイト数</div>
+                <div
+                    id="shiftJisBytes"
+                    class="text-2xl font-bold text-gray-800"
+                >
+                    0
+                </div>
+                <div class="text-xs text-gray-500 mt-1">バイト</div>
+            </div>
+        </div>
+    </div>
+</Layout>
+
+<script>
+    const main = () => {
+        const inputText = document.getElementById(
+            "inputText"
+        ) as HTMLTextAreaElement | null;
+        const voiceInputButton = document.getElementById(
+            "voiceInputButton"
+        ) as HTMLButtonElement | null;
+        const voiceIcon = document.getElementById(
+            "voiceIcon"
+        ) as SVGElement | null;
+        const stopIcon = document.getElementById(
+            "stopIcon"
+        ) as SVGElement | null;
+        const voiceStatus = document.getElementById(
+            "voiceStatus"
+        ) as HTMLElement | null;
+
+        if (
+            !inputText ||
+            !voiceInputButton ||
+            !voiceIcon ||
+            !stopIcon ||
+            !voiceStatus
+        ) {
+            console.error("必要な要素が見つかりません");
+            return;
+        }
+
+        // 音声認識の設定
+        const SpeechRecognition =
+            (window as any).SpeechRecognition ||
+            (window as any).webkitSpeechRecognition;
+
+        if (!SpeechRecognition) {
+            // 音声認識APIがサポートされていない場合
+            voiceInputButton.style.display = "none";
+        } else {
+            const recognition = new SpeechRecognition();
+            recognition.lang = "ja-JP";
+            recognition.continuous = true;
+            recognition.interimResults = true;
+
+            let isListening = false;
+
+            recognition.onstart = () => {
+                isListening = true;
+                voiceIcon.classList.add("hidden");
+                stopIcon.classList.remove("hidden");
+                voiceInputButton.classList.remove(
+                    "bg-blue-600",
+                    "hover:bg-blue-700"
+                );
+                voiceInputButton.classList.add(
+                    "bg-red-600",
+                    "hover:bg-red-700"
+                );
+                voiceStatus.classList.remove("hidden");
+                voiceStatus.textContent = "音声認識中...";
+                voiceStatus.classList.remove("text-gray-600", "text-red-600");
+                voiceStatus.classList.add("text-blue-600");
+            };
+
+            recognition.onresult = (event: any) => {
+                let interimTranscript = "";
+                let finalTranscript = "";
+
+                for (let i = event.resultIndex; i < event.results.length; i++) {
+                    const transcript = event.results[i][0].transcript;
+                    if (event.results[i].isFinal) {
+                        finalTranscript += transcript + " ";
+                    } else {
+                        interimTranscript += transcript;
+                    }
+                }
+
+                if (finalTranscript) {
+                    inputText.value += finalTranscript;
+                    // inputイベントを手動で発火してカウントを更新
+                    inputText.dispatchEvent(
+                        new Event("input", { bubbles: true })
+                    );
+                }
+            };
+
+            recognition.onerror = (event: any) => {
+                console.error("音声認識エラー:", event.error);
+                if (event.error === "no-speech") {
+                    voiceStatus.textContent = "音声が検出されませんでした";
+                } else if (event.error === "audio-capture") {
+                    voiceStatus.textContent = "マイクが見つかりません";
+                } else if (event.error === "not-allowed") {
+                    voiceStatus.textContent =
+                        "マイクの使用が許可されていません";
+                } else {
+                    voiceStatus.textContent = `エラー: ${event.error}`;
+                }
+                voiceStatus.classList.remove("text-blue-600");
+                voiceStatus.classList.add("text-red-600");
+            };
+
+            recognition.onend = () => {
+                isListening = false;
+                voiceIcon.classList.remove("hidden");
+                stopIcon.classList.add("hidden");
+                voiceInputButton.classList.remove(
+                    "bg-red-600",
+                    "hover:bg-red-700"
+                );
+                voiceInputButton.classList.add(
+                    "bg-blue-600",
+                    "hover:bg-blue-700"
+                );
+                voiceStatus.classList.add("hidden");
+            };
+
+            voiceInputButton.addEventListener("click", () => {
+                if (isListening) {
+                    recognition.stop();
+                } else {
+                    try {
+                        recognition.start();
+                    } catch (error) {
+                        console.error("音声認識の開始に失敗しました:", error);
+                        voiceStatus.classList.remove("hidden");
+                        voiceStatus.textContent =
+                            "音声認識を開始できませんでした";
+                        voiceStatus.classList.remove("text-blue-600");
+                        voiceStatus.classList.add("text-red-600");
+                    }
+                }
+            });
+        }
+
+        // 文字コード変換（簡易版 - ブラウザ標準APIで可能なもののみ）
+        function getUtf8Bytes(text: string): number {
+            return new TextEncoder().encode(text).length;
+        }
+
+        function getUtf16Bytes(text: string): number {
+            // UTF-16はBOM無し、改行文字は2バイト
+            let bytes = 0;
+            for (let i = 0; i < text.length; i++) {
+                const code = text.charCodeAt(i);
+                if (code >= 0xd800 && code <= 0xdfff) {
+                    // サロゲートペア（4バイト）
+                    bytes += 4;
+                    i++; // 次の文字もスキップ
+                } else {
+                    bytes += 2;
+                }
+            }
+            // 改行文字を2バイトとして数える（既に含まれているので調整不要）
+            return bytes;
+        }
+
+        // Shift-JISの簡易実装
+        // 注意: 完全な実装にはライブラリが必要ですが、簡易版として概算を提供
+        function getShiftJisBytes(text: string): number {
+            // 簡易実装: 全角文字を2バイト、半角文字を1バイトとして概算
+            let bytes = 0;
+            for (let i = 0; i < text.length; i++) {
+                const char = text[i];
+                if (char === "\n" || char === "\r") {
+                    bytes += 2; // 改行文字は2バイト
+                } else if (char.match(/[^\x00-\x7F]/)) {
+                    // 非ASCII文字（全角など）は2バイト
+                    bytes += 2;
+                } else {
+                    bytes += 1;
+                }
+            }
+            return bytes;
+        }
+
+        // カウント処理
+        function performCount() {
+            if (!inputText) return;
+            const text = inputText.value;
+
+            // 文字数
+            const charCount = text.length;
+            document.getElementById("charCount")!.textContent =
+                charCount.toLocaleString();
+
+            // 改行除く
+            const charCountNoNewline = text.replace(/\r?\n/g, "").length;
+            document.getElementById("charCountNoNewline")!.textContent =
+                charCountNoNewline.toLocaleString();
+
+            // 改行・空白除く
+            const charCountNoWhitespace = text.replace(
+                /[\r\n\t\s]/g,
+                ""
+            ).length;
+            document.getElementById("charCountNoWhitespace")!.textContent =
+                charCountNoWhitespace.toLocaleString();
+
+            // 行数
+            const lines = text
+                .split(/\r?\n/)
+                .filter((line) => line.length > 0 || text.length > 0);
+            const lineCount = lines.length || (text.length > 0 ? 1 : 0);
+            document.getElementById("lineCount")!.textContent =
+                lineCount.toLocaleString();
+
+            // バイト数
+            document.getElementById("utf8Bytes")!.textContent =
+                getUtf8Bytes(text).toLocaleString();
+            document.getElementById("utf16Bytes")!.textContent =
+                getUtf16Bytes(text).toLocaleString();
+            document.getElementById("shiftJisBytes")!.textContent =
+                getShiftJisBytes(text).toLocaleString();
+        }
+
+        // リアルタイムカウント（常に有効）
+        inputText.addEventListener("input", performCount);
+        performCount(); // 初期カウント
+    };
+
+    // ページ読み込み時に実行
+    if (document.readyState === "loading") {
+        document.addEventListener("DOMContentLoaded", main);
+    } else {
+        main();
+    }
+</script>
