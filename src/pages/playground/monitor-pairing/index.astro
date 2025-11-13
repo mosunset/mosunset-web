@@ -1,0 +1,734 @@
+---
+import Layout from "@/layouts/Layout.astro";
+import { getCollection } from "astro:content";
+const allPosts = await getCollection("playground");
+const entry = allPosts.find(
+    (post) =>
+        post.id === Astro.url.pathname.replace("/playground/", "").slice(0, -1)
+);
+
+if (
+    !entry ||
+    entry.data.draft === true ||
+    entry.data.visibility === "private"
+) {
+    return new Response(null, {
+        status: 404,
+        statusText: "Not found",
+    });
+}
+---
+
+<Layout title={entry?.data.title}>
+    <div class="container mx-auto p-4 md:p-8 max-w-7xl">
+        <h1 class="text-3xl font-bold text-center text-gray-800 mb-8">
+            モニタペアリング・シミュレーター
+        </h1>
+        <p class="text-center text-gray-600 mb-4">
+            中央モニタ（横置き）とサイドモニタ（縦置き）の物理的な高さが近い組み合わせを計算します。
+        </p>
+        <p class="text-center text-gray-500 mb-8">
+            <a
+                href="https://kakaku.com/pc/lcd-monitor/"
+                target="_blank"
+                rel="noopener noreferrer"
+                class="text-blue-600 hover:text-blue-800 underline"
+            >
+                価格.com - PCモニター・ディスプレイ
+            </a>
+            でモニターを検索できます。
+        </p>
+
+        <!-- 1. コントロールパネル -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+            <!-- 設定 -->
+            <div class="bg-white p-6 rounded-lg shadow-md">
+                <h2 class="text-xl font-semibold mb-4">1. 計算設定</h2>
+
+                <div class="mb-4">
+                    <label
+                        for="height-tolerance"
+                        class="block text-sm font-medium text-gray-700"
+                    >
+                        高さの許容差 (± cm)
+                    </label>
+                    <div class="flex items-center space-x-2">
+                        <input
+                            type="range"
+                            id="height-tolerance"
+                            min="0.5"
+                            max="10"
+                            step="0.5"
+                            value="5.0"
+                            class="w-full"
+                        />
+                        <span
+                            id="height-tolerance-value"
+                            class="font-semibold w-12 text-right">5.0 cm</span
+                        >
+                    </div>
+                    <p class="text-xs text-gray-500 mt-1">
+                        物理的な高さの差がこの範囲内のペアを検索します。
+                    </p>
+                </div>
+
+                <button
+                    id="calculate-btn"
+                    class="w-full bg-blue-600 text-white font-semibold py-2 px-4 rounded-lg hover:bg-blue-700 transition duration-300"
+                >
+                    組み合わせを計算
+                </button>
+            </div>
+
+            <!-- フィルタ -->
+            <div class="bg-white p-6 rounded-lg shadow-md">
+                <h2
+                    class="text-xl font-semibold mb-4 text-gray-500"
+                    id="filter-title"
+                >
+                    2. フィルタ（計算後に有効化）
+                </h2>
+                <div
+                    id="filter-controls-wrapper"
+                    class="grid grid-cols-1 gap-4"
+                >
+                    <div>
+                        <label
+                            for="ppi-filter"
+                            class="block text-sm font-medium text-gray-700"
+                        >
+                            PPI差 (中央 - サイド)
+                        </label>
+                        <div class="flex items-center space-x-2">
+                            <input
+                                type="range"
+                                id="ppi-filter"
+                                min="-50"
+                                max="50"
+                                step="1"
+                                value="-20"
+                                class="w-full filter-control"
+                            />
+                            <span
+                                id="ppi-filter-value"
+                                class="font-semibold w-24 text-right">-20%</span
+                            >
+                        </div>
+                        <p class="text-xs text-gray-500 mt-1">
+                            中央モニタのPPIがサイドより何%小さいか。0%が理想。
+                        </p>
+                    </div>
+                    <div>
+                        <label
+                            for="res-height-diff-filter"
+                            class="block text-sm font-medium text-gray-700"
+                        >
+                            許容 解像度高 差 (±%)
+                        </label>
+                        <div class="flex items-center space-x-2">
+                            <input
+                                type="range"
+                                id="res-height-diff-filter"
+                                min="0"
+                                max="50"
+                                step="1"
+                                value="20"
+                                class="w-full filter-control"
+                            />
+                            <span
+                                id="res-height-diff-filter-value"
+                                class="font-semibold w-24 text-right">±20%</span
+                            >
+                        </div>
+                        <p class="text-xs text-gray-500 mt-1">
+                            中央(H)とサイド(縦W)のピクセル数の差。0%が理想。
+                        </p>
+                    </div>
+                    <div>
+                        <label
+                            for="side-inch-filter"
+                            class="block text-sm font-medium text-gray-700"
+                        >
+                            サイドモニタのインチ
+                        </label>
+                        <select
+                            id="side-inch-filter"
+                            class="w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 filter-control"
+                        >
+                            <option value="all">すべてのインチ</option>
+                            <!-- JSで動的に追加 -->
+                        </select>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 2. ビジュアライゼーション -->
+        <div class="bg-white p-6 rounded-lg shadow-md mb-8">
+            <h2 class="text-xl font-semibold mb-4 text-center">
+                ビジュアライゼーション (相対スケール)
+            </h2>
+            <!-- ▼▼▼ ビジュアライズ モード切り替え ▼▼▼ -->
+            <div class="flex justify-center space-x-4 mb-4">
+                <label class="flex items-center space-x-2 cursor-pointer">
+                    <input
+                        type="radio"
+                        name="viz-mode"
+                        value="physical"
+                        class="form-radio text-blue-600"
+                        checked
+                    />
+                    <span class="text-sm font-medium text-gray-700"
+                        >物理サイズ (cm)</span
+                    >
+                </label>
+                <label class="flex items-center space-x-2 cursor-pointer">
+                    <input
+                        type="radio"
+                        name="viz-mode"
+                        value="resolution"
+                        class="form-radio text-blue-600"
+                    />
+                    <span class="text-sm font-medium text-gray-700"
+                        >解像度 (px)</span
+                    >
+                </label>
+            </div>
+            <!-- ▲▲▲ ビジュアライズ モード切り替え ▲▲▲ -->
+            <div
+                id="visualization"
+                class="w-full min-h-[400px] flex justify-center items-end gap-4 p-4 bg-gray-50 rounded-lg overflow-hidden"
+            >
+                <p class="text-gray-500">
+                    計算結果の行をクリックすると、ここにモニタのサイズ感が視覚化されます。
+                </p>
+            </div>
+        </div>
+
+        <!-- 3. 結果テーブル -->
+        <div class="bg-white rounded-lg shadow-md overflow-hidden">
+            <div class="flex justify-between items-center p-4 border-b">
+                <h2 class="text-xl font-semibold">計算結果</h2>
+                <span id="result-count" class="text-gray-600 font-medium"
+                    >0 件</span
+                >
+            </div>
+
+            <div id="table-container" class="max-h-[600px] overflow-y-auto">
+                <table class="w-full text-left">
+                    <thead class="bg-gray-200">
+                        <tr>
+                            <th
+                                class="p-3 font-semibold text-sm sticky top-0 bg-gray-200 z-10"
+                                >中央 (インチ)</th
+                            >
+                            <th
+                                class="p-3 font-semibold text-sm sticky top-0 bg-gray-200 z-10"
+                                >中央 (解像度)</th
+                            >
+                            <th
+                                class="p-3 font-semibold text-sm sticky top-0 bg-gray-200 z-10"
+                                >サイド (インチ)</th
+                            >
+                            <th
+                                class="p-3 font-semibold text-sm sticky top-0 bg-gray-200 z-10"
+                                >サイド (解像度)</th
+                            >
+                            <th
+                                class="p-3 font-semibold text-sm sticky top-0 bg-gray-200 z-10"
+                                >物理高さ差 (cm)</th
+                            >
+                            <th
+                                class="p-3 font-semibold text-sm sticky top-0 bg-gray-200 z-10"
+                                >PPI差 (%)</th
+                            >
+                            <th
+                                class="p-3 font-semibold text-sm sticky top-0 bg-gray-200 z-10"
+                                >解像度高 差 (%)</th
+                            >
+                        </tr>
+                    </thead>
+                    <tbody
+                        id="results-table-body"
+                        class="divide-y divide-gray-200"
+                    >
+                        <!-- JSで動的に挿入 -->
+                        <tr>
+                            <td
+                                colspan="7"
+                                class="p-8 text-center text-gray-500"
+                            >
+                                「組み合わせを計算」ボタンを押してください。
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</Layout>
+
+<style>
+    /* ビジュアライゼーション用 */
+    :global(.monitor-viz) {
+        transition: all 0.3s ease-in-out;
+        border: 4px solid #374151; /* border-gray-700 */
+        background: #111827; /* bg-gray-900 */
+        color: white;
+        position: relative;
+        box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+        border-radius: 8px;
+    }
+    :global(.monitor-viz-inner) {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        text-align: center;
+        width: 90%;
+        font-size: 0.8rem;
+    }
+    :global(.monitor-viz-label) {
+        font-size: 0.9rem;
+        font-weight: 600;
+        color: #d1d5db; /* text-gray-300 */
+    }
+</style>
+
+<script>
+    // --- 定数とデータ ---
+    const INCH_TO_CM = 2.54;
+
+    // 中央モニタ用: 16:9 解像度群
+    // フルHD（1920x1080）(1303)
+    // WUXGA（1920x1200）(68)
+    // WQHD（2560x1440）(355)
+    // WQXGA（2560x1600）(21)
+    // UWQHD（3440x1440）(84)
+    // 4K（3840x2160）(573)
+    // DCI 4K(4096x2160)(2)
+    // 5K（5120x2880）(11)
+    // 6K(1)
+    // 8K(7680×4320)(1)
+    const centerResolutions = [
+        { name: "FHD 1920x1080", w: 1920, h: 1080 },
+        { name: "WQHD 2560x1440", w: 2560, h: 1440 },
+        { name: "4K 3840x2160", w: 3840, h: 2160 },
+        { name: "5K 5120x2880", w: 5120, h: 2880 },
+        { name: "8K 7680x4320", w: 7680, h: 4320 },
+    ];
+
+    // サイドモニタ用: 16:9 + 16:10 + その他
+    const sideResolutions = [
+        { name: "FHD 1920x1080", w: 1920, h: 1080 },
+        { name: "WUXGA 1920x1200", w: 1920, h: 1200 },
+        { name: "WQHD 2560x1440", w: 2560, h: 1440 },
+        { name: "WQXGA 2560x1600", w: 2560, h: 1600 },
+        { name: "UWQHD 3440x1440", w: 3440, h: 1440 }, // ウルトラワイド
+        { name: "4K 3840x2160", w: 3840, h: 2160 },
+        { name: "DCI 4K 4096x2160", w: 4096, h: 2160 }, // DCI
+        { name: "5K 5120x2880", w: 5120, h: 2880 },
+        { name: "6K 6016x3384", w: 6016, h: 3384 }, // Apple Pro Display XDR
+        { name: "8K 7680x4320", w: 7680, h: 4320 },
+    ];
+
+    // インチサイズを実売リストに変更
+    // ～10型(インチ)未満(42)
+    // 13.3型(インチ)(42)
+    // 14型(インチ)(31)
+    // 15.6型(インチ)(133)
+    // 16型(インチ)(15)
+    // 17.3型(インチ)(16)
+    // 18.5型(インチ)(17)
+    // 21.5型(インチ)(189)
+    // 23.8型(インチ)(465)
+    // 24型(インチ)(20)
+    // 24.1型(インチ)(39)
+    // 24.5型(インチ)(109)
+    // 26.5型(インチ)(19)
+    // 27型(インチ)(722)
+    // 28型(インチ)(25)
+    // 29型(インチ)(9)
+    // 31.5型(インチ)(179)
+    // 32型(インチ)(37)
+    // 34型(インチ)(70)
+    // 37.5型(インチ)(6)
+    // 40型(インチ)(10)
+    // 43型(インチ)(45)
+    // 49型(インチ)(20)
+    // 50型(インチ)(29)
+    // 55型(インチ)(42)
+    // 65型(インチ)(43)
+    // 70型(インチ)～(57)
+    const centerInchSizes = [
+        21.5, 23.8, 24, 24.1, 24.5, 26.5, 27, 28, 29, 31.5, 32, 34, 37.5, 40,
+        43, 49, 50, 55, 65, 70,
+    ];
+    const sideInchSizes = [
+        13.3, 14, 15.6, 16, 17.3, 18.5, 21.5, 23.8, 24, 24.1, 24.5, 26.5, 27,
+        28, 29, 31.5, 32, 34, 37.5, 40,
+    ];
+
+    // 計算結果を保持するグローバル変数
+    let allCombinations: any[] = [];
+    let currentFilters = {
+        ppiPercent: -20,
+        resHeightDiffPercent: 20,
+        sideInch: "all",
+    };
+    let selectedItem: any = null;
+    let currentVizMode = "physical";
+
+    // --- DOM要素 ---
+    const heightToleranceSlider = document.getElementById(
+        "height-tolerance"
+    ) as HTMLInputElement;
+    const heightToleranceValue = document.getElementById(
+        "height-tolerance-value"
+    );
+    const calculateBtn = document.getElementById("calculate-btn");
+    const ppiFilterSlider = document.getElementById(
+        "ppi-filter"
+    ) as HTMLInputElement;
+    const ppiFilterValue = document.getElementById("ppi-filter-value");
+    const resHeightDiffFilter = document.getElementById(
+        "res-height-diff-filter"
+    ) as HTMLInputElement;
+    const resHeightDiffFilterValue = document.getElementById(
+        "res-height-diff-filter-value"
+    );
+    const sideInchFilter = document.getElementById(
+        "side-inch-filter"
+    ) as HTMLSelectElement | null;
+    const visualizationArea = document.getElementById("visualization");
+    const resultsTableBody = document.getElementById("results-table-body");
+    const resultCount = document.getElementById("result-count");
+    const vizModeRadios = document.querySelectorAll('input[name="viz-mode"]');
+    const filterTitle = document.getElementById("filter-title");
+    const filterControls = document.querySelectorAll(".filter-control");
+
+    // --- ヘルパー関数 ---
+    function physicalSize(diagInch: number, resW: number, resH: number) {
+        const diagPx = Math.sqrt(resW ** 2 + resH ** 2);
+        const widthIn = (diagInch * resW) / diagPx;
+        const heightIn = (diagInch * resH) / diagPx;
+        return { widthIn, heightIn };
+    }
+
+    function ppi(diagInch: number, resW: number, resH: number) {
+        const diagPx = Math.sqrt(resW ** 2 + resH ** 2);
+        return diagPx / diagInch;
+    }
+
+    // --- メインロジック ---
+    function setFilterControlsDisabled(isDisabled: boolean) {
+        filterControls.forEach((control) => {
+            (control as HTMLInputElement | HTMLSelectElement).disabled =
+                isDisabled;
+        });
+        const wrapper = document.getElementById("filter-controls-wrapper");
+        if (isDisabled) {
+            filterTitle?.classList.add("text-gray-500");
+            if (filterTitle)
+                filterTitle.textContent = "2. フィルタ（計算後に有効化）";
+            wrapper?.classList.add("opacity-50", "pointer-events-none");
+        } else {
+            filterTitle?.classList.remove("text-gray-500");
+            if (filterTitle)
+                filterTitle.textContent = "2. フィルタ（絞り込み）";
+            wrapper?.classList.remove("opacity-50", "pointer-events-none");
+        }
+    }
+
+    function calculateAllCombinations() {
+        allCombinations = [];
+        const heightToleranceCm = parseFloat(heightToleranceSlider.value);
+
+        if (resultsTableBody) {
+            resultsTableBody.innerHTML = `<tr><td colspan="7" class="p-8 text-center text-gray-500">計算中...</td></tr>`;
+        }
+
+        setTimeout(() => {
+            for (const centerDiag of centerInchSizes) {
+                for (const centerRes of centerResolutions) {
+                    const { widthIn: c_w_in, heightIn: c_h_in } = physicalSize(
+                        centerDiag,
+                        centerRes.w,
+                        centerRes.h
+                    );
+                    const c_h_cm = c_h_in * INCH_TO_CM;
+                    const c_ppi = ppi(centerDiag, centerRes.w, centerRes.h);
+
+                    for (const sideDiag of sideInchSizes) {
+                        for (const sideRes of sideResolutions) {
+                            const { widthIn: s_w_in, heightIn: s_h_in } =
+                                physicalSize(sideDiag, sideRes.w, sideRes.h);
+                            const s_vert_height_cm = s_w_in * INCH_TO_CM;
+                            const s_ppi = ppi(sideDiag, sideRes.w, sideRes.h);
+
+                            const diff_cm = c_h_cm - s_vert_height_cm;
+
+                            if (Math.abs(diff_cm) <= heightToleranceCm) {
+                                const ppi_diff = c_ppi - s_ppi;
+                                const ppi_diff_pct = (ppi_diff / s_ppi) * 100;
+
+                                const res_height_diff_px =
+                                    centerRes.h - sideRes.w;
+                                const res_height_diff_pct =
+                                    centerRes.h > 0
+                                        ? (res_height_diff_px / centerRes.h) *
+                                          100
+                                        : 0;
+
+                                allCombinations.push({
+                                    centerDiag,
+                                    centerResName: centerRes.name,
+                                    centerPxW: centerRes.w,
+                                    centerPxH: centerRes.h,
+                                    sideDiag,
+                                    sideResName: sideRes.name,
+                                    sidePxW: sideRes.w,
+                                    sidePxH: sideRes.h,
+                                    centerHeightCm: c_h_cm,
+                                    sideVertHeightCm: s_vert_height_cm,
+                                    heightDiffCm: diff_cm,
+                                    centerPpi: c_ppi,
+                                    sidePpi: s_ppi,
+                                    ppiDiffPercent: ppi_diff_pct,
+                                    resHeightDiffPx: res_height_diff_px,
+                                    resHeightDiffPercent: res_height_diff_pct,
+                                    centerWidthCm: c_w_in * INCH_TO_CM,
+                                    sideVertWidthCm: s_h_in * INCH_TO_CM,
+                                });
+                            }
+                        }
+                    }
+                }
+            }
+
+            updateSideInchFilter(new Set(sideInchSizes));
+            renderResults();
+            setFilterControlsDisabled(false);
+        }, 10);
+    }
+
+    function renderResults() {
+        const filteredResults = allCombinations.filter((item) => {
+            const ppiMatch = item.ppiDiffPercent >= currentFilters.ppiPercent;
+            const inchMatch =
+                currentFilters.sideInch === "all" ||
+                item.sideDiag == currentFilters.sideInch;
+            const resDiffMatch =
+                Math.abs(item.resHeightDiffPercent) <=
+                currentFilters.resHeightDiffPercent;
+            return ppiMatch && inchMatch && resDiffMatch;
+        });
+
+        if (resultsTableBody) {
+            resultsTableBody.innerHTML = "";
+        }
+        if (resultCount) {
+            resultCount.textContent = `${filteredResults.length} 件`;
+        }
+
+        if (filteredResults.length === 0) {
+            if (resultsTableBody) {
+                resultsTableBody.innerHTML = `<tr><td colspan="7" class="p-8 text-center text-gray-500">条件に合う組み合わせがありません。</td></tr>`;
+            }
+            if (visualizationArea) {
+                visualizationArea.innerHTML = `<p class="text-gray-500">条件に合う組み合わせがありません。</p>`;
+            }
+            selectedItem = null;
+            return;
+        }
+
+        filteredResults.forEach((item, index) => {
+            const row = document.createElement("tr");
+            row.className = "hover:bg-gray-50 cursor-pointer";
+            row.innerHTML = `
+                <td class="p-3">${item.centerDiag}"</td>
+                <td class="p-3">${item.centerResName}</td>
+                <td class="p-3">${item.sideDiag}"</td>
+                <td class="p-3">${item.sideResName}</td>
+                <td class="p-3">${item.heightDiffCm.toFixed(2)} cm</td>
+                <td class="p-3">${item.ppiDiffPercent.toFixed(1)} %</td>
+                <td class="p-3">${item.resHeightDiffPercent.toFixed(1)} %</td>
+            `;
+            row.addEventListener("click", () => {
+                renderVisualization(item);
+                document
+                    .querySelectorAll("#results-table-body tr")
+                    .forEach((tr) => tr.classList.remove("bg-blue-100"));
+                row.classList.add("bg-blue-100");
+            });
+            if (resultsTableBody) {
+                resultsTableBody.appendChild(row);
+            }
+
+            if (index === 0) {
+                renderVisualization(item);
+                row.classList.add("bg-blue-100");
+            }
+        });
+    }
+
+    function renderVisualization(item: any) {
+        if (!item) {
+            if (visualizationArea) {
+                visualizationArea.innerHTML = `<p class="text-gray-500">データを描画できません。</p>`;
+            }
+            selectedItem = null;
+            return;
+        }
+
+        selectedItem = item;
+        if (visualizationArea) {
+            visualizationArea.innerHTML = "";
+        }
+
+        let centerDrawWidth: number,
+            centerDrawHeight: number,
+            sideDrawWidth: number,
+            sideDrawHeight: number;
+
+        const containerWidth = visualizationArea?.clientWidth || 800;
+        const gap = 20;
+        const availableWidth = containerWidth - gap - 40;
+
+        if (currentVizMode === "physical") {
+            const totalCmWidth = item.centerWidthCm + item.sideVertWidthCm;
+            const scale = availableWidth / totalCmWidth;
+
+            centerDrawWidth = item.centerWidthCm * scale;
+            centerDrawHeight = item.centerHeightCm * scale;
+            sideDrawWidth = item.sideVertWidthCm * scale;
+            sideDrawHeight = item.sideVertHeightCm * scale;
+        } else {
+            const totalPxWidth = item.centerPxW + item.sidePxH;
+            const scale = availableWidth / totalPxWidth;
+
+            centerDrawWidth = item.centerPxW * scale;
+            centerDrawHeight = item.centerPxH * scale;
+            sideDrawWidth = item.sidePxH * scale;
+            sideDrawHeight = item.sidePxW * scale;
+        }
+
+        centerDrawWidth = Math.max(centerDrawWidth, 50);
+        centerDrawHeight = Math.max(centerDrawHeight, 50);
+        sideDrawWidth = Math.max(sideDrawWidth, 30);
+        sideDrawHeight = Math.max(sideDrawHeight, 50);
+
+        const centerMonitor = document.createElement("div");
+        centerMonitor.className = "monitor-viz";
+        centerMonitor.style.width = `${centerDrawWidth}px`;
+        centerMonitor.style.height = `${centerDrawHeight}px`;
+        centerMonitor.innerHTML = `
+            <div class="monitor-viz-inner">
+                <div class="monitor-viz-label">中央</div>
+                ${item.centerDiag}"<br>
+                ${item.centerResName}<br>
+                <span class="text-yellow-300">解像度高: ${item.centerPxH} px</span><br>
+                物理高: ${item.centerHeightCm.toFixed(1)} cm<br>
+                PPI: ${item.centerPpi.toFixed(0)}
+            </div>
+        `;
+
+        const sideMonitor = document.createElement("div");
+        sideMonitor.className = "monitor-viz";
+        sideMonitor.style.width = `${sideDrawWidth}px`;
+        sideMonitor.style.height = `${sideDrawHeight}px`;
+        sideMonitor.innerHTML = `
+            <div class="monitor-viz-inner">
+                <div class="monitor-viz-label">サイド (縦)</div>
+                ${item.sideDiag}"<br>
+                ${item.sideResName}<br>
+                <span class="text-yellow-300">解像度高: ${item.sidePxW} px</span><br>
+                物理高: ${item.sideVertHeightCm.toFixed(1)} cm<br>
+                PPI: ${item.sidePpi.toFixed(0)}
+            </div>
+        `;
+
+        if (visualizationArea) {
+            visualizationArea.appendChild(centerMonitor);
+            visualizationArea.appendChild(sideMonitor);
+        }
+    }
+
+    function updateSideInchFilter(inches: Set<number>) {
+        if (!sideInchFilter) return;
+        const sortedInches = Array.from(inches).sort((a, b) => a - b);
+        const currentSelection = sideInchFilter.value;
+        sideInchFilter.innerHTML =
+            '<option value="all">すべてのインチ</option>';
+        sortedInches.forEach((inch) => {
+            const option = document.createElement("option");
+            option.value = inch.toString();
+            option.textContent = `${inch} インチ`;
+            sideInchFilter.appendChild(option);
+        });
+        if (sortedInches.includes(parseInt(currentSelection))) {
+            sideInchFilter.value = currentSelection;
+        }
+    }
+
+    // --- イベントリスナー ---
+    heightToleranceSlider?.addEventListener("input", (e) => {
+        const target = e.target as HTMLInputElement;
+        if (heightToleranceValue) {
+            heightToleranceValue.textContent = `${parseFloat(target.value).toFixed(1)} cm`;
+        }
+    });
+
+    ppiFilterSlider?.addEventListener("input", (e) => {
+        const target = e.target as HTMLInputElement;
+        const value = parseInt(target.value);
+        currentFilters.ppiPercent = value;
+        if (ppiFilterValue) {
+            ppiFilterValue.textContent = `${value}%`;
+        }
+        if (allCombinations.length > 0) {
+            renderResults();
+        }
+    });
+
+    resHeightDiffFilter?.addEventListener("input", (e) => {
+        const target = e.target as HTMLInputElement;
+        const value = parseInt(target.value);
+        currentFilters.resHeightDiffPercent = value;
+        if (resHeightDiffFilterValue) {
+            resHeightDiffFilterValue.textContent = `±${value}%`;
+        }
+        if (allCombinations.length > 0) {
+            renderResults();
+        }
+    });
+
+    vizModeRadios.forEach((radio) => {
+        radio.addEventListener("change", (e) => {
+            const target = e.target as HTMLInputElement;
+            currentVizMode = target.value;
+            if (selectedItem) {
+                renderVisualization(selectedItem);
+            }
+        });
+    });
+
+    sideInchFilter?.addEventListener("change", (e) => {
+        const target = e.target as HTMLSelectElement;
+        currentFilters.sideInch = target.value;
+        if (allCombinations.length > 0) {
+            renderResults();
+        }
+    });
+
+    calculateBtn?.addEventListener("click", calculateAllCombinations);
+
+    // 初期読み込み時にフィルタを無効化
+    if (document.readyState === "loading") {
+        document.addEventListener("DOMContentLoaded", () => {
+            setFilterControlsDisabled(true);
+        });
+    } else {
+        setFilterControlsDisabled(true);
+    }
+</script>

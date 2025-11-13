@@ -1,0 +1,13 @@
+draft: false
+visibility: public
+title: モニタペアリング・シミュレーター | 中央とサイドモニタの高さマッチングツール
+description: >-
+  中央モニタ（横置き）とサイドモニタ（縦置き）の物理的な高さが近い組み合わせを計算するツールです。高さの許容差、PPI差、解像度の差などでフィルタリングできます。ビジュアライゼーション機能でモニタのサイズ感を視覚的に確認できます。
+category: ユーティリティ
+tags:
+  - モニタ
+  - 計算
+  - シミュレーター
+  - ペアリング
+publishedDate: 2025-01-27
+thumbnail: '@assets/images/playground/monitor-pairing/thumbnail.png'
