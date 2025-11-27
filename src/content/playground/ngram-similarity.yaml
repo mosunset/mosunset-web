@@ -1,0 +1,15 @@
+draft: false
+visibility: public
+title: n-gram 類似度計算ツール (Jaccard / Dice)
+description: >-
+  2つのテキスト間の類似度を n-gram (Jaccard係数 / Dice係数) を用いて計算・比較するツールです。n=2〜10まで対応し、共通部分の可視化も行います。
+category: ユーティリティ
+tags:
+  - 自然言語処理
+  - NLP
+  - 類似度
+  - Jaccard
+  - Dice
+  - n-gram
+publishedDate: 2025-11-27
+thumbnail: '@assets/images/playground/ngram-similarity/thumbnail.png'

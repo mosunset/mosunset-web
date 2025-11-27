@@ -1,0 +1,670 @@
+---
+import Layout from "@/layouts/Layout.astro";
+import { getCollection } from "astro:content";
+const allPosts = await getCollection("playground");
+const entry = allPosts.find(
+    (post) =>
+        post.id === Astro.url.pathname.replace("/playground/", "").slice(0, -1),
+);
+
+if (
+    !entry ||
+    entry.data.draft === true ||
+    entry.data.visibility === "private"
+) {
+    return new Response(null, {
+        status: 404,
+        statusText: "Not found",
+    });
+}
+---
+
+<Layout>
+    <div class="container mx-auto overflow-hidden">
+        <!-- Header -->
+        <header class="bg-indigo-600 text-white p-6">
+            <h1 class="text-2xl font-bold">n-gram 類似度計算</h1>
+            <p class="text-indigo-100 text-sm mt-1">
+                Jaccard係数 & Dice係数 (n=2〜10)
+            </p>
+        </header>
+
+        <div class="p-6 space-y-8">
+            <!-- Options Area -->
+            <div class="bg-gray-50 p-4 rounded-lg border border-gray-200">
+                <h3 class="font-bold text-gray-700 mb-2 text-sm">
+                    前処理オプション
+                </h3>
+                <div class="flex flex-wrap gap-4">
+                    <label class="inline-flex items-center cursor-pointer">
+                        <input
+                            type="checkbox"
+                            id="optRemoveSpace"
+                            class="form-checkbox h-5 w-5 text-indigo-600 rounded"
+                            checked
+                        />
+                        <span class="ml-2 text-sm">空白・改行を削除</span>
+                    </label>
+                    <label class="inline-flex items-center cursor-pointer">
+                        <input
+                            type="checkbox"
+                            id="optLowerCase"
+                            class="form-checkbox h-5 w-5 text-indigo-600 rounded"
+                            checked
+                        />
+                        <span class="ml-2 text-sm">英字を小文字化</span>
+                    </label>
+                    <label class="inline-flex items-center cursor-pointer">
+                        <input
+                            type="checkbox"
+                            id="optKana"
+                            class="form-checkbox h-5 w-5 text-indigo-600 rounded"
+                        />
+                        <span class="ml-2 text-sm">カタカナ→ひらがな</span>
+                    </label>
+                </div>
+            </div>
+
+            <!-- Inputs -->
+            <div class="grid md:grid-cols-2 gap-6">
+                <!-- Input A -->
+                <div class="space-y-2">
+                    <label for="inputA" class="block font-bold text-gray-700">
+                        文字列 A
+                        <span
+                            id="countA"
+                            class="text-xs font-normal text-gray-500 ml-2"
+                        ></span>
+                    </label>
+                    <textarea
+                        id="inputA"
+                        class="w-full h-60 p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition shadow-sm resize-y"
+                        placeholder="テキストを入力してください..."
+                        >自然言語処理において、類似度の計算は非常に重要なタスクの一つです。</textarea
+                    >
+                </div>
+
+                <!-- Input B -->
+                <div class="space-y-2">
+                    <label for="inputB" class="block font-bold text-gray-700">
+                        文字列 B
+                        <span
+                            id="countB"
+                            class="text-xs font-normal text-gray-500 ml-2"
+                        ></span>
+                    </label>
+                    <textarea
+                        id="inputB"
+                        class="w-full h-60 p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition shadow-sm resize-y"
+                        placeholder="比較対象のテキストを入力してください..."
+                        >自然言語処理において、距離の計算は極めて重要な処理の一つです。</textarea
+                    >
+                </div>
+            </div>
+
+            <!-- Action -->
+            <div class="text-center">
+                <button
+                    id="calcBtn"
+                    class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-8 rounded-full shadow-md transition transform hover:scale-105 active:scale-95"
+                >
+                    類似度を計算する
+                </button>
+            </div>
+
+            <!-- Results -->
+            <div>
+                <h2 class="text-lg font-bold text-gray-800 mb-3 border-b pb-2">
+                    計算結果
+                </h2>
+                <div class="overflow-x-auto mb-6">
+                    <table class="w-full text-left border-collapse">
+                        <thead>
+                            <tr
+                                class="bg-gray-100 text-gray-600 text-sm uppercase tracking-wider"
+                            >
+                                <th
+                                    class="p-3 border-b text-center font-bold w-24"
+                                    >N-gram</th
+                                >
+                                <th
+                                    class="p-3 border-b text-right font-bold text-indigo-700 w-32"
+                                    >Jaccard</th
+                                >
+                                <th
+                                    class="p-3 border-b text-right font-bold text-emerald-700 w-32"
+                                    >Dice</th
+                                >
+                                <th
+                                    class="p-3 border-b text-left font-bold text-gray-500"
+                                    >一致したN-gram (共通部分)</th
+                                >
+                            </tr>
+                        </thead>
+                        <tbody
+                            id="resultBody"
+                            class="text-gray-700 divide-y divide-gray-200"
+                        >
+                            <!-- JSで生成 -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Explanations -->
+            <div
+                class="bg-slate-50 p-6 rounded-xl border border-slate-200 space-y-8"
+            >
+                <!-- Terms -->
+                <div>
+                    <h3
+                        class="text-lg font-bold text-slate-800 mb-4 flex items-center"
+                    >
+                        <svg
+                            class="w-5 h-5 mr-2 text-indigo-500"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                            ><path
+                                stroke-linecap="round"
+                                stroke-linejoin="round"
+                                stroke-width="2"
+                                d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                            ></path></svg
+                        >
+                        用語と計算式の詳細解説
+                    </h3>
+
+                    <div class="grid md:grid-cols-2 gap-8 text-sm">
+                        <!-- Jaccard -->
+                        <div
+                            class="bg-white p-5 rounded-lg border border-slate-200 shadow-sm flex flex-col h-full"
+                        >
+                            <h4
+                                class="font-bold text-indigo-700 text-lg mb-2 border-b border-indigo-100 pb-2"
+                            >
+                                Jaccard 係数 (IoU)
+                            </h4>
+                            <p class="mb-3 text-slate-600 leading-relaxed">
+                                2つの集合が「どれくらい完全に一致しているか」を厳しめに評価する指標です。画像認識の分野では
+                                IoU (Intersection over Union) とも呼ばれます。
+                            </p>
+                            <div
+                                class="bg-slate-50 p-3 rounded border border-slate-200 font-mono text-center text-slate-700 mb-4"
+                            >
+                                J = <span class="text-indigo-600 font-bold"
+                                    >共通部分</span
+                                > / <span class="text-gray-500 font-bold"
+                                    >和集合(全体のサイズ)</span
+                                >
+                            </div>
+
+                            <div
+                                class="mt-auto space-y-2 text-xs text-slate-500"
+                            >
+                                <p><strong>特徴:</strong></p>
+                                <ul
+                                    class="list-disc list-inside ml-1 space-y-1"
+                                >
+                                    <li>
+                                        分母が「和集合（AとBを合わせた大きさ）」なので、どちらか片方でも要素が多いと、分母が大きくなり係数は小さくなります。
+                                    </li>
+                                    <li>
+                                        Dice係数よりも値が低く出やすい性質があります
+                                        ($J \le D$)。
+                                    </li>
+                                    <li>0〜1の範囲になります。</li>
+                                </ul>
+                            </div>
+                        </div>
+
+                        <!-- Dice -->
+                        <div
+                            class="bg-white p-5 rounded-lg border border-slate-200 shadow-sm flex flex-col h-full"
+                        >
+                            <h4
+                                class="font-bold text-emerald-700 text-lg mb-2 border-b border-emerald-100 pb-2"
+                            >
+                                Dice 係数 (F1 Score)
+                            </h4>
+                            <p class="mb-3 text-slate-600 leading-relaxed">
+                                2つの集合の「平均的なサイズ」に対して共通部分がどれくらいあるかを見ます。情報検索のF値（調和平均）と同じ計算式です。
+                            </p>
+                            <div
+                                class="bg-slate-50 p-3 rounded border border-slate-200 font-mono text-center text-slate-700 mb-4"
+                            >
+                                D = 2 × <span class="text-emerald-600 font-bold"
+                                    >共通部分</span
+                                > / (<span class="text-gray-500 font-bold"
+                                    >Aのサイズ</span
+                                > + <span class="text-gray-500 font-bold"
+                                    >Bのサイズ</span
+                                >)
+                            </div>
+
+                            <div
+                                class="mt-auto space-y-2 text-xs text-slate-500"
+                            >
+                                <p><strong>特徴:</strong></p>
+                                <ul
+                                    class="list-disc list-inside ml-1 space-y-1"
+                                >
+                                    <li>
+                                        分母が「個々の要素数の和（平均）」なので、Jaccardより分母が小さくなりやすく、結果として値が大きく出やすいです。
+                                    </li>
+                                    <li>
+                                        共起の度合いを測るのによく使われます。
+                                    </li>
+                                    <li>0〜1の範囲になります。</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Comparison Example -->
+                    <div
+                        class="mt-6 bg-blue-50 p-5 rounded-lg border border-blue-100 text-sm text-slate-700"
+                    >
+                        <h5
+                            class="font-bold text-blue-800 mb-3 flex items-center"
+                        >
+                            <svg
+                                class="w-4 h-4 mr-1"
+                                fill="none"
+                                stroke="currentColor"
+                                viewBox="0 0 24 24"
+                                ><path
+                                    stroke-linecap="round"
+                                    stroke-linejoin="round"
+                                    stroke-width="2"
+                                    d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z"
+                                ></path></svg
+                            >
+                            簡単な計算例で比較
+                        </h5>
+                        <div
+                            class="flex flex-col md:flex-row gap-6 items-start"
+                        >
+                            <div class="flex-1">
+                                <p class="mb-2 font-bold text-slate-600">
+                                    前提条件：
+                                </p>
+                                <ul
+                                    class="list-disc list-inside space-y-1 mb-2 bg-white p-3 rounded border border-blue-100"
+                                >
+                                    <li>集合A = {(1, 2, 3)} (3個)</li>
+                                    <li>集合B = {(1, 2, 4, 5)} (4個)</li>
+                                    <li>
+                                        <span class="text-blue-600 font-bold"
+                                            >共通部分 = {(1, 2)} (2個)</span
+                                        >
+                                    </li>
+                                </ul>
+                            </div>
+                            <div class="flex-1 w-full">
+                                <p class="mb-2 font-bold text-slate-600">
+                                    計算結果：
+                                </p>
+                                <div class="grid grid-cols-2 gap-4">
+                                    <div
+                                        class="bg-white p-3 rounded border border-indigo-200"
+                                    >
+                                        <span
+                                            class="font-bold text-indigo-700 block mb-1"
+                                            >Jaccard</span
+                                        >
+                                        <div
+                                            class="text-xs text-slate-500 mb-1"
+                                        >
+                                            2 / (3 + 4 - 2) = 2/5
+                                        </div>
+                                        <div
+                                            class="text-xl font-mono font-bold text-indigo-600"
+                                        >
+                                            0.4000
+                                        </div>
+                                    </div>
+                                    <div
+                                        class="bg-white p-3 rounded border border-emerald-200"
+                                    >
+                                        <span
+                                            class="font-bold text-emerald-700 block mb-1"
+                                            >Dice</span
+                                        >
+                                        <div
+                                            class="text-xs text-slate-500 mb-1"
+                                        >
+                                            (2 * 2) / (3 + 4) = 4/7
+                                        </div>
+                                        <div
+                                            class="text-xl font-mono font-bold text-emerald-600"
+                                        >
+                                            0.5714
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <p class="mt-3 text-xs text-slate-500 text-center">
+                            ※ 全く同じ共通数でも、計算式の違いにより Dice係数
+                            の方が高い値になっています。
+                        </p>
+                    </div>
+                </div>
+
+                <!-- N-gram Characteristics -->
+                <div>
+                    <h3
+                        class="text-lg font-bold text-slate-800 mb-4 flex items-center"
+                    >
+                        <svg
+                            class="w-5 h-5 mr-2 text-orange-500"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                            ><path
+                                stroke-linecap="round"
+                                stroke-linejoin="round"
+                                stroke-width="2"
+                                d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"
+                            ></path></svg
+                        >
+                        n の値（分割文字数）による性質の違い
+                    </h3>
+
+                    <div class="overflow-x-auto">
+                        <table
+                            class="w-full text-sm text-left border-collapse border border-slate-200 bg-white"
+                        >
+                            <thead class="bg-slate-100 text-slate-700">
+                                <tr>
+                                    <th
+                                        class="p-3 border border-slate-200 w-1/4"
+                                        >種類</th
+                                    >
+                                    <th
+                                        class="p-3 border border-slate-200 w-1/4"
+                                        >性質・特徴</th
+                                    >
+                                    <th
+                                        class="p-3 border border-slate-200 w-1/4"
+                                        >メリット</th
+                                    >
+                                    <th
+                                        class="p-3 border border-slate-200 w-1/4"
+                                        >デメリット</th
+                                    >
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-slate-200">
+                                <tr>
+                                    <th
+                                        class="p-3 border border-slate-200 bg-slate-50 font-bold text-blue-800"
+                                    >
+                                        小さい n <br />(2〜3-gram)
+                                    </th>
+                                    <td
+                                        class="p-3 border border-slate-200 text-slate-600"
+                                    >
+                                        文字単位の細かい一致を見る。<br />
+                                        「こんにちは」と「こんにちわ」のような表記ゆれも、部分的に一致する。
+                                    </td>
+                                    <td
+                                        class="p-3 border border-slate-200 text-slate-600"
+                                    >
+                                        <ul class="list-disc list-inside">
+                                            <li>表記ゆれに強い</li>
+                                            <li>
+                                                語順が多少違っても類似度が出る
+                                            </li>
+                                            <li>短い文の比較に適する</li>
+                                        </ul>
+                                    </td>
+                                    <td
+                                        class="p-3 border border-slate-200 text-slate-600"
+                                    >
+                                        <ul class="list-disc list-inside">
+                                            <li>
+                                                文脈が全く違っても、助詞（て・に・を・は）の一致だけでスコアが高くなりがち（ノイズが多い）
+                                            </li>
+                                        </ul>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <th
+                                        class="p-3 border border-slate-200 bg-slate-50 font-bold text-orange-800"
+                                    >
+                                        大きい n <br />(4〜10-gram)
+                                    </th>
+                                    <td
+                                        class="p-3 border border-slate-200 text-slate-600"
+                                    >
+                                        フレーズ（文節）単位の一致を見る。<br />
+                                        ある程度の長さの「まとまり」が一致しないとカウントされない。
+                                    </td>
+                                    <td
+                                        class="p-3 border border-slate-200 text-slate-600"
+                                    >
+                                        <ul class="list-disc list-inside">
+                                            <li>偶然の一致を排除できる</li>
+                                            <li>
+                                                コピペ検出や引用箇所の特定に強い
+                                            </li>
+                                            <li>
+                                                文脈の一致度をより正確に反映する
+                                            </li>
+                                        </ul>
+                                    </td>
+                                    <td
+                                        class="p-3 border border-slate-200 text-slate-600"
+                                    >
+                                        <ul class="list-disc list-inside">
+                                            <li>
+                                                「です・ます」の違いや、一文字の誤字だけで不一致とみなされる
+                                            </li>
+                                            <li>表記ゆれに弱い</li>
+                                            <li>
+                                                短い文だとスコアが 0
+                                                になりやすい
+                                            </li>
+                                        </ul>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</Layout>
+
+<style is:global>
+    .gram-tag {
+        display: inline-block;
+        margin: 2px;
+        padding: 2px 6px;
+        border-radius: 4px;
+        background-color: #e0e7ff;
+        color: #3730a3;
+        font-size: 0.75rem;
+        border: 1px solid #c7d2fe;
+    }
+</style>
+
+<script>
+    // カタカナをひらがなに変換するヘルパー
+    function kataToHira(str) {
+        return str.replace(/[\u30a1-\u30f6]/g, function (match) {
+            var chr = match.charCodeAt(0) - 0x60;
+            return String.fromCharCode(chr);
+        });
+    }
+
+    // テキストの正規化処理
+    function normalizeText(text) {
+        let processed = text;
+
+        const removeSpace = document.getElementById("optRemoveSpace").checked;
+        const lowerCase = document.getElementById("optLowerCase").checked;
+        const toHira = document.getElementById("optKana").checked;
+
+        if (removeSpace) {
+            processed = processed.replace(/\s+/g, "");
+        }
+        if (lowerCase) {
+            processed = processed.toLowerCase();
+        }
+        if (toHira) {
+            processed = kataToHira(processed);
+        }
+
+        return processed;
+    }
+
+    function getNGrams(str, n) {
+        const grams = [];
+        const chars = Array.from(str);
+        if (chars.length < n) return grams;
+
+        for (let i = 0; i <= chars.length - n; i++) {
+            grams.push(chars.slice(i, i + n).join(""));
+        }
+        return grams;
+    }
+
+    function toSet(arr) {
+        return new Set(arr);
+    }
+
+    function getIntersection(setA, setB) {
+        const intersection = [];
+        const [small, large] =
+            setA.size < setB.size ? [setA, setB] : [setB, setA];
+        for (const val of small) {
+            if (large.has(val)) {
+                intersection.push(val);
+            }
+        }
+        return intersection;
+    }
+
+    function jaccardAndDice(setA, setB, intersectionCount) {
+        if (setA.size === 0 && setB.size === 0) return { jaccard: 0, dice: 0 };
+
+        const union = setA.size + setB.size - intersectionCount;
+        let jaccard = 0;
+        let dice = 0;
+
+        if (union > 0) {
+            jaccard = intersectionCount / union;
+        }
+        const denomDice = setA.size + setB.size;
+        if (denomDice > 0) {
+            dice = (2 * intersectionCount) / denomDice;
+        }
+
+        return { jaccard, dice };
+    }
+
+    function formatNumber(x) {
+        return x.toFixed(4);
+    }
+
+    function updateCounts(txtA, txtB) {
+        document.getElementById("countA").textContent =
+            `(${Array.from(txtA).length}文字)`;
+        document.getElementById("countB").textContent =
+            `(${Array.from(txtB).length}文字)`;
+    }
+
+    function calculate() {
+        const rawA = document.getElementById("inputA").value;
+        const rawB = document.getElementById("inputB").value;
+
+        const a = normalizeText(rawA);
+        const b = normalizeText(rawB);
+
+        updateCounts(a, b);
+
+        const tbody = document.getElementById("resultBody");
+        tbody.innerHTML = "";
+
+        // n=2〜10に変更
+        for (let n = 2; n <= 10; n++) {
+            const gramsA = toSet(getNGrams(a, n));
+            const gramsB = toSet(getNGrams(b, n));
+
+            // 共通部分の取得
+            const intersectionList = getIntersection(gramsA, gramsB);
+            const interCount = intersectionList.length;
+
+            const { jaccard, dice } = jaccardAndDice(
+                gramsA,
+                gramsB,
+                interCount,
+            );
+
+            const tr = document.createElement("tr");
+            tr.className = "hover:bg-gray-50 transition-colors";
+
+            // N column
+            const tdN = document.createElement("td");
+            tdN.className = "p-3 border-b text-center align-top";
+            tdN.innerHTML = `<span class="bg-gray-200 text-gray-700 py-1 px-3 rounded-full text-xs font-bold whitespace-nowrap">${n}-gram</span>`;
+
+            // Jaccard column
+            const tdJ = document.createElement("td");
+            tdJ.className =
+                "p-3 border-b text-right font-mono text-lg align-top";
+            tdJ.textContent = formatNumber(jaccard);
+
+            // Dice column
+            const tdD = document.createElement("td");
+            tdD.className =
+                "p-3 border-b text-right font-mono text-lg font-bold align-top";
+            tdD.textContent = formatNumber(dice);
+
+            // Intersection column (詳細表示)
+            const tdInter = document.createElement("td");
+            tdInter.className = "p-3 border-b text-left align-top";
+
+            if (interCount > 0) {
+                const container = document.createElement("div");
+                // たくさんある場合は一部省略も検討すべきだが、まずは全部出す
+                intersectionList.sort().forEach((gram) => {
+                    const span = document.createElement("span");
+                    span.className = "gram-tag";
+                    span.textContent = gram;
+                    container.appendChild(span);
+                });
+                tdInter.appendChild(container);
+
+                const countSpan = document.createElement("div");
+                countSpan.className = "text-xs text-gray-400 mt-1";
+                countSpan.textContent = `(共通: ${interCount}個 / A: ${gramsA.size}個, B: ${gramsB.size}個)`;
+                tdInter.appendChild(countSpan);
+            } else {
+                tdInter.innerHTML =
+                    '<span class="text-gray-300 text-sm">なし</span>';
+            }
+
+            tr.appendChild(tdN);
+            tr.appendChild(tdJ);
+            tr.appendChild(tdD);
+            tr.appendChild(tdInter);
+
+            tbody.appendChild(tr);
+        }
+    }
+
+    // Event Listeners
+    document.getElementById("calcBtn").addEventListener("click", calculate);
+
+    ["optRemoveSpace", "optLowerCase", "optKana"].forEach((id) => {
+        document.getElementById(id).addEventListener("change", calculate);
+    });
+
+    // 初期表示
+    calculate();
+</script>
