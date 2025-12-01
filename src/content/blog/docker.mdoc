@@ -2,24 +2,64 @@
 draft: false
 visibility: public
 publishedDate: 2025-12-01
+updatedDate: 2025-12-01
 title: Docker 超省略説明
+description: >-
+  Windows + VS Code
+  を前提に、Dockerfile・docker-compose・devcontainer・よく使うコマンド・PowerShell
+  スクリプトまで「開発に必要な最小セット」だけをまとめた超省略ガイドです。
 thumbnail: '@assets/images/blog/docker/thumbnail.png'
 category: 開発
 tags:
   - Docker
+  - コンテナ
+  - 開発環境
+  - docker-compose
+  - VS Code
+  - devcontainer
+  - Python
 ---
-## Dockerfile
+## このページでやること
 
-**役割:** コンテナの中身（OS、ライブラリ）の定義。
+「Docker よくわからんけど、とりあえずローカル開発で困らない最低限だけ知りたい」という人向けのメモです。
 
-記述する主な項目：
+- Dockerfile って何を書くの？
+- docker-compose.yml で何が決まるの？
+- VS Code の devcontainer ってどう絡むの？
+- 実践: Python のスクリプトに毎回違う引数を渡して実行したい
+- 毎回コマンドを手で打つのがダルいから、PowerShell にまとめたい
 
-- **`FROM`**: ベースとなるイメージ（OSや言語ランタイム）を指定します。
-- **`WORKDIR`**: コンテナ内での作業ディレクトリ（カレントディレクトリ）を作成・移動します。
-- **`COPY`**: ホスト（Windows）のファイルをコンテナ内にコピーします。
-- **`RUN`**: コマンドを実行してライブラリ等をインストールします。
+あたりを、**「概念 7割・コピペで使えるレシピ 3割」くらい**のノリで超省略してまとめています。
 
-Dockerfile
+---
+
+## 全体像：3つの設定ファイルの役割
+
+まず、よく出てくる 3 つのファイルの役割をざっくり整理しておきます。
+
+- **Dockerfile**\
+  → 「コンテナの中身（OS・言語ランタイム・ライブラリ）」をどう作るかを定義するレシピ。
+- **docker-compose.yml**\
+  → 「そのイメージを実際にどう起動するか（ポート・ボリューム・コマンド）」を定義する。
+- **devcontainer.json**\
+  → 「VS Code からどのコンテナにどう接続するか」を定義する。
+
+この 3 つを押さえておけば、ローカル開発での Docker はだいたい回せます。
+
+---
+
+## Dockerfile：コンテナの「中身」を決める
+
+**役割:** コンテナの中身（OS、ランタイム、ライブラリ、ツール）を定義する。
+
+よく書く項目はだいたいこんな感じです。
+
+- **`FROM`**: ベースイメージ（Python, Node, Ubuntu など）を決める
+- **`WORKDIR`**: コンテナ内の作業ディレクトリ
+- **`COPY`**: ホスト側のファイルをコンテナにコピー
+- **`RUN`**: `apt`, `pip`, `npm` などでライブラリを入れる
+
+サンプル：
 
 ```Dockerfile
 # ベースイメージ
@@ -32,63 +72,69 @@ WORKDIR /app
 COPY requirements.txt .
 RUN pip install -r requirements.txt
 
-# ソースコードのコピー（Bind Mountするなら不要だが、リリース用には書く）
+# ソースコードのコピー（本番用ビルドなら入れておく）
 COPY . .
-
 ```
+
+開発中は bind mount（後述）でホストと同期させておいて、本番用ビルドでは `COPY . .` でソースごと固める、という使い方が多いです。
 
 ---
 
-### 2. docker-compose.yml
+## docker-compose.yml：どう動かすかをまとめる
 
-**役割:** 実行時の設定（ポート、フォルダ同期、ネットワーク）。
+**役割:** コンテナの起動方法（ポート、フォルダ同期、環境変数、ネットワークなど）をまとめる。
 
-記述する主な項目：
+よく使う項目：
 
-- **`services`**: 起動するコンテナの定義。
-- **`ports`**: **Windows側のポートとつなげる設定**。
-- **`volumes`**: **フォルダを使えるようにする（同期する）設定**。
+- **`services`**: 起動するコンテナ群（app / db / redis …）
+- **`ports`**: ホスト側ポートとコンテナ側ポートの対応
+- **`volumes`**: ホスト側フォルダとコンテナ側フォルダの同期
+- **`command`**: 起動時に実行するコマンド
 
-YAML
+サンプル：
 
 ```yaml
 version: '3.8'
 services:
   app:
-    # Dockerfileがある場所を指定
+    # Dockerfile がある場所を指定
     build: .
-    
+
     # 【ポートフォワーディング】
-    # 書式: "Windows側ポート : コンテナ側ポート"
-    # 例: Windowsの localhost:8080 にアクセスすると、コンテナの 3000 に繋がる
+    # 書式: "ホスト側ポート : コンテナ側ポート"
+    # 例: Windows の localhost:8080 → コンテナ内の 3000
     ports:
       - "8080:3000"
 
     # 【ボリューム（バインドマウント）】
-    # 書式: "Windows側パス : コンテナ側パス"
-    # 例: カレントディレクトリ(.)を、コンテナの /app に同期する
-    # これでWindowsで編集した内容が即座にコンテナに反映される
+    # 書式: "ホスト側パス : コンテナ側パス"
+    # 例: カレントディレクトリ(.) をコンテナ内 /app に同期
     volumes:
       - .:/app
-    
-    # 実行コマンド
-    command: python app.py
 
+    # コンテナ起動時に実行するコマンド
+    command: python app.py
 ```
+
+ポイント：
+
+- コードをホストで編集 → `volumes` で `/app` に同期 → コンテナ側からも同じ内容が見える
+- Web アプリなら `ports` で `ホスト:コンテナ` を開けておく
 
 ---
 
-### 3. devcontainer.json
+## devcontainer.json：VS Code からコンテナに接続する
 
-**役割:** VS Codeからコンテナに接続するための設定。
+**役割:** VS Code の「開発コンテナ」機能で、どのコンテナに、どのフォルダをワークスペースとして接続するかを決める。
 
-記述する主な項目：
+よく使う項目：
 
-- **`dockerComposeFile`**: 使用する `docker-compose.yml` を指定。
-- **`service`**: Compose内のどのサービスに接続するか指定。
-- **`extensions`**: コンテナ内で有効にするVS Code拡張機能。
+- **`dockerComposeFile`**: どの `docker-compose.yml` を使うか
+- **`service`**: どのサービス（app / web / api …）に接続するか
+- **`workspaceFolder`**: VS Code 上で開くパス
+- **`extensions`**: コンテナ側 VS Code に入れたい拡張機能
 
-JSON
+サンプル：
 
 ```json
 {
@@ -97,7 +143,6 @@ JSON
   "service": "app",
   "workspaceFolder": "/app",
 
-  // コンテナに入れたい拡張機能ID
   "customizations": {
     "vscode": {
       "extensions": [
@@ -107,144 +152,159 @@ JSON
     }
   }
 }
-
 ```
+
+これを `.devcontainer/devcontainer.json` に置いておけば、VS Code から「コンテナーで再度開く」だけで、Python の拡張込みの環境が整います。
 
 ---
 
-### 4. 実践：Pythonで引数を変えて単実行したい場合
+## Python スクリプトを「引数付きで単発実行」したい
 
-「作ったスクリプト（`main.py`）に対して、実行のたびに違う引数（args）を渡したい」場合のパターンです。
+「`main.py` に毎回違う引数を渡して動かしたい」パターンを 2 通り。
 
-#### 方法A：`docker run` で直接渡す（最も標準的）
+### 方法 A：`docker run` で直接渡す（最も標準）
 
-コンテナをツールとして使い捨てる場合です。コマンドの末尾に引数を書くと、それがそのままコンテナ内のコマンドに渡されます。
+コンテナをツールとして使い捨てるイメージです。
+コマンドの末尾に書いたものが、そのままコンテナ内のコマンドに渡されます。
 
-前提:
+前提：
 
-main.py が sys.argv や argparse で引数を受け取るようになっていること。
+- `main.py` が `sys.argv` や `argparse` で引数を受け取るようになっている
 
-**コマンド:**
-
-Bash
+コマンド例：
 
 ```bash
-# 書式: docker run [オプション] [イメージ名] [コマンド] [引数]
-# -w /app : 作業ディレクトリを指定
-# -v ${PWD}:/app : カレントディレクトリをマウント（スクリプトを読み込むため）
+# 書式:
+# docker run [オプション] [イメージ名] [コマンド] [引数...]
 
-docker run --rm -v ${PWD}:/app -w /app python:3.11 python main.py --input data.csv --mode train
+# -v ${PWD}:/app : カレントディレクトリを /app にマウント
+# -w /app        : 作業ディレクトリを /app に設定
 
+docker run --rm -v ${PWD}:/app -w /app python:3.11 \
+  python main.py --input data.csv --mode train
 ```
 
-#### 方法B：Dockerfile の `ENTRYPOINT` を使う（コマンド短縮）
+- `--rm` を付けると、実行終了後にコンテナを自動削除（ゴミが溜まらない）
 
-毎回 `python main.py` と打つのが面倒な場合、Dockerfileで固定化します。
+### 方法 B：Dockerfile の `ENTRYPOINT` でコマンド短縮
 
-**Dockerfile:**
-
-Dockerfile
+毎回 `python main.py` と書くのが面倒なら、Dockerfile 側で固定してしまう。
 
 ```Dockerfile
 FROM python:3.11
 WORKDIR /app
-# "python main.py" を実行の基本とする
-ENTRYPOINT ["python", "main.py"]
 
+# "python main.py" を基本コマンドとして固定
+ENTRYPOINT ["python", "main.py"]
 ```
 
-コマンド:
-
-これ以降、docker run の後ろに書いたものは、すべて main.py への引数として扱われます。
-
-Bash
+これでビルド：
 
 ```bash
-# ビルド
 docker build -t my-tool .
+```
 
-# 実行（引数だけ書けばいい）
+以降は、**「引数だけ」** を渡せば OK になります。
+
+```bash
 docker run --rm -v ${PWD}:/app my-tool --input data.csv
-
 ```
 
-### まとめ
-
-- **Windowsとの通信（ポート）:** `docker-compose.yml` の `ports` で `"Host:Container"` と書く。
-- **フォルダ同期:** `docker-compose.yml` の `volumes` で `".:/path"` と書く。
-- **引数渡し:** `docker run` の末尾にそのまま記述する。コマンド入力を楽にするなら `ENTRYPOINT` を使う。
+`ENTRYPOINT` の後ろに書いたものが、そのまま `main.py` の引数として渡されます。
 
 ---
 
-## よく使うコマンド
+## よく使う Docker コマンドまとめ
 
-### 1. 起動と終了（基本）
+### 起動と終了（基本）
 
-- **`docker compose up -d`**
-  - **いつ使う:** 開発を始める時。
-  - **何をする:** コンテナを作成してバックグラウンドで起動します。
-  - **ポイント:** `-d` を付けないと、ターミナルが占有されて操作できなくなります。
-- **`docker compose down`**
-  - **いつ使う:** 作業を終える時。
-  - **何をする:** コンテナを停止・削除し、ネットワークも切断します。
-- **`docker compose down -v`**
-  - **いつ使う:** データベースの中身などを全部消して、最初からやり直したい時。
-  - **何をする:** コンテナだけでなく、データ保存用の「ボリューム」も削除します。
-
-### 2. 修正・変更した時（重要）
-
-- **（コマンド不要）**
-  - **いつ使う:** ソースコード（`.py` や `.js`）を書き換えただけの時。
-  - **何をする:** `docker-compose.yml` でフォルダ同期（volumes）を設定していれば、保存するだけで勝手に反映されます。
-- **`docker compose up -d --build`**
-  - **いつ使う:** `requirements.txt`、`package.json`、`Dockerfile` を書き換えた時。
-  - **何をする:** イメージを強制的に作り直してから起動します。これをしないと新しいライブラリが反映されません。
-
-### 3. 様子を見る・中に入る（デバッグ）
-
-- **`docker compose logs -f`**
-  - **いつ使う:** エラーが出ていないか確認する時、`print` や `console.log` を見る時。
-  - **何をする:** ログをリアルタイムで表示し続けます。停止するには `Ctrl + C` を押します。特定のサービスだけ見たい場合は後ろにサービス名を付けます（例: `logs -f app`）。
-- **`docker compose exec <サービス名> bash`**
-  - **いつ使う:** コンテナの中に入ってファイルを確認したり、コマンドを直接実行したい時。
-  - **何をする:** 起動中のコンテナにログインします。
-  - **注意:** Alpine Linuxなどの軽量イメージを使っている場合は `bash` ではなく `sh` を使います。
-
-### 4. 単発実行（使い捨て）
-
-- **`docker run --rm -v ${PWD}:/app -w /app <イメージ名> <コマンド>`**
-  - **いつ使う:** Composeを使わずに、スクリプトを一回だけ実行したい時。
-  - **何をする:** コンテナを作って実行し、終わったら即座に削除します。
-  - **ポイント:** `--rm` が「終わったら削除」の指定です。これがないとゴミが溜まります。
-
-### 5. 掃除
-
-- **`docker system prune`**
-  - **いつ使う:** ディスク容量が圧迫されてきた時。
-  - **何をする:** 使っていない停止中のコンテナ、ネットワーク、タグのないイメージを一括削除します。
+- `docker compose up -d`
+  - 開発を始める時
+  - コンテナをバックグラウンドで起動（`-d` がデタッチ）
+- `docker compose down`
+  - 作業を終える時
+  - コンテナ停止＋削除、ネットワークも解放
+- `docker compose down -v`
+  - DB などの永続化データも含めて「完全にリセット」したい時
+  - コンテナ＋ボリュームも削除
 
 ---
 
-### 1日の作業フロー（手癖）
+### 修正したときに必要なもの
 
-1. 朝イチで： **`docker compose up -d`**
-1. 開発中は： **`docker compose logs -f`** を出しっぱなしにする
-1. ライブラリを入れたら： **`docker compose up -d --build`**
-1. 帰る時は： **`docker compose down`**
+- **ソースコードだけ変更した場合（`.py`, `.js` など）**
+  → `volumes` で bind mount していれば、保存するだけで反映。
+  → 原則コマンド不要（アプリ側のホットリロード任せ）。
+- **`requirements.txt` / `package.json` / `Dockerfile` を変えた場合**
+  → **`docker compose up -d --build`**
+  → イメージを作り直してから起動しないと、新しいライブラリが入らない。
 
 ---
 
-Windows標準の **PowerShell スクリプト (`.ps1`)** でやろう。これなら何もインストールせず、テキストファイルを1つ置くだけで長いコマンドを打たないでも動きます。
+### 様子を見る・中に入る（デバッグ）
 
-Makefileの代わりになる、**`ops.ps1`** （オペレーション用スクリプト）を作成しました。
+- `docker compose logs -f`
+  - エラー確認、`print` / `console.log` の出力を見る
+  - `-f` でリアルタイムに追いかける（止めるときは `Ctrl + C`）
+  - 特定サービスだけなら `docker compose logs -f app` のようにサービス名を付ける
+- `docker compose exec <サービス名> bash`
+  - コンテナの中に入って、ファイルや状況を直接確認したいとき
+  - 軽量イメージ（Alpine など）は `bash` がないので `sh` を使う：
+    `docker compose exec app sh`
 
-### 1. 準備：スクリプト作成
+---
 
-プロジェクトのルート（`docker-compose.yml` がある場所）に、以下の内容で **`ops.ps1`** というファイルを作成してください。
+### 単発実行（使い捨てコンテナ）
 
-PowerShell
+- `docker run --rm -v ${PWD}:/app -w /app <イメージ名> <コマンド>`
 
+例：
+
+```bash
+docker run --rm -v ${PWD}:/app -w /app python:3.11 python main.py
 ```
+
+- `--rm` で実行後にコンテナを削除
+- ちょっとしたツール実行程度なら、compose を使わずこれで十分
+
+---
+
+### 掃除（ディスク圧迫対策）
+
+- `docker system prune`
+  - 「停止中コンテナ」「使われていないネットワーク」「タグなしイメージ」などを一掃
+  - **実行前にどれくらい消えるか確認しておくと安心**
+
+---
+
+## 1日の作業フロー（手癖にしたい操作）
+
+開発中は、以下だけ覚えておけばだいたい回ります。
+
+1. **朝イチ**:
+   `docker compose up -d`
+   → 開発用コンテナを全部起動。
+1. **開発中**:
+   `docker compose logs -f` を別タブで流しっぱなし
+   → エラーやログをリアルタイムで確認。
+1. **ライブラリを追加したとき**:
+   `docker compose up -d --build`
+   → 新しいライブラリ込みでイメージを再ビルド。
+1. **帰るとき**:
+   `docker compose down`
+   → その日のコンテナを片付ける。
+
+---
+
+## Makefile の代わりに PowerShell スクリプトでまとめる（Windows）
+
+Windows なら、追加ツールを入れなくても標準の **PowerShell スクリプト (`.ps1`)** だけで運用コマンドをまとめられます。
+
+ここでは、**`ops.ps1`** という「運用用スクリプト」をプロジェクト直下に置く想定です。
+
+### ops.ps1 の中身
+
+```PowerShell
 # 使い方: .\ops.ps1 up
 # 引数を受け取る
 param(
@@ -289,34 +349,44 @@ switch ($Command) {
         Write-Host "  .\ops.ps1 restart : 再起動"
     }
 }
-
 ```
+
+プロジェクトルート（`docker-compose.yml` がある場所）にこのファイルを置いておけば、
+
+- 起動: `.\ops.ps1 up`
+- ログ: `.\ops.ps1 logs`
+- 終了: `.\ops.ps1 down`
+
+のように、毎回長いコマンドを打たずに済みます。
 
 ---
 
-### 2. 使い方
+### 初回だけ必要かもしれない設定（ExecutionPolicy）
 
-VS CodeのターミナルやPowerShellで、以下のように打ち込むだけです。
+もし実行時に
 
-（Tabキーを押すと ops.ps1 は補完されます）
+> スクリプトの実行が無効になっているため、このシステムではスクリプトを実行できません
 
-- **起動:** `.\ops.ps1 up`
-- **ログ:** `.\ops.ps1 logs`
-- **終了:** `.\ops.ps1 down`
+のようなエラーが出る場合、PowerShell の実行ポリシーが厳しく設定されています。
 
-これなら、Windowsに何もインストールせずに、Makefileと同じ感覚で管理できます。
+その場合は、**管理者権限の PowerShell** で一度だけ以下を実行します。
 
-### ⚠️ 重要：初回だけ設定が必要かも
-
-もし実行した時に「スクリプトの実行が無効になっている」という赤いエラーが出たら、PowerShellのセキュリティ設定が厳しすぎる状態です。
-
-その場合は、管理者権限のPowerShellで以下を一回だけ実行してください。
-
-PowerShell
-
-```
+```PowerShell
 Set-ExecutionPolicy RemoteSigned -Scope CurrentUser
-
 ```
 
-（「Y」を入力してエンター。これで自作スクリプトが動くようになります）
+`Y` を入力して Enter。
+これで自分のPC上で作った `.ps1` は実行できるようになります。
+
+---
+
+## まとめ
+
+- **Dockerfile** はコンテナの中身（OS / ランタイム / ライブラリ）のレシピ
+- **docker-compose.yml** は実行時の設定（ポート / ボリューム / コマンド）の一覧
+- **devcontainer.json** を使うと、VS Code からコンテナにそのまま入って開発できる
+- 単発実行なら `docker run ...`、よく使うツールなら `ENTRYPOINT` で短くできる
+- `up / down / logs / --build` あたりを手癖にしておくと開発がかなり楽になる
+- Windows なら `ops.ps1` を 1 つ置いておくだけで、Makefile っぽく運用をまとめられる
+
+「とりあえずコンテナで開発したい」くらいであれば、この辺を押さえておけば十分動かせるはずです。
