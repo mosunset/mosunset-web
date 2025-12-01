@@ -397,13 +397,11 @@ Set-ExecutionPolicy RemoteSigned -Scope CurrentUser
 
 ---
 
-## 補足:\
+## おまけ1:Windows 側で頑張るのは諦めよう
 
 「Windows で Docker は遅い」「設定が面倒」…そんな悩みを過去にするための、**WSL2 完全移行ガイド** です。
 
 **「最も速く、最もトラブルが少なく、かつデータ消失の不安もない」** 最終的な結論構成をまとめました。
-
-## 結論：Windows 側で頑張るのは諦めよう
 
 Windows で Docker を使う際、ファイル同期が遅かったり、パスの書き方（`\` と `/`）でハマったりしていませんか？
 
@@ -602,3 +600,116 @@ wsl --export Ubuntu "C:\Backups\ubuntu-backup.tar"
 1. **データは `/mnt/c/` へ逃がす。** または `wsl --export` で丸ごとバックアップ。
 
 これで「Windows だから開発しづらい」という言い訳はできなくなります。快適な Docker ライフを！
+
+さっきの記事の最後にそのまま追記できる形で、**SOPS の導入手順と Makefile への組み込み** をまとめました。
+
+---
+
+---
+
+---
+
+## おまけ2：鉄壁のセキュリティ！.env を暗号化して Git 管理する (SOPS)
+
+WSL2 に移行して開発が快適になっても、一つだけ不安が残ります。
+
+「PC が壊れたら .env が消える」「Git に上げられないからチーム共有が面倒」 という問題です。
+
+これを解決するのが、Mozilla 製の暗号化ツール SOPS と、モダンな鍵管理ツール Age の組み合わせです。
+
+これを使えば、.env を暗号化して安全に Git にコミット できるようになります。
+
+### Step 1: ツールをインストール (WSL 内)
+
+Ubuntu ターミナルで以下のコマンドを実行して、ツールを入れます。
+
+Bash
+
+```
+# 1. Age (鍵作成ツール) のインストール
+sudo apt update && sudo apt install -y age
+
+# 2. SOPS (暗号化ツール) のインストール
+curl -LO https://github.com/getsops/sops/releases/download/v3.9.1/sops-v3.9.1.linux.amd64
+sudo mv sops-v3.9.1.linux.amd64 /usr/local/bin/sops
+sudo chmod +x /usr/local/bin/sops
+
+```
+
+### Step 2: 鍵を作成する
+
+プロジェクトルートで、暗号化・復号に使う「鍵」を作ります。
+
+Bash
+
+```
+# key.txt というファイルに鍵を生成
+age-keygen -o key.txt
+
+```
+
+⚠️ **超重要:** `key.txt` は絶対に Git に上げてはいけません！ 必ず `.gitignore` に追加してください。
+
+### Step 3: 設定ファイルを作る
+
+「どの鍵を使って暗号化するか」を SOPS に教えるための設定ファイル `.sops.yaml` を作成します。
+
+YAML
+
+```
+# .sops.yaml
+creation_rules:
+  # .env というファイルに対して...
+  - path_regex: \.env$
+    # さっき作った key.txt の中にある "public key: age1..." をコピペする
+    age: "age1ql3z7hjy54pw3hyww5tynry..."
+
+```
+
+### Step 4: Makefile をアップデート
+
+手動で暗号化コマンドを打つのは面倒なので、先ほどの Makefile に以下の機能を追加します。
+
+これで 「make up すれば勝手に復号されて起動する」 という最強のフローが完成します。
+
+Makefile
+
+```
+# Makefile (追記・修正版)
+
+# 鍵ファイルの場所定義
+KEY_FILE = $(shell pwd)/key.txt
+
+# 1. 起動コマンドを修正 (decrypt を実行してから起動するように依存させる)
+up: decrypt
+	@echo "🚀 コンテナを起動します..."
+	docker compose up -d --build
+
+# (中略: down, logs, sh はそのまま)
+
+# --- 以下を追加 ---
+
+# 【暗号化】 .env を書き換えたら実行 -> .env.enc が生成されるのでそれを Git へ
+encrypt:
+	@echo "🔒 .env を暗号化します..."
+	sops --encrypt .env > .env.enc
+
+# 【復号】 key.txt を持っていれば、暗号化ファイルから .env を復元できる
+decrypt:
+	@if [ -f $(KEY_FILE) ]; then \
+		export SOPS_AGE_KEY_FILE=$(KEY_FILE); \
+		sops --decrypt .env.enc > .env; \
+		echo "🔓 .env を復号しました"; \
+	else \
+		echo "⚠️ key.txt が見つかりません。復号をスキップします。"; \
+	fi
+
+```
+
+### 実際の運用フロー
+
+1. **設定変更時:** `.env` を編集したら `make encrypt` を実行。生成された `.env.enc` を Git に Push します。
+1. **開発開始時:** 朝イチで `make up` を叩くだけ。自動的に暗号化ファイルが復号され、最新の環境変数が適用されてアプリが立ち上がります。
+1. **チーム開発:** 他のメンバーには `key.txt` を（パスワードマネージャー等で）安全に渡します。彼らはそれを受け取って `make up` するだけで、同じ環境が再現されます。
+
+これで、データ消失のリスクからも、API キー漏洩のリスクからも解放されます！
