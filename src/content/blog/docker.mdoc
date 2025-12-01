@@ -1,0 +1,175 @@
+---
+draft: false
+visibility: public
+publishedDate: 2025-12-01
+title: Docker 超省略説明
+thumbnail: '@assets/images/blog/docker/thumbnail.png'
+category: 開発
+tags:
+  - Docker
+---
+### 1. Dockerfile
+
+**役割:** コンテナの中身（OS、ライブラリ）の定義。
+
+記述する主な項目：
+
+- **`FROM`**: ベースとなるイメージ（OSや言語ランタイム）を指定します。
+- **`WORKDIR`**: コンテナ内での作業ディレクトリ（カレントディレクトリ）を作成・移動します。
+- **`COPY`**: ホスト（Windows）のファイルをコンテナ内にコピーします。
+- **`RUN`**: コマンドを実行してライブラリ等をインストールします。
+
+Dockerfile
+
+```Dockerfile
+# ベースイメージ
+FROM python:3.11-slim
+
+# コンテナ内の作業ディレクトリ
+WORKDIR /app
+
+# 依存関係ファイルのコピーとインストール
+COPY requirements.txt .
+RUN pip install -r requirements.txt
+
+# ソースコードのコピー（Bind Mountするなら不要だが、リリース用には書く）
+COPY . .
+
+```
+
+---
+
+### 2. docker-compose.yml
+
+**役割:** 実行時の設定（ポート、フォルダ同期、ネットワーク）。
+
+記述する主な項目：
+
+- **`services`**: 起動するコンテナの定義。
+- **`ports`**: **Windows側のポートとつなげる設定**。
+- **`volumes`**: **フォルダを使えるようにする（同期する）設定**。
+
+YAML
+
+```yaml
+version: '3.8'
+services:
+  app:
+    # Dockerfileがある場所を指定
+    build: .
+    
+    # 【ポートフォワーディング】
+    # 書式: "Windows側ポート : コンテナ側ポート"
+    # 例: Windowsの localhost:8080 にアクセスすると、コンテナの 3000 に繋がる
+    ports:
+      - "8080:3000"
+
+    # 【ボリューム（バインドマウント）】
+    # 書式: "Windows側パス : コンテナ側パス"
+    # 例: カレントディレクトリ(.)を、コンテナの /app に同期する
+    # これでWindowsで編集した内容が即座にコンテナに反映される
+    volumes:
+      - .:/app
+    
+    # 実行コマンド
+    command: python app.py
+
+```
+
+---
+
+### 3. devcontainer.json
+
+**役割:** VS Codeからコンテナに接続するための設定。
+
+記述する主な項目：
+
+- **`dockerComposeFile`**: 使用する `docker-compose.yml` を指定。
+- **`service`**: Compose内のどのサービスに接続するか指定。
+- **`extensions`**: コンテナ内で有効にするVS Code拡張機能。
+
+JSON
+
+```json
+{
+  "name": "My Python Dev",
+  "dockerComposeFile": "docker-compose.yml",
+  "service": "app",
+  "workspaceFolder": "/app",
+
+  // コンテナに入れたい拡張機能ID
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "ms-python.python",
+        "ms-python.black-formatter"
+      ]
+    }
+  }
+}
+
+```
+
+---
+
+### 4. 実践：Pythonで引数を変えて単実行したい場合
+
+「作ったスクリプト（`main.py`）に対して、実行のたびに違う引数（args）を渡したい」場合のパターンです。
+
+#### 方法A：`docker run` で直接渡す（最も標準的）
+
+コンテナをツールとして使い捨てる場合です。コマンドの末尾に引数を書くと、それがそのままコンテナ内のコマンドに渡されます。
+
+前提:
+
+main.py が sys.argv や argparse で引数を受け取るようになっていること。
+
+**コマンド:**
+
+Bash
+
+```bash
+# 書式: docker run [オプション] [イメージ名] [コマンド] [引数]
+# -w /app : 作業ディレクトリを指定
+# -v ${PWD}:/app : カレントディレクトリをマウント（スクリプトを読み込むため）
+
+docker run --rm -v ${PWD}:/app -w /app python:3.11 python main.py --input data.csv --mode train
+
+```
+
+#### 方法B：Dockerfile の `ENTRYPOINT` を使う（コマンド短縮）
+
+毎回 `python main.py` と打つのが面倒な場合、Dockerfileで固定化します。
+
+**Dockerfile:**
+
+Dockerfile
+
+```Dockerfile
+FROM python:3.11
+WORKDIR /app
+# "python main.py" を実行の基本とする
+ENTRYPOINT ["python", "main.py"]
+
+```
+
+コマンド:
+
+これ以降、docker run の後ろに書いたものは、すべて main.py への引数として扱われます。
+
+Bash
+
+```bash
+# ビルド
+docker build -t my-tool .
+
+# 実行（引数だけ書けばいい）
+docker run --rm -v ${PWD}:/app my-tool --input data.csv
+
+```
+
+### まとめ
+
+- **Windowsとの通信（ポート）:** `docker-compose.yml` の `ports` で `"Host:Container"` と書く。
+- **フォルダ同期:** `docker-compose.yml` の `volumes` で `".:/path"` と書く。
+- **引数渡し:** `docker run` の末尾にそのまま記述する。コマンド入力を楽にするなら `ENTRYPOINT` を使う。
