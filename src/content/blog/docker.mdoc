@@ -5,9 +5,8 @@ publishedDate: 2025-12-01
 updatedDate: 2025-12-01
 title: Docker 超省略説明
 description: >-
-  Windows + VS Code
-  を前提に、Dockerfile・docker-compose・devcontainer・よく使うコマンド・PowerShell
-  スクリプトまで「開発に必要な最小セット」だけをまとめた超省略ガイドです。
+  Windows + VS Code を前提に、Dockerfile・docker-compose・devcontainer・よく使うコマンド・
+  PowerShell / Makefile スクリプトまで「開発に必要な最小セット」だけをまとめた超省略ガイドです。
 thumbnail: '@assets/images/blog/docker/thumbnail.png'
 category: 開発
 tags:
@@ -26,10 +25,10 @@ tags:
 - Dockerfile って何を書くの？
 - docker-compose.yml で何が決まるの？
 - VS Code の devcontainer ってどう絡むの？
-- 実践: Python のスクリプトに毎回違う引数を渡して実行したい
-- 毎回コマンドを手で打つのがダルいから、PowerShell にまとめたい
+- 実践：Python のスクリプトに毎回違う引数を渡して実行したい
+- 毎回コマンドを手で打つのがダルいから、PowerShell / Makefile にまとめたい
 
-あたりを、**「概念 7割・コピペで使えるレシピ 3割」くらい**のノリで超省略してまとめています。
+あたりを、**「概念 7 割・コピペで使えるレシピ 3 割」**くらいのノリで超省略してまとめています。
 
 ---
 
@@ -40,7 +39,7 @@ tags:
 - **Dockerfile**\
   → 「コンテナの中身（OS・言語ランタイム・ライブラリ）」をどう作るかを定義するレシピ。
 - **docker-compose.yml**\
-  → 「そのイメージを実際にどう起動するか（ポート・ボリューム・コマンド）」を定義する。
+  → 「そのイメージを実際にどう起動するか（ポート・ボリューム・コマンドなど）」を定義する。
 - **devcontainer.json**\
   → 「VS Code からどのコンテナにどう接続するか」を定義する。
 
@@ -54,10 +53,10 @@ tags:
 
 よく書く項目はだいたいこんな感じです。
 
-- **`FROM`**: ベースイメージ（Python, Node, Ubuntu など）を決める
+- **`FROM`**: ベースイメージ（Python / Node / Ubuntu など）を決める
 - **`WORKDIR`**: コンテナ内の作業ディレクトリ
 - **`COPY`**: ホスト側のファイルをコンテナにコピー
-- **`RUN`**: `apt`, `pip`, `npm` などでライブラリを入れる
+- **`RUN`**: `apt` や `pip`, `npm` などでライブラリやツールを入れる
 
 サンプル：
 
@@ -72,11 +71,14 @@ WORKDIR /app
 COPY requirements.txt .
 RUN pip install -r requirements.txt
 
-# ソースコードのコピー（本番用ビルドなら入れておく）
+# ソースコードのコピー（本番用イメージなら入れておく）
 COPY . .
 ```
 
-開発中は bind mount（後述）でホストと同期させておいて、本番用ビルドでは `COPY . .` でソースごと固める、という使い方が多いです。
+- 開発中は bind mount（後述）でホストと同期させておき、
+- 本番用ビルドでは `COPY . .` でソースをイメージに固める
+
+という使い方が多いです。
 
 ---
 
@@ -86,10 +88,10 @@ COPY . .
 
 よく使う項目：
 
-- **`services`**: 起動するコンテナ群（app / db / redis …）
+- **`services`**: 起動するコンテナ群（`app` / `db` / `redis` …）
 - **`ports`**: ホスト側ポートとコンテナ側ポートの対応
 - **`volumes`**: ホスト側フォルダとコンテナ側フォルダの同期
-- **`command`**: 起動時に実行するコマンド
+- **`command`**: コンテナ起動時に実行するコマンド
 
 サンプル：
 
@@ -130,7 +132,7 @@ services:
 よく使う項目：
 
 - **`dockerComposeFile`**: どの `docker-compose.yml` を使うか
-- **`service`**: どのサービス（app / web / api …）に接続するか
+- **`service`**: どのサービス（`app` / `web` / `api` …）に接続するか
 - **`workspaceFolder`**: VS Code 上で開くパス
 - **`extensions`**: コンテナ側 VS Code に入れたい拡張機能
 
@@ -154,7 +156,7 @@ services:
 }
 ```
 
-これを `.devcontainer/devcontainer.json` に置いておけば、VS Code から「コンテナーで再度開く」だけで、Python の拡張込みの環境が整います。
+これを `.devcontainer/devcontainer.json` に置いておけば、VS Code から「コンテナーで再度開く」だけで Python 向けの開発環境が整います。
 
 ---
 
@@ -162,9 +164,9 @@ services:
 
 「`main.py` に毎回違う引数を渡して動かしたい」パターンを 2 通り。
 
-### 方法 A：`docker run` で直接渡す（最も標準）
+### 方法 A：`docker run` で直接渡す（いちばん素直）
 
-コンテナをツールとして使い捨てるイメージです。
+コンテナをツールとして**使い捨て**るイメージです。
 コマンドの末尾に書いたものが、そのままコンテナ内のコマンドに渡されます。
 
 前提：
@@ -198,7 +200,7 @@ WORKDIR /app
 ENTRYPOINT ["python", "main.py"]
 ```
 
-これでビルド：
+ビルド：
 
 ```bash
 docker build -t my-tool .
@@ -210,7 +212,7 @@ docker build -t my-tool .
 docker run --rm -v ${PWD}:/app my-tool --input data.csv
 ```
 
-`ENTRYPOINT` の後ろに書いたものが、そのまま `main.py` の引数として渡されます。
+`ENTRYPOINT` で指定した `python main.py` の**後ろに**書いたものが、そのまま `main.py` の引数として渡されます。
 
 ---
 
@@ -219,14 +221,12 @@ docker run --rm -v ${PWD}:/app my-tool --input data.csv
 ### 起動と終了（基本）
 
 - `docker compose up -d`
-  - 開発を始める時
-  - コンテナをバックグラウンドで起動（`-d` がデタッチ）
+  開発を始める時。コンテナをバックグラウンドで起動（`-d` がデタッチ）。
 - `docker compose down`
-  - 作業を終える時
-  - コンテナ停止＋削除、ネットワークも解放
+  作業を終える時。コンテナ停止＋削除、ネットワークも解放。
 - `docker compose down -v`
-  - DB などの永続化データも含めて「完全にリセット」したい時
-  - コンテナ＋ボリュームも削除
+  DB などの永続化データも含めて「完全にリセット」したい時。
+  コンテナ＋ボリュームも削除。
 
 ---
 
@@ -236,7 +236,7 @@ docker run --rm -v ${PWD}:/app my-tool --input data.csv
   → `volumes` で bind mount していれば、保存するだけで反映。
   → 原則コマンド不要（アプリ側のホットリロード任せ）。
 - **`requirements.txt` / `package.json` / `Dockerfile` を変えた場合**
-  → **`docker compose up -d --build`**
+  → `docker compose up -d --build`
   → イメージを作り直してから起動しないと、新しいライブラリが入らない。
 
 ---
@@ -244,13 +244,13 @@ docker run --rm -v ${PWD}:/app my-tool --input data.csv
 ### 様子を見る・中に入る（デバッグ）
 
 - `docker compose logs -f`
-  - エラー確認、`print` / `console.log` の出力を見る
-  - `-f` でリアルタイムに追いかける（止めるときは `Ctrl + C`）
-  - 特定サービスだけなら `docker compose logs -f app` のようにサービス名を付ける
+  エラー確認や `print` / `console.log` の出力を見る。
+  `-f` でリアルタイムに追いかける（止めるときは `Ctrl + C`）。
+  特定サービスだけなら `docker compose logs -f app` のようにサービス名を付ける。
 - `docker compose exec <サービス名> bash`
-  - コンテナの中に入って、ファイルや状況を直接確認したいとき
-  - 軽量イメージ（Alpine など）は `bash` がないので `sh` を使う：
-    `docker compose exec app sh`
+  コンテナの中に入って、ファイルや状況を直接確認したいとき。
+  軽量イメージ（Alpine など）は `bash` がないので `sh` を使う：
+  `docker compose exec app sh`
 
 ---
 
@@ -272,8 +272,8 @@ docker run --rm -v ${PWD}:/app -w /app python:3.11 python main.py
 ### 掃除（ディスク圧迫対策）
 
 - `docker system prune`
-  - 「停止中コンテナ」「使われていないネットワーク」「タグなしイメージ」などを一掃
-  - **実行前にどれくらい消えるか確認しておくと安心**
+  「停止中コンテナ」「使われていないネットワーク」「タグなしイメージ」などを一掃。
+  **実行前にどれくらい消えるか確認しておくと安心**。
 
 ---
 
@@ -285,7 +285,7 @@ docker run --rm -v ${PWD}:/app -w /app python:3.11 python main.py
    `docker compose up -d`
    → 開発用コンテナを全部起動。
 1. **開発中**:
-   `docker compose logs -f` を別タブで流しっぱなし
+   別タブで `docker compose logs -f` を流しっぱなし
    → エラーやログをリアルタイムで確認。
 1. **ライブラリを追加したとき**:
    `docker compose up -d --build`
@@ -296,7 +296,7 @@ docker run --rm -v ${PWD}:/app -w /app python:3.11 python main.py
 
 ---
 
-## Makefile の代わりに PowerShell スクリプトでまとめる（Windows）
+## Windows なら PowerShell スクリプトでまとめる
 
 Windows なら、追加ツールを入れなくても標準の **PowerShell スクリプト (`.ps1`)** だけで運用コマンドをまとめられます。
 
@@ -304,9 +304,8 @@ Windows なら、追加ツールを入れなくても標準の **PowerShell ス�
 
 ### ops.ps1 の中身
 
-```PowerShell
+```powershell
 # 使い方: .\ops.ps1 up
-# 引数を受け取る
 param(
     [string]$Command = "help"
 )
@@ -359,11 +358,9 @@ switch ($Command) {
 
 のように、毎回長いコマンドを打たずに済みます。
 
----
-
 ### 初回だけ必要かもしれない設定（ExecutionPolicy）
 
-もし実行時に
+実行時に
 
 > スクリプトの実行が無効になっているため、このシステムではスクリプトを実行できません
 
@@ -371,22 +368,22 @@ switch ($Command) {
 
 その場合は、**管理者権限の PowerShell** で一度だけ以下を実行します。
 
-```PowerShell
+```powershell
 Set-ExecutionPolicy RemoteSigned -Scope CurrentUser
 ```
 
 `Y` を入力して Enter。
-これで自分のPC上で作った `.ps1` は実行できるようになります。
+これで自分の PC 上で作った `.ps1` は実行できるようになります。
 
 ---
 
-## まとめ
+## ここまでのまとめ
 
 - **Dockerfile** はコンテナの中身（OS / ランタイム / ライブラリ）のレシピ
 - **docker-compose.yml** は実行時の設定（ポート / ボリューム / コマンド）の一覧
 - **devcontainer.json** を使うと、VS Code からコンテナにそのまま入って開発できる
-- 単発実行なら `docker run ...`、よく使うツールなら `ENTRYPOINT` で短くできる
-- `up / down / logs / --build` あたりを手癖にしておくと開発がかなり楽になる
+- 単発実行なら `docker run ...`、よく使うツールなら `ENTRYPOINT` でコマンドを短くできる
+- `up / down / logs / --build` あたりを手癖にしておくと開発がかなり楽
 - Windows なら `ops.ps1` を 1 つ置いておくだけで、Makefile っぽく運用をまとめられる
 
 「とりあえずコンテナで開発したい」くらいであれば、この辺を押さえておけば十分動かせるはずです。
@@ -397,79 +394,73 @@ Set-ExecutionPolicy RemoteSigned -Scope CurrentUser
 
 ---
 
-## おまけ1:Windows 側で頑張るのは諦めよう
+## おまけ1：Windows 側で頑張るのは諦めよう（WSL2 完全移行）
 
 「Windows で Docker は遅い」「設定が面倒」…そんな悩みを過去にするための、**WSL2 完全移行ガイド** です。
 
-**「最も速く、最もトラブルが少なく、かつデータ消失の不安もない」** 最終的な結論構成をまとめました。
+**「最も速く、最もトラブルが少なく、かつデータ消失の不安もない」** 構成をまとめました。
 
 Windows で Docker を使う際、ファイル同期が遅かったり、パスの書き方（`\` と `/`）でハマったりしていませんか？
 
-結論から言うと、**「開発作業はすべて WSL2 (Linux) の中だけで完結させる」** のが現代の正解です。Windows は単なる「モニターとキーボードがついた箱」として扱いましょう。
+結論から言うと、**「開発作業はすべて WSL2 (Linux) の中だけで完結させる」** のが現代の正解です。
+Windows は単なる「モニターとキーボードがついた箱」として扱いましょう。
 
 ### なぜ WSL2 なのか？
 
 理由は単純、**「圧倒的に速いから」** です。
 
-- Windows 側にコードを置く（旧来）:
-
-  Windows (NTFS) と Docker (Linux) の間で、ファイルシステムの「翻訳」が発生します。これが npm install やホットリロードを数分単位で遅延させます。
-
-- WSL2 側にコードを置く（推奨）:
-
-  Linux 同士なので翻訳ゼロ。Mac やネイティブ Linux と同等の爆速環境になります。
+- **Windows 側にコードを置く（旧来）**
+  Windows (NTFS) と Docker (Linux) の間でファイルシステムの「翻訳」が発生します。
+  これが `npm install` やホットリロードを平気で数分単位で遅延させます。
+- **WSL2 側にコードを置く（推奨）**
+  Linux 同士なので翻訳ゼロ。Mac やネイティブ Linux と同等の速度になります。
 
 ---
 
 ## 1. 開発環境セットアップ（最初の一回だけ）
 
-PowerShell などをこねくり回す必要はありません。以下の手順で「Windows の中に最強の Linux 環境」を作ります。
+PowerShell を細かくいじる必要はありません。
+以下の手順で「Windows の中に最強の Linux 環境」を作ります。
 
 ### Step 1: WSL のインストール
 
-管理者権限の PowerShell で以下を一発打つだけです。
+管理者権限の PowerShell で以下を 1 回打つだけ。
 
-PowerShell
-
-```
+```powershell
 wsl --install
-
 ```
 
-再起動すると Ubuntu が立ち上がるので、ユーザー名とパスワードを設定します。これで Windows の中に Linux が入りました。
+再起動すると Ubuntu が立ち上がるので、ユーザー名とパスワードを設定。
+これで Windows の中に Linux が入りました。
 
 ### Step 2: Docker Desktop との連携
 
-1. Docker Desktop の設定 (⚙️) > **Resources** > **WSL integration** を開く。
-1. 「Enable integration with my default WSL distro」をチェック。
-1. 「Ubuntu」のスイッチを **ON** にする。
+1. Docker Desktop の設定 (⚙️) > **Resources** > **WSL integration** を開く
+1. 「Enable integration with my default WSL distro」をチェック
+1. 「Ubuntu」のスイッチを **ON** にする
 
 これで、Ubuntu の中で `docker` コマンドが使えるようになります。
 
 ### Step 3: Ubuntu の武装化（必須ツールを入れる）
 
-ここからは Ubuntu のターミナル で操作します。
+ここからは **Ubuntu のターミナル** で操作します。
 
-開発に必要な Docker, Make, Node.js (fnm), Git を一気に入れる魔法のコマンドです。
+開発に必要な `make`, `git`, `curl`, `Docker 用の権限設定`, `fnm(Node 管理)` を一気に入れる例：
 
-Bash
-
-```
+```bash
 # 1. 基本ツールのインストール
 sudo apt update && sudo apt install -y make unzip git curl
 
-# 2. Docker権限の設定 (sudoなしでdockerを使えるようにする)
-# ※Docker Desktop連携済みなら不要な場合もありますが、念のため
+# 2. Docker 権限の設定 (sudo なしで docker を使えるようにする)
+# ※Docker Desktop 連携済みなら不要な場合もありますが、念のため
 sudo usermod -aG docker $USER
 
-# 3. fnm (高速Nodeマネージャー) のインストール
-# WSL内でもNodeが動くと、ちょっとしたスクリプト実行に便利です
+# 3. fnm (高速 Node マネージャー) のインストール
 curl -fsSL https://fnm.vercel.app/install | bash
 echo 'eval "$(fnm env --use-on-cd)"' >> ~/.bashrc
 
-# 4. 反映のため一度閉じる
+# 4. 反映のため一度ログアウト
 exit
-
 ```
 
 ---
@@ -478,43 +469,34 @@ exit
 
 ### コードはどこに置く？
 
-絶対に WSL (Ubuntu) の中に置いてください。
-
+**必ず WSL (Ubuntu) の中** に置きます。
 Windows の Documents などに入れてはいけません（遅くなります）。
 
-Bash
-
-```
-# Ubuntuターミナルで
+```bash
+# Ubuntu ターミナルで
 mkdir -p ~/projects/my-app
 cd ~/projects/my-app
-
 ```
 
 ### VS Code で開く
 
-WSL のディレクトリにいる状態で、以下を打ちます。
+WSL のディレクトリにいる状態で、以下を実行：
 
-Bash
-
-```
+```bash
 code .
-
 ```
 
-VS Code が立ち上がり、左下に >< WSL: Ubuntu と表示されていれば成功です。
+VS Code が立ち上がり、左下に `>< WSL: Ubuntu` と表示されていれば成功です。
 
-これで「Windows の VS Code で操作しているのに、実体は Linux 上にある」という理想の状態になります。
+これで「Windows の VS Code で操作しているのに、実体は Linux 上にある」という理想状態になります。
 
 ### 運用は Makefile で楽をする
 
-Linux 環境になったので、PowerShell スクリプトではなく、エンジニア標準の Makefile が使えます。
+Linux 環境になったので、PowerShell スクリプトではなく、エンジニア標準の **Makefile** が使えます。
 
-プロジェクトルートに Makefile（拡張子なし）を置いておきましょう。
+プロジェクトルートに `Makefile`（拡張子なし）を置いておきましょう。
 
-Makefile
-
-```
+```makefile
 # Makefile
 # 使い方: make up
 
@@ -527,13 +509,12 @@ down:
 	docker compose down
 
 logs:
-	@echo "📜 ログを表示 (Ctrl+Cで停止)"
+	@echo "📜 ログを表示 (Ctrl+C で停止)"
 	docker compose logs -f
 
 sh:
 	@echo "💻 コンテナに入ります"
 	docker compose exec app bash
-
 ```
 
 これさえあれば、毎日の開発はこれだけで済みます：
@@ -546,35 +527,28 @@ sh:
 
 ## 3. 「WSL のデータが消えそうで怖い」問題への対策
 
-「Windows がトラブったり、WSL が壊れたら、中のコードや .env が消えるのでは？」
-
-この不安を解消するテクニックです。
+「Windows がトラブったり、WSL が壊れたら、中のコードや `.env` が消えるのでは？」
+という不安を解消するテクニックです。
 
 ### テクニック A: `.env` を Windows に退避させる
 
-WSL から見て、Windows の Cドライブは /mnt/c/ にあります。
+WSL から見て、Windows の C ドライブは `/mnt/c/` にあります。
 
-大事な .env ファイルなどは、Makefile にバックアップコマンドを作っておくと安心です。
+大事な `.env` ファイルなどは、Makefile にバックアップコマンドを作っておくと安心です。
 
-Makefile
-
-```
-# Windowsのドキュメントフォルダに .env をコピー
+```makefile
+# Windows のドキュメントフォルダに .env をコピー
 backup-env:
 	cp .env /mnt/c/Users/あなたのユーザー名/Documents/my-app-env.backup
-
 ```
 
 ### テクニック B: WSL を丸ごとバックアップ
 
-「環境設定をいじりすぎて壊しそう」という時は、Windows 側の PowerShell で以下を実行すれば、Ubuntu を丸ごと1つのファイルに書き出せます。
+「環境設定をいじりすぎて壊しそう」という時は、Windows 側の PowerShell で以下を実行すると、Ubuntu を丸ごと 1 つのファイルに書き出せます。
 
-PowerShell
-
-```
-# Windows PowerShellで実行
+```powershell
+# Windows PowerShell で実行
 wsl --export Ubuntu "C:\Backups\ubuntu-backup.tar"
-
 ```
 
 これさえあれば、PC を買い替えても `wsl --import` で**完全に元の環境**に戻せます。
@@ -583,51 +557,54 @@ wsl --export Ubuntu "C:\Backups\ubuntu-backup.tar"
 
 ## 4. WSL のフォルダを Windows から簡単に開く
 
-「WSL の奥深くにあるフォルダをいちいち探すのが面倒」問題は、**「クイックアクセスへのピン留め」** で解決します。
+「WSL の奥深くにあるフォルダをいちいち探すのが面倒」問題は、
+**「クイックアクセスへのピン留め」** で解決します。
 
-1. Windows エクスプローラーのアドレスバーに `\\wsl$` と入力。
-1. `Ubuntu` > `home` > `ユーザー名` > `projects` と進む。
-1. そのフォルダを右クリックして **「クイックアクセスにピン留めする」**。
+1. Windows エクスプローラーのアドレスバーに `\\wsl$` と入力
+1. `Ubuntu` > `home` > `ユーザー名` > `projects` と進む
+1. そのフォルダを右クリックして **「クイックアクセスにピン留めする」**
 
 これで、ドキュメントフォルダと同じ感覚で、爆速の Linux 領域にアクセスできます。
 
 ---
 
-## まとめ
+## おまけ1 まとめ
 
 1. **Windows 側には何も置かない。** コードは全て WSL (Ubuntu) の中へ。
 1. **`make` を使う。** 起動もログ確認もコマンド一発。
-1. **データは `/mnt/c/` へ逃がす。** または `wsl --export` で丸ごとバックアップ。
+1. **大事なデータは `/mnt/c/` へ逃がす。** または `wsl --export` で丸ごとバックアップ。
 
-これで「Windows だから開発しづらい」という言い訳はできなくなります。快適な Docker ライフを！
-
-さっきの記事の最後にそのまま追記できる形で、**SOPS の導入手順と Makefile への組み込み** をまとめました。
-
----
+これで「Windows だから開発しづらい」という言い訳はかなり減ります。
+あとは好きな技術スタックで、快適な Docker ライフを！
 
 ---
 
 ---
 
-## おまけ2：鉄壁のセキュリティ！.env を暗号化して Git 管理する (SOPS)
+---
 
-WSL2 に移行して開発が快適になっても、一つだけ不安が残ります。
+## おまけ2：鉄壁のセキュリティ！.env を暗号化して Git 管理する（SOPS）
 
-「PC が壊れたら .env が消える」「Git に上げられないからチーム共有が面倒」 という問題です。
+WSL2 に移行して開発が快適になっても、もう一つ大きな問題が残ります。
 
-これを解決するのが、Mozilla 製の暗号化ツール SOPS と、モダンな鍵管理ツール Age の組み合わせです。
+> 「PC が壊れたら .env が消える」
+「Git に上げられないからチーム共有が面倒」
 
-これを使えば、.env を暗号化して安全に Git にコミット できるようになります。
+これを解決するのが、Mozilla 製の暗号化ツール **SOPS** と、モダンな鍵管理ツール **Age** の組み合わせです。
 
-ここでは**「PC に 1 つだけ最強の鍵（マスターキー）を作り、全てのプロジェクトでそれを使い回す」** 最も楽な運用を紹介します。
+これを使えば、`.env` を**暗号化して安全に Git にコミット**できるようになります。
 
-### Step A: ツールをインストール (WSL 内)
+ここでは、
+**「PC に 1 つだけ最強の鍵（マスターキー）を作り、全てのプロジェクトでそれを使い回す」**
+という、最も楽な運用を紹介します。
 
-Ubuntu ターミナルで以下のコマンドを実行して、ツールを入れます。
+---
 
-Bash
+## Step A: ツールをインストール（WSL 内）
 
-```
+Ubuntu ターミナルで以下を実行して、Age と SOPS を入れます。
+
+```bash
 # 1. Age (鍵作成ツール) のインストール
 sudo apt update && sudo apt install -y age
 
@@ -635,18 +612,17 @@ sudo apt update && sudo apt install -y age
 curl -LO https://github.com/getsops/sops/releases/download/v3.9.1/sops-v3.9.1.linux.amd64
 sudo mv sops-v3.9.1.linux.amd64 /usr/local/bin/sops
 sudo chmod +x /usr/local/bin/sops
-
 ```
 
-### Step B: 「マスターキー」を 1 つだけ作る
+---
 
-プロジェクトごとではなく、あなたの PC 専用の万能鍵を 1 つ作成します。
+## Step B: 「マスターキー」を 1 つだけ作る
+
+プロジェクトごとではなく、**あなたの PC 専用の万能鍵**を 1 つ作成します。
 
 SOPS が自動的に読みに行く「標準の場所」に作るので、後々の設定が楽になります。
 
-Bash
-
-```
+```bash
 # 鍵置き場を作成
 mkdir -p ~/.config/sops/age
 
@@ -656,10 +632,11 @@ age-keygen -o ~/.config/sops/age/keys.txt
 # シェルに鍵の場所を教える（永続化）
 echo 'export SOPS_AGE_KEY_FILE=$HOME/.config/sops/age/keys.txt' >> ~/.bashrc
 source ~/.bashrc
-
 ```
 
-### Step C: プロジェクトの設定 (`.sops.yaml`)
+---
+
+## Step C: プロジェクトの設定 (`.sops.yaml`)
 
 プロジェクトルートに設定ファイルを作ります。
 
@@ -667,52 +644,45 @@ source ~/.bashrc
 
 1. まず、自分の**公開鍵**（人に教えていい鍵）を確認します。
 
-   Bash
-
-   ```
+   ```bash
    # age1... から始まる文字列をコピー
    grep "public key" ~/.config/sops/age/keys.txt
-   
    ```
 
 1. `.sops.yaml` を作成し、公開鍵を貼り付けます。
 
-   YAML
-
-   ```
+   ```yaml
    # .sops.yaml
    creation_rules:
      - path_regex: \.env$
        # ここにコピーした公開鍵 (age1...) を貼る
        age: "age1ql3z7hjy54pw3hyww5tynry..."
-   
    ```
-
-### Step D: 暗号化する
-
-Bash
-
-```
-# .env を暗号化して .env.enc を作成
-sops --encrypt .env > .env.enc
-
-```
-
-これでできた `.env.enc` は **Git にコミットして OK** です。
 
 ---
 
-## 4. 運用は Makefile で自動化する
+## Step D: `.env` を暗号化する
+
+```bash
+# .env を暗号化して .env.enc を作成
+sops --encrypt .env > .env.enc
+```
+
+- `.`env` は **ローカルだけに置く**（Git に上げない）
+- `.env.enc` は **暗号化済みなので Git にコミットして OK**
+
+という運用になります。
+
+---
+
+## Step E: 運用は Makefile で自動化する
 
 マスターキー運用にしたおかげで、Makefile は驚くほどシンプルになります。
-
-鍵の場所を指定する必要すらありません。
+鍵の場所を毎回指定する必要すらありません。
 
 プロジェクトルートに `Makefile`（拡張子なし）を作成します。
 
-Makefile
-
-```
+```makefile
 # Makefile
 
 # 1. 起動（自動で復号してから起動）
@@ -735,7 +705,7 @@ sh:
 	docker compose exec app bash
 
 # 5. 【セキュリティ】暗号化 (.env -> .env.enc)
-# .env を更新したらこれを実行して、.env.enc をGitに上げる
+# .env を更新したらこれを実行して、.env.enc を Git に上げる
 encrypt:
 	@echo "🔒 .env を暗号化します..."
 	sops --encrypt .env > .env.enc
@@ -745,16 +715,29 @@ encrypt:
 decrypt:
 	@echo "🔓 .env を復号します..."
 	sops --decrypt .env.enc > .env
-
 ```
 
-### 毎日の作業フロー（全プロジェクト共通）
+---
+
+## おまけ2の運用フロー（全プロジェクト共通）
 
 1. **朝イチ**: `make up`
-   - SOPS が勝手にマスターキーを使って `.env` を復元し、コンテナが起動します。
-1. **新しいプロジェクトを作った時**:
-   - `.sops.yaml` にいつもの公開鍵をコピペするだけ。新しい鍵を作る必要はありません。
+   - SOPS がマスターキーを使って `.env` を復元し、そのままコンテナが起動。
+1. **`.env` を編集したとき**: `make encrypt`
+   - `.env.enc` を再生成してコミット。
+1. **新しいプロジェクトを作ったとき**:
+   - `.sops.yaml` にいつもの公開鍵をコピペするだけ。新しい鍵を作る必要はなし。
 1. **チーム開発**:
-   - `.sops.yaml` に「Aさんの公開鍵, Bさんの公開鍵...」とカンマ区切りで並べておけば、全員がそれぞれのマスターキーで同じファイルを開けます。
+   - `.sops.yaml` の `age:` に「Aさんの公開鍵, Bさんの公開鍵...」とカンマ区切りで並べれば、
+     全員がそれぞれのマスターキーで同じ `.env.enc` を復号できる。
 
-これで、面倒な鍵管理からも解放されます！
+---
+
+これで、
+
+- Windows + Docker + WSL2 で**そこそこ快適な開発環境**
+- `.env` を含む設定を **安全に Git 管理できる仕組み**
+
+まで、一気に揃います。
+
+あとは好きなスタックを載せて、育てていくだけです。
