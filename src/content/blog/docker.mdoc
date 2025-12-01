@@ -8,7 +8,11 @@ category: 開発
 tags:
   - Docker
 ---
-### 1. Dockerfile
+### \
+
+\
+
+1. Dockerfile
 
 **役割:** コンテナの中身（OS、ライブラリ）の定義。
 
@@ -231,3 +235,92 @@ docker run --rm -v ${PWD}:/app my-tool --input data.csv
 1. 開発中は： **`docker compose logs -f`** を出しっぱなしにする
 1. ライブラリを入れたら： **`docker compose up -d --build`**
 1. 帰る時は： **`docker compose down`**
+
+---
+
+Windows標準の **PowerShell スクリプト (`.ps1`)** でやろう。これなら何もインストールせず、テキストファイルを1つ置くだけで長いコマンドを打たないでも動きます。
+
+Makefileの代わりになる、**`ops.ps1`** （オペレーション用スクリプト）を作成しました。
+
+### 1. 準備：スクリプト作成
+
+プロジェクトのルート（`docker-compose.yml` がある場所）に、以下の内容で **`ops.ps1`** というファイルを作成してください。
+
+PowerShell
+
+```
+# 使い方: .\ops.ps1 up
+# 引数を受け取る
+param(
+    [string]$Command = "help"
+)
+
+# サービス名（必要に応じて書き換えてください）
+$ServiceName = "app"
+
+switch ($Command) {
+    "up" {
+        Write-Host "🚀 起動します（常にリビルド）..." -ForegroundColor Cyan
+        docker compose up -d --build
+    }
+    "down" {
+        Write-Host "🛑 終了します..." -ForegroundColor Yellow
+        docker compose down
+    }
+    "restart" {
+        Write-Host "🔄 再起動します..." -ForegroundColor Cyan
+        docker compose down
+        docker compose up -d --build
+    }
+    "logs" {
+        Write-Host "📜 ログを表示します (Ctrl+Cで停止)..." -ForegroundColor Green
+        docker compose logs -f
+    }
+    "sh" {
+        Write-Host "💻 コンテナ($ServiceName)に入ります..." -ForegroundColor Green
+        docker compose exec $ServiceName bash
+    }
+    "clean" {
+        Write-Host "🧹 掃除します..." -ForegroundColor Red
+        docker system prune
+    }
+    Default {
+        Write-Host "【使い方】" -ForegroundColor White
+        Write-Host "  .\ops.ps1 up      : 起動 (up -d --build)"
+        Write-Host "  .\ops.ps1 down    : 終了"
+        Write-Host "  .\ops.ps1 logs    : ログ表示"
+        Write-Host "  .\ops.ps1 sh      : コンテナに入る"
+        Write-Host "  .\ops.ps1 restart : 再起動"
+    }
+}
+
+```
+
+---
+
+### 2. 使い方
+
+VS CodeのターミナルやPowerShellで、以下のように打ち込むだけです。
+
+（Tabキーを押すと ops.ps1 は補完されます）
+
+- **起動:** `.\ops.ps1 up`
+- **ログ:** `.\ops.ps1 logs`
+- **終了:** `.\ops.ps1 down`
+
+これなら、Windowsに何もインストールせずに、Makefileと同じ感覚で管理できます。
+
+### ⚠️ 重要：初回だけ設定が必要かも
+
+もし実行した時に「スクリプトの実行が無効になっている」という赤いエラーが出たら、PowerShellのセキュリティ設定が厳しすぎる状態です。
+
+その場合は、管理者権限のPowerShellで以下を一回だけ実行してください。
+
+PowerShell
+
+```
+Set-ExecutionPolicy RemoteSigned -Scope CurrentUser
+
+```
+
+（「Y」を入力してエンター。これで自作スクリプトが動くようになります）
