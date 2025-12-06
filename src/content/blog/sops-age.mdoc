@@ -1,0 +1,147 @@
+---
+draft: false
+visibility: public
+publishedDate: 2025-12-06
+title: sopsとage
+thumbnail: '@assets/images/blog/sops-age/thumbnail.png'
+category: 開発
+tags:
+  - SOPS
+  - Age
+---
+## 鉄壁のセキュリティ！.env を暗号化して Git 管理する（SOPS）
+
+SOPSで`.env` を**暗号化して安全に Git にコミット**できるようになります。
+
+ここでは、 **「PC に 1 つだけ最強の鍵（マスターキー）を作り、全てのプロジェクトでそれを使い回す」** という、最も楽な運用を紹介します。
+
+---
+
+## Step A: ツールをインストール（WSL 内）
+
+Ubuntu ターミナルで以下を実行して、Age と SOPS を入れます。
+
+```bash
+# 1. Age (鍵作成ツール) のインストール
+sudo apt update && sudo apt install -y age
+
+# 2. SOPS (暗号化ツール) のインストール
+curl -LO https://github.com/getsops/sops/releases/download/v3.9.1/sops-v3.9.1.linux.amd64
+sudo mv sops-v3.9.1.linux.amd64 /usr/local/bin/sops
+sudo chmod +x /usr/local/bin/sops
+```
+
+---
+
+## Step B: 「マスターキー」を 1 つだけ作る
+
+プロジェクトごとではなく、**あなたの PC 専用の万能鍵**を 1 つ作成します。
+
+SOPS が自動的に読みに行く「標準の場所」に作るので、後々の設定が楽になります。
+
+```bash
+# 鍵置き場を作成
+mkdir -p ~/.config/sops/age
+
+# マスターキーを作成
+age-keygen -o ~/.config/sops/age/keys.txt
+
+# シェルに鍵の場所を教える（永続化）
+echo 'export SOPS_AGE_KEY_FILE=$HOME/.config/sops/age/keys.txt' >> ~/.bashrc
+source ~/.bashrc
+```
+
+---
+
+## Step C: プロジェクトの設定 (`.sops.yaml`)
+
+プロジェクトルートに設定ファイルを作ります。
+
+「このプロジェクトは、俺のマスターキーで開けられるようにする」という設定です。
+
+1. まず、自分の**公開鍵**（人に教えていい鍵）を確認します。
+
+   ```bash
+   # age1... から始まる文字列をコピー
+   grep "public key" ~/.config/sops/age/keys.txt
+   ```
+
+1. `.sops.yaml` を作成し、公開鍵を貼り付けます。
+
+   ```yaml
+   # .sops.yaml
+   creation_rules:
+     - path_regex: \.env$
+       # ここにコピーした公開鍵 (age1...) を貼る
+       age: "age1ql3z7hjy54pw3hyww5tynry..."
+   ```
+
+---
+
+## Step D: `.env` を暗号化する
+
+```bash
+# .env を暗号化して .env.enc を作成
+sops --encrypt .env > .env.enc
+```
+
+- `.`env` は **ローカルだけに置く**（Git に上げない）
+- `.env.enc` は **暗号化済みなので Git にコミットして OK**
+
+という運用になります。
+
+---
+
+## Step E: 運用は Makefile で自動化する
+
+マスターキー運用にしたおかげで、Makefile は驚くほどシンプルになります。 鍵の場所を毎回指定する必要すらありません。
+
+プロジェクトルートに `Makefile`（拡張子なし）を作成します。
+
+```makefile
+# Makefile
+
+# 1. 起動（自動で復号してから起動）
+# "make up" だけで、勝手に .env が復元されて立ち上がります
+up: decrypt
+	@echo "🚀 コンテナを起動します..."
+	docker compose up -d --build
+
+# 2. 終了
+down:
+	@echo "🛑 終了します..."
+	docker compose down
+
+# 3. ログ表示
+logs:
+	docker compose logs -f
+
+# 4. コンテナに入る
+sh:
+	docker compose exec app bash
+
+# 5. 【セキュリティ】暗号化 (.env -> .env.enc)
+# .env を更新したらこれを実行して、.env.enc を Git に上げる
+encrypt:
+	@echo "🔒 .env を暗号化します..."
+	sops --encrypt .env > .env.enc
+
+# 6. 【セキュリティ】復号 (.env.enc -> .env)
+# マスターキー設定済みなら、コマンド一発で復号可能
+decrypt:
+	@echo "🔓 .env を復号します..."
+	sops --decrypt .env.enc > .env
+```
+
+---
+
+## おまけ:運用フロー（全プロジェクト共通）
+
+1. **朝イチ**: `make up`
+   - SOPS がマスターキーを使って `.env` を復元し、そのままコンテナが起動。
+1. **`.env` を編集したとき**: `make encrypt`
+   - `.env.enc` を再生成してコミット。
+1. **新しいプロジェクトを作ったとき**:
+   - `.sops.yaml` にいつもの公開鍵をコピペするだけ。新しい鍵を作る必要はなし。
+1. **チーム開発**:
+   - `.sops.yaml` の `age:` に「Aさんの公開鍵, Bさんの公開鍵...」とカンマ区切りで並べれば、 全員がそれぞれのマスターキーで同じ `.env.enc` を復号できる。
