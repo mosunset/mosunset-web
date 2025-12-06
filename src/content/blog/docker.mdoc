@@ -18,726 +18,227 @@ tags:
   - devcontainer
   - Python
 ---
-## このページでやること
+# Docker 実用リファレンス：ゲーム機で覚えるライフサイクルとコマンド集
 
-「Docker よくわからんけど、とりあえずローカル開発で困らない最低限だけ知りたい」という人向けのメモです。
+## 1. 概念：4つのライフサイクル（ゲーム機アナロジー）
 
-- Dockerfile って何を書くの？
-- docker-compose.yml で何が決まるの？
-- VS Code の devcontainer ってどう絡むの？
-- 実践：Python のスクリプトに毎回違う引数を渡して実行したい
-- 毎回コマンドを手で打つのがダルいから、PowerShell / Makefile にまとめたい
+Dockerを理解するための最小限の概念です。「ゲーム機」と「一生の流れ」で覚えます。
 
-あたりを、**「概念 7 割・コピペで使えるレシピ 3 割」**くらいのノリで超省略してまとめています。
+### 全体フロー
 
----
+1. **Dockerfile** (レシピ) を書く。
+1. **Build** (製造) して **Image** (カセット) を作る。
+1. **Run** (起動) して **Container** (プレイ画面) にする。
+1. **Volume** (メモリーカード) でデータを残す。
 
-## 全体像：3つの設定ファイルの役割
+### 各要素の定義
 
-まず、よく出てくる 3 つのファイルの役割をざっくり整理しておきます。
-
-- **Dockerfile**\
-  → 「コンテナの中身（OS・言語ランタイム・ライブラリ）」をどう作るかを定義するレシピ。
-- **docker-compose.yml**\
-  → 「そのイメージを実際にどう起動するか（ポート・ボリューム・コマンドなど）」を定義する。
-- **devcontainer.json**\
-  → 「VS Code からどのコンテナにどう接続するか」を定義する。
-
-この 3 つを押さえておけば、ローカル開発での Docker はだいたい回せます。
-
----
-
-## Dockerfile：コンテナの「中身」を決める
-
-**役割:** コンテナの中身（OS、ランタイム、ライブラリ、ツール）を定義する。
-
-よく書く項目はだいたいこんな感じです。
-
-- **`FROM`**: ベースイメージ（Python / Node / Ubuntu など）を決める
-- **`WORKDIR`**: コンテナ内の作業ディレクトリ
-- **`COPY`**: ホスト側のファイルをコンテナにコピー
-- **`RUN`**: `apt` や `pip`, `npm` などでライブラリやツールを入れる
-
-サンプル：
-
-```Dockerfile
-# ベースイメージ
-FROM python:3.11-slim
-
-# コンテナ内の作業ディレクトリ
-WORKDIR /app
-
-# 依存関係ファイルのコピーとインストール
-COPY requirements.txt .
-RUN pip install -r requirements.txt
-
-# ソースコードのコピー（本番用イメージなら入れておく）
-COPY . .
-```
-
-- 開発中は bind mount（後述）でホストと同期させておき、
-- 本番用ビルドでは `COPY . .` でソースをイメージに固める
-
-という使い方が多いです。
+- **Dockerfile（設計図・レシピ）**
+  - **実態:** テキストファイル。
+  - **役割:** 「OSは何で、どの言語を入れて、どう設定するか」という命令書。
+  - **ゲームで例えると:** ゲームソフトの企画書やソースコード。
+- **Image（イメージ）**
+  - **実態:** ビルドされて固められた、読み取り専用のファイル群。**不変 (Immutable)**。
+  - **役割:** コンテナを作るための「金型」。
+  - **ゲームで例えると:** **「ゲームカセット（ソフト）」**。工場から出荷されたら中身は変わりません。
+- **Container（コンテナ）**
+  - **実態:** イメージを元に起動しているプロセス。**使い捨て (Ephemeral)**。
+  - **役割:** 実際にアプリが動いている場所。削除すると、内部の変更は消える。
+  - **ゲームで例えると:** **「プレイ中の画面」**。電源を切れば画面は消えます。
+- **Volume（ボリューム）**
+  - **実態:** コンテナの外にあるデータ保存領域。**永続化 (Persistence)**。
+  - **役割:** コンテナを削除してもデータを残すための仕組み。
+  - **ゲームで例えると:** **「メモリーカード（セーブデータ）」**。本体を変えても続きから遊べます。
 
 ---
 
-## docker-compose.yml：どう動かすかをまとめる
+## 2. データの保存：2つのマウント方式
 
-**役割:** コンテナの起動方法（ポート、フォルダ同期、環境変数、ネットワークなど）をまとめる。
+「コンテナの外にデータを置く」方法は2つだけです。用途で明確に使い分けます。
 
-よく使う項目：
-
-- **`services`**: 起動するコンテナ群（`app` / `db` / `redis` …）
-- **`ports`**: ホスト側ポートとコンテナ側ポートの対応
-- **`volumes`**: ホスト側フォルダとコンテナ側フォルダの同期
-- **`command`**: コンテナ起動時に実行するコマンド
-
-サンプル：
-
-```yaml
-version: '3.8'
-services:
-  app:
-    # Dockerfile がある場所を指定
-    build: .
-
-    # 【ポートフォワーディング】
-    # 書式: "ホスト側ポート : コンテナ側ポート"
-    # 例: Windows の localhost:8080 → コンテナ内の 3000
-    ports:
-      - "8080:3000"
-
-    # 【ボリューム（バインドマウント）】
-    # 書式: "ホスト側パス : コンテナ側パス"
-    # 例: カレントディレクトリ(.) をコンテナ内 /app に同期
-    volumes:
-      - .:/app
-
-    # コンテナ起動時に実行するコマンド
-    command: python app.py
-```
-
-ポイント：
-
-- コードをホストで編集 → `volumes` で `/app` に同期 → コンテナ側からも同じ内容が見える
-- Web アプリなら `ports` で `ホスト:コンテナ` を開けておく
+- **Bind Mounts（バインドマウント）**
+  - **仕組み:** PCのフォルダとコンテナのフォルダを「直結（同期）」させる。
+  - **メリット:** PCでファイルを編集すると、即座にコンテナに反映される。
+  - **用途:** **ソースコード、設定ファイル**。（人間がいじるもの）
+  - **構成例:** `./src:/app/src`
+- **Volumes（ボリューム）**
+  - **仕組み:** Dockerが管理する専用倉庫にデータを預ける。
+  - **メリット:** 高速、安全、OS間の互換トラブルがない。
+  - **用途:** **データベース (MySQL/PostgreSQL) のデータ**。（システムがいじるもの）
+  - **構成例:** `db_data:/var/lib/mysql`
 
 ---
 
-## devcontainer.json：VS Code からコンテナに接続する
+## 3. ファイルの役割分担（家づくりアナロジー）
 
-**役割:** VS Code の「開発コンテナ」機能で、どのコンテナに、どのフォルダをワークスペースとして接続するかを決める。
-
-よく使う項目：
-
-- **`dockerComposeFile`**: どの `docker-compose.yml` を使うか
-- **`service`**: どのサービス（`app` / `web` / `api` …）に接続するか
-- **`workspaceFolder`**: VS Code 上で開くパス
-- **`extensions`**: コンテナ側 VS Code に入れたい拡張機能
-
-サンプル：
-
-```json
-{
-  "name": "My Python Dev",
-  "dockerComposeFile": "docker-compose.yml",
-  "service": "app",
-  "workspaceFolder": "/app",
-
-  "customizations": {
-    "vscode": {
-      "extensions": [
-        "ms-python.python",
-        "ms-python.black-formatter"
-      ]
-    }
-  }
-}
-```
-
-これを `.devcontainer/devcontainer.json` に置いておけば、VS Code から「コンテナーで再度開く」だけで Python 向けの開発環境が整います。
+- **Dockerfile** = **「建材と内装の設計図」**
+  - どんなOS（土台）に、何の言語（柱）を入れるか決める。
+  - **成果物:** Image（プレハブの部屋）
+- **docker-compose.yml** = **「敷地配置図とライフライン」**
+  - 完成したImage（部屋）をどこに置いて、どう電気（ポート）を通し、倉庫（DB）と繋ぐか決める。
+  - **成果物:** 連携して動くContainer群
+- **devcontainer.json** = **「家具と仕事道具 (VS Code専用)」**
+  - 部屋に入った後、VS Codeがどの拡張機能を使い、どう振る舞うか決める。
+  - **成果物:** 快適な開発体験
 
 ---
 
-## Python スクリプトを「引数付きで単発実行」したい
+## 4. 完全版コマンドリファレンス
 
-「`main.py` に毎回違う引数を渡して動かしたい」パターンを 2 通り。
+実務で頻出するコマンドを網羅しました。
 
-### 方法 A：`docker run` で直接渡す（いちばん素直）
+### A. 起動・終了（Docker Compose 基本）
 
-コンテナをツールとして**使い捨て**るイメージです。
-コマンドの末尾に書いたものが、そのままコンテナ内のコマンドに渡されます。
-
-前提：
-
-- `main.py` が `sys.argv` や `argparse` で引数を受け取るようになっている
-
-コマンド例：
-
-```bash
-# 書式:
-# docker run [オプション] [イメージ名] [コマンド] [引数...]
-
-# -v ${PWD}:/app : カレントディレクトリを /app にマウント
-# -w /app        : 作業ディレクトリを /app に設定
-
-docker run --rm -v ${PWD}:/app -w /app python:3.11 \
-  python main.py --input data.csv --mode train
-```
-
-- `--rm` を付けると、実行終了後にコンテナを自動削除（ゴミが溜まらない）
-
-### 方法 B：Dockerfile の `ENTRYPOINT` でコマンド短縮
-
-毎回 `python main.py` と書くのが面倒なら、Dockerfile 側で固定してしまう。
-
-```Dockerfile
-FROM python:3.11
-WORKDIR /app
-
-# "python main.py" を基本コマンドとして固定
-ENTRYPOINT ["python", "main.py"]
-```
-
-ビルド：
-
-```bash
-docker build -t my-tool .
-```
-
-以降は、**「引数だけ」** を渡せば OK になります。
-
-```bash
-docker run --rm -v ${PWD}:/app my-tool --input data.csv
-```
-
-`ENTRYPOINT` で指定した `python main.py` の**後ろに**書いたものが、そのまま `main.py` の引数として渡されます。
-
----
-
-## よく使う Docker コマンドまとめ
-
-### 起動と終了（基本）
+日々の開発サイクルで使う基本セットです。
 
 - `docker compose up -d`
-  開発を始める時。コンテナをバックグラウンドで起動（`-d` がデタッチ）。
+  - コンテナを作成して起動（バックグラウンド実行）。
+  - **必須オプション:** `-d` (Detached mode)。これがないとログで画面が占拠されます。
+- `docker compose up -d --build`
+  - イメージを**作り直してから**起動。
+  - `Dockerfile` を編集した場合や、`pip install` 等でライブラリを追加した時に使用。
 - `docker compose down`
-  作業を終える時。コンテナ停止＋削除、ネットワークも解放。
+  - コンテナを停止し、**コンテナとネットワークを削除**。
+  - ボリューム（データ）は残ります。
 - `docker compose down -v`
-  DB などの永続化データも含めて「完全にリセット」したい時。
-  コンテナ＋ボリュームも削除。
+  - コンテナの削除に加え、**ボリューム（データ）も削除**。
+  - 「DBを初期化して最初からやり直したい」時に使用。**要注意コマンド**。
+- `docker compose restart [サービス名]`
+  - コンテナを再起動（停止→起動）。設定ファイルの再読み込みなどに使用。
+  - 例: `docker compose restart app`
 
----
+### B. 状態確認・ログ
 
-### 修正したときに必要なもの
+「動かない」「エラーが出た」時の調査用です。
 
-- **ソースコードだけ変更した場合（`.py`, `.js` など）**
-  → `volumes` で bind mount していれば、保存するだけで反映。
-  → 原則コマンド不要（アプリ側のホットリロード任せ）。
-- **`requirements.txt` / `package.json` / `Dockerfile` を変えた場合**
-  → `docker compose up -d --build`
-  → イメージを作り直してから起動しないと、新しいライブラリが入らない。
-
----
-
-### 様子を見る・中に入る（デバッグ）
-
+- `docker compose ps`
+  - 現在のコンテナ一覧と状態（Up / Exit）を表示。
 - `docker compose logs -f`
-  エラー確認や `print` / `console.log` の出力を見る。
-  `-f` でリアルタイムに追いかける（止めるときは `Ctrl + C`）。
-  特定サービスだけなら `docker compose logs -f app` のようにサービス名を付ける。
-- `docker compose exec <サービス名> bash`
-  コンテナの中に入って、ファイルや状況を直接確認したいとき。
-  軽量イメージ（Alpine など）は `bash` がないので `sh` を使う：
-  `docker compose exec app sh`
+  - 全コンテナのログをリアルタイムで表示し続ける（Followモード）。
+  - 終了は `Ctrl + C`。
+- `docker compose logs -f [サービス名]`
+  - 特定のコンテナのログだけを見る。ノイズを減らしたい時に便利。
+  - 例: `docker compose logs -f db`
+- `docker stats`
+  - コンテナごとのCPU、メモリ使用率をリアルタイム表示。PCが重い時の犯人探しに使用。
 
----
+### C. 内部操作（コンテナの中に入る）
 
-### 単発実行（使い捨てコンテナ）
+コンテナをサーバーとして直接いじる場合です。
 
-- `docker run --rm -v ${PWD}:/app -w /app <イメージ名> <コマンド>`
+- `docker compose exec [サービス名] bash`
+  - 起動中のコンテナに入り、シェル（bash）を開く。
+  - ファイル確認、コマンド手動実行など、デバッグの基本。
+  - ※ Alpine Linuxベースの場合は `bash` を `sh` に変える。
+- `docker compose exec -u root [サービス名] bash`
+  - **rootユーザー**としてコンテナに入る。権限周りのトラブルシューティング用。
 
-例：
+### D. クリーンアップ（容量確保）
 
-```bash
-docker run --rm -v ${PWD}:/app -w /app python:3.11 python main.py
-```
-
-- `--rm` で実行後にコンテナを削除
-- ちょっとしたツール実行程度なら、compose を使わずこれで十分
-
----
-
-### 掃除（ディスク圧迫対策）
+Dockerは放っておくと数十GB単位で容量を食います。定期的な掃除が必要です。
 
 - `docker system prune`
-  「停止中コンテナ」「使われていないネットワーク」「タグなしイメージ」などを一掃。
-  **実行前にどれくらい消えるか確認しておくと安心**。
+  - 停止中のコンテナ、未使用ネットワーク、ビルドキャッシュを一括削除。
+- `docker image prune -a`
+  - コンテナから使われていない**全てのイメージ**を削除。劇的に空き容量が増えます。
+- `docker volume prune`
+  - どのコンテナからも使われていないボリュームを削除。
+- `docker system df`
+  - Dockerが使用しているディスク容量の内訳を表示。
+
+### E. 単体管理（Composeを使わない場合や詳細確認）
+
+Compose経由ではなく、Docker本体の機能を直接操作するコマンドです。
+
+- `docker image ls`
+  - PC内にあるイメージ一覧を表示。
+- `docker rmi [IMAGE ID]`
+  - 指定したイメージを削除。
+- `docker container ls -a`
+  - 停止中のものも含め、全コンテナを表示。
+- `docker rm [CONTAINER ID]`
+  - 指定したコンテナを削除。
+- `docker volume ls`
+  - 作成されたボリューム一覧を表示。
+- `docker volume rm [VOLUME NAME]`
+  - 指定したボリュームを削除。
+- `docker inspect [名前 or ID]`
+  - コンテナやイメージの詳細情報（IPアドレス、マウント場所、環境変数など）をJSONで表示。デバッグの最終奥義。
+- `docker cp [ホストのパス] [コンテナ名]:[コンテナのパス]`
+  - ホストとコンテナ間でファイルをコピー。
+  - 例: `docker cp ./test.txt my-app:/app/test.txt`
 
 ---
 
-## 1日の作業フロー（手癖にしたい操作）
+## 5. 最強 Makefile テンプレート
 
-開発中は、以下だけ覚えておけばだいたい回ります。
-
-1. **朝イチ**:
-   `docker compose up -d`
-   → 開発用コンテナを全部起動。
-1. **開発中**:
-   別タブで `docker compose logs -f` を流しっぱなし
-   → エラーやログをリアルタイムで確認。
-1. **ライブラリを追加したとき**:
-   `docker compose up -d --build`
-   → 新しいライブラリ込みでイメージを再ビルド。
-1. **帰るとき**:
-   `docker compose down`
-   → その日のコンテナを片付ける。
-
----
-
-## Windows なら PowerShell スクリプトでまとめる
-
-Windows なら、追加ツールを入れなくても標準の **PowerShell スクリプト (`.ps1`)** だけで運用コマンドをまとめられます。
-
-ここでは、**`ops.ps1`** という「運用用スクリプト」をプロジェクト直下に置く想定です。
-
-### ops.ps1 の中身
-
-```powershell
-# 使い方: .\ops.ps1 up
-param(
-    [string]$Command = "help"
-)
-
-# サービス名（必要に応じて書き換えてください）
-$ServiceName = "app"
-
-switch ($Command) {
-    "up" {
-        Write-Host "🚀 起動します（常にリビルド）..." -ForegroundColor Cyan
-        docker compose up -d --build
-    }
-    "down" {
-        Write-Host "🛑 終了します..." -ForegroundColor Yellow
-        docker compose down
-    }
-    "restart" {
-        Write-Host "🔄 再起動します..." -ForegroundColor Cyan
-        docker compose down
-        docker compose up -d --build
-    }
-    "logs" {
-        Write-Host "📜 ログを表示します (Ctrl+Cで停止)..." -ForegroundColor Green
-        docker compose logs -f
-    }
-    "sh" {
-        Write-Host "💻 コンテナ($ServiceName)に入ります..." -ForegroundColor Green
-        docker compose exec $ServiceName bash
-    }
-    "clean" {
-        Write-Host "🧹 掃除します..." -ForegroundColor Red
-        docker system prune
-    }
-    Default {
-        Write-Host "【使い方】" -ForegroundColor White
-        Write-Host "  .\ops.ps1 up      : 起動 (up -d --build)"
-        Write-Host "  .\ops.ps1 down    : 終了"
-        Write-Host "  .\ops.ps1 logs    : ログ表示"
-        Write-Host "  .\ops.ps1 sh      : コンテナに入る"
-        Write-Host "  .\ops.ps1 restart : 再起動"
-    }
-}
-```
-
-プロジェクトルート（`docker-compose.yml` がある場所）にこのファイルを置いておけば、
-
-- 起動: `.\ops.ps1 up`
-- ログ: `.\ops.ps1 logs`
-- 終了: `.\ops.ps1 down`
-
-のように、毎回長いコマンドを打たずに済みます。
-
-### 初回だけ必要かもしれない設定（ExecutionPolicy）
-
-実行時に
-
-> スクリプトの実行が無効になっているため、このシステムではスクリプトを実行できません
-
-のようなエラーが出る場合、PowerShell の実行ポリシーが厳しく設定されています。
-
-その場合は、**管理者権限の PowerShell** で一度だけ以下を実行します。
-
-```powershell
-Set-ExecutionPolicy RemoteSigned -Scope CurrentUser
-```
-
-`Y` を入力して Enter。
-これで自分の PC 上で作った `.ps1` は実行できるようになります。
-
----
-
-## ここまでのまとめ
-
-- **Dockerfile** はコンテナの中身（OS / ランタイム / ライブラリ）のレシピ
-- **docker-compose.yml** は実行時の設定（ポート / ボリューム / コマンド）の一覧
-- **devcontainer.json** を使うと、VS Code からコンテナにそのまま入って開発できる
-- 単発実行なら `docker run ...`、よく使うツールなら `ENTRYPOINT` でコマンドを短くできる
-- `up / down / logs / --build` あたりを手癖にしておくと開発がかなり楽
-- Windows なら `ops.ps1` を 1 つ置いておくだけで、Makefile っぽく運用をまとめられる
-
-「とりあえずコンテナで開発したい」くらいであれば、この辺を押さえておけば十分動かせるはずです。
-
----
-
----
-
----
-
-## おまけ1：Windows 側で頑張るのは諦めよう（WSL2 完全移行）
-
-「Windows で Docker は遅い」「設定が面倒」…そんな悩みを過去にするための、**WSL2 完全移行ガイド** です。
-
-**「最も速く、最もトラブルが少なく、かつデータ消失の不安もない」** 構成をまとめました。
-
-Windows で Docker を使う際、ファイル同期が遅かったり、パスの書き方（`\` と `/`）でハマったりしていませんか？
-
-結論から言うと、**「開発作業はすべて WSL2 (Linux) の中だけで完結させる」** のが現代の正解です。
-Windows は単なる「モニターとキーボードがついた箱」として扱いましょう。
-
-### なぜ WSL2 なのか？
-
-理由は単純、**「圧倒的に速いから」** です。
-
-- **Windows 側にコードを置く（旧来）**
-  Windows (NTFS) と Docker (Linux) の間でファイルシステムの「翻訳」が発生します。
-  これが `npm install` やホットリロードを平気で数分単位で遅延させます。
-- **WSL2 側にコードを置く（推奨）**
-  Linux 同士なので翻訳ゼロ。Mac やネイティブ Linux と同等の速度になります。
-
----
-
-## 1. 開発環境セットアップ（最初の一回だけ）
-
-PowerShell を細かくいじる必要はありません。
-以下の手順で「Windows の中に最強の Linux 環境」を作ります。
-
-### Step 1: WSL のインストール
-
-管理者権限の PowerShell で以下を 1 回打つだけ。
-
-```powershell
-wsl --install
-```
-
-再起動すると Ubuntu が立ち上がるので、ユーザー名とパスワードを設定。
-これで Windows の中に Linux が入りました。
-
-### Step 2: Docker Desktop との連携
-
-1. Docker Desktop の設定 (⚙️) > **Resources** > **WSL integration** を開く
-1. 「Enable integration with my default WSL distro」をチェック
-1. 「Ubuntu」のスイッチを **ON** にする
-
-これで、Ubuntu の中で `docker` コマンドが使えるようになります。
-
-### Step 3: Ubuntu の武装化（必須ツールを入れる）
-
-ここからは **Ubuntu のターミナル** で操作します。
-
-開発に必要な `make`, `git`, `curl`, `Docker 用の権限設定`, `fnm(Node 管理)` を一気に入れる例：
-
-```bash
-# 1. 基本ツールのインストール
-sudo apt update && sudo apt install -y make unzip git curl
-
-# 2. Docker 権限の設定 (sudo なしで docker を使えるようにする)
-# ※Docker Desktop 連携済みなら不要な場合もありますが、念のため
-sudo usermod -aG docker $USER
-
-# 3. fnm (高速 Node マネージャー) のインストール
-curl -fsSL https://fnm.vercel.app/install | bash
-echo 'eval "$(fnm env --use-on-cd)"' >> ~/.bashrc
-
-# 4. 反映のため一度ログアウト
-exit
-```
-
----
-
-## 2. 実際の開発フロー
-
-### コードはどこに置く？
-
-**必ず WSL (Ubuntu) の中** に置きます。
-Windows の Documents などに入れてはいけません（遅くなります）。
-
-```bash
-# Ubuntu ターミナルで
-mkdir -p ~/projects/my-app
-cd ~/projects/my-app
-```
-
-### VS Code で開く
-
-WSL のディレクトリにいる状態で、以下を実行：
-
-```bash
-code .
-```
-
-VS Code が立ち上がり、左下に `>< WSL: Ubuntu` と表示されていれば成功です。
-
-これで「Windows の VS Code で操作しているのに、実体は Linux 上にある」という理想状態になります。
-
-### 運用は Makefile で楽をする
-
-Linux 環境になったので、PowerShell スクリプトではなく、エンジニア標準の **Makefile** が使えます。
-
-プロジェクトルートに `Makefile`（拡張子なし）を置いておきましょう。
+上記のコマンドを毎回打つのは非効率です。この `Makefile` をプロジェクトルートに置いてください。
+`make up` だけで環境が立ち上がります。
 
 ```makefile
-# Makefile
-# 使い方: make up
+# ターゲットとなるサービス名（docker-compose.ymlのサービス名に合わせる）
+SERVICE_NAME := app
 
+# phonyターゲットの定義（ファイル名との衝突回避）
+.PHONY: help up down build re shell root-shell logs logs-app stats clean prune
+
+# --- 基本操作 ---
+
+# デフォルト：ヘルプ表示
+help:
+	@echo "【Docker操作コマンド一覧】"
+	@echo "  make up        : コンテナ起動 (バックグラウンド)"
+	@echo "  make down      : コンテナ停止・削除 (データは保持)"
+	@echo "  make build     : イメージを再ビルドして起動"
+	@echo "  make re        : 完全再起動 (down -> build -> up)"
+	@echo "  make shell     : アプリコンテナに入る (bash)"
+	@echo "  make logs      : 全ログを表示"
+	@echo "  make clean     : 【注意】コンテナ・イメージ・全データを削除"
+
+# 起動 (構成変更がない場合はこれで十分)
 up:
-	@echo "🚀 起動します（常にリビルドして最新化）"
-	docker compose up -d --build
+	docker-compose up -d
 
+# 停止 (コンテナ削除、orphans削除)
 down:
-	@echo "🛑 終了します"
-	docker compose down
+	docker-compose down --remove-orphans
 
+# ビルドして起動 (Dockerfile変更時やライブラリ追加時)
+build:
+	docker-compose up -d --build
+
+# リフレッシュ (停止 → ビルド → 起動)
+re: down build
+
+# --- デバッグ・調査 ---
+
+# コンテナに入る
+shell:
+	docker-compose exec $(SERVICE_NAME) bash
+
+# rootでコンテナに入る (権限エラー調査用)
+root-shell:
+	docker-compose exec -u root $(SERVICE_NAME) bash
+
+# ログを見る (全体)
 logs:
-	@echo "📜 ログを表示 (Ctrl+C で停止)"
-	docker compose logs -f
+	docker-compose logs -f
 
-sh:
-	@echo "💻 コンテナに入ります"
-	docker compose exec app bash
+# アプリのログだけ見る
+logs-app:
+	docker-compose logs -f $(SERVICE_NAME)
+
+# リソース使用状況を見る
+stats:
+	docker stats
+
+# --- メンテナンス ---
+
+# 完全初期化 (ボリュームも消す)
+clean:
+	docker-compose down -v --rmi all --remove-orphans
+
+# 不要なデータの掃除 (ディスク容量確保)
+prune:
+	docker system prune -f
 ```
-
-これさえあれば、毎日の開発はこれだけで済みます：
-
-- 起動: `make up`
-- ログ: `make logs`
-- 終了: `make down`
-
----
-
-## 3. 「WSL のデータが消えそうで怖い」問題への対策
-
-「Windows がトラブったり、WSL が壊れたら、中のコードや `.env` が消えるのでは？」
-という不安を解消するテクニックです。
-
-### テクニック A: `.env` を Windows に退避させる
-
-WSL から見て、Windows の C ドライブは `/mnt/c/` にあります。
-
-大事な `.env` ファイルなどは、Makefile にバックアップコマンドを作っておくと安心です。
-
-```makefile
-# Windows のドキュメントフォルダに .env をコピー
-backup-env:
-	cp .env /mnt/c/Users/あなたのユーザー名/Documents/my-app-env.backup
-```
-
-### テクニック B: WSL を丸ごとバックアップ
-
-「環境設定をいじりすぎて壊しそう」という時は、Windows 側の PowerShell で以下を実行すると、Ubuntu を丸ごと 1 つのファイルに書き出せます。
-
-```powershell
-# Windows PowerShell で実行
-wsl --export Ubuntu "C:\Backups\ubuntu-backup.tar"
-```
-
-これさえあれば、PC を買い替えても `wsl --import` で**完全に元の環境**に戻せます。
-
----
-
-## 4. WSL のフォルダを Windows から簡単に開く
-
-「WSL の奥深くにあるフォルダをいちいち探すのが面倒」問題は、
-**「クイックアクセスへのピン留め」** で解決します。
-
-1. Windows エクスプローラーのアドレスバーに `\\wsl$` と入力
-1. `Ubuntu` > `home` > `ユーザー名` > `projects` と進む
-1. そのフォルダを右クリックして **「クイックアクセスにピン留めする」**
-
-これで、ドキュメントフォルダと同じ感覚で、爆速の Linux 領域にアクセスできます。
-
----
-
-## おまけ1 まとめ
-
-1. **Windows 側には何も置かない。** コードは全て WSL (Ubuntu) の中へ。
-1. **`make` を使う。** 起動もログ確認もコマンド一発。
-1. **大事なデータは `/mnt/c/` へ逃がす。** または `wsl --export` で丸ごとバックアップ。
-
-これで「Windows だから開発しづらい」という言い訳はかなり減ります。
-あとは好きな技術スタックで、快適な Docker ライフを！
-
----
-
----
-
----
-
-## おまけ2：鉄壁のセキュリティ！.env を暗号化して Git 管理する（SOPS）
-
-WSL2 に移行して開発が快適になっても、もう一つ大きな問題が残ります。
-
-> 「PC が壊れたら .env が消える」
-「Git に上げられないからチーム共有が面倒」
-
-これを解決するのが、Mozilla 製の暗号化ツール **SOPS** と、モダンな鍵管理ツール **Age** の組み合わせです。
-
-これを使えば、`.env` を**暗号化して安全に Git にコミット**できるようになります。
-
-ここでは、
-**「PC に 1 つだけ最強の鍵（マスターキー）を作り、全てのプロジェクトでそれを使い回す」**
-という、最も楽な運用を紹介します。
-
----
-
-## Step A: ツールをインストール（WSL 内）
-
-Ubuntu ターミナルで以下を実行して、Age と SOPS を入れます。
-
-```bash
-# 1. Age (鍵作成ツール) のインストール
-sudo apt update && sudo apt install -y age
-
-# 2. SOPS (暗号化ツール) のインストール
-curl -LO https://github.com/getsops/sops/releases/download/v3.9.1/sops-v3.9.1.linux.amd64
-sudo mv sops-v3.9.1.linux.amd64 /usr/local/bin/sops
-sudo chmod +x /usr/local/bin/sops
-```
-
----
-
-## Step B: 「マスターキー」を 1 つだけ作る
-
-プロジェクトごとではなく、**あなたの PC 専用の万能鍵**を 1 つ作成します。
-
-SOPS が自動的に読みに行く「標準の場所」に作るので、後々の設定が楽になります。
-
-```bash
-# 鍵置き場を作成
-mkdir -p ~/.config/sops/age
-
-# マスターキーを作成
-age-keygen -o ~/.config/sops/age/keys.txt
-
-# シェルに鍵の場所を教える（永続化）
-echo 'export SOPS_AGE_KEY_FILE=$HOME/.config/sops/age/keys.txt' >> ~/.bashrc
-source ~/.bashrc
-```
-
----
-
-## Step C: プロジェクトの設定 (`.sops.yaml`)
-
-プロジェクトルートに設定ファイルを作ります。
-
-「このプロジェクトは、俺のマスターキーで開けられるようにする」という設定です。
-
-1. まず、自分の**公開鍵**（人に教えていい鍵）を確認します。
-
-   ```bash
-   # age1... から始まる文字列をコピー
-   grep "public key" ~/.config/sops/age/keys.txt
-   ```
-
-1. `.sops.yaml` を作成し、公開鍵を貼り付けます。
-
-   ```yaml
-   # .sops.yaml
-   creation_rules:
-     - path_regex: \.env$
-       # ここにコピーした公開鍵 (age1...) を貼る
-       age: "age1ql3z7hjy54pw3hyww5tynry..."
-   ```
-
----
-
-## Step D: `.env` を暗号化する
-
-```bash
-# .env を暗号化して .env.enc を作成
-sops --encrypt .env > .env.enc
-```
-
-- `.`env` は **ローカルだけに置く**（Git に上げない）
-- `.env.enc` は **暗号化済みなので Git にコミットして OK**
-
-という運用になります。
-
----
-
-## Step E: 運用は Makefile で自動化する
-
-マスターキー運用にしたおかげで、Makefile は驚くほどシンプルになります。
-鍵の場所を毎回指定する必要すらありません。
-
-プロジェクトルートに `Makefile`（拡張子なし）を作成します。
-
-```makefile
-# Makefile
-
-# 1. 起動（自動で復号してから起動）
-# "make up" だけで、勝手に .env が復元されて立ち上がります
-up: decrypt
-	@echo "🚀 コンテナを起動します..."
-	docker compose up -d --build
-
-# 2. 終了
-down:
-	@echo "🛑 終了します..."
-	docker compose down
-
-# 3. ログ表示
-logs:
-	docker compose logs -f
-
-# 4. コンテナに入る
-sh:
-	docker compose exec app bash
-
-# 5. 【セキュリティ】暗号化 (.env -> .env.enc)
-# .env を更新したらこれを実行して、.env.enc を Git に上げる
-encrypt:
-	@echo "🔒 .env を暗号化します..."
-	sops --encrypt .env > .env.enc
-
-# 6. 【セキュリティ】復号 (.env.enc -> .env)
-# マスターキー設定済みなら、コマンド一発で復号可能
-decrypt:
-	@echo "🔓 .env を復号します..."
-	sops --decrypt .env.enc > .env
-```
-
----
-
-## おまけ2の運用フロー（全プロジェクト共通）
-
-1. **朝イチ**: `make up`
-   - SOPS がマスターキーを使って `.env` を復元し、そのままコンテナが起動。
-1. **`.env` を編集したとき**: `make encrypt`
-   - `.env.enc` を再生成してコミット。
-1. **新しいプロジェクトを作ったとき**:
-   - `.sops.yaml` にいつもの公開鍵をコピペするだけ。新しい鍵を作る必要はなし。
-1. **チーム開発**:
-   - `.sops.yaml` の `age:` に「Aさんの公開鍵, Bさんの公開鍵...」とカンマ区切りで並べれば、
-     全員がそれぞれのマスターキーで同じ `.env.enc` を復号できる。
-
----
-
-これで、
-
-- Windows + Docker + WSL2 で**そこそこ快適な開発環境**
-- `.env` を含む設定を **安全に Git 管理できる仕組み**
-
-まで、一気に揃います。
-
-あとは好きなスタックを載せて、育てていくだけです。
