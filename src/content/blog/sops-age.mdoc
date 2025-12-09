@@ -130,7 +130,7 @@ encrypt:
 # マスターキー設定済みなら、コマンド一発で復号可能
 decrypt:
 	@echo "🔓 .env を復号します..."
-	sops --decrypt .env.enc > .env
+	sops --input-type dotenv --output-type dotenv --decrypt .env.enc > .env
 ```
 
 ---
