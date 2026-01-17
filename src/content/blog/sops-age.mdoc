@@ -78,6 +78,9 @@ Makefile を使うために **GNU Make（make コマンド）** も入れる。
 PowerShell は **PowerShell 7（pwsh）** を想定する。※Windows PowerShellとは別物
 
 ```bash
+# 0) PowerShell7 
+winget install --id Microsoft.PowerShell --source winget
+
 # 1) Age（鍵作成ツール）
 winget install -e --id FiloSottile.age
 
@@ -435,4 +438,5 @@ make updatekeys
 
 [https://github.com/getsops/sops](https://github.com/getsops/sops)
 
-[https://github.com/FiloSottile/age](https://github.com/FiloSottile/age)
+[https://github.com/FiloSottile/age](https://github.com/FiloSottile/age)\
+[https://learn.microsoft.com/ja-jp/powershell/scripting/install/install-powershell-on-windows?view=powershell-7.5](https://learn.microsoft.com/ja-jp/powershell/scripting/install/install-powershell-on-windows?view=powershell-7.5)
