@@ -352,7 +352,6 @@ decrypt:
 updatekeys:
 	@echo "🔁 updatekeys"
 	@sops updatekeys -y .env.enc
-
 ```
 
 ---
@@ -387,7 +386,6 @@ creation_rules:
       age1alice.................................,
       age1bob...................................,
       age1carol.................................
-
 ```
 
 この状態で暗号化すると、**Aさん/Bさん/Cさんの誰でも復号できる `.env.enc`** ができる。
