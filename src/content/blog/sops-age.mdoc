@@ -2,12 +2,19 @@
 draft: false
 visibility: public
 publishedDate: 2025-12-06
-title: sopsとage
+updatedDate: 2026-01-17
+title: SOPS + ageで .env を暗号化してGit管理する：Windows/Linux対応の最短手順
+description: >-
+  SOPS + age を使って .env を暗号化し、.env.enc として安全に Git 管理する方法を解説する。
+  Windows（PowerShell）と
+  Linux（bash）を同じ流れで進められるようにし、UTF-8/LFやパス問題などのハマりどころも先に潰す。チーム開発向けに updatekeys
+  を使った鍵追加・削除の運用も紹介する。
 thumbnail: '@assets/images/blog/sops-age/thumbnail.png'
 category: 開発
 tags:
   - SOPS
   - Age
+  - Dotenv
 ---
 ## 鉄壁のセキュリティ！.env を暗号化して Git 管理する（SOPS）
 
@@ -31,7 +38,8 @@ SOPSで `.env` を **暗号化して安全に Git にコミット**できるよ�
 - `.env`
 - `.env.enc`
 - `.sops.yaml`
-- `Makefile`
+- `Makefile`\
+- `scripts/sops.ps1`
 
 ### VS Code で確認する方法
 
@@ -425,9 +433,8 @@ make updatekeys
 
 ## 参考（公式ドキュメント）
 
-```
-https://getsops.io/docs/
-https://github.com/getsops/sops
-https://github.com/FiloSottile/age
+[https://getsops.io/docs/](https://getsops.io/docs/)
 
-```
+[https://github.com/getsops/sops](https://github.com/getsops/sops)
+
+[https://github.com/FiloSottile/age](https://github.com/FiloSottile/age)
