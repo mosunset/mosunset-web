@@ -32,7 +32,6 @@ SOPSで `.env` を **暗号化して安全に Git にコミット**できるよ�
 - `.env.enc`
 - `.sops.yaml`
 - `Makefile`
-- `scripts/sops.ps1`
 
 ### VS Code で確認する方法
 
@@ -66,13 +65,11 @@ SOPSで `.env` を **暗号化して安全に Git にコミット**できるよ�
 この運用では、暗号化ツールの **SOPS**、鍵の **age** に加えて、\
 Makefile を使うために **GNU Make（make コマンド）** も入れる。
 
----
-
 ### Windows（PowerShell）
 
 PowerShell は **PowerShell 7（pwsh）** を想定する。※Windows PowerShellとは別物
 
-```PowerShell
+```bash
 # 1) Age（鍵作成ツール）
 winget install -e --id FiloSottile.age
 
@@ -95,11 +92,9 @@ sops --version
 make --version
 ```
 
----
-
 ### Linux（bash / Ubuntu想定）
 
-```
+```bash
 # 0) update & (upgrade (こちらは既存のプログラムに影響が出る場合があります))
 sudo apt update
 # sudo apt upgrade 
@@ -118,7 +113,7 @@ sudo apt install -y make
 
 動作確認：
 
-```
+```bash
 age --version
 sops --version
 make --version
@@ -130,19 +125,17 @@ make --version
 
 プロジェクトごとではなく、**あなたの PC 専用の万能鍵**を 1 つ作成する。
 
-ここでは **英数字のみのパス**に置くため、Windows は `C:\dev\sops\...` を使う。
-
----
+ここでは **英数字のみのパス**に置くため、Windows は `C:\dev\sops\...` を使う。\
+分かっている方は自分の好きなディレクトリで良い。
 
 ### Windows（PowerShell）
 
-```
+```bash
 # 鍵置き場（英数字のみのパス）を作成
 New-Item -ItemType Directory -Force -Path "C:\dev\sops\age" | Out-Null
 
 # マスターキーを作成
 age-keygen -o "C:\dev\sops\age\keys.txt"
-
 ```
 
 次に、SOPS に鍵の場所を教える。
@@ -150,7 +143,7 @@ age-keygen -o "C:\dev\sops\age\keys.txt"
 - **今開いてるターミナルだけ**反映（即効性）
 - **永続化**（次回以降も有効）
 
-```
+```bash
 # 1) 今のセッションだけ反映
 $env:SOPS_AGE_KEY_FILE = "C:\dev\sops\age\keys.txt"
 
@@ -160,14 +153,11 @@ $env:SOPS_AGE_KEY_FILE = "C:\dev\sops\age\keys.txt"
   "C:\dev\sops\age\keys.txt",
   "User"
 )
-
 ```
-
----
 
 ### Linux（bash / Ubuntu想定）
 
-```
+```bash
 # 鍵置き場を作成
 mkdir -p ~/.config/sops/age
 
@@ -177,7 +167,6 @@ age-keygen -o ~/.config/sops/age/keys.txt
 # シェルに鍵の場所を教える（永続化）
 echo 'export SOPS_AGE_KEY_FILE=$HOME/.config/sops/age/keys.txt' >> ~/.bashrc
 source ~/.bashrc
-
 ```
 
 ---
@@ -188,39 +177,32 @@ source ~/.bashrc
 
 「このプロジェクトは、この公開鍵たちで開けられるようにする」という設定である。
 
----
-
 ### 1. 公開鍵を確認する
 
 #### Windows（PowerShell）
 
-```
+```bash
 # age1... から始まる公開鍵が表示されるのでコピー
 Select-String -Path "C:\dev\sops\age\keys.txt" -Pattern "public key"
-
 ```
 
 #### Linux（bash）
 
-```
+```bash
 # age1... から始まる公開鍵が表示されるのでコピー
 grep "public key" ~/.config/sops/age/keys.txt
-
 ```
-
----
 
 ### 2. .sops.yaml を作成する（共通）
 
 ⚠️ 作成したら **UTF-8 / LF** になっているか確認してから次へ進む。
 
-```
+```yaml
 # .sops.yaml
 creation_rules:
   - path_regex: \.env$
     # ここに公開鍵 (age1...) を貼る
     age: "age1ql3z7hjy54pw3hyww5tynry..."
-
 ```
 
 ---
@@ -231,13 +213,11 @@ creation_rules:
 
 ⚠️ `.env` も **UTF-8 / LF** になっているか確認してから暗号化する。
 
----
-
 ### Windows（PowerShell）
 
 PowerShell は出力の都合で CRLF になりやすいので、**LF を強制する方法**にする。
 
-```
+```bash
 # SOPSの出力をUTF-8（BOMなし）+ LF で保存する
 $enc = sops --input-type dotenv --output-type dotenv --encrypt .env
 $enc = $enc -replace "`r`n", "`n"
@@ -246,20 +226,14 @@ $enc = $enc -replace "`r`n", "`n"
   $enc,
   (New-Object System.Text.UTF8Encoding($false))
 )
-
 ```
-
----
 
 ### Linux（bash）
 
-```
+```bash
 # .env を暗号化して .env.enc を作成
 sops --input-type dotenv --output-type dotenv --encrypt .env > .env.enc
-
 ```
-
----
 
 ### 運用ルール（共通）
 
@@ -268,9 +242,8 @@ sops --input-type dotenv --output-type dotenv --encrypt .env > .env.enc
 
 `.gitignore` にこれを入れておくと安心である。
 
-```
+```gitignore
 .env
-
 ```
 
 ---
