@@ -242,7 +242,7 @@ sops --input-type dotenv --output-type dotenv --encrypt .env > .env.enc
 
 `.gitignore` にこれを入れておくと安心である。
 
-```gitignore
+```
 .env
 ```
 
@@ -252,11 +252,9 @@ sops --input-type dotenv --output-type dotenv --encrypt .env > .env.enc
 
 ⚠️ 復号した `.env` も **UTF-8 / LF** になっているか毎回チェックする。
 
----
-
 ### Windows（PowerShell）
 
-```
+```bash
 # SOPSの出力をUTF-8（BOMなし）+ LF で保存する
 $dec = sops --input-type dotenv --output-type dotenv --decrypt .env.enc
 $dec = $dec -replace "`r`n", "`n"
@@ -265,17 +263,13 @@ $dec = $dec -replace "`r`n", "`n"
   $dec,
   (New-Object System.Text.UTF8Encoding($false))
 )
-
 ```
-
----
 
 ### Linux（bash）
 
-```
+```bash
 # 復号して .env を作成
 sops --input-type dotenv --output-type dotenv --decrypt .env.enc > .env
-
 ```
 
 ---
@@ -286,13 +280,11 @@ Docker 操作は含めず、**暗号化 / 復号 / 鍵同期だけ**を Makefile
 
 ⚠️ `Makefile` 自体も **UTF-8 / LF** にする。
 
----
-
 ### 1. scripts/sops.ps1 を作る（Windows専用）
 
 `Makefile` の中で PowerShell をゴリゴリ書くと地獄になるため、Windows は別スクリプトに逃がす。
 
-```
+```powershell
 # scripts/sops.ps1
 param(
   [Parameter(Mandatory=$true)]
@@ -322,14 +314,11 @@ if ($Action -eq "decrypt") {
   Write-Utf8Lf ".env" $dec
   exit 0
 }
-
 ```
-
----
 
 ### 2. Makefile を作る（共通）
 
-```
+```makefile
 # Makefile
 # 暗号化 / 復号 / 鍵同期だけに絞る
 
@@ -371,14 +360,10 @@ Git を本格運用するなら、**最初から複数人復号できる形**に
 - **リポジトリの `.sops.yaml` に公開鍵を全員分登録する**
 - **既存の `.env.enc` は `updatekeys` で鍵を同期してコミットする**
 
----
-
 ### 1. まず全員が自分の公開鍵を作る
 
 各メンバーが Step B を実行して `public key: age1...` を取り出す。\
 公開鍵は **GitHub のプロフィールや Slack に貼っても問題ない鍵**である。
-
----
 
 ### 2. `.sops.yaml` を「複数公開鍵対応」にする
 
@@ -386,7 +371,7 @@ Git を本格運用するなら、**最初から複数人復号できる形**に
 
 ⚠️ `.sops.yaml` も **UTF-8 / LF** を確認してから保存する。
 
-```
+```yaml
 # .sops.yaml
 creation_rules:
   - path_regex: \.env$
@@ -399,37 +384,29 @@ creation_rules:
 
 この状態で暗号化すると、**Aさん/Bさん/Cさんの誰でも復号できる `.env.enc`** ができる。
 
----
-
 ### 3. 新メンバーを追加するとき（鍵の追加）
 
 新メンバーの公開鍵を `.sops.yaml` に足しただけでは、**昔の `.env.enc` はそのまま**である。
 
 なので、既存の `.env.enc` に対して鍵同期を実行する。
 
-```
+```bash
 # Windows / Linux 共通（どちらでもOK）
 make updatekeys
-
 ```
 
 これで `.env.enc` が書き換わるので、Git にコミットする。
-
----
 
 ### 4. メンバーが抜けるとき（鍵の削除）
 
 抜ける人の公開鍵を `.sops.yaml` から消してから、同じく鍵同期する。
 
-```
+```bash
 make updatekeys
-
 ```
 
 ⚠️ 注意点として、Git は履歴が残るため、過去のコミットに含まれる `.env.enc` を完全に無効化することは別問題になる。\
 本当に無効化したい場合は、**秘密情報そのものを差し替える**運用が必要になる。
-
----
 
 ### 5. チームの基本フロー（PR運用）
 
