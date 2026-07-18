@@ -1,46 +1,47 @@
 ---
 import Layout from "@/layouts/Layout.astro";
 import { getCollection } from "astro:content";
-import InitMasonry from "@/components/initMasonry/index.astro";
-import BookCard from "@/components/Card/BookCard.astro";
+import ItemList from "@/components/ViewToggle/ItemList";
+import type { ItemData } from "@/components/ViewToggle/ItemList";
 
-// コレクションから全記事を取得
 const allPosts = await getCollection("books");
 
-// 下書きを除外
-const publishedPosts = allPosts.filter((post) => !post.data.draft);
+const posts = allPosts
+    .filter((p) => !p.data.draft && p.data.visibility === "public")
+    .sort(
+        (a, b) =>
+            new Date(b.data.publishedDate).getTime() -
+            new Date(a.data.publishedDate).getTime(),
+    );
 
-// 公開範囲が公開以外のものを除外
-const publicPosts = publishedPosts.filter(
-    (post) => post.data.visibility === "public"
-);
-
-// 日付の新しい順に並び替え
-// 更新日が存在する場合は更新日を優先
-// 更新日が存在しない場合は公開日を優先
-publicPosts.sort(
-    (a, b) =>
-        new Date(b.data.publishedDate).getTime() -
-        new Date(a.data.publishedDate).getTime()
-);
+const items: ItemData[] = posts.map((p) => ({
+    kind: "book",
+    href: `/book/${p.slug}/`,
+    title: p.data.title,
+    thumbnailSrc: p.data.thumbnail?.src,
+    author: p.data.author,
+    publisher: p.data.publisher,
+    publishedDate: p.data.publishedDate?.toString(),
+    description: p.data.description,
+    category: p.data.category,
+    tags: p.data.tags,
+    status: p.data.status,
+    format: p.data.format,
+    evaluation: p.data.evaluation,
+}));
 ---
 
 <Layout title="蔵書一覧">
-    <h1 class="text-3xl font-bold text-gray-900 mb-8">蔵書</h1>
-    <div id="masonry-container" class="masonry-container w-full">
-        {
-            publicPosts.length === 0 ? (
-                <div class="col-span-full text-center text-gray-500">
-                    <p>蔵書がありません</p>
-                </div>
-            ) : (
-                publicPosts.map((post) => <BookCard book={post} />)
-            )
-        }
-    </div>
-    <InitMasonry />
-    <p class="text-gray-500 my-4">
-        本の情報は楽天Books APIやGoogle Books
-        APIから取得し、AI（Gemma-3-12b-it）によって自動的に整形・補完されています。そのため、一部内容について正確性が損なわれている場合があります。正式な情報は必ずご自身でもご確認ください。
+    <h1 class="text-3xl font-bold text-gray-900 mb-6">蔵書</h1>
+    {
+        items.length === 0 ? (
+            <p class="text-center text-gray-500">蔵書がありません</p>
+        ) : (
+            <ItemList client:load items={items} />
+        )
+    }
+    <p class="text-gray-400 text-xs mt-6">
+        本の情報は楽天Books API・Google Books API から取得し、AI
+        によって自動整形・補完されています。正式な情報はご自身でご確認ください。
     </p>
 </Layout>

@@ -1,7 +1,6 @@
 ---
 import Layout from "@/layouts/Layout.astro";
-import BlogCard from "@/components/Card/BlogCard.astro";
-import CategoryDetailPage from "@/components/Pages/Categorys/CategoryDetailPage.astro";
+import { SingleGroupView } from "@/components/Pages/GroupedItemList";
 import {
     getPublicPosts,
     getPostsByCategorySorted,
@@ -10,44 +9,34 @@ import {
     SECTION_CONFIGS,
 } from "@/components/Pages/utils";
 
-const config = SECTION_CONFIGS.blog;
-
-// URLパラメータからカテゴリーを取得
 export async function getStaticPaths() {
-    const publicPosts = await getPublicPosts(
-        SECTION_CONFIGS.blog.collectionName
+    const posts = await getPublicPosts(SECTION_CONFIGS.blog.collectionName);
+    const byCategory = getPostsByCategorySorted(
+        posts,
+        SECTION_CONFIGS.blog.sortField,
     );
-    const postsByCategory = getPostsByCategorySorted(
-        publicPosts,
-        SECTION_CONFIGS.blog.sortField
-    );
-    return generateCategoryPaths(postsByCategory);
+    return generateCategoryPaths(byCategory);
 }
 
 const { category, postsByCategory } = Astro.props;
-
-// 指定されたカテゴリーの記事を取得してソート
 const categoryPosts = sortPostsByDate(
     postsByCategory[category] || [],
-    config.sortField
+    SECTION_CONFIGS.blog.sortField,
 );
-
-// 他のカテゴリー一覧を取得（現在のカテゴリーを除く）
-const otherCategories = Object.keys(postsByCategory)
-    .filter((cat) => cat !== category)
+const others = Object.keys(postsByCategory)
+    .filter((c) => c !== category)
     .sort((a, b) => a.localeCompare(b, "ja"));
 ---
 
-<Layout title="カテゴリー - ブログ一覧">
-    <CategoryDetailPage
-        category={category}
-        categoryPosts={categoryPosts}
-        otherCategories={otherCategories}
-        postsByCategory={postsByCategory}
-        sectionName={config.sectionName}
-        sectionSlug={config.sectionSlug}
-        accentColor="blue"
-        CardComponent={BlogCard}
-        countLabel={config.countLabel}
+<Layout title={`${category} - ブログ`}>
+    <SingleGroupView
+        client:load
+        heading={`カテゴリー：${category}`}
+        posts={categoryPosts}
+        kind="blog"
+        others={others}
+        countMap={postsByCategory}
+        sectionSlug="blog"
+        groupType="categorys"
     />
 </Layout>

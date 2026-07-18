@@ -1,7 +1,6 @@
 ---
 import Layout from "@/layouts/Layout.astro";
-import BookCard from "@/components/Card/BookCard.astro";
-import TagsListPage from "@/components/Pages/Tags/TagsListPage.astro";
+import { AllGroupsView } from "@/components/Pages/GroupedItemList";
 import {
     getPublicPosts,
     getPostsByTagSorted,
@@ -9,19 +8,17 @@ import {
 } from "@/components/Pages/utils";
 
 const config = SECTION_CONFIGS.books;
-
-// コレクションから公開記事を取得
 const publicPosts = await getPublicPosts(config.collectionName);
-
-// タグごとにグループ化してソート
 const postsByTag = getPostsByTagSorted(publicPosts, config.sortField);
 ---
 
 <Layout title="タグ - 蔵書一覧">
-    <TagsListPage
-        postsByTag={postsByTag}
-        sectionName={config.sectionName}
-        borderColor="border-green-200"
-        CardComponent={BookCard}
+    <AllGroupsView
+        client:load
+        heading="タグ：蔵書"
+        groupedPosts={postsByTag}
+        kind="book"
+        groupType="tags"
+        sectionSlug="book"
     />
 </Layout>

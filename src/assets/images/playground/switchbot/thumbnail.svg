@@ -1,0 +1,37 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="800" height="600" viewBox="0 0 800 600">
+  <rect width="800" height="600" fill="#f9fafb"/>
+  <!-- 3 stat cards -->
+  <!-- temp -->
+  <rect x="60" y="100" width="200" height="110" rx="10" fill="white" stroke="#e5e7eb" stroke-width="2"/>
+  <text x="160" y="140" text-anchor="middle" font-family="sans-serif" font-size="16" fill="#6b7280">温度</text>
+  <text x="160" y="190" text-anchor="middle" font-family="monospace" font-size="40" font-weight="bold" fill="#111827">26.4°C</text>
+  <!-- hum -->
+  <rect x="300" y="100" width="200" height="110" rx="10" fill="white" stroke="#e5e7eb" stroke-width="2"/>
+  <text x="400" y="140" text-anchor="middle" font-family="sans-serif" font-size="16" fill="#6b7280">湿度</text>
+  <text x="400" y="190" text-anchor="middle" font-family="monospace" font-size="40" font-weight="bold" fill="#111827">58.2%</text>
+  <!-- di -->
+  <rect x="540" y="100" width="200" height="110" rx="10" fill="white" stroke="#e5e7eb" stroke-width="2"/>
+  <text x="640" y="140" text-anchor="middle" font-family="sans-serif" font-size="16" fill="#6b7280">不快指数</text>
+  <text x="640" y="185" text-anchor="middle" font-family="monospace" font-size="36" font-weight="bold" fill="#111827">70.3</text>
+  <text x="640" y="205" text-anchor="middle" font-family="sans-serif" font-size="13" fill="#6b7280">😊 快適</text>
+  <!-- scale bar -->
+  <defs>
+    <linearGradient id="scale" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="rgb(0,0,255)"/>
+      <stop offset="100%" stop-color="rgb(255,0,0)"/>
+    </linearGradient>
+  </defs>
+  <rect x="60" y="280" width="680" height="24" rx="4" fill="url(#scale)"/>
+  <!-- pointer -->
+  <rect x="371" y="274" width="4" height="36" fill="black"/>
+  <!-- labels -->
+  <text x="60"  y="330" font-family="sans-serif" font-size="13" fill="#6b7280">45</text>
+  <text x="195" y="330" font-family="sans-serif" font-size="13" fill="#6b7280">55</text>
+  <text x="330" y="330" font-family="sans-serif" font-size="13" fill="#6b7280">65</text>
+  <text x="465" y="330" font-family="sans-serif" font-size="13" fill="#6b7280">75</text>
+  <text x="600" y="330" font-family="sans-serif" font-size="13" fill="#6b7280">85</text>
+  <text x="720" y="330" font-family="sans-serif" font-size="13" fill="#6b7280">90</text>
+  <!-- title -->
+  <text x="400" y="420" text-anchor="middle" font-family="sans-serif" font-size="28" font-weight="bold" fill="#111827">私の部屋の温湿度</text>
+  <text x="400" y="460" text-anchor="middle" font-family="sans-serif" font-size="16" fill="#9ca3af">SwitchBot センサー リアルタイム</text>
+</svg>

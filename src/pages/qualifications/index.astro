@@ -1,42 +1,40 @@
 ---
 import Layout from "@/layouts/Layout.astro";
 import { getCollection } from "astro:content";
-import InitMasonry from "@/components/initMasonry/index.astro";
-import QualificationCard from "@/components/Card/QualificationCard.astro";
+import ItemList from "@/components/ViewToggle/ItemList";
+import type { ItemData } from "@/components/ViewToggle/ItemList";
 
-// コレクションから全記事を取得
 const allPosts = await getCollection("qualifications");
 
-// 下書きを除外
-const publishedPosts = allPosts.filter((post) => !post.data.draft);
+const posts = allPosts
+    .filter((p) => !p.data.draft && p.data.visibility === "public")
+    .sort(
+        (a, b) =>
+            new Date(b.data.acquiredDate ?? "2000-01-01").getTime() -
+            new Date(a.data.acquiredDate ?? "2000-01-01").getTime(),
+    );
 
-// 公開範囲が公開以外のものを除外
-const publicPosts = publishedPosts.filter(
-    (post) => post.data.visibility === "public"
-);
-
-// 並び替え
-publicPosts.sort(
-    (a, b) =>
-        new Date(b.data.acquiredDate || "2000-01-01").getTime() -
-        new Date(a.data.acquiredDate || "2000-01-01").getTime()
-);
+const items: ItemData[] = posts.map((p) => ({
+    kind: "qualification",
+    href: `/qualifications/${p.slug}/`,
+    title: p.data.name,
+    thumbnailSrc: p.data.thumbnail?.src,
+    organization: p.data.organization,
+    category: p.data.category,
+    tags: p.data.tags,
+    status: p.data.status,
+    acquiredDate: p.data.acquiredDate?.toString(),
+    score: p.data.score,
+}));
 ---
 
 <Layout title="資格一覧">
-    <h1 class="text-3xl font-bold text-gray-900 mb-8">資格</h1>
-    <div id="masonry-container" class="masonry-container w-full">
-        {
-            publicPosts.length === 0 ? (
-                <div class="col-span-full text-center text-gray-500">
-                    <p>資格がありません</p>
-                </div>
-            ) : (
-                publicPosts.map((post) => (
-                    <QualificationCard qualification={post} />
-                ))
-            )
-        }
-    </div>
-    <InitMasonry />
+    <h1 class="text-3xl font-bold text-gray-900 mb-6">資格・試験</h1>
+    {
+        items.length === 0 ? (
+            <p class="text-center text-gray-500">資格がありません</p>
+        ) : (
+            <ItemList client:load items={items} />
+        )
+    }
 </Layout>

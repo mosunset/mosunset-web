@@ -3,7 +3,7 @@ import "@/styles/global.css";
 import { SEO } from "astro-seo";
 const { pathname } = Astro.url;
 import myImage from "@/assets/images/my.webp";
-import Breadcrumb from "@/components/Breadcrumb.astro";
+import Breadcrumb from "@/components/Breadcrumb.tsx";
 
 interface Props {
     title?: string;
@@ -62,64 +62,7 @@ const navLinkClass = (href: string) =>
 
             gtag("config", "G-7KJ6SEPD5R");
         </script>
-        <!-- Masonry関連のスクリプト（1回のみ読み込み） -->
-        <script
-            src="https://unpkg.com/masonry-layout@4/dist/masonry.pkgd.min.js"
-        ></script>
-        <script src="https://unpkg.com/imagesloaded@5/imagesloaded.pkgd.min.js"
-        ></script>
-        <script
-            define:vars={{
-                id: "masonry-container",
-                item: ".masonry-item",
-                gutter: 24,
-                transitionDuration: "0.2s",
-            }}
-        >
-            // Masonry初期化のグローバル関数（ページ全体で1回だけ定義）
-            window.__masonryInit = function (
-                id,
-                item,
-                gutter,
-                transitionDuration
-            ) {
-                const container = document.getElementById(id);
 
-                // コンテナが存在しない場合は処理を中断
-                if (!container) {
-                    return;
-                }
-
-                // 既存のインスタンスがあれば破棄する
-                if (container.__masonryInstance) {
-                    container.__masonryInstance.destroy();
-                }
-
-                // Masonryの新しいインスタンスを初期化
-                const masonryInstance = new Masonry(container, {
-                    itemSelector: item,
-                    columnWidth: item,
-                    percentPosition: true,
-                    horizontalOrder: false,
-                    transitionDuration: transitionDuration,
-                    gutter: gutter,
-                });
-
-                // コンテナにインスタンスを保存
-                container.__masonryInstance = masonryInstance;
-
-                // imagesLoadedを使ってコンテナ内の画像の読み込みを監視
-                imagesLoaded(container).on("progress", () => {
-                    if (masonryInstance) {
-                        masonryInstance.layout();
-                    }
-                });
-
-                // Masonryアイテムを可視化（CSSでのアニメーション用）
-                const items = container.querySelectorAll(item);
-                items.forEach((el) => el.classList.add("opacity-100"));
-            };
-        </script>
         <SEO
             title={title}
             description={description}
@@ -188,7 +131,11 @@ const navLinkClass = (href: string) =>
             </nav>
         </header>
         <div class="container mx-auto px-4 sm:px-6 lg:px-8 flex-grow">
-            {pathname.split("/").filter(Boolean).length >= 2 && <Breadcrumb />}
+            {
+                pathname.split("/").filter(Boolean).length >= 2 && (
+                    <Breadcrumb client:load />
+                )
+            }
             <slot />
         </div>
         <footer

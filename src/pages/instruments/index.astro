@@ -1,40 +1,36 @@
 ---
 import Layout from "@/layouts/Layout.astro";
 import { getCollection } from "astro:content";
-import InitMasonry from "@/components/initMasonry/index.astro";
-import InstrumentCard from "@/components/Card/InstrumentCard.astro";
+import ItemList from "@/components/ViewToggle/ItemList";
+import type { ItemData } from "@/components/ViewToggle/ItemList";
 
-// コレクションから全記事を取得
 const allPosts = await getCollection("instruments");
 
-// 下書きを除外
-const publishedPosts = allPosts.filter((post) => !post.data.draft);
+const posts = allPosts
+    .filter((p) => !p.data.draft && p.data.visibility === "public")
+    .sort((a, b) => (a.data.type ?? "").localeCompare(b.data.type ?? "", "ja"));
 
-// 公開範囲が公開以外のものを除外
-const publicPosts = publishedPosts.filter(
-    (post) => post.data.visibility === "public"
-);
-
-// 楽器の種類でソート（UTF-8文字コード順）
-publicPosts.sort((a, b) => {
-    const typeA = a.data.type || "";
-    const typeB = b.data.type || "";
-    return typeA.localeCompare(typeB, "ja");
-});
+const items: ItemData[] = posts.map((p) => ({
+    kind: "instrument",
+    href: `/instruments/${p.slug}/`,
+    title: p.data.name,
+    thumbnailSrc: p.data.thumbnail?.src,
+    brand: p.data.brand,
+    instrumentName: p.data.instrumentName,
+    category: p.data.type,
+    tags: p.data.tags,
+    purchaseDate: p.data.purchaseDate?.toString(),
+    status: p.data.status,
+}));
 ---
 
 <Layout title="楽器一覧">
-    <h1 class="text-3xl font-bold text-gray-900 mb-8">楽器</h1>
-    <div id="masonry-container" class="masonry-container w-full">
-        {
-            publicPosts.length === 0 ? (
-                <div class="col-span-full text-center text-gray-500">
-                    <p>楽器がありません</p>
-                </div>
-            ) : (
-                publicPosts.map((post) => <InstrumentCard instrument={post} />)
-            )
-        }
-    </div>
-    <InitMasonry />
+    <h1 class="text-3xl font-bold text-gray-900 mb-6">楽器</h1>
+    {
+        items.length === 0 ? (
+            <p class="text-center text-gray-500">楽器がありません</p>
+        ) : (
+            <ItemList client:load items={items} />
+        )
+    }
 </Layout>

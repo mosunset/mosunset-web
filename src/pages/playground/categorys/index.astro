@@ -1,7 +1,6 @@
 ---
 import Layout from "@/layouts/Layout.astro";
-import PlaygroundCard from "@/components/Card/PlaygroundCard.astro";
-import CategorysListPage from "@/components/Pages/Categorys/CategorysListPage.astro";
+import { AllGroupsView } from "@/components/Pages/GroupedItemList";
 import {
     getPublicPosts,
     getPostsByCategorySorted,
@@ -9,19 +8,17 @@ import {
 } from "@/components/Pages/utils";
 
 const config = SECTION_CONFIGS.playground;
-
-// コレクションから公開記事を取得
 const publicPosts = await getPublicPosts(config.collectionName);
-
-// カテゴリーごとにグループ化してソート
 const postsByCategory = getPostsByCategorySorted(publicPosts, config.sortField);
 ---
 
 <Layout title="カテゴリー - Playground一覧">
-    <CategorysListPage
-        postsByCategory={postsByCategory}
-        sectionName={config.sectionName}
-        borderColor="border-blue-200"
-        CardComponent={PlaygroundCard}
+    <AllGroupsView
+        client:load
+        heading="カテゴリー：Playground"
+        groupedPosts={postsByCategory}
+        kind="playground"
+        groupType="categorys"
+        sectionSlug="playground"
     />
 </Layout>

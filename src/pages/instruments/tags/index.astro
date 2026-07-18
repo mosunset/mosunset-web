@@ -1,7 +1,6 @@
 ---
 import Layout from "@/layouts/Layout.astro";
-import InstrumentCard from "@/components/Card/InstrumentCard.astro";
-import TagsListPage from "@/components/Pages/Tags/TagsListPage.astro";
+import { AllGroupsView } from "@/components/Pages/GroupedItemList";
 import {
     getPublicPosts,
     getPostsByTagSorted,
@@ -9,20 +8,17 @@ import {
 } from "@/components/Pages/utils";
 
 const config = SECTION_CONFIGS.instruments;
-
-// コレクションから公開記事を取得
 const publicPosts = await getPublicPosts(config.collectionName);
-
-// タグごとにグループ化してソート
 const postsByTag = getPostsByTagSorted(publicPosts, config.sortField);
 ---
 
 <Layout title="タグ - 楽器一覧">
-    <TagsListPage
-        postsByTag={postsByTag}
-        sectionName={config.sectionName}
-        borderColor="border-green-200"
-        CardComponent={InstrumentCard}
+    <AllGroupsView
+        client:load
+        heading="タグ：楽器"
+        groupedPosts={postsByTag}
+        kind="instrument"
+        groupType="tags"
+        sectionSlug="instruments"
     />
-
 </Layout>

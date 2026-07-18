@@ -1,40 +1,39 @@
 ---
 import Layout from "@/layouts/Layout.astro";
 import { getCollection } from "astro:content";
-import InitMasonry from "@/components/initMasonry/index.astro";
-import PlaygroundCard from "@/components/Card/PlaygroundCard.astro";
+import ItemList from "@/components/ViewToggle/ItemList";
+import type { ItemData } from "@/components/ViewToggle/ItemList";
 
-// コレクションから全記事を取得
 const allPosts = await getCollection("playground");
 
-// 下書きを除外
-const publishedPosts = allPosts.filter((post) => !post.data.draft);
+const posts = allPosts
+    .filter((p) => !p.data.draft && p.data.visibility === "public")
+    .sort(
+        (a, b) =>
+            new Date(b.data.publishedDate).getTime() -
+            new Date(a.data.publishedDate).getTime(),
+    );
 
-// 公開範囲が公開以外のものを除外
-const publicPosts = publishedPosts.filter(
-    (post) => post.data.visibility === "public"
-);
-
-// 日付の新しい順に並び替え
-publicPosts.sort(
-    (a, b) =>
-        new Date(b.data.publishedDate).getTime() -
-        new Date(a.data.publishedDate).getTime()
-);
+const items: ItemData[] = posts.map((p) => ({
+    kind: "playground",
+    href: `/playground/${p.id}/`,
+    title: p.data.title,
+    thumbnailSrc: p.data.thumbnail?.src,
+    publishedDate: p.data.publishedDate?.toString(),
+    updatedDate: p.data.updatedDate?.toString(),
+    description: p.data.description,
+    category: p.data.category,
+    tags: p.data.tags,
+}));
 ---
 
 <Layout title="Playground一覧">
-    <h1 class="text-3xl font-bold text-gray-900 mb-8">Playground</h1>
-    <div id="masonry-container" class="masonry-container w-full">
-        {
-            publicPosts.length === 0 ? (
-                <div class="col-span-full text-center text-gray-500">
-                    <p>記事がありません</p>
-                </div>
-            ) : (
-                publicPosts.map((post) => <PlaygroundCard playground={post} />)
-            )
-        }
-    </div>
-    <InitMasonry />
+    <h1 class="text-3xl font-bold text-gray-900 mb-6">Playground</h1>
+    {
+        items.length === 0 ? (
+            <p class="text-center text-gray-500">記事がありません</p>
+        ) : (
+            <ItemList client:load items={items} />
+        )
+    }
 </Layout>

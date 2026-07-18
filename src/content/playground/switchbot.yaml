@@ -1,0 +1,13 @@
+draft: false
+visibility: public
+title: 部屋の温湿度モニター
+description: >-
+    SwitchBot センサーから取得した部屋の温度・湿度をリアルタイムで表示します。不快指数（DI）をグラデーションバーで可視化し、現在の体感を一目で確認できます。
+category: ライフスタイル
+tags:
+    - SwitchBot
+    - 温湿度
+    - IoT
+    - 不快指数
+publishedDate: 2025-09-01
+thumbnail: '@assets/images/playground/switchbot/thumbnail.svg'

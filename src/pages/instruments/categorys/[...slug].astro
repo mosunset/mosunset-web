@@ -1,59 +1,47 @@
 ---
 import Layout from "@/layouts/Layout.astro";
-import InstrumentCard from "@/components/Card/InstrumentCard.astro";
-import CategoryDetailPage from "@/components/Pages/Categorys/CategoryDetailPage.astro";
+import { SingleGroupView } from "@/components/Pages/GroupedItemList";
 import {
     getPublicPosts,
     getPostsByCategorySorted,
     sortPostsByDate,
     SECTION_CONFIGS,
-    groupByCategory,
 } from "@/components/Pages/utils";
 
-const config = SECTION_CONFIGS.instruments;
-
-// URLパラメータからカテゴリーを取得
 export async function getStaticPaths() {
-    const publicPosts = await getPublicPosts(
-        SECTION_CONFIGS.instruments.collectionName
+    const posts = await getPublicPosts(
+        SECTION_CONFIGS.instruments.collectionName,
     );
-    const postsByCategory = getPostsByCategorySorted(
-        publicPosts,
+    const byCategory = getPostsByCategorySorted(
+        posts,
         SECTION_CONFIGS.instruments.sortField,
-        SECTION_CONFIGS.instruments.categoryField
+        SECTION_CONFIGS.instruments.categoryField,
     );
-
-    // 各カテゴリーのパスを生成
-    return Object.keys(postsByCategory).map((category) => ({
+    return Object.keys(byCategory).map((category) => ({
         params: { slug: category },
-        props: { category, postsByCategory },
+        props: { category, postsByCategory: byCategory },
     }));
 }
 
 const { category, postsByCategory } = Astro.props;
-
-// 指定されたカテゴリーの記事を取得してソート
 const categoryPosts = sortPostsByDate(
     postsByCategory[category] || [],
-    config.sortField
+    SECTION_CONFIGS.instruments.sortField,
 );
-
-// 他のカテゴリー一覧を取得（現在のカテゴリーを除く）
-const otherCategories = Object.keys(postsByCategory)
-    .filter((cat) => cat !== category)
+const others = Object.keys(postsByCategory)
+    .filter((c) => c !== category)
     .sort((a, b) => a.localeCompare(b, "ja"));
 ---
 
-<Layout title="カテゴリー - 楽器一覧">
-    <CategoryDetailPage
-        category={category}
-        categoryPosts={categoryPosts}
-        otherCategories={otherCategories}
-        postsByCategory={postsByCategory}
-        sectionName={config.sectionName}
-        sectionSlug={config.sectionSlug}
-        accentColor="blue"
-        CardComponent={InstrumentCard}
-        countLabel={config.countLabel}
+<Layout title={`${category} - 楽器`}>
+    <SingleGroupView
+        client:load
+        heading={`カテゴリー：${category}`}
+        posts={categoryPosts}
+        kind="instrument"
+        others={others}
+        countMap={postsByCategory}
+        sectionSlug="instruments"
+        groupType="categorys"
     />
 </Layout>

@@ -1,7 +1,6 @@
 ---
 import Layout from "@/layouts/Layout.astro";
-import BlogCard from "@/components/Card/BlogCard.astro";
-import CategorysListPage from "@/components/Pages/Categorys/CategorysListPage.astro";
+import { AllGroupsView } from "@/components/Pages/GroupedItemList";
 import {
     getPublicPosts,
     getPostsByCategorySorted,
@@ -9,19 +8,17 @@ import {
 } from "@/components/Pages/utils";
 
 const config = SECTION_CONFIGS.blog;
-
-// コレクションから公開記事を取得
 const publicPosts = await getPublicPosts(config.collectionName);
-
-// カテゴリーごとにグループ化してソート
 const postsByCategory = getPostsByCategorySorted(publicPosts, config.sortField);
 ---
 
 <Layout title="カテゴリー - ブログ一覧">
-    <CategorysListPage
-        postsByCategory={postsByCategory}
-        sectionName={config.sectionName}
-        borderColor="border-blue-200"
-        CardComponent={BlogCard}
+    <AllGroupsView
+        client:load
+        heading="カテゴリー：ブログ"
+        groupedPosts={postsByCategory}
+        kind="blog"
+        groupType="categorys"
+        sectionSlug="blog"
     />
 </Layout>

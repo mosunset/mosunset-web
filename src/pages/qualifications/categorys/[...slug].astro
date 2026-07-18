@@ -1,7 +1,6 @@
 ---
 import Layout from "@/layouts/Layout.astro";
-import QualificationCard from "@/components/Card/QualificationCard.astro";
-import CategoryDetailPage from "@/components/Pages/Categorys/CategoryDetailPage.astro";
+import { SingleGroupView } from "@/components/Pages/GroupedItemList";
 import {
     getPublicPosts,
     getPostsByCategorySorted,
@@ -10,44 +9,36 @@ import {
     SECTION_CONFIGS,
 } from "@/components/Pages/utils";
 
-const config = SECTION_CONFIGS.qualifications;
-
-// URLパラメータからカテゴリーを取得
 export async function getStaticPaths() {
-    const publicPosts = await getPublicPosts(
-        SECTION_CONFIGS.qualifications.collectionName
+    const posts = await getPublicPosts(
+        SECTION_CONFIGS.qualifications.collectionName,
     );
-    const postsByCategory = getPostsByCategorySorted(
-        publicPosts,
-        SECTION_CONFIGS.qualifications.sortField
+    const byCategory = getPostsByCategorySorted(
+        posts,
+        SECTION_CONFIGS.qualifications.sortField,
     );
-    return generateCategoryPaths(postsByCategory);
+    return generateCategoryPaths(byCategory);
 }
 
 const { category, postsByCategory } = Astro.props;
-
-// 指定されたカテゴリーの記事を取得してソート
 const categoryPosts = sortPostsByDate(
     postsByCategory[category] || [],
-    config.sortField
+    SECTION_CONFIGS.qualifications.sortField,
 );
-
-// 他のカテゴリー一覧を取得（現在のカテゴリーを除く）
-const otherCategories = Object.keys(postsByCategory)
-    .filter((cat) => cat !== category)
+const others = Object.keys(postsByCategory)
+    .filter((c) => c !== category)
     .sort((a, b) => a.localeCompare(b, "ja"));
 ---
 
-<Layout title="カテゴリー - 資格一覧">
-    <CategoryDetailPage
-        category={category}
-        categoryPosts={categoryPosts}
-        otherCategories={otherCategories}
-        postsByCategory={postsByCategory}
-        sectionName={config.sectionName}
-        sectionSlug={config.sectionSlug}
-        accentColor="blue"
-        CardComponent={QualificationCard}
-        countLabel={config.countLabel}
+<Layout title={`${category} - 資格`}>
+    <SingleGroupView
+        client:load
+        heading={`カテゴリー：${category}`}
+        posts={categoryPosts}
+        kind="qualification"
+        others={others}
+        countMap={postsByCategory}
+        sectionSlug="qualifications"
+        groupType="categorys"
     />
 </Layout>

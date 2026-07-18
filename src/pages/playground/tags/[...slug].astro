@@ -1,7 +1,6 @@
 ---
 import Layout from "@/layouts/Layout.astro";
-import PlaygroundCard from "@/components/Card/PlaygroundCard.astro";
-import TagDetailPage from "@/components/Pages/Tags/TagDetailPage.astro";
+import { SingleGroupView } from "@/components/Pages/GroupedItemList";
 import {
     getPublicPosts,
     getPostsByTagSorted,
@@ -10,41 +9,36 @@ import {
     SECTION_CONFIGS,
 } from "@/components/Pages/utils";
 
-const config = SECTION_CONFIGS.playground;
-
-// URLパラメータからタグを取得
 export async function getStaticPaths() {
-    const publicPosts = await getPublicPosts(
-        SECTION_CONFIGS.playground.collectionName
+    const posts = await getPublicPosts(
+        SECTION_CONFIGS.playground.collectionName,
     );
-    const postsByTag = getPostsByTagSorted(
-        publicPosts,
-        SECTION_CONFIGS.playground.sortField
+    const byTag = getPostsByTagSorted(
+        posts,
+        SECTION_CONFIGS.playground.sortField,
     );
-    return generateTagPaths(postsByTag);
+    return generateTagPaths(byTag);
 }
 
 const { tag, postsByTag } = Astro.props;
-
-// 指定されたタグの記事を取得してソート
-const tagPosts = sortPostsByDate(postsByTag[tag] || [], config.sortField);
-
-// 他のタグ一覧を取得（現在のタグを除く）
-const otherTags = Object.keys(postsByTag)
+const tagPosts = sortPostsByDate(
+    postsByTag[tag] || [],
+    SECTION_CONFIGS.playground.sortField,
+);
+const others = Object.keys(postsByTag)
     .filter((t) => t !== tag)
     .sort((a, b) => a.localeCompare(b, "ja"));
 ---
 
-<Layout title="タグ - Playground一覧">
-    <TagDetailPage
-        tag={tag}
-        tagPosts={tagPosts}
-        otherTags={otherTags}
-        postsByTag={postsByTag}
-        sectionName={config.sectionName}
-        sectionSlug={config.sectionSlug}
-        accentColor="green"
-        CardComponent={PlaygroundCard}
-        countLabel={config.countLabel}
+<Layout title={`#${tag} - Playground`}>
+    <SingleGroupView
+        client:load
+        heading={`タグ：#${tag}`}
+        posts={tagPosts}
+        kind="playground"
+        others={others}
+        countMap={postsByTag}
+        sectionSlug="playground"
+        groupType="tags"
     />
 </Layout>

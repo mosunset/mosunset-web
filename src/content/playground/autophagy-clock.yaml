@@ -1,0 +1,13 @@
+draft: false
+visibility: public
+title: オートファジー時計
+description: >-
+    16時間断食（オートファジー）のタイマーです。食事時間（12:00〜20:00）と断食時間をリアルタイムで可視化します。プログレスリングで断食の進行状況を確認できます。
+category: ライフスタイル
+tags:
+    - オートファジー
+    - 断食
+    - 健康
+    - タイマー
+publishedDate: 2025-09-01
+thumbnail: '@assets/images/playground/autophagy-clock/thumbnail.svg'
