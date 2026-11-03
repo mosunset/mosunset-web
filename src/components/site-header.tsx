@@ -3,9 +3,8 @@ import { Link } from '@tanstack/react-router'
 
 import { Separator } from '@/components/ui/separator'
 import { SidebarTrigger } from '@/components/ui/sidebar'
-import { contactNav, mainNav } from '@/lib/navigation'
+import { mainNav } from '@/lib/navigation'
 import { site } from '@/lib/site'
-import { cn } from '@/lib/utils'
 
 const navLinkClass =
   'rounded-md px-3 py-2 text-sm text-muted-foreground transition-colors hover:text-foreground'
@@ -41,15 +40,6 @@ export function SiteHeader() {
             {item.title}
           </Link>
         ))}
-        <Link
-          to={contactNav.to}
-          className={cn(
-            navLinkClass,
-            'ml-2 bg-primary text-primary-foreground hover:text-primary-foreground hover:opacity-90',
-          )}
-        >
-          {contactNav.title}
-        </Link>
       </nav>
 
       {/* 管理者がログインしているときだけ出す。公開側にはログインボタンを置かない */}

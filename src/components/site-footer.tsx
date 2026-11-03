@@ -30,6 +30,11 @@ export function SiteFooter() {
           </div>
           <p>
             © {year} {site.name}
+            {/* お問い合わせは目立たせず、ここに小さく置くだけにする */}
+            <span aria-hidden="true"> · </span>
+            <Link to={contactNav.to} className="hover:text-foreground">
+              {contactNav.title}
+            </Link>
           </p>
         </div>
 
@@ -39,12 +44,6 @@ export function SiteFooter() {
               {item.title}
             </Link>
           ))}
-          <Link
-            to={contactNav.to}
-            className="font-medium text-foreground hover:underline"
-          >
-            {contactNav.title}
-          </Link>
         </nav>
       </div>
     </footer>

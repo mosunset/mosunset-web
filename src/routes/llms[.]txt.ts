@@ -39,7 +39,6 @@ export const Route = createFileRoute('/llms.txt')({
           '',
           link('トップ', '/', 'サイトの紹介と自己紹介'),
           ...mainNav.map((item) => link(item.title, item.to, item.description)),
-          link(contactNav.title, contactNav.to, contactNav.description),
           '',
           '## ブログ',
           '',
@@ -57,6 +56,7 @@ export const Route = createFileRoute('/llms.txt')({
           '',
           link('サイトマップ', '/sitemap.xml'),
           link('RSS フィード', '/rss.xml'),
+          link(contactNav.title, contactNav.to, contactNav.description),
           '',
         ].join('\n')
 

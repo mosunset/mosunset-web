@@ -52,7 +52,7 @@ export const contactNav = {
   title: 'お問い合わせ',
   to: '/contact',
   icon: Mail,
-  description: 'お仕事のご依頼やご連絡はこちらから。',
+  description: 'サイトについてのご連絡はこちらから。',
 } as const
 
 export type NavItem = (typeof mainNav)[number] | typeof contactNav

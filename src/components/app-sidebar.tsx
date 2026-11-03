@@ -13,12 +13,11 @@ import {
   SidebarMenuItem,
   useSidebar,
 } from '@/components/ui/sidebar'
-import { contactNav, mainNav } from '@/lib/navigation'
+import { mainNav } from '@/lib/navigation'
 
 const navItems = [
   { title: 'ホーム', to: '/', icon: House },
   ...mainNav,
-  contactNav,
 ] as const
 
 export function AppSidebar(props: React.ComponentProps<typeof Sidebar>) {

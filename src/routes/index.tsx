@@ -9,7 +9,7 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card'
-import { contactNav, mainNav } from '@/lib/navigation'
+import { mainNav } from '@/lib/navigation'
 import { seo } from '@/lib/seo'
 import { site } from '@/lib/site'
 
@@ -24,7 +24,7 @@ function Home() {
       <Hero />
       <About />
       <Contents />
-      <Contact />
+      <Links />
     </div>
   )
 }
@@ -138,15 +138,12 @@ function Contents() {
   )
 }
 
-function Contact() {
+/** SNS へのリンク（お問い合わせは目立たせないので、ここには置かない） */
+function Links() {
   return (
-    <section id="contact" className="scroll-mt-20 border-t py-16 text-center">
-      <h2 className="text-2xl font-bold">Contact</h2>
-      <p className="mt-4 text-muted-foreground">{contactNav.description}</p>
+    <section id="links" className="scroll-mt-20 border-t py-16 text-center">
+      <h2 className="text-2xl font-bold">Links</h2>
       <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
-        <Button asChild>
-          <Link to={contactNav.to}>{contactNav.title}</Link>
-        </Button>
         {site.social.map((s) => (
           <Button key={s.name} asChild variant="outline">
             <a href={s.url} target="_blank" rel="noopener noreferrer me">
