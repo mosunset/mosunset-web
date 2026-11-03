@@ -22,6 +22,7 @@ import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
 import { Route as ToysRouteRouteImport } from './routes/toys/route'
 import { Route as AdminIndexRouteImport } from './routes/admin/index'
 import { Route as AdminCollectionsRouteRouteImport } from './routes/admin/collections/route'
+import { Route as AdminMessagesRouteRouteImport } from './routes/admin/messages/route'
 import { Route as AdminPostsRouteRouteImport } from './routes/admin/posts/route'
 import { Route as BlogIndexRouteImport } from './routes/blog/index'
 import { Route as BlogSlugRouteImport } from './routes/blog/$slug'
@@ -37,6 +38,8 @@ import { Route as ToysIndexRouteImport } from './routes/toys/index'
 import { Route as ToysSlugRouteImport } from './routes/toys/$slug'
 import { Route as AdminCollectionsIndexRouteImport } from './routes/admin/collections/index'
 import { Route as AdminCollectionsKindRouteRouteImport } from './routes/admin/collections/$kind/route'
+import { Route as AdminMessagesIndexRouteImport } from './routes/admin/messages/index'
+import { Route as AdminMessagesIdRouteImport } from './routes/admin/messages/$id'
 import { Route as AdminPostsIndexRouteImport } from './routes/admin/posts/index'
 import { Route as AdminPostsIdRouteImport } from './routes/admin/posts/$id'
 import { Route as AdminPostsNewRouteImport } from './routes/admin/posts/new'
@@ -107,6 +110,11 @@ const AdminIndexRoute = AdminIndexRouteImport.update({
 const AdminCollectionsRouteRoute = AdminCollectionsRouteRouteImport.update({
   id: '/collections',
   path: '/collections',
+  getParentRoute: () => AdminRouteRoute,
+} as any)
+const AdminMessagesRouteRoute = AdminMessagesRouteRouteImport.update({
+  id: '/messages',
+  path: '/messages',
   getParentRoute: () => AdminRouteRoute,
 } as any)
 const AdminPostsRouteRoute = AdminPostsRouteRouteImport.update({
@@ -185,6 +193,16 @@ const AdminCollectionsKindRouteRoute =
     path: '/$kind',
     getParentRoute: () => AdminCollectionsRouteRoute,
   } as any)
+const AdminMessagesIndexRoute = AdminMessagesIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => AdminMessagesRouteRoute,
+} as any)
+const AdminMessagesIdRoute = AdminMessagesIdRouteImport.update({
+  id: '/$id',
+  path: '/$id',
+  getParentRoute: () => AdminMessagesRouteRoute,
+} as any)
 const AdminPostsIndexRoute = AdminPostsIndexRouteImport.update({
   id: '/',
   path: '/',
@@ -230,6 +248,7 @@ export interface FileRoutesByFullPath {
   '/robots.txt': typeof RobotsDottxtRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/admin/collections': typeof AdminCollectionsRouteRouteWithChildren
+  '/admin/messages': typeof AdminMessagesRouteRouteWithChildren
   '/admin/posts': typeof AdminPostsRouteRouteWithChildren
   '/blog/$slug': typeof BlogSlugRoute
   '/books/$slug': typeof BooksSlugRoute
@@ -245,9 +264,11 @@ export interface FileRoutesByFullPath {
   '/instruments/': typeof InstrumentsIndexRoute
   '/toys/': typeof ToysIndexRoute
   '/admin/collections/$kind': typeof AdminCollectionsKindRouteRouteWithChildren
+  '/admin/messages/$id': typeof AdminMessagesIdRoute
   '/admin/posts/$id': typeof AdminPostsIdRoute
   '/admin/posts/new': typeof AdminPostsNewRoute
   '/admin/collections/': typeof AdminCollectionsIndexRoute
+  '/admin/messages/': typeof AdminMessagesIndexRoute
   '/admin/posts/': typeof AdminPostsIndexRoute
   '/admin/collections/$kind/$id': typeof AdminCollectionsKindIdRoute
   '/admin/collections/$kind/new': typeof AdminCollectionsKindNewRoute
@@ -272,9 +293,11 @@ export interface FileRoutesByTo {
   '/certifications': typeof CertificationsIndexRoute
   '/instruments': typeof InstrumentsIndexRoute
   '/toys': typeof ToysIndexRoute
+  '/admin/messages/$id': typeof AdminMessagesIdRoute
   '/admin/posts/$id': typeof AdminPostsIdRoute
   '/admin/posts/new': typeof AdminPostsNewRoute
   '/admin/collections': typeof AdminCollectionsIndexRoute
+  '/admin/messages': typeof AdminMessagesIndexRoute
   '/admin/posts': typeof AdminPostsIndexRoute
   '/admin/collections/$kind/$id': typeof AdminCollectionsKindIdRoute
   '/admin/collections/$kind/new': typeof AdminCollectionsKindNewRoute
@@ -294,6 +317,7 @@ export interface FileRoutesById {
   '/robots.txt': typeof RobotsDottxtRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/admin/collections': typeof AdminCollectionsRouteRouteWithChildren
+  '/admin/messages': typeof AdminMessagesRouteRouteWithChildren
   '/admin/posts': typeof AdminPostsRouteRouteWithChildren
   '/blog/$slug': typeof BlogSlugRoute
   '/books/$slug': typeof BooksSlugRoute
@@ -309,9 +333,11 @@ export interface FileRoutesById {
   '/instruments/': typeof InstrumentsIndexRoute
   '/toys/': typeof ToysIndexRoute
   '/admin/collections/$kind': typeof AdminCollectionsKindRouteRouteWithChildren
+  '/admin/messages/$id': typeof AdminMessagesIdRoute
   '/admin/posts/$id': typeof AdminPostsIdRoute
   '/admin/posts/new': typeof AdminPostsNewRoute
   '/admin/collections/': typeof AdminCollectionsIndexRoute
+  '/admin/messages/': typeof AdminMessagesIndexRoute
   '/admin/posts/': typeof AdminPostsIndexRoute
   '/admin/collections/$kind/$id': typeof AdminCollectionsKindIdRoute
   '/admin/collections/$kind/new': typeof AdminCollectionsKindNewRoute
@@ -332,6 +358,7 @@ export interface FileRouteTypes {
     | '/robots.txt'
     | '/sitemap.xml'
     | '/admin/collections'
+    | '/admin/messages'
     | '/admin/posts'
     | '/blog/$slug'
     | '/books/$slug'
@@ -347,9 +374,11 @@ export interface FileRouteTypes {
     | '/instruments/'
     | '/toys/'
     | '/admin/collections/$kind'
+    | '/admin/messages/$id'
     | '/admin/posts/$id'
     | '/admin/posts/new'
     | '/admin/collections/'
+    | '/admin/messages/'
     | '/admin/posts/'
     | '/admin/collections/$kind/$id'
     | '/admin/collections/$kind/new'
@@ -374,9 +403,11 @@ export interface FileRouteTypes {
     | '/certifications'
     | '/instruments'
     | '/toys'
+    | '/admin/messages/$id'
     | '/admin/posts/$id'
     | '/admin/posts/new'
     | '/admin/collections'
+    | '/admin/messages'
     | '/admin/posts'
     | '/admin/collections/$kind/$id'
     | '/admin/collections/$kind/new'
@@ -395,6 +426,7 @@ export interface FileRouteTypes {
     | '/robots.txt'
     | '/sitemap.xml'
     | '/admin/collections'
+    | '/admin/messages'
     | '/admin/posts'
     | '/blog/$slug'
     | '/books/$slug'
@@ -410,9 +442,11 @@ export interface FileRouteTypes {
     | '/instruments/'
     | '/toys/'
     | '/admin/collections/$kind'
+    | '/admin/messages/$id'
     | '/admin/posts/$id'
     | '/admin/posts/new'
     | '/admin/collections/'
+    | '/admin/messages/'
     | '/admin/posts/'
     | '/admin/collections/$kind/$id'
     | '/admin/collections/$kind/new'
@@ -528,6 +562,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminCollectionsRouteRouteImport
       parentRoute: typeof AdminRouteRoute
     }
+    '/admin/messages': {
+      id: '/admin/messages'
+      path: '/messages'
+      fullPath: '/admin/messages'
+      preLoaderRoute: typeof AdminMessagesRouteRouteImport
+      parentRoute: typeof AdminRouteRoute
+    }
     '/admin/posts': {
       id: '/admin/posts'
       path: '/posts'
@@ -633,6 +674,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminCollectionsKindRouteRouteImport
       parentRoute: typeof AdminCollectionsRouteRoute
     }
+    '/admin/messages/': {
+      id: '/admin/messages/'
+      path: '/'
+      fullPath: '/admin/messages/'
+      preLoaderRoute: typeof AdminMessagesIndexRouteImport
+      parentRoute: typeof AdminMessagesRouteRoute
+    }
+    '/admin/messages/$id': {
+      id: '/admin/messages/$id'
+      path: '/$id'
+      fullPath: '/admin/messages/$id'
+      preLoaderRoute: typeof AdminMessagesIdRouteImport
+      parentRoute: typeof AdminMessagesRouteRoute
+    }
     '/admin/posts/': {
       id: '/admin/posts/'
       path: '/'
@@ -711,6 +766,19 @@ const AdminCollectionsRouteRouteWithChildren =
     AdminCollectionsRouteRouteChildren,
   )
 
+interface AdminMessagesRouteRouteChildren {
+  AdminMessagesIdRoute: typeof AdminMessagesIdRoute
+  AdminMessagesIndexRoute: typeof AdminMessagesIndexRoute
+}
+
+const AdminMessagesRouteRouteChildren: AdminMessagesRouteRouteChildren = {
+  AdminMessagesIdRoute: AdminMessagesIdRoute,
+  AdminMessagesIndexRoute: AdminMessagesIndexRoute,
+}
+
+const AdminMessagesRouteRouteWithChildren =
+  AdminMessagesRouteRoute._addFileChildren(AdminMessagesRouteRouteChildren)
+
 interface AdminPostsRouteRouteChildren {
   AdminPostsIdRoute: typeof AdminPostsIdRoute
   AdminPostsNewRoute: typeof AdminPostsNewRoute
@@ -729,12 +797,14 @@ const AdminPostsRouteRouteWithChildren = AdminPostsRouteRoute._addFileChildren(
 
 interface AdminRouteRouteChildren {
   AdminCollectionsRouteRoute: typeof AdminCollectionsRouteRouteWithChildren
+  AdminMessagesRouteRoute: typeof AdminMessagesRouteRouteWithChildren
   AdminPostsRouteRoute: typeof AdminPostsRouteRouteWithChildren
   AdminIndexRoute: typeof AdminIndexRoute
 }
 
 const AdminRouteRouteChildren: AdminRouteRouteChildren = {
   AdminCollectionsRouteRoute: AdminCollectionsRouteRouteWithChildren,
+  AdminMessagesRouteRoute: AdminMessagesRouteRouteWithChildren,
   AdminPostsRouteRoute: AdminPostsRouteRouteWithChildren,
   AdminIndexRoute: AdminIndexRoute,
 }

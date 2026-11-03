@@ -2,7 +2,7 @@ import { auth } from '@clerk/tanstack-react-start/server'
 import { createMiddleware, createServerFn } from '@tanstack/react-start'
 
 /** 管理者として扱う Clerk のユーザー ID（.dev.vars / Cloudflare の環境変数 ADMIN_USER_IDS にカンマ区切りで書く） */
-function getAdminUserIds() {
+export function getAdminUserIds() {
   return (process.env.ADMIN_USER_IDS ?? '')
     .split(',')
     .map((id) => id.trim())

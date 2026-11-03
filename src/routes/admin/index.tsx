@@ -1,14 +1,19 @@
 import { createFileRoute, Link } from '@tanstack/react-router'
 import { Inbox, Library, NotebookPen } from 'lucide-react'
 
+import { Badge } from '@/components/ui/badge'
 import {
   Card,
   CardDescription,
   CardHeader,
   CardTitle,
 } from '@/components/ui/card'
+import { countUnreadMessages } from '@/server/contact'
 
-export const Route = createFileRoute('/admin/')({ component: AdminHome })
+export const Route = createFileRoute('/admin/')({
+  loader: () => countUnreadMessages(),
+  component: AdminHome,
+})
 
 const sections = [
   {
@@ -25,28 +30,35 @@ const sections = [
   },
   {
     title: 'お問い合わせ',
-    description: 'フォームから届いたメッセージ（準備中）',
+    description: 'フォームから届いたメッセージ',
     icon: Inbox,
-    to: undefined,
+    to: '/admin/messages',
   },
 ] as const
 
 function AdminHome() {
+  const unread = Route.useLoaderData()
+
   return (
     <div className="mx-auto w-full max-w-5xl px-6 py-8">
       <h1 className="text-3xl font-bold">管理</h1>
       <div className="mt-8 grid gap-4 sm:grid-cols-3">
-        {sections.map((s) =>
-          s.to ? (
-            <Link key={s.title} to={s.to} className="group">
-              <SectionCard section={s} />
-            </Link>
-          ) : (
-            <div key={s.title}>
-              <SectionCard section={s} />
-            </div>
-          ),
-        )}
+        {sections.map((s) => (
+          <Link key={s.title} to={s.to} className="group">
+            <Card className="h-full transition-colors group-hover:bg-muted/50">
+              <CardHeader>
+                <s.icon className="mb-2 size-6 text-muted-foreground" />
+                <CardTitle className="flex items-center gap-2">
+                  {s.title}
+                  {s.to === '/admin/messages' && unread > 0 && (
+                    <Badge>未読 {unread}</Badge>
+                  )}
+                </CardTitle>
+                <CardDescription>{s.description}</CardDescription>
+              </CardHeader>
+            </Card>
+          </Link>
+        ))}
       </div>
       <p className="mt-8 text-sm text-muted-foreground">
         <Link to="/" className="underline">
@@ -54,23 +66,5 @@ function AdminHome() {
         </Link>
       </p>
     </div>
-  )
-}
-
-function SectionCard({ section }: { section: (typeof sections)[number] }) {
-  return (
-    <Card
-      className={
-        section.to
-          ? 'h-full transition-colors group-hover:bg-muted/50'
-          : 'h-full opacity-60'
-      }
-    >
-      <CardHeader>
-        <section.icon className="mb-2 size-6 text-muted-foreground" />
-        <CardTitle>{section.title}</CardTitle>
-        <CardDescription>{section.description}</CardDescription>
-      </CardHeader>
-    </Card>
   )
 }

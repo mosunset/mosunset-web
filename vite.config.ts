@@ -17,6 +17,7 @@ const sharedDeps = [
   '@tiptap/react',
   '@tiptap/starter-kit',
   '@tiptap/extensions',
+  '@marsidev/react-turnstile',
 ]
 
 const config = defineConfig({

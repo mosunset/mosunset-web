@@ -22,5 +22,13 @@
       "binding": "IMAGES",
       "bucket_name": "mosunset-web-images"
     }
-  ]
+  ],
+  // お問い合わせの通知メール。送り先は Email Routing で認証済みのアドレスに限られる
+  "send_email": [{ "name": "EMAIL" }],
+  "vars": {
+    // 通知メールの送信元（mosunset.com で Email Routing を有効にしておく）
+    "CONTACT_FROM": "noreply@mosunset.com",
+    // Turnstile のサイトキー（公開してよい値）。今は Cloudflare のテスト用キー。本番のキーに置き換える
+    "TURNSTILE_SITE_KEY": "1x00000000000000000000AA"
+  }
 }
