@@ -1,6 +1,8 @@
 import { Link } from '@tanstack/react-router'
 import { ArrowLeft, ExternalLink, ImageOff } from 'lucide-react'
-import type * as React from 'react'
+import * as React from 'react'
+
+import { RichTextContent, ZoomableImage } from '@/components/image-viewer'
 
 import {
   type AttributeField,
@@ -35,6 +37,36 @@ export function CollectionGrid({
   items: ListItem[]
 }) {
   const config = collections[kind]
+  const filterField: AttributeField | undefined = (
+    config.fields as readonly AttributeField[]
+  ).find((f) => 'filterKey' in config && f.key === config.filterKey)
+  const [filter, setFilter] = React.useState<string | null>(null)
+
+  // 絞り込みの候補（登録されている値だけ、項目定義の順に並べる）
+  const filterOptions = React.useMemo(() => {
+    if (!filterField) return []
+    const counts = new Map<string, number>()
+    for (const item of items) {
+      const value = item.attributes[filterField.key]
+      if (value) counts.set(value, (counts.get(value) ?? 0) + 1)
+    }
+    const order =
+      filterField.type === 'select'
+        ? filterField.options.map((o) => o.value)
+        : [...counts.keys()]
+    return order
+      .filter((value) => counts.has(value))
+      .map((value) => ({
+        value,
+        label: displayAttribute(filterField, value),
+        count: counts.get(value) ?? 0,
+      }))
+  }, [filterField, items])
+
+  const visible =
+    filter && filterField
+      ? items.filter((item) => item.attributes[filterField.key] === filter)
+      : items
 
   if (items.length === 0) {
     return (
@@ -45,42 +77,71 @@ export function CollectionGrid({
   }
 
   return (
-    <ul className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
-      {items.map((item) => {
-        const src = imageUrl(item.imageKey)
-        const subtitle = itemSubtitle(kind, item.attributes)
-        return (
-          <li key={item.slug}>
-            <Link
-              to={config.detailPath}
-              params={{ slug: item.slug }}
-              className="group block"
-            >
-              <div className="aspect-square overflow-hidden rounded-lg border bg-muted/30">
-                {src ? (
-                  <img
-                    src={src}
-                    alt=""
-                    loading="lazy"
-                    className="size-full object-cover transition-transform duration-300 group-hover:scale-105"
-                  />
-                ) : (
-                  <div className="flex size-full items-center justify-center text-muted-foreground">
-                    <ImageOff className="size-6" />
-                  </div>
+    <>
+      {filterOptions.length > 1 && (
+        <fieldset className="mb-6 flex flex-wrap gap-2">
+          <legend className="sr-only">{filterField?.label}で絞り込む</legend>
+          {[
+            { value: null, label: 'すべて', count: items.length },
+            ...filterOptions,
+          ].map((option) => {
+            const active = filter === option.value
+            return (
+              <button
+                key={option.value ?? 'all'}
+                type="button"
+                aria-pressed={active}
+                onClick={() => setFilter(option.value)}
+                className={
+                  active
+                    ? 'rounded-full border border-foreground bg-foreground px-3 py-1 text-sm text-background'
+                    : 'rounded-full border px-3 py-1 text-sm text-muted-foreground transition-colors hover:bg-muted hover:text-foreground'
+                }
+              >
+                {option.label}
+                <span className="ml-1 text-xs opacity-70">{option.count}</span>
+              </button>
+            )
+          })}
+        </fieldset>
+      )}
+      <ul className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
+        {visible.map((item) => {
+          const src = imageUrl(item.imageKey)
+          const subtitle = itemSubtitle(kind, item.attributes)
+          return (
+            <li key={item.slug}>
+              <Link
+                to={config.detailPath}
+                params={{ slug: item.slug }}
+                className="group block"
+              >
+                <div className="aspect-square overflow-hidden rounded-lg border bg-muted/30">
+                  {src ? (
+                    <img
+                      src={src}
+                      alt=""
+                      loading="lazy"
+                      className="size-full object-cover transition-transform duration-300 group-hover:scale-105"
+                    />
+                  ) : (
+                    <div className="flex size-full items-center justify-center text-muted-foreground">
+                      <ImageOff className="size-6" />
+                    </div>
+                  )}
+                </div>
+                <h2 className="mt-2 font-medium leading-snug group-hover:underline">
+                  {item.title}
+                </h2>
+                {subtitle && (
+                  <p className="text-sm text-muted-foreground">{subtitle}</p>
                 )}
-              </div>
-              <h2 className="mt-2 font-medium leading-snug group-hover:underline">
-                {item.title}
-              </h2>
-              {subtitle && (
-                <p className="text-sm text-muted-foreground">{subtitle}</p>
-              )}
-            </Link>
-          </li>
-        )
-      })}
-    </ul>
+              </Link>
+            </li>
+          )
+        })}
+      </ul>
+    </>
   )
 }
 
@@ -133,19 +194,24 @@ export function CollectionDetail({
   return (
     <article className="mx-auto w-full max-w-5xl px-6 py-8">
       <div className="grid gap-8 md:grid-cols-[minmax(0,2fr)_minmax(0,3fr)]">
-        <div className="aspect-square overflow-hidden rounded-lg border bg-muted/30">
-          {src ? (
-            <img
+        {src ? (
+          // 一覧のサムネイルは正方形に切り抜くが、ここでは切らずに全体を見せる
+          <div className="self-start md:sticky md:top-20">
+            <ZoomableImage
               src={src}
               alt={item.title}
-              className="size-full object-cover"
+              className="rounded-lg border bg-muted/30"
+              imgClassName="mx-auto max-h-[70vh] w-auto object-contain"
             />
-          ) : (
-            <div className="flex size-full items-center justify-center text-muted-foreground">
-              <ImageOff className="size-8" />
-            </div>
-          )}
-        </div>
+            <p className="mt-2 text-center text-xs text-muted-foreground">
+              クリックで拡大
+            </p>
+          </div>
+        ) : (
+          <div className="flex aspect-square items-center justify-center rounded-lg border bg-muted/30 text-muted-foreground">
+            <ImageOff className="size-8" />
+          </div>
+        )}
 
         <div>
           <p className="text-sm text-muted-foreground">{config.label}</p>
@@ -165,13 +231,7 @@ export function CollectionDetail({
               ))}
             </dl>
           )}
-          {item.html && (
-            <div
-              className="prose prose-neutral dark:prose-invert mt-6 max-w-none"
-              // biome-ignore lint/security/noDangerouslySetInnerHtml: サーバーで Tiptap の JSON から生成し、危険なリンクを取り除いた HTML
-              dangerouslySetInnerHTML={{ __html: item.html }}
-            />
-          )}
+          {item.html && <RichTextContent html={item.html} className="mt-6" />}
         </div>
       </div>
 

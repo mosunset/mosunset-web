@@ -28,6 +28,8 @@ type CollectionConfig = {
   acquiredAtLabel: string
   /** 一覧のカードで名前の下に出す項目 */
   subtitleKeys: readonly string[]
+  /** 一覧の上に「すべて / フィギュア / ぬいぐるみ…」の絞り込みを出す項目 */
+  filterKey?: string
   fields: readonly AttributeField[]
 }
 
@@ -39,6 +41,7 @@ export const collections = {
     label: '楽器',
     acquiredAtLabel: '入手日',
     subtitleKeys: ['maker', 'model'],
+    filterKey: 'category',
     fields: [
       {
         key: 'category',
@@ -69,6 +72,7 @@ export const collections = {
     label: '資格',
     acquiredAtLabel: '取得日',
     subtitleKeys: ['issuer'],
+    filterKey: 'status',
     fields: [
       {
         key: 'status',
@@ -94,10 +98,28 @@ export const collections = {
     detailPath: '/toys/$slug',
     label: 'おもちゃ',
     acquiredAtLabel: '入手日',
-    subtitleKeys: ['maker', 'series'],
+    subtitleKeys: ['series', 'maker'],
+    filterKey: 'category',
     fields: [
+      {
+        key: 'category',
+        label: '種類',
+        type: 'select',
+        options: [
+          { value: 'figure', label: 'フィギュア' },
+          { value: 'plush', label: 'ぬいぐるみ' },
+          { value: 'strap', label: 'ストラップ・キーホルダー' },
+          { value: 'model', label: 'プラモデル' },
+          { value: 'other', label: 'その他' },
+        ],
+      },
+      {
+        key: 'series',
+        label: '作品・シリーズ',
+        type: 'text',
+        placeholder: 'ちいかわ',
+      },
       { key: 'maker', label: 'メーカー', type: 'text' },
-      { key: 'series', label: 'シリーズ', type: 'text' },
       {
         key: 'releaseYear',
         label: '発売年',

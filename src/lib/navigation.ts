@@ -38,7 +38,7 @@ export const mainNav = [
     title: 'おもちゃ',
     to: '/toys',
     icon: ToyBrick,
-    description: '集めているおもちゃのコレクション。',
+    description: 'フィギュア・ぬいぐるみ・ストラップなど、集めているもの。',
   },
   {
     title: '本',
