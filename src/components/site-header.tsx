@@ -1,3 +1,4 @@
+import { Show, UserButton } from '@clerk/tanstack-react-start'
 import { Link } from '@tanstack/react-router'
 
 import { Separator } from '@/components/ui/separator'
@@ -50,6 +51,16 @@ export function SiteHeader() {
           {contactNav.title}
         </Link>
       </nav>
+
+      {/* 管理者がログインしているときだけ出す。公開側にはログインボタンを置かない */}
+      <Show when="signed-in">
+        <div className="ml-auto flex items-center gap-3 lg:ml-4">
+          <Link to="/admin" className={navLinkClass}>
+            管理
+          </Link>
+          <UserButton />
+        </div>
+      </Show>
     </header>
   )
 }

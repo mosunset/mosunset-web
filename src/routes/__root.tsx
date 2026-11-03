@@ -1,11 +1,13 @@
+import { ClerkProvider } from '@clerk/tanstack-react-start'
+import { shadcn } from '@clerk/ui/themes'
+import { TanStackDevtools } from '@tanstack/react-devtools'
 import {
-  HeadContent,
-  Scripts,
   createRootRoute,
+  HeadContent,
   rootRouteId,
+  Scripts,
 } from '@tanstack/react-router'
 import { TanStackRouterDevtoolsPanel } from '@tanstack/react-router-devtools'
-import { TanStackDevtools } from '@tanstack/react-devtools'
 
 import { AppBreadcrumb } from '@/components/app-breadcrumb'
 import { AppSidebar } from '@/components/app-sidebar'
@@ -102,21 +104,27 @@ function RootDocument({ children }: { children: React.ReactNode }) {
         <HeadContent />
       </head>
       <body>
-        <TooltipProvider>
-          <div className="[--header-height:--spacing(14)]">
-            <SidebarProvider defaultOpen={false} className="flex flex-col">
-              <SiteHeader />
-              <div className="flex flex-1">
-                <AppSidebar className="top-(--header-height) h-[calc(100svh-var(--header-height))]!" />
-                <SidebarInset>
-                  <AppBreadcrumb />
-                  <div className="flex-1">{children}</div>
-                  <SiteFooter />
-                </SidebarInset>
-              </div>
-            </SidebarProvider>
-          </div>
-        </TooltipProvider>
+        <ClerkProvider
+          appearance={{ theme: shadcn }}
+          signInUrl="/sign-in"
+          localization={{ locale: 'ja-JP' }}
+        >
+          <TooltipProvider>
+            <div className="[--header-height:--spacing(14)]">
+              <SidebarProvider defaultOpen={false} className="flex flex-col">
+                <SiteHeader />
+                <div className="flex flex-1">
+                  <AppSidebar className="top-(--header-height) h-[calc(100svh-var(--header-height))]!" />
+                  <SidebarInset>
+                    <AppBreadcrumb />
+                    <div className="flex-1">{children}</div>
+                    <SiteFooter />
+                  </SidebarInset>
+                </div>
+              </SidebarProvider>
+            </div>
+          </TooltipProvider>
+        </ClerkProvider>
         <TanStackDevtools
           config={{
             position: 'bottom-right',

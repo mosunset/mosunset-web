@@ -3,7 +3,8 @@ export const site = {
   name: 'mosunset',
   /** 正規の URL。canonical / OGP / sitemap はすべてこれを基準にする（末尾スラッシュなし） */
   url: 'https://mosunset.com',
-  description: 'mosunset のポートフォリオ兼ブログ。作ったもの、書いたこと、集めているものを置いています。',
+  description:
+    'mosunset のポートフォリオ兼ブログ。作ったもの、書いたこと、集めているものを置いています。',
   locale: 'ja_JP',
   themeColor: '#ffffff',
   /** public/ に置いた画像のパス */

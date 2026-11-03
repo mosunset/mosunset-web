@@ -1,0 +1,40 @@
+import { createFileRoute, Outlet, redirect } from '@tanstack/react-router'
+
+import { seo } from '@/lib/seo'
+import { getAdminStatus } from '@/server/auth'
+
+export const Route = createFileRoute('/admin')({
+  staticData: { breadcrumb: '管理' },
+  head: () => ({ meta: seo({ title: '管理', noindex: true }) }),
+  beforeLoad: async ({ location }) => {
+    const admin = await getAdminStatus()
+    if (admin.status === 'signed-out') {
+      throw redirect({
+        href: `/sign-in?redirect_url=${encodeURIComponent(location.href)}`,
+      })
+    }
+    return { admin }
+  },
+  component: AdminLayout,
+})
+
+function AdminLayout() {
+  const { admin } = Route.useRouteContext()
+
+  if (admin.status === 'forbidden') {
+    return (
+      <div className="mx-auto w-full max-w-3xl px-6 py-8">
+        <h1 className="text-2xl font-bold">管理者として登録されていません</h1>
+        <p className="mt-4 text-muted-foreground">
+          このアカウントを管理者にするには、環境変数 <code>ADMIN_USER_IDS</code>{' '}
+          に次のユーザー ID を追加して、サーバーを再起動してください。
+        </p>
+        <pre className="mt-4 rounded-md bg-muted p-4 text-sm">
+          ADMIN_USER_IDS={admin.userId}
+        </pre>
+      </div>
+    )
+  }
+
+  return <Outlet />
+}
