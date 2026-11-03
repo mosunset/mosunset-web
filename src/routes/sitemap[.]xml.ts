@@ -3,11 +3,17 @@ import { desc, eq } from 'drizzle-orm'
 
 import { collections } from '@/lib/collections'
 import { contactNav, mainNav } from '@/lib/navigation'
+import { playgroundTools } from '@/lib/playground'
 import { absoluteUrl } from '@/lib/seo'
 import { getDb, schema } from '@/server/db'
 
-/** sitemap.xml に必ず載せる固定ページ */
-const staticPaths = ['/', ...mainNav.map((i) => i.to), contactNav.to]
+/** sitemap.xml に必ず載せる固定ページ（プレイグラウンドのツールも含む） */
+const staticPaths = [
+  '/',
+  ...mainNav.map((i) => i.to),
+  contactNav.to,
+  ...playgroundTools.map((t) => `/playground/${t.slug}`),
+]
 
 type Entry = { path: string; lastmod?: Date }
 

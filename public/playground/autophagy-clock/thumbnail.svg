@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="800" height="600" viewBox="0 0 800 600">
+  <rect width="800" height="600" fill="#111827"/>
+  <!-- outer ring -->
+  <circle cx="400" cy="300" r="200" fill="none" stroke="#1f2937" stroke-width="24"/>
+  <!-- progress arc (about 60%) -->
+  <circle cx="400" cy="300" r="200" fill="none" stroke="#2dd4bf" stroke-width="24"
+    stroke-linecap="round"
+    stroke-dasharray="753.98 1256.64"
+    stroke-dashoffset="314.16"
+    transform="rotate(-90 400 300)"/>
+  <!-- center text -->
+  <text x="400" y="285" text-anchor="middle" font-family="monospace" font-size="56" font-weight="bold" fill="white">12:34:56</text>
+  <text x="400" y="330" text-anchor="middle" font-family="sans-serif" font-size="20" fill="#9ca3af">次の食事OK時間まで</text>
+  <!-- title -->
+  <text x="400" y="545" text-anchor="middle" font-family="sans-serif" font-size="28" font-weight="bold" fill="#2dd4bf">オートファジー時計</text>
+</svg>

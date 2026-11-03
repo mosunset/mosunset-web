@@ -16,7 +16,7 @@ import { Route as BooksRouteRouteImport } from './routes/books/route'
 import { Route as CertificationsRouteRouteImport } from './routes/certifications/route'
 import { Route as ContactRouteImport } from './routes/contact'
 import { Route as InstrumentsRouteRouteImport } from './routes/instruments/route'
-import { Route as PlaygroundRouteImport } from './routes/playground'
+import { Route as PlaygroundRouteRouteImport } from './routes/playground/route'
 import { Route as RobotsDottxtRouteImport } from './routes/robots[.]txt'
 import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
 import { Route as ToysRouteRouteImport } from './routes/toys/route'
@@ -33,6 +33,19 @@ import { Route as CertificationsSlugRouteImport } from './routes/certifications/
 import { Route as ImagesSplatRouteImport } from './routes/images/$'
 import { Route as InstrumentsIndexRouteImport } from './routes/instruments/index'
 import { Route as InstrumentsSlugRouteImport } from './routes/instruments/$slug'
+import { Route as PlaygroundIndexRouteImport } from './routes/playground/index'
+import { Route as Playground3dblockRouteImport } from './routes/playground/3dblock'
+import { Route as PlaygroundAutophagyClockRouteImport } from './routes/playground/autophagy-clock'
+import { Route as PlaygroundCharacterCountRouteImport } from './routes/playground/character-count'
+import { Route as PlaygroundHashGeneratorRouteImport } from './routes/playground/hash-generator'
+import { Route as PlaygroundIdGeneratorsRouteImport } from './routes/playground/id-generators'
+import { Route as PlaygroundInteractiveBmiCalculatorGraphRouteImport } from './routes/playground/interactive-bmi-calculator-graph'
+import { Route as PlaygroundKuromojiRouteImport } from './routes/playground/kuromoji'
+import { Route as PlaygroundMasonryimageRouteImport } from './routes/playground/masonryimage'
+import { Route as PlaygroundMonitorPairingRouteImport } from './routes/playground/monitor-pairing'
+import { Route as PlaygroundNgramSimilarityRouteImport } from './routes/playground/ngram-similarity'
+import { Route as PlaygroundUnitPriceComparisonRouteImport } from './routes/playground/unit-price-comparison'
+import { Route as PlaygroundWebyoloRouteImport } from './routes/playground/webyolo'
 import { Route as SignInSplatRouteImport } from './routes/sign-in.$'
 import { Route as ToysIndexRouteImport } from './routes/toys/index'
 import { Route as ToysSlugRouteImport } from './routes/toys/$slug'
@@ -82,7 +95,7 @@ const InstrumentsRouteRoute = InstrumentsRouteRouteImport.update({
   path: '/instruments',
   getParentRoute: () => rootRouteImport,
 } as any)
-const PlaygroundRoute = PlaygroundRouteImport.update({
+const PlaygroundRouteRoute = PlaygroundRouteRouteImport.update({
   id: '/playground',
   path: '/playground',
   getParentRoute: () => rootRouteImport,
@@ -167,6 +180,77 @@ const InstrumentsSlugRoute = InstrumentsSlugRouteImport.update({
   path: '/$slug',
   getParentRoute: () => InstrumentsRouteRoute,
 } as any)
+const PlaygroundIndexRoute = PlaygroundIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => PlaygroundRouteRoute,
+} as any)
+const Playground3dblockRoute = Playground3dblockRouteImport.update({
+  id: '/3dblock',
+  path: '/3dblock',
+  getParentRoute: () => PlaygroundRouteRoute,
+} as any)
+const PlaygroundAutophagyClockRoute =
+  PlaygroundAutophagyClockRouteImport.update({
+    id: '/autophagy-clock',
+    path: '/autophagy-clock',
+    getParentRoute: () => PlaygroundRouteRoute,
+  } as any)
+const PlaygroundCharacterCountRoute =
+  PlaygroundCharacterCountRouteImport.update({
+    id: '/character-count',
+    path: '/character-count',
+    getParentRoute: () => PlaygroundRouteRoute,
+  } as any)
+const PlaygroundHashGeneratorRoute = PlaygroundHashGeneratorRouteImport.update({
+  id: '/hash-generator',
+  path: '/hash-generator',
+  getParentRoute: () => PlaygroundRouteRoute,
+} as any)
+const PlaygroundIdGeneratorsRoute = PlaygroundIdGeneratorsRouteImport.update({
+  id: '/id-generators',
+  path: '/id-generators',
+  getParentRoute: () => PlaygroundRouteRoute,
+} as any)
+const PlaygroundInteractiveBmiCalculatorGraphRoute =
+  PlaygroundInteractiveBmiCalculatorGraphRouteImport.update({
+    id: '/interactive-bmi-calculator-graph',
+    path: '/interactive-bmi-calculator-graph',
+    getParentRoute: () => PlaygroundRouteRoute,
+  } as any)
+const PlaygroundKuromojiRoute = PlaygroundKuromojiRouteImport.update({
+  id: '/kuromoji',
+  path: '/kuromoji',
+  getParentRoute: () => PlaygroundRouteRoute,
+} as any)
+const PlaygroundMasonryimageRoute = PlaygroundMasonryimageRouteImport.update({
+  id: '/masonryimage',
+  path: '/masonryimage',
+  getParentRoute: () => PlaygroundRouteRoute,
+} as any)
+const PlaygroundMonitorPairingRoute =
+  PlaygroundMonitorPairingRouteImport.update({
+    id: '/monitor-pairing',
+    path: '/monitor-pairing',
+    getParentRoute: () => PlaygroundRouteRoute,
+  } as any)
+const PlaygroundNgramSimilarityRoute =
+  PlaygroundNgramSimilarityRouteImport.update({
+    id: '/ngram-similarity',
+    path: '/ngram-similarity',
+    getParentRoute: () => PlaygroundRouteRoute,
+  } as any)
+const PlaygroundUnitPriceComparisonRoute =
+  PlaygroundUnitPriceComparisonRouteImport.update({
+    id: '/unit-price-comparison',
+    path: '/unit-price-comparison',
+    getParentRoute: () => PlaygroundRouteRoute,
+  } as any)
+const PlaygroundWebyoloRoute = PlaygroundWebyoloRouteImport.update({
+  id: '/webyolo',
+  path: '/webyolo',
+  getParentRoute: () => PlaygroundRouteRoute,
+} as any)
 const SignInSplatRoute = SignInSplatRouteImport.update({
   id: '/sign-in/$',
   path: '/sign-in/$',
@@ -242,9 +326,9 @@ export interface FileRoutesByFullPath {
   '/books': typeof BooksRouteRouteWithChildren
   '/certifications': typeof CertificationsRouteRouteWithChildren
   '/instruments': typeof InstrumentsRouteRouteWithChildren
+  '/playground': typeof PlaygroundRouteRouteWithChildren
   '/toys': typeof ToysRouteRouteWithChildren
   '/contact': typeof ContactRoute
-  '/playground': typeof PlaygroundRoute
   '/robots.txt': typeof RobotsDottxtRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/admin/collections': typeof AdminCollectionsRouteRouteWithChildren
@@ -255,6 +339,18 @@ export interface FileRoutesByFullPath {
   '/certifications/$slug': typeof CertificationsSlugRoute
   '/images/$': typeof ImagesSplatRoute
   '/instruments/$slug': typeof InstrumentsSlugRoute
+  '/playground/3dblock': typeof Playground3dblockRoute
+  '/playground/autophagy-clock': typeof PlaygroundAutophagyClockRoute
+  '/playground/character-count': typeof PlaygroundCharacterCountRoute
+  '/playground/hash-generator': typeof PlaygroundHashGeneratorRoute
+  '/playground/id-generators': typeof PlaygroundIdGeneratorsRoute
+  '/playground/interactive-bmi-calculator-graph': typeof PlaygroundInteractiveBmiCalculatorGraphRoute
+  '/playground/kuromoji': typeof PlaygroundKuromojiRoute
+  '/playground/masonryimage': typeof PlaygroundMasonryimageRoute
+  '/playground/monitor-pairing': typeof PlaygroundMonitorPairingRoute
+  '/playground/ngram-similarity': typeof PlaygroundNgramSimilarityRoute
+  '/playground/unit-price-comparison': typeof PlaygroundUnitPriceComparisonRoute
+  '/playground/webyolo': typeof PlaygroundWebyoloRoute
   '/sign-in/$': typeof SignInSplatRoute
   '/toys/$slug': typeof ToysSlugRoute
   '/admin/': typeof AdminIndexRoute
@@ -262,6 +358,7 @@ export interface FileRoutesByFullPath {
   '/books/': typeof BooksIndexRoute
   '/certifications/': typeof CertificationsIndexRoute
   '/instruments/': typeof InstrumentsIndexRoute
+  '/playground/': typeof PlaygroundIndexRoute
   '/toys/': typeof ToysIndexRoute
   '/admin/collections/$kind': typeof AdminCollectionsKindRouteRouteWithChildren
   '/admin/messages/$id': typeof AdminMessagesIdRoute
@@ -277,7 +374,6 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/contact': typeof ContactRoute
-  '/playground': typeof PlaygroundRoute
   '/robots.txt': typeof RobotsDottxtRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/blog/$slug': typeof BlogSlugRoute
@@ -285,6 +381,18 @@ export interface FileRoutesByTo {
   '/certifications/$slug': typeof CertificationsSlugRoute
   '/images/$': typeof ImagesSplatRoute
   '/instruments/$slug': typeof InstrumentsSlugRoute
+  '/playground/3dblock': typeof Playground3dblockRoute
+  '/playground/autophagy-clock': typeof PlaygroundAutophagyClockRoute
+  '/playground/character-count': typeof PlaygroundCharacterCountRoute
+  '/playground/hash-generator': typeof PlaygroundHashGeneratorRoute
+  '/playground/id-generators': typeof PlaygroundIdGeneratorsRoute
+  '/playground/interactive-bmi-calculator-graph': typeof PlaygroundInteractiveBmiCalculatorGraphRoute
+  '/playground/kuromoji': typeof PlaygroundKuromojiRoute
+  '/playground/masonryimage': typeof PlaygroundMasonryimageRoute
+  '/playground/monitor-pairing': typeof PlaygroundMonitorPairingRoute
+  '/playground/ngram-similarity': typeof PlaygroundNgramSimilarityRoute
+  '/playground/unit-price-comparison': typeof PlaygroundUnitPriceComparisonRoute
+  '/playground/webyolo': typeof PlaygroundWebyoloRoute
   '/sign-in/$': typeof SignInSplatRoute
   '/toys/$slug': typeof ToysSlugRoute
   '/admin': typeof AdminIndexRoute
@@ -292,6 +400,7 @@ export interface FileRoutesByTo {
   '/books': typeof BooksIndexRoute
   '/certifications': typeof CertificationsIndexRoute
   '/instruments': typeof InstrumentsIndexRoute
+  '/playground': typeof PlaygroundIndexRoute
   '/toys': typeof ToysIndexRoute
   '/admin/messages/$id': typeof AdminMessagesIdRoute
   '/admin/posts/$id': typeof AdminPostsIdRoute
@@ -311,9 +420,9 @@ export interface FileRoutesById {
   '/books': typeof BooksRouteRouteWithChildren
   '/certifications': typeof CertificationsRouteRouteWithChildren
   '/instruments': typeof InstrumentsRouteRouteWithChildren
+  '/playground': typeof PlaygroundRouteRouteWithChildren
   '/toys': typeof ToysRouteRouteWithChildren
   '/contact': typeof ContactRoute
-  '/playground': typeof PlaygroundRoute
   '/robots.txt': typeof RobotsDottxtRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/admin/collections': typeof AdminCollectionsRouteRouteWithChildren
@@ -324,6 +433,18 @@ export interface FileRoutesById {
   '/certifications/$slug': typeof CertificationsSlugRoute
   '/images/$': typeof ImagesSplatRoute
   '/instruments/$slug': typeof InstrumentsSlugRoute
+  '/playground/3dblock': typeof Playground3dblockRoute
+  '/playground/autophagy-clock': typeof PlaygroundAutophagyClockRoute
+  '/playground/character-count': typeof PlaygroundCharacterCountRoute
+  '/playground/hash-generator': typeof PlaygroundHashGeneratorRoute
+  '/playground/id-generators': typeof PlaygroundIdGeneratorsRoute
+  '/playground/interactive-bmi-calculator-graph': typeof PlaygroundInteractiveBmiCalculatorGraphRoute
+  '/playground/kuromoji': typeof PlaygroundKuromojiRoute
+  '/playground/masonryimage': typeof PlaygroundMasonryimageRoute
+  '/playground/monitor-pairing': typeof PlaygroundMonitorPairingRoute
+  '/playground/ngram-similarity': typeof PlaygroundNgramSimilarityRoute
+  '/playground/unit-price-comparison': typeof PlaygroundUnitPriceComparisonRoute
+  '/playground/webyolo': typeof PlaygroundWebyoloRoute
   '/sign-in/$': typeof SignInSplatRoute
   '/toys/$slug': typeof ToysSlugRoute
   '/admin/': typeof AdminIndexRoute
@@ -331,6 +452,7 @@ export interface FileRoutesById {
   '/books/': typeof BooksIndexRoute
   '/certifications/': typeof CertificationsIndexRoute
   '/instruments/': typeof InstrumentsIndexRoute
+  '/playground/': typeof PlaygroundIndexRoute
   '/toys/': typeof ToysIndexRoute
   '/admin/collections/$kind': typeof AdminCollectionsKindRouteRouteWithChildren
   '/admin/messages/$id': typeof AdminMessagesIdRoute
@@ -352,9 +474,9 @@ export interface FileRouteTypes {
     | '/books'
     | '/certifications'
     | '/instruments'
+    | '/playground'
     | '/toys'
     | '/contact'
-    | '/playground'
     | '/robots.txt'
     | '/sitemap.xml'
     | '/admin/collections'
@@ -365,6 +487,18 @@ export interface FileRouteTypes {
     | '/certifications/$slug'
     | '/images/$'
     | '/instruments/$slug'
+    | '/playground/3dblock'
+    | '/playground/autophagy-clock'
+    | '/playground/character-count'
+    | '/playground/hash-generator'
+    | '/playground/id-generators'
+    | '/playground/interactive-bmi-calculator-graph'
+    | '/playground/kuromoji'
+    | '/playground/masonryimage'
+    | '/playground/monitor-pairing'
+    | '/playground/ngram-similarity'
+    | '/playground/unit-price-comparison'
+    | '/playground/webyolo'
     | '/sign-in/$'
     | '/toys/$slug'
     | '/admin/'
@@ -372,6 +506,7 @@ export interface FileRouteTypes {
     | '/books/'
     | '/certifications/'
     | '/instruments/'
+    | '/playground/'
     | '/toys/'
     | '/admin/collections/$kind'
     | '/admin/messages/$id'
@@ -387,7 +522,6 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/contact'
-    | '/playground'
     | '/robots.txt'
     | '/sitemap.xml'
     | '/blog/$slug'
@@ -395,6 +529,18 @@ export interface FileRouteTypes {
     | '/certifications/$slug'
     | '/images/$'
     | '/instruments/$slug'
+    | '/playground/3dblock'
+    | '/playground/autophagy-clock'
+    | '/playground/character-count'
+    | '/playground/hash-generator'
+    | '/playground/id-generators'
+    | '/playground/interactive-bmi-calculator-graph'
+    | '/playground/kuromoji'
+    | '/playground/masonryimage'
+    | '/playground/monitor-pairing'
+    | '/playground/ngram-similarity'
+    | '/playground/unit-price-comparison'
+    | '/playground/webyolo'
     | '/sign-in/$'
     | '/toys/$slug'
     | '/admin'
@@ -402,6 +548,7 @@ export interface FileRouteTypes {
     | '/books'
     | '/certifications'
     | '/instruments'
+    | '/playground'
     | '/toys'
     | '/admin/messages/$id'
     | '/admin/posts/$id'
@@ -420,9 +567,9 @@ export interface FileRouteTypes {
     | '/books'
     | '/certifications'
     | '/instruments'
+    | '/playground'
     | '/toys'
     | '/contact'
-    | '/playground'
     | '/robots.txt'
     | '/sitemap.xml'
     | '/admin/collections'
@@ -433,6 +580,18 @@ export interface FileRouteTypes {
     | '/certifications/$slug'
     | '/images/$'
     | '/instruments/$slug'
+    | '/playground/3dblock'
+    | '/playground/autophagy-clock'
+    | '/playground/character-count'
+    | '/playground/hash-generator'
+    | '/playground/id-generators'
+    | '/playground/interactive-bmi-calculator-graph'
+    | '/playground/kuromoji'
+    | '/playground/masonryimage'
+    | '/playground/monitor-pairing'
+    | '/playground/ngram-similarity'
+    | '/playground/unit-price-comparison'
+    | '/playground/webyolo'
     | '/sign-in/$'
     | '/toys/$slug'
     | '/admin/'
@@ -440,6 +599,7 @@ export interface FileRouteTypes {
     | '/books/'
     | '/certifications/'
     | '/instruments/'
+    | '/playground/'
     | '/toys/'
     | '/admin/collections/$kind'
     | '/admin/messages/$id'
@@ -460,9 +620,9 @@ export interface RootRouteChildren {
   BooksRouteRoute: typeof BooksRouteRouteWithChildren
   CertificationsRouteRoute: typeof CertificationsRouteRouteWithChildren
   InstrumentsRouteRoute: typeof InstrumentsRouteRouteWithChildren
+  PlaygroundRouteRoute: typeof PlaygroundRouteRouteWithChildren
   ToysRouteRoute: typeof ToysRouteRouteWithChildren
   ContactRoute: typeof ContactRoute
-  PlaygroundRoute: typeof PlaygroundRoute
   RobotsDottxtRoute: typeof RobotsDottxtRoute
   SitemapDotxmlRoute: typeof SitemapDotxmlRoute
   ImagesSplatRoute: typeof ImagesSplatRoute
@@ -524,7 +684,7 @@ declare module '@tanstack/react-router' {
       id: '/playground'
       path: '/playground'
       fullPath: '/playground'
-      preLoaderRoute: typeof PlaygroundRouteImport
+      preLoaderRoute: typeof PlaygroundRouteRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/robots.txt': {
@@ -638,6 +798,97 @@ declare module '@tanstack/react-router' {
       fullPath: '/instruments/$slug'
       preLoaderRoute: typeof InstrumentsSlugRouteImport
       parentRoute: typeof InstrumentsRouteRoute
+    }
+    '/playground/': {
+      id: '/playground/'
+      path: '/'
+      fullPath: '/playground/'
+      preLoaderRoute: typeof PlaygroundIndexRouteImport
+      parentRoute: typeof PlaygroundRouteRoute
+    }
+    '/playground/3dblock': {
+      id: '/playground/3dblock'
+      path: '/3dblock'
+      fullPath: '/playground/3dblock'
+      preLoaderRoute: typeof Playground3dblockRouteImport
+      parentRoute: typeof PlaygroundRouteRoute
+    }
+    '/playground/autophagy-clock': {
+      id: '/playground/autophagy-clock'
+      path: '/autophagy-clock'
+      fullPath: '/playground/autophagy-clock'
+      preLoaderRoute: typeof PlaygroundAutophagyClockRouteImport
+      parentRoute: typeof PlaygroundRouteRoute
+    }
+    '/playground/character-count': {
+      id: '/playground/character-count'
+      path: '/character-count'
+      fullPath: '/playground/character-count'
+      preLoaderRoute: typeof PlaygroundCharacterCountRouteImport
+      parentRoute: typeof PlaygroundRouteRoute
+    }
+    '/playground/hash-generator': {
+      id: '/playground/hash-generator'
+      path: '/hash-generator'
+      fullPath: '/playground/hash-generator'
+      preLoaderRoute: typeof PlaygroundHashGeneratorRouteImport
+      parentRoute: typeof PlaygroundRouteRoute
+    }
+    '/playground/id-generators': {
+      id: '/playground/id-generators'
+      path: '/id-generators'
+      fullPath: '/playground/id-generators'
+      preLoaderRoute: typeof PlaygroundIdGeneratorsRouteImport
+      parentRoute: typeof PlaygroundRouteRoute
+    }
+    '/playground/interactive-bmi-calculator-graph': {
+      id: '/playground/interactive-bmi-calculator-graph'
+      path: '/interactive-bmi-calculator-graph'
+      fullPath: '/playground/interactive-bmi-calculator-graph'
+      preLoaderRoute: typeof PlaygroundInteractiveBmiCalculatorGraphRouteImport
+      parentRoute: typeof PlaygroundRouteRoute
+    }
+    '/playground/kuromoji': {
+      id: '/playground/kuromoji'
+      path: '/kuromoji'
+      fullPath: '/playground/kuromoji'
+      preLoaderRoute: typeof PlaygroundKuromojiRouteImport
+      parentRoute: typeof PlaygroundRouteRoute
+    }
+    '/playground/masonryimage': {
+      id: '/playground/masonryimage'
+      path: '/masonryimage'
+      fullPath: '/playground/masonryimage'
+      preLoaderRoute: typeof PlaygroundMasonryimageRouteImport
+      parentRoute: typeof PlaygroundRouteRoute
+    }
+    '/playground/monitor-pairing': {
+      id: '/playground/monitor-pairing'
+      path: '/monitor-pairing'
+      fullPath: '/playground/monitor-pairing'
+      preLoaderRoute: typeof PlaygroundMonitorPairingRouteImport
+      parentRoute: typeof PlaygroundRouteRoute
+    }
+    '/playground/ngram-similarity': {
+      id: '/playground/ngram-similarity'
+      path: '/ngram-similarity'
+      fullPath: '/playground/ngram-similarity'
+      preLoaderRoute: typeof PlaygroundNgramSimilarityRouteImport
+      parentRoute: typeof PlaygroundRouteRoute
+    }
+    '/playground/unit-price-comparison': {
+      id: '/playground/unit-price-comparison'
+      path: '/unit-price-comparison'
+      fullPath: '/playground/unit-price-comparison'
+      preLoaderRoute: typeof PlaygroundUnitPriceComparisonRouteImport
+      parentRoute: typeof PlaygroundRouteRoute
+    }
+    '/playground/webyolo': {
+      id: '/playground/webyolo'
+      path: '/webyolo'
+      fullPath: '/playground/webyolo'
+      preLoaderRoute: typeof PlaygroundWebyoloRouteImport
+      parentRoute: typeof PlaygroundRouteRoute
     }
     '/sign-in/$': {
       id: '/sign-in/$'
@@ -867,6 +1118,43 @@ const InstrumentsRouteRouteChildren: InstrumentsRouteRouteChildren = {
 const InstrumentsRouteRouteWithChildren =
   InstrumentsRouteRoute._addFileChildren(InstrumentsRouteRouteChildren)
 
+interface PlaygroundRouteRouteChildren {
+  Playground3dblockRoute: typeof Playground3dblockRoute
+  PlaygroundAutophagyClockRoute: typeof PlaygroundAutophagyClockRoute
+  PlaygroundCharacterCountRoute: typeof PlaygroundCharacterCountRoute
+  PlaygroundHashGeneratorRoute: typeof PlaygroundHashGeneratorRoute
+  PlaygroundIdGeneratorsRoute: typeof PlaygroundIdGeneratorsRoute
+  PlaygroundInteractiveBmiCalculatorGraphRoute: typeof PlaygroundInteractiveBmiCalculatorGraphRoute
+  PlaygroundKuromojiRoute: typeof PlaygroundKuromojiRoute
+  PlaygroundMasonryimageRoute: typeof PlaygroundMasonryimageRoute
+  PlaygroundMonitorPairingRoute: typeof PlaygroundMonitorPairingRoute
+  PlaygroundNgramSimilarityRoute: typeof PlaygroundNgramSimilarityRoute
+  PlaygroundUnitPriceComparisonRoute: typeof PlaygroundUnitPriceComparisonRoute
+  PlaygroundWebyoloRoute: typeof PlaygroundWebyoloRoute
+  PlaygroundIndexRoute: typeof PlaygroundIndexRoute
+}
+
+const PlaygroundRouteRouteChildren: PlaygroundRouteRouteChildren = {
+  Playground3dblockRoute: Playground3dblockRoute,
+  PlaygroundAutophagyClockRoute: PlaygroundAutophagyClockRoute,
+  PlaygroundCharacterCountRoute: PlaygroundCharacterCountRoute,
+  PlaygroundHashGeneratorRoute: PlaygroundHashGeneratorRoute,
+  PlaygroundIdGeneratorsRoute: PlaygroundIdGeneratorsRoute,
+  PlaygroundInteractiveBmiCalculatorGraphRoute:
+    PlaygroundInteractiveBmiCalculatorGraphRoute,
+  PlaygroundKuromojiRoute: PlaygroundKuromojiRoute,
+  PlaygroundMasonryimageRoute: PlaygroundMasonryimageRoute,
+  PlaygroundMonitorPairingRoute: PlaygroundMonitorPairingRoute,
+  PlaygroundNgramSimilarityRoute: PlaygroundNgramSimilarityRoute,
+  PlaygroundUnitPriceComparisonRoute: PlaygroundUnitPriceComparisonRoute,
+  PlaygroundWebyoloRoute: PlaygroundWebyoloRoute,
+  PlaygroundIndexRoute: PlaygroundIndexRoute,
+}
+
+const PlaygroundRouteRouteWithChildren = PlaygroundRouteRoute._addFileChildren(
+  PlaygroundRouteRouteChildren,
+)
+
 interface ToysRouteRouteChildren {
   ToysSlugRoute: typeof ToysSlugRoute
   ToysIndexRoute: typeof ToysIndexRoute
@@ -888,9 +1176,9 @@ const rootRouteChildren: RootRouteChildren = {
   BooksRouteRoute: BooksRouteRouteWithChildren,
   CertificationsRouteRoute: CertificationsRouteRouteWithChildren,
   InstrumentsRouteRoute: InstrumentsRouteRouteWithChildren,
+  PlaygroundRouteRoute: PlaygroundRouteRouteWithChildren,
   ToysRouteRoute: ToysRouteRouteWithChildren,
   ContactRoute: ContactRoute,
-  PlaygroundRoute: PlaygroundRoute,
   RobotsDottxtRoute: RobotsDottxtRoute,
   SitemapDotxmlRoute: SitemapDotxmlRoute,
   ImagesSplatRoute: ImagesSplatRoute,
