@@ -259,3 +259,25 @@ export const deleteItem = createServerFn({ method: 'POST' })
     ])
     return { ok: true }
   })
+
+/** 一覧のドラッグで決めた順番を保存する（ids の順に 0, 1, 2…） */
+export const reorderItems = createServerFn({ method: 'POST' })
+  .middleware([adminMiddleware])
+  .validator((data: unknown) =>
+    z
+      .object({ kind: kindSchema, ids: z.array(z.string()).max(1000) })
+      .parse(data),
+  )
+  .handler(async ({ data }) => {
+    const db = getDb()
+    if (data.ids.length === 0) return { ok: true }
+    const [first, ...rest] = data.ids.map((itemId, index) =>
+      db
+        .update(items)
+        .set({ sortOrder: index })
+        .where(and(eq(items.id, itemId), eq(items.kind, data.kind))),
+    )
+    // D1 の batch は 1 回の往復でまとめて実行される
+    await db.batch([first, ...rest])
+    return { ok: true }
+  })

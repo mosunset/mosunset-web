@@ -1,25 +1,116 @@
-import { createFileRoute, Link } from '@tanstack/react-router'
-import { ImageOff, Plus } from 'lucide-react'
+import {
+  closestCenter,
+  DndContext,
+  type DragEndEvent,
+  KeyboardSensor,
+  PointerSensor,
+  TouchSensor,
+  useSensor,
+  useSensors,
+} from '@dnd-kit/core'
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  useSortable,
+  verticalListSortingStrategy,
+} from '@dnd-kit/sortable'
+import { CSS } from '@dnd-kit/utilities'
+import { createFileRoute, Link, useRouter } from '@tanstack/react-router'
+import { useServerFn } from '@tanstack/react-start'
+import { GripVertical, ImageOff, Plus } from 'lucide-react'
+import { useEffect, useMemo, useState } from 'react'
+import { toast } from 'sonner'
 
+import { ListFilter, matchesQuery } from '@/components/admin/list-filter'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { collections, imageUrl, itemSubtitle } from '@/lib/collections'
-import { listItemsForAdmin } from '@/server/collections'
+import {
+  type CollectionKind,
+  collections,
+  imageUrl,
+  itemSubtitle,
+} from '@/lib/collections'
+import { errorMessage } from '@/lib/errors'
+import { cn } from '@/lib/utils'
+import { listItemsForAdmin, reorderItems } from '@/server/collections'
 
 export const Route = createFileRoute('/admin/collections/$kind/')({
   loader: ({ params }) => listItemsForAdmin({ data: { kind: params.kind } }),
   component: AdminCollectionItems,
 })
 
+type Item = Awaited<ReturnType<typeof listItemsForAdmin>>[number]
+type Filter = 'all' | 'published' | 'hidden'
+
+const filterOptions = [
+  { value: 'all', label: 'すべて' },
+  { value: 'published', label: '公開' },
+  { value: 'hidden', label: '非公開' },
+] as const
+
 function AdminCollectionItems() {
   const { kind } = Route.useParams()
-  const items = Route.useLoaderData()
+  const loaded = Route.useLoaderData()
   const config = collections[kind]
+  const router = useRouter()
+  const reorder = useServerFn(reorderItems)
+
+  const [items, setItems] = useState(loaded)
+  const [query, setQuery] = useState('')
+  const [filter, setFilter] = useState<Filter>('all')
+  useEffect(() => setItems(loaded), [loaded])
+
+  const visible = useMemo(
+    () =>
+      items.filter(
+        (item) =>
+          (filter === 'all' ||
+            (filter === 'published' ? item.published : !item.published)) &&
+          matchesQuery(
+            query,
+            item.title,
+            item.slug,
+            ...Object.values(item.attributes),
+          ),
+      ),
+    [items, query, filter],
+  )
+  // 絞り込み中は見えていないものとの前後関係がわからないので、並び替えは全件表示のときだけ
+  const canReorder = query.trim() === '' && filter === 'all' && items.length > 1
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
+    // スマホでは長押しで並び替え（スクロールと区別する）
+    useSensor(TouchSensor, {
+      activationConstraint: { delay: 200, tolerance: 6 },
+    }),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    }),
+  )
+
+  const onDragEnd = async ({ active, over }: DragEndEvent) => {
+    if (!over || active.id === over.id) return
+    const before = items
+    const from = items.findIndex((i) => i.id === active.id)
+    const to = items.findIndex((i) => i.id === over.id)
+    const next = arrayMove(items, from, to)
+    setItems(next)
+    try {
+      await reorder({ data: { kind, ids: next.map((i) => i.id) } })
+      toast.success('並び順を保存しました')
+      router.invalidate()
+    } catch (e) {
+      setItems(before)
+      toast.error(errorMessage(e, '並び順を保存できませんでした'))
+    }
+  }
 
   return (
-    <div className="mx-auto w-full max-w-5xl px-6 py-8">
+    <div className="mx-auto w-full max-w-5xl px-4 py-6 sm:px-6 sm:py-8">
       <div className="flex items-center justify-between gap-4">
-        <h1 className="text-3xl font-bold">{config.label}</h1>
+        <h1 className="text-2xl font-bold sm:text-3xl">{config.label}</h1>
         <Button asChild>
           <Link to="/admin/collections/$kind/new" params={{ kind }}>
             <Plus />
@@ -33,47 +124,139 @@ function AdminCollectionItems() {
           まだ登録されていません。「追加」から登録しましょう。
         </p>
       ) : (
-        <ul className="mt-8 divide-y rounded-lg border">
-          {items.map((item) => {
-            const src = imageUrl(item.imageKey)
-            const subtitle = itemSubtitle(kind, item.attributes)
-            return (
-              <li key={item.id}>
-                <Link
-                  to="/admin/collections/$kind/$id"
-                  params={{ kind, id: item.id }}
-                  className="flex items-center gap-4 px-4 py-3 hover:bg-muted/30"
-                >
-                  <div className="size-14 shrink-0 overflow-hidden rounded-md border bg-muted/30">
-                    {src ? (
-                      <img
-                        src={src}
-                        alt=""
-                        className="size-full object-cover"
-                      />
-                    ) : (
-                      <div className="flex size-full items-center justify-center text-muted-foreground">
-                        <ImageOff className="size-4" />
-                      </div>
-                    )}
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <div className="truncate font-medium">{item.title}</div>
-                    <div className="truncate text-sm text-muted-foreground">
-                      {subtitle || `${config.path}/${item.slug}`}
-                    </div>
-                  </div>
-                  {item.published ? (
-                    <Badge>公開</Badge>
-                  ) : (
-                    <Badge variant="secondary">非公開</Badge>
-                  )}
-                </Link>
-              </li>
-            )
-          })}
-        </ul>
+        <>
+          <div className="mt-6">
+            <ListFilter
+              query={query}
+              onQueryChange={setQuery}
+              filter={filter}
+              onFilterChange={setFilter}
+              options={filterOptions}
+              placeholder={`${config.label}を検索（名前・${config.fields
+                .map((f) => f.label)
+                .slice(0, 2)
+                .join('・')}など）`}
+            />
+          </div>
+          <p className="mt-3 text-xs text-muted-foreground">
+            {visible.length} / {items.length} 件
+            {canReorder
+              ? '・左のつまみをドラッグして並び替え（スマホは長押し）'
+              : items.length > 1
+                ? '・並び替えは検索・絞り込みを解除すると使えます'
+                : ''}
+          </p>
+
+          {visible.length === 0 ? (
+            <p className="mt-4 rounded-lg border border-dashed p-8 text-center text-muted-foreground">
+              条件に合うものがありません。
+            </p>
+          ) : (
+            <DndContext
+              sensors={sensors}
+              collisionDetection={closestCenter}
+              onDragEnd={onDragEnd}
+            >
+              <SortableContext
+                items={visible.map((i) => i.id)}
+                strategy={verticalListSortingStrategy}
+                disabled={!canReorder}
+              >
+                <ul className="mt-2 divide-y rounded-lg border">
+                  {visible.map((item) => (
+                    <SortableRow
+                      key={item.id}
+                      kind={kind}
+                      item={item}
+                      draggable={canReorder}
+                    />
+                  ))}
+                </ul>
+              </SortableContext>
+            </DndContext>
+          )}
+        </>
       )}
     </div>
+  )
+}
+
+function SortableRow({
+  kind,
+  item,
+  draggable,
+}: {
+  kind: CollectionKind
+  item: Item
+  draggable: boolean
+}) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    setActivatorNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: item.id, disabled: !draggable })
+  const src = imageUrl(item.imageKey)
+  const subtitle = itemSubtitle(kind, item.attributes)
+
+  return (
+    <li
+      ref={setNodeRef}
+      style={{ transform: CSS.Transform.toString(transform), transition }}
+      className={cn(
+        'flex items-center bg-background',
+        isDragging && 'relative z-10 shadow-lg ring-1 ring-ring/30',
+      )}
+    >
+      {draggable && (
+        <button
+          type="button"
+          ref={setActivatorNodeRef}
+          {...attributes}
+          {...listeners}
+          aria-label={`${item.title} を並び替える`}
+          className="flex h-full cursor-grab touch-none items-center self-stretch px-2 text-muted-foreground hover:text-foreground active:cursor-grabbing"
+        >
+          <GripVertical className="size-4" />
+        </button>
+      )}
+      <Link
+        to="/admin/collections/$kind/$id"
+        params={{ kind, id: item.id }}
+        className={cn(
+          'flex min-w-0 flex-1 items-center gap-3 py-3 pr-4 hover:bg-muted/30 sm:gap-4',
+          !draggable && 'pl-4',
+        )}
+      >
+        <div className="size-12 shrink-0 overflow-hidden rounded-md border bg-muted/30 sm:size-14">
+          {src ? (
+            <img
+              src={src}
+              alt=""
+              loading="lazy"
+              className="size-full object-cover"
+            />
+          ) : (
+            <div className="flex size-full items-center justify-center text-muted-foreground">
+              <ImageOff className="size-4" />
+            </div>
+          )}
+        </div>
+        <div className="min-w-0 flex-1">
+          <div className="truncate font-medium">{item.title}</div>
+          <div className="truncate text-sm text-muted-foreground">
+            {subtitle || `${collections[kind].path}/${item.slug}`}
+          </div>
+        </div>
+        {item.published ? (
+          <Badge>公開</Badge>
+        ) : (
+          <Badge variant="secondary">非公開</Badge>
+        )}
+      </Link>
+    </li>
   )
 }

@@ -6,6 +6,7 @@ import { flushSync } from 'react-dom'
 import { toast } from 'sonner'
 
 import { ImageUpload } from '@/components/admin/image-upload'
+import { IsbnInput, type IsbnResult } from '@/components/admin/isbn-lookup'
 import { PreviewButton } from '@/components/admin/preview-dialog'
 import {
   BackupNotice,
@@ -101,6 +102,44 @@ export function CollectionForm({ kind, item }: Props) {
       ...prev,
       attributes: { ...prev.attributes, [key]: value },
     }))
+
+  /** ISBN の検索結果を、空いている項目にだけ入れる */
+  const applyIsbnResult = (result: IsbnResult) => {
+    const filled: string[] = []
+    const attributes: CollectionAttributes = {
+      ...fields.attributes,
+      isbn: result.isbn,
+    }
+    const next: CollectionFields = { ...fields, attributes }
+    if (!fields.title.trim() && result.title) {
+      next.title = result.title
+      filled.push('書名')
+    }
+    if (!attributes.author && result.author) {
+      attributes.author = result.author
+      filled.push('著者')
+    }
+    if (!attributes.publisher && result.publisher) {
+      attributes.publisher = result.publisher
+      filled.push('出版社')
+    }
+    if (!fields.imageKey && result.imageKey) {
+      next.imageKey = result.imageKey
+      filled.push('表紙')
+    }
+    setFields(next)
+
+    if (filled.length > 0) {
+      toast.success(`「${result.title}」の${filled.join('・')}を入れました`)
+    } else {
+      toast.info(
+        `「${result.title}」が見つかりました（入力済みの項目はそのままです）`,
+      )
+    }
+    if (!fields.imageKey && !result.imageKey) {
+      toast.info('表紙は見つかりませんでした。写真の欄から追加できます')
+    }
+  }
 
   const savingRef = useRef(false)
   const submit = useCallback(async (): Promise<boolean> => {
@@ -213,14 +252,24 @@ export function CollectionForm({ kind, item }: Props) {
           </div>
 
           <div className="grid gap-6 sm:grid-cols-2">
-            {config.fields.map((field) => (
-              <AttributeInput
-                key={field.key}
-                field={field}
-                value={fields.attributes[field.key] ?? ''}
-                onChange={(value) => setAttribute(field.key, value)}
-              />
-            ))}
+            {config.fields.map((field) =>
+              kind === 'book' && field.key === 'isbn' ? (
+                <IsbnInput
+                  key={field.key}
+                  value={fields.attributes.isbn ?? ''}
+                  onChange={(value) => setAttribute('isbn', value)}
+                  needCover={!fields.imageKey}
+                  onFound={applyIsbnResult}
+                />
+              ) : (
+                <AttributeInput
+                  key={field.key}
+                  field={field}
+                  value={fields.attributes[field.key] ?? ''}
+                  onChange={(value) => setAttribute(field.key, value)}
+                />
+              ),
+            )}
             <div className="space-y-2">
               <Label htmlFor="acquiredAt">{config.acquiredAtLabel}</Label>
               <Input

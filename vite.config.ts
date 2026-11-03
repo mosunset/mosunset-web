@@ -21,6 +21,9 @@ const sharedDeps = [
   '@tiptap/suggestion',
   '@tiptap/react/menus',
   '@marsidev/react-turnstile',
+  '@dnd-kit/core',
+  '@dnd-kit/sortable',
+  '@dnd-kit/utilities',
 ]
 
 const config = defineConfig({
