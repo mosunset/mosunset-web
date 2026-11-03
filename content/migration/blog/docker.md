@@ -1,0 +1,228 @@
+---
+title: Docker 超省略説明
+description: Docker の 4 つの要素（Dockerfile・イメージ・コンテナ・ボリューム）をゲーム機に例えて整理し、Docker Compose のよく使うコマンドと Makefile のテンプレートをまとめました。
+updatedDate: 2026-11-03
+---
+## 1. 概念：4 つのライフサイクル（ゲーム機で例える）
+
+Docker を理解するための最小限の概念です。「ゲーム機」と「一生の流れ」で覚えます。
+
+### 全体フロー
+
+1. **Dockerfile** (レシピ) を書く。
+1. **Build** (製造) して **Image** (カセット) を作る。
+1. **Run** (起動) して **Container** (プレイ画面) にする。
+1. **Volume** (メモリーカード) でデータを残す。
+
+### 各要素の定義
+
+- **Dockerfile（設計図・レシピ）**
+  - **実態:** テキストファイル。
+  - **役割:** 「OSは何で、どの言語を入れて、どう設定するか」という命令書。
+  - **ゲームで例えると:** ゲームソフトの企画書やソースコード。
+- **Image（イメージ）**
+  - **実態:** ビルドされて固められた、読み取り専用のファイル群。**不変 (Immutable)**。
+  - **役割:** コンテナを作るための「金型」。
+  - **ゲームで例えると:** **「ゲームカセット（ソフト）」**。工場から出荷されたら中身は変わりません。
+- **Container（コンテナ）**
+  - **実態:** イメージを元に起動しているプロセス。**使い捨て (Ephemeral)**。
+  - **役割:** 実際にアプリが動いている場所。削除すると、内部の変更は消える。
+  - **ゲームで例えると:** **「プレイ中の画面」**。電源を切れば画面は消えます。
+- **Volume（ボリューム）**
+  - **実態:** コンテナの外にあるデータ保存領域。**永続化 (Persistence)**。
+  - **役割:** コンテナを削除してもデータを残すための仕組み。
+  - **ゲームで例えると:** **「メモリーカード（セーブデータ）」**。本体を変えても続きから遊べます。
+
+---
+
+## 2. データの保存：2 つのマウント方式
+
+「コンテナの外にデータを置く」方法は 2 つだけです。用途で使い分けます。
+
+- **Bind Mounts（バインドマウント）**
+  - **仕組み:** PCのフォルダとコンテナのフォルダを「直結（同期）」させる。
+  - **メリット:** PCでファイルを編集すると、即座にコンテナに反映される。
+  - **用途:** **ソースコード、設定ファイル**。（人間がいじるもの）
+  - **構成例:** `./src:/app/src`
+- **Volumes（ボリューム）**
+  - **仕組み:** Dockerが管理する専用倉庫にデータを預ける。
+  - **メリット:** 高速、安全、OS間の互換トラブルがない。
+  - **用途:** **データベース (MySQL/PostgreSQL) のデータ**。（システムがいじるもの）
+  - **構成例:** `db_data:/var/lib/mysql`
+
+---
+
+## 3. ファイルの役割分担（家づくりで例える）
+
+- **Dockerfile** = **「建材と内装の設計図」**
+  - どんなOS（土台）に、何の言語（柱）を入れるか決める。
+  - **成果物:** Image（プレハブの部屋）
+- **docker-compose.yml** = **「敷地配置図とライフライン」**
+  - 完成したImage（部屋）をどこに置いて、どう電気（ポート）を通し、倉庫（DB）と繋ぐか決める。
+  - **成果物:** 連携して動くContainer群
+- **devcontainer.json** = **「家具と仕事道具 (VS Code専用)」**
+  - 部屋に入った後、VS Codeがどの拡張機能を使い、どう振る舞うか決める。
+  - **成果物:** 快適な開発体験
+
+---
+
+## 4. 完全版コマンドリファレンス
+
+実務で頻出するコマンドを網羅しました。
+
+### A. 起動・終了（Docker Compose 基本）
+
+日々の開発サイクルで使う基本セットです。
+
+- `docker compose up -d`
+  - コンテナを作成して起動（バックグラウンド実行）。
+  - **必須オプション:** `-d` (Detached mode)。これがないとログで画面が占拠されます。
+- `docker compose up -d --build`
+  - イメージを**作り直してから**起動。
+  - `Dockerfile` を編集した場合や、`pip install` 等でライブラリを追加した時に使用。
+- `docker compose down`
+  - コンテナを停止し、**コンテナとネットワークを削除**。
+  - ボリューム（データ）は残ります。
+- `docker compose down -v`
+  - コンテナの削除に加え、**ボリューム（データ）も削除**。
+  - 「DBを初期化して最初からやり直したい」時に使用。**要注意コマンド**。
+- `docker compose restart [サービス名]`
+  - コンテナを再起動（停止→起動）。設定ファイルの再読み込みなどに使用。
+  - 例: `docker compose restart app`
+
+### B. 状態確認・ログ
+
+「動かない」「エラーが出た」時の調査用です。
+
+- `docker compose ps`
+  - 現在のコンテナ一覧と状態（Up / Exit）を表示。
+- `docker compose logs -f`
+  - 全コンテナのログをリアルタイムで表示し続ける（Followモード）。
+  - 終了は `Ctrl + C`。
+- `docker compose logs -f [サービス名]`
+  - 特定のコンテナのログだけを見る。ノイズを減らしたい時に便利。
+  - 例: `docker compose logs -f db`
+- `docker stats`
+  - コンテナごとのCPU、メモリ使用率をリアルタイム表示。PCが重い時の犯人探しに使用。
+
+### C. 内部操作（コンテナの中に入る）
+
+コンテナをサーバーとして直接いじる場合です。
+
+- `docker compose exec [サービス名] bash`
+  - 起動中のコンテナに入り、シェル（bash）を開く。
+  - ファイル確認、コマンド手動実行など、デバッグの基本。
+  - ※ Alpine Linuxベースの場合は `bash` を `sh` に変える。
+- `docker compose exec -u root [サービス名] bash`
+  - **rootユーザー**としてコンテナに入る。権限周りのトラブルシューティング用。
+
+### D. クリーンアップ（容量確保）
+
+Dockerは放っておくと数十GB単位で容量を食います。定期的な掃除が必要です。
+
+- `docker system prune`
+  - 停止中のコンテナ、使われていないネットワーク、タグのないイメージ、ビルドキャッシュをまとめて削除。
+- `docker image prune -a`
+  - コンテナから使われていない**全てのイメージ**を削除。劇的に空き容量が増えます。
+- `docker volume prune`
+  - どのコンテナからも使われていないボリュームを削除。
+- `docker system df`
+  - Dockerが使用しているディスク容量の内訳を表示。
+
+### E. 単体管理（Composeを使わない場合や詳細確認）
+
+Compose経由ではなく、Docker本体の機能を直接操作するコマンドです。
+
+- `docker image ls`
+  - PC内にあるイメージ一覧を表示。
+- `docker rmi [IMAGE ID]`
+  - 指定したイメージを削除。
+- `docker container ls -a`
+  - 停止中のものも含め、全コンテナを表示。
+- `docker rm [CONTAINER ID]`
+  - 指定したコンテナを削除。
+- `docker volume ls`
+  - 作成されたボリューム一覧を表示。
+- `docker volume rm [VOLUME NAME]`
+  - 指定したボリュームを削除。
+- `docker inspect [名前 or ID]`
+  - コンテナやイメージの詳細情報（IPアドレス、マウント場所、環境変数など）をJSONで表示。デバッグの最終奥義。
+- `docker cp [ホストのパス] [コンテナ名]:[コンテナのパス]`
+  - ホストとコンテナ間でファイルをコピー。
+  - 例: `docker cp ./test.txt my-app:/app/test.txt`
+
+---
+
+## 5. 最強 Makefile テンプレート
+
+上のコマンドを毎回打つのは大変です。この `Makefile` をプロジェクトのルートに置けば、`make up` だけで環境が立ち上がります。
+
+> Makefile のコマンドの行は、スペースではなく**タブ**で字下げしてください。
+
+```makefile
+# ターゲットとなるサービス名（docker-compose.ymlのサービス名に合わせる）
+SERVICE_NAME := app
+
+# phonyターゲットの定義（ファイル名との衝突回避）
+.PHONY: help up down build re shell root-shell logs logs-app stats clean prune
+
+# --- 基本操作 ---
+
+# デフォルト：ヘルプ表示
+help:
+	@echo "【Docker操作コマンド一覧】"
+	@echo "  make up        : コンテナ起動 (バックグラウンド)"
+	@echo "  make down      : コンテナ停止・削除 (データは保持)"
+	@echo "  make build     : イメージを再ビルドして起動"
+	@echo "  make re        : 完全再起動 (down -> build -> up)"
+	@echo "  make shell     : アプリコンテナに入る (bash)"
+	@echo "  make logs      : 全ログを表示"
+	@echo "  make clean     : 【注意】コンテナ・イメージ・全データを削除"
+
+# 起動 (構成変更がない場合はこれで十分)
+up:
+	docker compose up -d
+
+# 停止 (コンテナ削除、orphans削除)
+down:
+	docker compose down --remove-orphans
+
+# ビルドして起動 (Dockerfile変更時やライブラリ追加時)
+build:
+	docker compose up -d --build
+
+# リフレッシュ (停止 → ビルド → 起動)
+re: down build
+
+# --- デバッグ・調査 ---
+
+# コンテナに入る
+shell:
+	docker compose exec $(SERVICE_NAME) bash
+
+# rootでコンテナに入る (権限エラー調査用)
+root-shell:
+	docker compose exec -u root $(SERVICE_NAME) bash
+
+# ログを見る (全体)
+logs:
+	docker compose logs -f
+
+# アプリのログだけ見る
+logs-app:
+	docker compose logs -f $(SERVICE_NAME)
+
+# リソース使用状況を見る
+stats:
+	docker stats
+
+# --- メンテナンス ---
+
+# 完全初期化 (ボリュームも消す)
+clean:
+	docker compose down -v --rmi all --remove-orphans
+
+# 不要なデータの掃除 (ディスク容量確保)
+prune:
+	docker system prune -f
+```

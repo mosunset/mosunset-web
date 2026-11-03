@@ -9,6 +9,7 @@
  */
 import { execFileSync } from 'node:child_process'
 import { randomUUID } from 'node:crypto'
+import { existsSync, readFileSync } from 'node:fs'
 
 import { MarkdownManager } from '@tiptap/markdown'
 import { getPlatformProxy } from 'wrangler'
@@ -52,6 +53,28 @@ function splitFrontmatter(source: string): { data: Frontmatter; body: string } {
   const m = source.replace(/^﻿/, '').match(/^---\r?\n([\s\S]*?)\r?\n---\r?\n?([\s\S]*)$/)
   if (!m) return { data: {}, body: source }
   return { data: (parseYaml(m[1]) ?? {}) as Frontmatter, body: m[2].trim() }
+}
+
+/**
+ * content/migration/<kind>/<name>.md があれば、旧サイトの原文の代わりに使う（手直しした版）。
+ * frontmatter に書いた項目だけ上書きし、本文はまるごと置き換える
+ */
+function readOverride(kind: string, name: string) {
+  const file = `content/migration/${kind}/${name}.md`
+  if (!existsSync(file)) return null
+  return splitFrontmatter(readFileSync(file, 'utf8'))
+}
+
+/** 旧サイトの原文と手直しした版を合わせる */
+function loadEntry(kind: string, path: string) {
+  const original = splitFrontmatter(readText(path))
+  const override = readOverride(kind, slugOf(path))
+  return {
+    data: { ...original.data, ...(override?.data ?? {}) } as Frontmatter,
+    body: override ? override.body : original.body,
+    overridden: !!override,
+    attributes: (override?.data.attributes ?? {}) as Record<string, string>,
+  }
 }
 
 const str = (v: unknown) => (v === undefined || v === null ? '' : String(v).trim())
@@ -99,6 +122,7 @@ const contentTypes: Record<string, string> = {
 }
 
 let uploaded = 0
+let edited = 0
 const missing: string[] = []
 
 /** 旧サイトの画像を R2 に入れて、新しいキーを返す */
@@ -257,7 +281,8 @@ const SKIP_POSTS = new Set(['test'])
 for (const path of listFiles('src/content/blog')) {
   const slug = slugOf(path)
   if (SKIP_POSTS.has(slug)) continue
-  const { data, body } = splitFrontmatter(readText(path))
+  const { data, body, overridden } = loadEntry('blog', path)
+  if (overridden) edited++
   await deletePostBySlug(slug)
 
   const published = isPublic(data)
@@ -333,14 +358,17 @@ const certificationStatus: Record<string, string> = {
 }
 
 for (const path of listFiles('src/content/qualifications')) {
-  const slug = slugOf(path)
-  const { data, body } = splitFrontmatter(readText(path))
+  const { data, body, overridden, attributes: overrideAttributes } = loadEntry('certifications', path)
+  if (overridden) edited++
+  // URL を変えたときは、前回取り込んだ古い URL のものも消す
+  const slug = str(data.slug) || slugOf(path)
+  await deleteItemBySlug('certification', slugOf(path))
   await deleteItemBySlug('certification', slug)
   const published = isPublic(data)
   await insertItem({
     kind: 'certification',
     slug,
-    title: str(data.name),
+    title: str(data.title) || str(data.name),
     description: await markdownToDoc(body, 'collections-certification'),
     imageKey: await importImage(str(data.thumbnail), 'collections-certification'),
     attributes: {
@@ -350,6 +378,7 @@ for (const path of listFiles('src/content/qualifications')) {
       score: str(data.score),
       credentialId: str(data.certificateNumber),
       expiresAt: toDay(data.validityPeriod),
+      ...overrideAttributes,
     },
     acquiredAt: toDay(data.acquiredDate),
     published,
@@ -364,8 +393,10 @@ for (const path of listFiles('src/content/qualifications')) {
 const instrumentStatus: Record<string, string> = { 使用中: 'using', 保管中: 'stored' }
 
 for (const path of listFiles('src/content/instruments')) {
-  const slug = slugOf(path)
-  const { data, body } = splitFrontmatter(readText(path))
+  const { data, body, overridden, attributes: overrideAttributes } = loadEntry('instruments', path)
+  if (overridden) edited++
+  const slug = str(data.slug) || slugOf(path)
+  await deleteItemBySlug('instrument', slugOf(path))
   await deleteItemBySlug('instrument', slug)
   const published = isPublic(data)
   const brand = str(data.brand) === '-' ? '' : str(data.brand)
@@ -384,7 +415,7 @@ for (const path of listFiles('src/content/instruments')) {
   await insertItem({
     kind: 'instrument',
     slug,
-    title: str(data.instrumentName) || str(data.name),
+    title: str(data.title) || str(data.instrumentName) || str(data.name),
     description,
     imageKey: await importImage(str(data.thumbnail), 'collections-instrument'),
     attributes: {
@@ -395,6 +426,7 @@ for (const path of listFiles('src/content/instruments')) {
       year: str(data.manufactureYear),
       serialNumber: str(data.serialNumber),
       status: instrumentStatus[str(data.status)] ?? '',
+      ...overrideAttributes,
     },
     acquiredAt: '',
     published,
@@ -409,6 +441,7 @@ for (const [label, c] of Object.entries(summary)) {
   console.log(`  ${label}: ${c.published} / ${c.hidden}`)
 }
 console.log(`  画像: ${uploaded} 枚`)
+console.log(`  手直しした版を使ったもの: ${edited} 件（content/migration/）`)
 if (missing.length > 0) {
   console.log(`  見つからなかった画像: ${missing.length} 枚`)
   for (const m of missing) console.log(`    - ${m}`)

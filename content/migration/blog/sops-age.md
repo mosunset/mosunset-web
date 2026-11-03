@@ -1,0 +1,433 @@
+---
+title: SOPS + age で .env を暗号化して Git 管理する：Windows / Linux 対応の最短手順
+description: SOPS と age で .env を暗号化し、.env.enc として安全に Git で管理する方法。Windows（PowerShell）と Linux（bash）を同じ流れで進め、UTF-8 / LF やパスのハマりどころと、updatekeys を使ったチームでの鍵の追加・削除も紹介します。
+updatedDate: 2026-11-03
+---
+## 鉄壁のセキュリティ！.env を暗号化して Git で管理する（SOPS）
+
+> **2026 年 11 月の修正**
+> Windows の手順で、暗号化・復号したファイルが 1 行につながってしまう不具合（PowerShell では sops の出力が行の配列になるため）と、Makefile の `ifeq` の字下げでエラーになる問題を直しました。
+
+SOPSで `.env` を **暗号化して安全に Git にコミット**できるようになります。
+
+ここでは、 **「PC に 1 つだけ最強の鍵（マスターキー）を作り、全てのプロジェクトでそれを使い回す」** という、最も楽な運用を紹介します。
+
+この記事は **Windows（PowerShell）** と **Linux（bash）** の両方を **同じ流れで並行して解説**します。
+
+---
+
+## 重要：文字コードと改行コードは毎回チェックする
+
+この運用は、**UTF-8 / LF** を守ると安定する。
+
+- **文字コード**：UTF-8
+- **改行コード**：LF
+
+対象ファイル例：
+
+- `.env`
+- `.env.enc`
+- `.sops.yaml`
+- `Makefile`
+- `scripts/sops.ps1`
+
+### VS Code で確認する方法
+
+画面右下のステータスバーで
+
+- `UTF-8`
+- `LF`
+
+になっていることを、**作業のたびに**確認する。
+
+---
+
+## 重要：パスは英数字のみの場所で運用する
+
+特に Windows を絡めると、**日本語や記号を含むパス**で動かないケースが出やすい。
+
+✅ 安全な例（英数字のみ）
+
+- Windows：`C:\dev\myapp`
+- Linux：`~/dev/myapp`
+
+❌ 避けたい例（日本語 / 記号 / スペース）
+
+- `C:\Users\ユーザー名\デスクトップ\...`
+- `C:\dev\my app\...`
+
+---
+
+## Step A: ツールをインストール（SOPS / age / make）
+
+この運用では、暗号化ツールの **SOPS**、鍵の **age** に加えて、
+Makefile を使うために **GNU Make（make コマンド）** も入れる。
+
+### Windows（PowerShell）
+
+PowerShell は **PowerShell 7（pwsh）** を想定する。※Windows PowerShellとは別物
+
+```powershell
+# 0) PowerShell7 
+winget install --id Microsoft.PowerShell --source winget
+
+# 1) Age（鍵作成ツール）
+winget install -e --id FiloSottile.age
+
+# 2) SOPS（暗号化ツール）
+winget install -e --id Mozilla.SOPS
+
+# 3) make（Makefile を動かすための GNU Make）
+# まずはこれが一番ラク
+winget install -e --id ezwinports.make
+
+# もし make が見つからない場合の代替（古典枠）
+# winget install -e --id GnuWin32.Make
+```
+
+インストール後、**PowerShell を開き直して**動作確認する。
+
+```powershell
+age --version
+sops --version
+make --version
+```
+
+### Linux（bash / Ubuntu想定）
+
+```bash
+# 0) update & (upgrade (こちらは既存のプログラムに影響が出る場合があります))
+sudo apt update
+# sudo apt upgrade 
+
+# 1) Age（鍵作成ツール）
+sudo apt install -y age
+
+# 2) SOPS（暗号化ツール）
+curl -LO https://github.com/getsops/sops/releases/download/v3.9.1/sops-v3.9.1.linux.amd64
+sudo mv sops-v3.9.1.linux.amd64 /usr/local/bin/sops
+sudo chmod +x /usr/local/bin/sops
+
+# 3) make（Makefile を動かすため）
+sudo apt install -y make
+```
+
+動作確認：
+
+```bash
+age --version
+sops --version
+make --version
+```
+
+---
+
+## Step B: 「マスターキー」を 1 つだけ作る
+
+プロジェクトごとではなく、**あなたの PC 専用の万能鍵**を 1 つ作成する。
+
+ここでは **英数字のみのパス**に置くため、Windows は `C:\dev\sops\...` を使う。
+分かっている方は自分の好きなディレクトリで良い。
+
+### Windows（PowerShell）
+
+```powershell
+# 鍵置き場（英数字のみのパス）を作成
+New-Item -ItemType Directory -Force -Path "C:\dev\sops\age" | Out-Null
+
+# マスターキーを作成
+age-keygen -o "C:\dev\sops\age\keys.txt"
+```
+
+次に、SOPS に鍵の場所を教える。
+
+- **今開いてるターミナルだけ**反映（即効性）
+- **永続化**（次回以降も有効）
+
+```powershell
+# 1) 今のセッションだけ反映
+$env:SOPS_AGE_KEY_FILE = "C:\dev\sops\age\keys.txt"
+
+# 2) 永続化（ユーザー環境変数）
+[Environment]::SetEnvironmentVariable(
+  "SOPS_AGE_KEY_FILE",
+  "C:\dev\sops\age\keys.txt",
+  "User"
+)
+```
+
+### Linux（bash / Ubuntu想定）
+
+```bash
+# 鍵置き場を作成
+mkdir -p ~/.config/sops/age
+
+# マスターキーを作成
+age-keygen -o ~/.config/sops/age/keys.txt
+
+# シェルに鍵の場所を教える（永続化）
+echo 'export SOPS_AGE_KEY_FILE=$HOME/.config/sops/age/keys.txt' >> ~/.bashrc
+source ~/.bashrc
+```
+
+---
+
+## Step C: プロジェクト設定（.sops.yaml）
+
+プロジェクトルートに設定ファイルを作る。
+
+「このプロジェクトは、この公開鍵たちで開けられるようにする」という設定である。
+
+### 1. 公開鍵を確認する
+
+#### Windows（PowerShell）
+
+```powershell
+# age1... から始まる公開鍵が表示されるのでコピー
+Select-String -Path "C:\dev\sops\age\keys.txt" -Pattern "public key"
+```
+
+#### Linux（bash）
+
+```bash
+# age1... から始まる公開鍵が表示されるのでコピー
+grep "public key" ~/.config/sops/age/keys.txt
+```
+
+### 2. .sops.yaml を作成する（共通）
+
+⚠️ 作成したら **UTF-8 / LF** になっているか確認してから次へ進む。
+
+```yaml
+# .sops.yaml
+creation_rules:
+  - path_regex: \.env$
+    # ここに公開鍵 (age1...) を貼る
+    age: "age1ql3z7hjy54pw3hyww5tynry..."
+```
+
+---
+
+## Step D: .env を暗号化する（.env → .env.enc）
+
+`.env` を暗号化して `.env.enc` を作る。
+
+⚠️ `.env` も **UTF-8 / LF** になっているか確認してから暗号化する。
+
+### Windows（PowerShell）
+
+PowerShell は出力の都合で CRLF になりやすいので、**LF を強制する方法**にする。
+
+```powershell
+# sops の出力は 1 行ずつの配列になるので、LF でつないで UTF-8（BOM なし）で保存する
+$enc = (sops --input-type dotenv --output-type dotenv --encrypt .env) -join "`n"
+[System.IO.File]::WriteAllText(
+  ".env.enc",
+  $enc + "`n",
+  (New-Object System.Text.UTF8Encoding($false))
+)
+```
+
+### Linux（bash）
+
+```bash
+# .env を暗号化して .env.enc を作成
+sops --input-type dotenv --output-type dotenv --encrypt .env > .env.enc
+```
+
+### 運用ルール（共通）
+
+- `.env` は **ローカルだけに置く**（Git に上げない）
+- `.env.enc` は **暗号化済みなので Git にコミットして OK**
+
+`.gitignore` にこれを入れておくと安心である。
+
+```gitignore
+.env
+```
+
+---
+
+## Step E: 復号する（.env.enc → .env）
+
+⚠️ 復号した `.env` も **UTF-8 / LF** になっているか毎回チェックする。
+
+### Windows（PowerShell）
+
+```powershell
+# sops の出力は 1 行ずつの配列になるので、LF でつないで UTF-8（BOM なし）で保存する
+$dec = (sops --input-type dotenv --output-type dotenv --decrypt .env.enc) -join "`n"
+[System.IO.File]::WriteAllText(
+  ".env",
+  $dec + "`n",
+  (New-Object System.Text.UTF8Encoding($false))
+)
+```
+
+### Linux（bash）
+
+```bash
+# 復号して .env を作成
+sops --input-type dotenv --output-type dotenv --decrypt .env.enc > .env
+```
+
+---
+
+## Step F: Makefile で暗号化 / 復号を統一する（Windows / Linux 共通）
+
+Docker 操作は含めず、**暗号化 / 復号 / 鍵同期だけ**を Makefile にする。
+
+⚠️ `Makefile` 自体も **UTF-8 / LF** にする。
+
+### 1. scripts/sops.ps1 を作る（Windows専用）
+
+`Makefile` の中で PowerShell をゴリゴリ書くと地獄になるため、Windows は別スクリプトに逃がす。
+
+```powershell
+# scripts/sops.ps1
+param(
+  [Parameter(Mandatory=$true)]
+  [ValidateSet("encrypt","decrypt")]
+  [string]$Action
+)
+
+# sops の出力は 1 行ずつの配列になるので、LF でつなぎ直して保存する
+function Write-Utf8Lf([string]$Path, [string[]]$Lines) {
+  $Text = ($Lines -join "`n") + "`n"
+  [System.IO.File]::WriteAllText(
+    $Path,
+    $Text,
+    (New-Object System.Text.UTF8Encoding($false))
+  )
+}
+
+if ($Action -eq "encrypt") {
+  Write-Host "🔒 .env を暗号化します..."
+  $enc = sops --input-type dotenv --output-type dotenv --encrypt .env
+  Write-Utf8Lf ".env.enc" $enc
+  exit 0
+}
+
+if ($Action -eq "decrypt") {
+  Write-Host "🔓 .env を復号します..."
+  $dec = sops --input-type dotenv --output-type dotenv --decrypt .env.enc
+  Write-Utf8Lf ".env" $dec
+  exit 0
+}
+```
+
+### 2. Makefile を作る（共通）
+
+```makefile
+# Makefile
+# 暗号化 / 復号 / 鍵同期だけに絞る
+
+.PHONY: encrypt decrypt updatekeys
+
+ifeq ($(OS),Windows_NT)
+  # Windows（PowerShell）
+  ENCRYPT_CMD = pwsh -NoProfile -File scripts/sops.ps1 encrypt
+  DECRYPT_CMD = pwsh -NoProfile -File scripts/sops.ps1 decrypt
+else
+  # Linux（bash）
+  ENCRYPT_CMD = sops --input-type dotenv --output-type dotenv --encrypt .env > .env.enc
+  DECRYPT_CMD = sops --input-type dotenv --output-type dotenv --decrypt .env.enc > .env
+endif
+
+encrypt:
+	@echo "🔒 encrypt"
+	@$(ENCRYPT_CMD)
+
+decrypt:
+	@echo "🔓 decrypt"
+	@$(DECRYPT_CMD)
+
+# チーム開発用：.sops.yaml に合わせて暗号ファイルの鍵を同期する
+updatekeys:
+	@echo "🔁 updatekeys"
+	@sops updatekeys -y .env.enc
+```
+
+---
+
+## Step G: チーム開発（複数人で暗号化 / 復号できるようにする）
+
+Git を本格運用するなら、**最初から複数人復号できる形**にしておくのが楽である。
+
+ここでのポイントはこれだけである。
+
+- **各メンバーは自分のPCでマスターキーを作る**
+- **公開鍵だけを共有する**
+- **リポジトリの `.sops.yaml` に公開鍵を全員分登録する**
+- **既存の `.env.enc` は `updatekeys` で鍵を同期してコミットする**
+
+### 1. まず全員が自分の公開鍵を作る
+
+各メンバーが Step B を実行して `public key: age1...` を取り出す。
+公開鍵は **GitHub のプロフィールや Slack に貼っても問題ない鍵**である。
+
+### 2. `.sops.yaml` を「複数公開鍵対応」にする
+
+`.sops.yaml` の `age:` を **複数行 + カンマ区切り**にする。
+
+⚠️ `.sops.yaml` も **UTF-8 / LF** を確認してから保存する。
+
+```yaml
+# .sops.yaml
+creation_rules:
+  - path_regex: \.env$
+    age: >-
+      age1alice.................................,
+      age1bob...................................,
+      age1carol.................................
+```
+
+この状態で暗号化すると、**Aさん/Bさん/Cさんの誰でも復号できる `.env.enc`** ができる。
+
+### 3. 新メンバーを追加するとき（鍵の追加）
+
+新メンバーの公開鍵を `.sops.yaml` に足しただけでは、**昔の `.env.enc` はそのまま**である。
+
+なので、既存の `.env.enc` に対して鍵同期を実行する。
+
+```bash
+# Windows / Linux 共通（どちらでもOK）
+make updatekeys
+```
+
+これで `.env.enc` が書き換わるので、Git にコミットする。
+
+### 4. メンバーが抜けるとき（鍵の削除）
+
+抜ける人の公開鍵を `.sops.yaml` から消してから、同じく鍵同期する。
+
+```bash
+make updatekeys
+```
+
+⚠️ 注意点として、Git は履歴が残るため、過去のコミットに含まれる `.env.enc` を完全に無効化することは別問題になる。
+本当に無効化したい場合は、**秘密情報そのものを差し替える**運用が必要になる。
+
+### 5. チームの基本フロー（PR運用）
+
+1. **初回セットアップ**
+   - 各自がマスターキーを作る
+   - 公開鍵を `.sops.yaml` に登録
+   - `make updatekeys` を実行した `.env.enc` をコミット
+1. **普段の開発**
+   - `make decrypt` で `.env` を復元して開発する
+   - `.env` を編集したら `make encrypt` で `.env.enc` を更新してコミットする
+1. **チェック項目**
+   - `.env / .env.enc / .sops.yaml / Makefile` が **UTF-8 / LF** かを逐一確認する
+   - パスが英数字のみの場所かを確認する
+
+---
+
+## 参考（公式ドキュメント）
+
+[https://getsops.io/docs/](https://getsops.io/docs/)
+
+[https://github.com/getsops/sops](https://github.com/getsops/sops)
+
+[https://github.com/FiloSottile/age](https://github.com/FiloSottile/age)
+[https://learn.microsoft.com/ja-jp/powershell/scripting/install/install-powershell-on-windows?view=powershell-7.5](https://learn.microsoft.com/ja-jp/powershell/scripting/install/install-powershell-on-windows?view=powershell-7.5)
