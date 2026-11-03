@@ -51,6 +51,9 @@ export const Route = createRootRoute({
         { property: 'og:image:height', content: String(site.image.height) },
         { property: 'og:image:alt', content: site.image.alt },
         { name: 'twitter:card', content: 'summary' },
+        { name: 'twitter:site', content: site.xHandle },
+        { name: 'twitter:creator', content: site.xHandle },
+        ...(isNotFound ? [] : [{ name: 'twitter:url', content: url }]),
         { name: 'twitter:image', content: imageUrl },
         {
           'script:ld+json': {
@@ -60,6 +63,12 @@ export const Route = createRootRoute({
             url: absoluteUrl('/'),
             description: site.description,
             inLanguage: 'ja',
+            author: {
+              '@type': 'Person',
+              name: site.name,
+              url: absoluteUrl('/'),
+              sameAs: site.social.map((s) => s.url),
+            },
           },
         },
       ],
@@ -95,7 +104,7 @@ function RootDocument({ children }: { children: React.ReactNode }) {
       <body>
         <TooltipProvider>
           <div className="[--header-height:--spacing(14)]">
-            <SidebarProvider className="flex flex-col">
+            <SidebarProvider defaultOpen={false} className="flex flex-col">
               <SiteHeader />
               <div className="flex flex-1">
                 <AppSidebar className="top-(--header-height) h-[calc(100svh-var(--header-height))]!" />

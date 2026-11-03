@@ -14,6 +14,13 @@ export const site = {
     height: 824,
     alt: 'mosunset のアイコン（コアラ）',
   },
+  /** X（旧 Twitter）のアカウント。twitter:site / twitter:creator に使う */
+  xHandle: '@TMoSunset0',
+  /** SNS などのリンク。フッターや JSON-LD の sameAs に使う */
+  social: [
+    { name: 'X', url: 'https://x.com/TMoSunset0' },
+    { name: 'GitHub', url: 'https://github.com/mosunset' },
+  ],
 } as const
 
 /** sitemap.xml に載せるページ */
