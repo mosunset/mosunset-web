@@ -1,6 +1,9 @@
 import { createFileRoute } from '@tanstack/react-router'
 
-export const Route = createFileRoute('/about')({ component: About })
+export const Route = createFileRoute('/about')({
+  staticData: { breadcrumb: 'このサイトについて' },
+  component: About,
+})
 
 function About() {
   return (

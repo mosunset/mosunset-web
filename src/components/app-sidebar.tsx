@@ -1,5 +1,5 @@
 import { Link, useMatchRoute } from '@tanstack/react-router'
-import { Home, Info } from 'lucide-react'
+import { FlaskConical, Home, Info } from 'lucide-react'
 import type * as React from 'react'
 
 import {
@@ -16,6 +16,7 @@ import {
 const navItems = [
   { title: 'ホーム', to: '/', icon: Home },
   { title: 'このサイトについて', to: '/about', icon: Info },
+  { title: 'テスト', to: '/test', icon: FlaskConical },
 ] as const
 
 export function AppSidebar(props: React.ComponentProps<typeof Sidebar>) {
@@ -32,7 +33,9 @@ export function AppSidebar(props: React.ComponentProps<typeof Sidebar>) {
                 <SidebarMenuItem key={item.to}>
                   <SidebarMenuButton
                     asChild
-                    isActive={Boolean(matchRoute({ to: item.to }))}
+                    isActive={Boolean(
+                      matchRoute({ to: item.to, fuzzy: item.to !== '/' }),
+                    )}
                     tooltip={item.title}
                   >
                     <Link to={item.to}>

@@ -11,6 +11,10 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AboutRouteImport } from './routes/about'
+import { Route as TestRouteRouteImport } from './routes/test/route'
+import { Route as TestIndexRouteImport } from './routes/test/index'
+import { Route as TestIdRouteImport } from './routes/test/$id'
+import { Route as TestSettingsRouteImport } from './routes/test/settings'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -22,30 +26,70 @@ const AboutRoute = AboutRouteImport.update({
   path: '/about',
   getParentRoute: () => rootRouteImport,
 } as any)
+const TestRouteRoute = TestRouteRouteImport.update({
+  id: '/test',
+  path: '/test',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const TestIndexRoute = TestIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => TestRouteRoute,
+} as any)
+const TestIdRoute = TestIdRouteImport.update({
+  id: '/$id',
+  path: '/$id',
+  getParentRoute: () => TestRouteRoute,
+} as any)
+const TestSettingsRoute = TestSettingsRouteImport.update({
+  id: '/settings',
+  path: '/settings',
+  getParentRoute: () => TestRouteRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/test': typeof TestRouteRouteWithChildren
   '/about': typeof AboutRoute
+  '/test/$id': typeof TestIdRoute
+  '/test/settings': typeof TestSettingsRoute
+  '/test/': typeof TestIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/about': typeof AboutRoute
+  '/test/$id': typeof TestIdRoute
+  '/test/settings': typeof TestSettingsRoute
+  '/test': typeof TestIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/test': typeof TestRouteRouteWithChildren
   '/about': typeof AboutRoute
+  '/test/$id': typeof TestIdRoute
+  '/test/settings': typeof TestSettingsRoute
+  '/test/': typeof TestIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/about'
+  fullPaths:
+    '/' | '/test' | '/about' | '/test/$id' | '/test/settings' | '/test/'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/about'
-  id: '__root__' | '/' | '/about'
+  to: '/' | '/about' | '/test/$id' | '/test/settings' | '/test'
+  id:
+    | '__root__'
+    | '/'
+    | '/test'
+    | '/about'
+    | '/test/$id'
+    | '/test/settings'
+    | '/test/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  TestRouteRoute: typeof TestRouteRouteWithChildren
   AboutRoute: typeof AboutRoute
 }
 
@@ -65,11 +109,56 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AboutRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/test': {
+      id: '/test'
+      path: '/test'
+      fullPath: '/test'
+      preLoaderRoute: typeof TestRouteRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/test/': {
+      id: '/test/'
+      path: '/'
+      fullPath: '/test/'
+      preLoaderRoute: typeof TestIndexRouteImport
+      parentRoute: typeof TestRouteRoute
+    }
+    '/test/$id': {
+      id: '/test/$id'
+      path: '/$id'
+      fullPath: '/test/$id'
+      preLoaderRoute: typeof TestIdRouteImport
+      parentRoute: typeof TestRouteRoute
+    }
+    '/test/settings': {
+      id: '/test/settings'
+      path: '/settings'
+      fullPath: '/test/settings'
+      preLoaderRoute: typeof TestSettingsRouteImport
+      parentRoute: typeof TestRouteRoute
+    }
   }
 }
 
+interface TestRouteRouteChildren {
+  TestIdRoute: typeof TestIdRoute
+  TestSettingsRoute: typeof TestSettingsRoute
+  TestIndexRoute: typeof TestIndexRoute
+}
+
+const TestRouteRouteChildren: TestRouteRouteChildren = {
+  TestIdRoute: TestIdRoute,
+  TestSettingsRoute: TestSettingsRoute,
+  TestIndexRoute: TestIndexRoute,
+}
+
+const TestRouteRouteWithChildren = TestRouteRoute._addFileChildren(
+  TestRouteRouteChildren,
+)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  TestRouteRoute: TestRouteRouteWithChildren,
   AboutRoute: AboutRoute,
 }
 export const routeTree = rootRouteImport
