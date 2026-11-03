@@ -11,7 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AdminRouteRouteImport } from './routes/admin/route'
-import { Route as BlogRouteImport } from './routes/blog'
+import { Route as BlogRouteRouteImport } from './routes/blog/route'
 import { Route as BooksRouteImport } from './routes/books'
 import { Route as CertificationsRouteImport } from './routes/certifications'
 import { Route as ContactRouteImport } from './routes/contact'
@@ -21,7 +21,13 @@ import { Route as RobotsDottxtRouteImport } from './routes/robots[.]txt'
 import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
 import { Route as ToysRouteImport } from './routes/toys'
 import { Route as AdminIndexRouteImport } from './routes/admin/index'
+import { Route as AdminPostsRouteRouteImport } from './routes/admin/posts/route'
+import { Route as BlogIndexRouteImport } from './routes/blog/index'
+import { Route as BlogSlugRouteImport } from './routes/blog/$slug'
 import { Route as SignInSplatRouteImport } from './routes/sign-in.$'
+import { Route as AdminPostsIndexRouteImport } from './routes/admin/posts/index'
+import { Route as AdminPostsIdRouteImport } from './routes/admin/posts/$id'
+import { Route as AdminPostsNewRouteImport } from './routes/admin/posts/new'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -33,7 +39,7 @@ const AdminRouteRoute = AdminRouteRouteImport.update({
   path: '/admin',
   getParentRoute: () => rootRouteImport,
 } as any)
-const BlogRoute = BlogRouteImport.update({
+const BlogRouteRoute = BlogRouteRouteImport.update({
   id: '/blog',
   path: '/blog',
   getParentRoute: () => rootRouteImport,
@@ -83,16 +89,46 @@ const AdminIndexRoute = AdminIndexRouteImport.update({
   path: '/',
   getParentRoute: () => AdminRouteRoute,
 } as any)
+const AdminPostsRouteRoute = AdminPostsRouteRouteImport.update({
+  id: '/posts',
+  path: '/posts',
+  getParentRoute: () => AdminRouteRoute,
+} as any)
+const BlogIndexRoute = BlogIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => BlogRouteRoute,
+} as any)
+const BlogSlugRoute = BlogSlugRouteImport.update({
+  id: '/$slug',
+  path: '/$slug',
+  getParentRoute: () => BlogRouteRoute,
+} as any)
 const SignInSplatRoute = SignInSplatRouteImport.update({
   id: '/sign-in/$',
   path: '/sign-in/$',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AdminPostsIndexRoute = AdminPostsIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => AdminPostsRouteRoute,
+} as any)
+const AdminPostsIdRoute = AdminPostsIdRouteImport.update({
+  id: '/$id',
+  path: '/$id',
+  getParentRoute: () => AdminPostsRouteRoute,
+} as any)
+const AdminPostsNewRoute = AdminPostsNewRouteImport.update({
+  id: '/new',
+  path: '/new',
+  getParentRoute: () => AdminPostsRouteRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/admin': typeof AdminRouteRouteWithChildren
-  '/blog': typeof BlogRoute
+  '/blog': typeof BlogRouteRouteWithChildren
   '/books': typeof BooksRoute
   '/certifications': typeof CertificationsRoute
   '/contact': typeof ContactRoute
@@ -101,12 +137,17 @@ export interface FileRoutesByFullPath {
   '/robots.txt': typeof RobotsDottxtRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/toys': typeof ToysRoute
+  '/admin/posts': typeof AdminPostsRouteRouteWithChildren
+  '/blog/$slug': typeof BlogSlugRoute
   '/sign-in/$': typeof SignInSplatRoute
   '/admin/': typeof AdminIndexRoute
+  '/blog/': typeof BlogIndexRoute
+  '/admin/posts/$id': typeof AdminPostsIdRoute
+  '/admin/posts/new': typeof AdminPostsNewRoute
+  '/admin/posts/': typeof AdminPostsIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
-  '/blog': typeof BlogRoute
   '/books': typeof BooksRoute
   '/certifications': typeof CertificationsRoute
   '/contact': typeof ContactRoute
@@ -115,14 +156,19 @@ export interface FileRoutesByTo {
   '/robots.txt': typeof RobotsDottxtRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/toys': typeof ToysRoute
+  '/blog/$slug': typeof BlogSlugRoute
   '/sign-in/$': typeof SignInSplatRoute
   '/admin': typeof AdminIndexRoute
+  '/blog': typeof BlogIndexRoute
+  '/admin/posts/$id': typeof AdminPostsIdRoute
+  '/admin/posts/new': typeof AdminPostsNewRoute
+  '/admin/posts': typeof AdminPostsIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/admin': typeof AdminRouteRouteWithChildren
-  '/blog': typeof BlogRoute
+  '/blog': typeof BlogRouteRouteWithChildren
   '/books': typeof BooksRoute
   '/certifications': typeof CertificationsRoute
   '/contact': typeof ContactRoute
@@ -131,8 +177,14 @@ export interface FileRoutesById {
   '/robots.txt': typeof RobotsDottxtRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/toys': typeof ToysRoute
+  '/admin/posts': typeof AdminPostsRouteRouteWithChildren
+  '/blog/$slug': typeof BlogSlugRoute
   '/sign-in/$': typeof SignInSplatRoute
   '/admin/': typeof AdminIndexRoute
+  '/blog/': typeof BlogIndexRoute
+  '/admin/posts/$id': typeof AdminPostsIdRoute
+  '/admin/posts/new': typeof AdminPostsNewRoute
+  '/admin/posts/': typeof AdminPostsIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -148,12 +200,17 @@ export interface FileRouteTypes {
     | '/robots.txt'
     | '/sitemap.xml'
     | '/toys'
+    | '/admin/posts'
+    | '/blog/$slug'
     | '/sign-in/$'
     | '/admin/'
+    | '/blog/'
+    | '/admin/posts/$id'
+    | '/admin/posts/new'
+    | '/admin/posts/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
-    | '/blog'
     | '/books'
     | '/certifications'
     | '/contact'
@@ -162,8 +219,13 @@ export interface FileRouteTypes {
     | '/robots.txt'
     | '/sitemap.xml'
     | '/toys'
+    | '/blog/$slug'
     | '/sign-in/$'
     | '/admin'
+    | '/blog'
+    | '/admin/posts/$id'
+    | '/admin/posts/new'
+    | '/admin/posts'
   id:
     | '__root__'
     | '/'
@@ -177,14 +239,20 @@ export interface FileRouteTypes {
     | '/robots.txt'
     | '/sitemap.xml'
     | '/toys'
+    | '/admin/posts'
+    | '/blog/$slug'
     | '/sign-in/$'
     | '/admin/'
+    | '/blog/'
+    | '/admin/posts/$id'
+    | '/admin/posts/new'
+    | '/admin/posts/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AdminRouteRoute: typeof AdminRouteRouteWithChildren
-  BlogRoute: typeof BlogRoute
+  BlogRouteRoute: typeof BlogRouteRouteWithChildren
   BooksRoute: typeof BooksRoute
   CertificationsRoute: typeof CertificationsRoute
   ContactRoute: typeof ContactRoute
@@ -216,7 +284,7 @@ declare module '@tanstack/react-router' {
       id: '/blog'
       path: '/blog'
       fullPath: '/blog'
-      preLoaderRoute: typeof BlogRouteImport
+      preLoaderRoute: typeof BlogRouteRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/books': {
@@ -282,6 +350,27 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminIndexRouteImport
       parentRoute: typeof AdminRouteRoute
     }
+    '/admin/posts': {
+      id: '/admin/posts'
+      path: '/posts'
+      fullPath: '/admin/posts'
+      preLoaderRoute: typeof AdminPostsRouteRouteImport
+      parentRoute: typeof AdminRouteRoute
+    }
+    '/blog/': {
+      id: '/blog/'
+      path: '/'
+      fullPath: '/blog/'
+      preLoaderRoute: typeof BlogIndexRouteImport
+      parentRoute: typeof BlogRouteRoute
+    }
+    '/blog/$slug': {
+      id: '/blog/$slug'
+      path: '/$slug'
+      fullPath: '/blog/$slug'
+      preLoaderRoute: typeof BlogSlugRouteImport
+      parentRoute: typeof BlogRouteRoute
+    }
     '/sign-in/$': {
       id: '/sign-in/$'
       path: '/sign-in/$'
@@ -289,14 +378,53 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SignInSplatRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/admin/posts/': {
+      id: '/admin/posts/'
+      path: '/'
+      fullPath: '/admin/posts/'
+      preLoaderRoute: typeof AdminPostsIndexRouteImport
+      parentRoute: typeof AdminPostsRouteRoute
+    }
+    '/admin/posts/$id': {
+      id: '/admin/posts/$id'
+      path: '/$id'
+      fullPath: '/admin/posts/$id'
+      preLoaderRoute: typeof AdminPostsIdRouteImport
+      parentRoute: typeof AdminPostsRouteRoute
+    }
+    '/admin/posts/new': {
+      id: '/admin/posts/new'
+      path: '/new'
+      fullPath: '/admin/posts/new'
+      preLoaderRoute: typeof AdminPostsNewRouteImport
+      parentRoute: typeof AdminPostsRouteRoute
+    }
   }
 }
 
+interface AdminPostsRouteRouteChildren {
+  AdminPostsIdRoute: typeof AdminPostsIdRoute
+  AdminPostsNewRoute: typeof AdminPostsNewRoute
+  AdminPostsIndexRoute: typeof AdminPostsIndexRoute
+}
+
+const AdminPostsRouteRouteChildren: AdminPostsRouteRouteChildren = {
+  AdminPostsIdRoute: AdminPostsIdRoute,
+  AdminPostsNewRoute: AdminPostsNewRoute,
+  AdminPostsIndexRoute: AdminPostsIndexRoute,
+}
+
+const AdminPostsRouteRouteWithChildren = AdminPostsRouteRoute._addFileChildren(
+  AdminPostsRouteRouteChildren,
+)
+
 interface AdminRouteRouteChildren {
+  AdminPostsRouteRoute: typeof AdminPostsRouteRouteWithChildren
   AdminIndexRoute: typeof AdminIndexRoute
 }
 
 const AdminRouteRouteChildren: AdminRouteRouteChildren = {
+  AdminPostsRouteRoute: AdminPostsRouteRouteWithChildren,
   AdminIndexRoute: AdminIndexRoute,
 }
 
@@ -304,10 +432,24 @@ const AdminRouteRouteWithChildren = AdminRouteRoute._addFileChildren(
   AdminRouteRouteChildren,
 )
 
+interface BlogRouteRouteChildren {
+  BlogSlugRoute: typeof BlogSlugRoute
+  BlogIndexRoute: typeof BlogIndexRoute
+}
+
+const BlogRouteRouteChildren: BlogRouteRouteChildren = {
+  BlogSlugRoute: BlogSlugRoute,
+  BlogIndexRoute: BlogIndexRoute,
+}
+
+const BlogRouteRouteWithChildren = BlogRouteRoute._addFileChildren(
+  BlogRouteRouteChildren,
+)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AdminRouteRoute: AdminRouteRouteWithChildren,
-  BlogRoute: BlogRoute,
+  BlogRouteRoute: BlogRouteRouteWithChildren,
   BooksRoute: BooksRoute,
   CertificationsRoute: CertificationsRoute,
   ContactRoute: ContactRoute,

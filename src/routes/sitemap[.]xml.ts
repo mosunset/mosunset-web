@@ -1,17 +1,46 @@
 import { createFileRoute } from '@tanstack/react-router'
+import { desc, eq } from 'drizzle-orm'
+
 import { contactNav, mainNav } from '@/lib/navigation'
 import { absoluteUrl } from '@/lib/seo'
+import { getDb, schema } from '@/server/db'
 
-/** sitemap.xml に載せるページ */
-const sitemapPaths = ['/', ...mainNav.map((i) => i.to), contactNav.to]
+/** sitemap.xml に必ず載せる固定ページ */
+const staticPaths = ['/', ...mainNav.map((i) => i.to), contactNav.to]
+
+type Entry = { path: string; lastmod?: Date }
 
 export const Route = createFileRoute('/sitemap.xml')({
   server: {
     handlers: {
-      GET: () => {
-        const urls = sitemapPaths
-          .map(
-            (path) => `  <url>\n    <loc>${absoluteUrl(path)}</loc>\n  </url>`,
+      GET: async () => {
+        const posts = await getDb()
+          .select({
+            slug: schema.posts.slug,
+            updatedAt: schema.posts.updatedAt,
+          })
+          .from(schema.posts)
+          .where(eq(schema.posts.status, 'published'))
+          .orderBy(desc(schema.posts.publishedAt))
+
+        const entries: Entry[] = [
+          ...staticPaths.map((path) => ({ path })),
+          ...posts.map((p) => ({
+            path: `/blog/${p.slug}`,
+            lastmod: p.updatedAt,
+          })),
+        ]
+
+        const urls = entries
+          .map(({ path, lastmod }) =>
+            [
+              '  <url>',
+              `    <loc>${absoluteUrl(path)}</loc>`,
+              lastmod ? `    <lastmod>${lastmod.toISOString()}</lastmod>` : '',
+              '  </url>',
+            ]
+              .filter(Boolean)
+              .join('\n'),
           )
           .join('\n')
         const body = `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${urls}\n</urlset>\n`

@@ -1,21 +1,162 @@
+import { notFound } from '@tanstack/react-router'
 import { createServerFn } from '@tanstack/react-start'
-import { desc, eq } from 'drizzle-orm'
+import { and, desc, eq, ne } from 'drizzle-orm'
+import { z } from 'zod'
 
+import type { RichTextDoc } from '@/lib/tiptap'
+import { adminMiddleware } from '@/server/auth'
 import { getDb, schema } from '@/server/db'
+import { renderRichText, sanitizeDoc } from '@/server/rich-text'
+
+const { posts } = schema
+
+// ---------------------------------------------------------------------------
+// 公開側
+// ---------------------------------------------------------------------------
 
 /** 公開済みの記事一覧（新しい順） */
 export const listPublishedPosts = createServerFn({ method: 'GET' }).handler(
   async () => {
-    const db = getDb()
-    return db
+    return getDb()
       .select({
-        slug: schema.posts.slug,
-        title: schema.posts.title,
-        excerpt: schema.posts.excerpt,
-        publishedAt: schema.posts.publishedAt,
+        slug: posts.slug,
+        title: posts.title,
+        excerpt: posts.excerpt,
+        publishedAt: posts.publishedAt,
       })
-      .from(schema.posts)
-      .where(eq(schema.posts.status, 'published'))
-      .orderBy(desc(schema.posts.publishedAt))
+      .from(posts)
+      .where(eq(posts.status, 'published'))
+      .orderBy(desc(posts.publishedAt))
   },
 )
+
+/** 公開済みの記事 1 件。本文は HTML にして返す */
+export const getPublishedPost = createServerFn({ method: 'GET' })
+  .validator((data: unknown) => z.object({ slug: z.string() }).parse(data))
+  .handler(async ({ data }) => {
+    const post = await getDb().query.posts.findFirst({
+      where: and(eq(posts.slug, data.slug), eq(posts.status, 'published')),
+    })
+    if (!post) throw notFound()
+
+    return {
+      slug: post.slug,
+      title: post.title,
+      excerpt: post.excerpt,
+      publishedAt: post.publishedAt,
+      updatedAt: post.updatedAt,
+      html: renderRichText(post.content as RichTextDoc),
+    }
+  })
+
+// ---------------------------------------------------------------------------
+// 管理側（すべて adminMiddleware 付き）
+// ---------------------------------------------------------------------------
+
+export const slugPattern = /^[a-z0-9]+(?:-[a-z0-9]+)*$/
+
+export const postInputSchema = z.object({
+  id: z.string().optional(),
+  title: z.string().trim().min(1, 'タイトルを入力してください').max(200),
+  slug: z
+    .string()
+    .trim()
+    .min(1, 'URL を入力してください')
+    .max(100)
+    .regex(slugPattern, 'URL は半角英小文字・数字・ハイフンで入力してください'),
+  excerpt: z.string().trim().max(300).default(''),
+  status: z.enum(['draft', 'published']),
+  content: z.object({ type: z.literal('doc') }).passthrough(),
+})
+
+export type PostInput = z.input<typeof postInputSchema>
+
+export const listPostsForAdmin = createServerFn({ method: 'GET' })
+  .middleware([adminMiddleware])
+  .handler(async () => {
+    return getDb()
+      .select({
+        id: posts.id,
+        slug: posts.slug,
+        title: posts.title,
+        status: posts.status,
+        publishedAt: posts.publishedAt,
+        updatedAt: posts.updatedAt,
+      })
+      .from(posts)
+      .orderBy(desc(posts.updatedAt))
+  })
+
+export const getPostForAdmin = createServerFn({ method: 'GET' })
+  .middleware([adminMiddleware])
+  .validator((data: unknown) => z.object({ id: z.string() }).parse(data))
+  .handler(async ({ data }) => {
+    const post = await getDb().query.posts.findFirst({
+      where: eq(posts.id, data.id),
+    })
+    if (!post) throw notFound()
+    return { ...post, content: post.content as RichTextDoc }
+  })
+
+export const savePost = createServerFn({ method: 'POST' })
+  .middleware([adminMiddleware])
+  .validator((data: unknown) => postInputSchema.parse(data))
+  .handler(async ({ data }) => {
+    const db = getDb()
+
+    const duplicate = await db.query.posts.findFirst({
+      columns: { id: true },
+      where: data.id
+        ? and(eq(posts.slug, data.slug), ne(posts.id, data.id))
+        : eq(posts.slug, data.slug),
+    })
+    if (duplicate) {
+      throw new Error(`URL「${data.slug}」はほかの記事で使われています`)
+    }
+
+    const values = {
+      title: data.title,
+      slug: data.slug,
+      excerpt: data.excerpt,
+      status: data.status,
+      content: sanitizeDoc(data.content as RichTextDoc),
+    }
+
+    if (!data.id) {
+      const [created] = await db
+        .insert(posts)
+        .values({
+          ...values,
+          publishedAt: data.status === 'published' ? new Date() : null,
+        })
+        .returning({ id: posts.id })
+      return { id: created.id }
+    }
+
+    const current = await db.query.posts.findFirst({
+      columns: { publishedAt: true },
+      where: eq(posts.id, data.id),
+    })
+    if (!current) throw notFound()
+
+    await db
+      .update(posts)
+      .set({
+        ...values,
+        // 初めて公開したときの日時を公開日として残す
+        publishedAt:
+          data.status === 'published' && !current.publishedAt
+            ? new Date()
+            : current.publishedAt,
+      })
+      .where(eq(posts.id, data.id))
+    return { id: data.id }
+  })
+
+export const deletePost = createServerFn({ method: 'POST' })
+  .middleware([adminMiddleware])
+  .validator((data: unknown) => z.object({ id: z.string() }).parse(data))
+  .handler(async ({ data }) => {
+    await getDb().delete(posts).where(eq(posts.id, data.id))
+    return { ok: true }
+  })

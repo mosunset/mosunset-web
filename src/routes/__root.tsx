@@ -1,5 +1,5 @@
-import { ClerkProvider } from '@clerk/tanstack-react-start'
 import { jaJP } from '@clerk/localizations'
+import { ClerkProvider } from '@clerk/tanstack-react-start'
 import { shadcn } from '@clerk/ui/themes'
 import { TanStackDevtools } from '@tanstack/react-devtools'
 import {
