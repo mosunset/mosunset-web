@@ -1,4 +1,5 @@
 import { ClerkProvider } from '@clerk/tanstack-react-start'
+import { jaJP } from '@clerk/localizations'
 import { shadcn } from '@clerk/ui/themes'
 import { TanStackDevtools } from '@tanstack/react-devtools'
 import {
@@ -107,7 +108,7 @@ function RootDocument({ children }: { children: React.ReactNode }) {
         <ClerkProvider
           appearance={{ theme: shadcn }}
           signInUrl="/sign-in"
-          localization={{ locale: 'ja-JP' }}
+          localization={jaJP}
         >
           <TooltipProvider>
             <div className="[--header-height:--spacing(14)]">
