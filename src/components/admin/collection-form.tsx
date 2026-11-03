@@ -6,6 +6,7 @@ import { flushSync } from 'react-dom'
 import { toast } from 'sonner'
 
 import { ImageUpload } from '@/components/admin/image-upload'
+import { PreviewButton } from '@/components/admin/preview-dialog'
 import {
   BackupNotice,
   SaveStatus,
@@ -22,6 +23,7 @@ import {
   type CollectionAttributes,
   type CollectionKind,
   collections,
+  imageUrl,
 } from '@/lib/collections'
 import { errorMessage } from '@/lib/errors'
 import { emptyDoc, type RichTextDoc } from '@/lib/tiptap'
@@ -236,6 +238,7 @@ export function CollectionForm({ kind, item }: Props) {
         <Label>説明・思い出など</Label>
         <RichTextEditor
           key={editorKey}
+          imageFolder={`collections-${kind}`}
           value={fields.description}
           onChange={(value) => set('description', value)}
           placeholder="どんなものか、手に入れた経緯など…"
@@ -283,6 +286,28 @@ export function CollectionForm({ kind, item }: Props) {
           Ctrl+S で保存
         </span>
         <div className="ml-auto flex items-center gap-1">
+          <PreviewButton
+            content={fields.description}
+            header={
+              <div className="flex gap-4">
+                {fields.imageKey && (
+                  <img
+                    src={imageUrl(fields.imageKey) ?? ''}
+                    alt=""
+                    className="size-32 shrink-0 rounded-lg border object-cover"
+                  />
+                )}
+                <div>
+                  <p className="text-sm text-muted-foreground">
+                    {config.label}
+                  </p>
+                  <h1 className="mt-1 text-2xl font-bold">
+                    {fields.title || '（名前なし）'}
+                  </h1>
+                </div>
+              </div>
+            }
+          />
           {item?.published && (
             <Button asChild variant="ghost" size="sm">
               <Link

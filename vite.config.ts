@@ -17,6 +17,9 @@ const sharedDeps = [
   '@tiptap/react',
   '@tiptap/starter-kit',
   '@tiptap/extensions',
+  '@tiptap/extension-image',
+  '@tiptap/suggestion',
+  '@tiptap/react/menus',
   '@marsidev/react-turnstile',
 ]
 

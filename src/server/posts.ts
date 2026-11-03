@@ -3,9 +3,10 @@ import { createServerFn } from '@tanstack/react-start'
 import { and, desc, eq, ne } from 'drizzle-orm'
 import { z } from 'zod'
 
-import type { RichTextDoc } from '@/lib/tiptap'
+import { collectImageKeys, type RichTextDoc } from '@/lib/tiptap'
 import { adminMiddleware } from '@/server/auth'
 import { getDb, schema } from '@/server/db'
+import { deleteImages } from '@/server/r2'
 import { renderRichText, sanitizeDoc } from '@/server/rich-text'
 
 const { posts } = schema
@@ -157,6 +158,28 @@ export const deletePost = createServerFn({ method: 'POST' })
   .middleware([adminMiddleware])
   .validator((data: unknown) => z.object({ id: z.string() }).parse(data))
   .handler(async ({ data }) => {
-    await getDb().delete(posts).where(eq(posts.id, data.id))
+    const db = getDb()
+    const current = await db.query.posts.findFirst({
+      columns: { content: true, coverImageKey: true },
+      where: eq(posts.id, data.id),
+    })
+    await db.delete(posts).where(eq(posts.id, data.id))
+    // 本文に入れていた画像も消す
+    await deleteImages([
+      current?.coverImageKey,
+      ...collectImageKeys(current?.content as RichTextDoc | undefined),
+    ])
     return { ok: true }
   })
+
+/** 保存前の内容を公開ページと同じ HTML にする（プレビュー用） */
+export const previewRichText = createServerFn({ method: 'POST' })
+  .middleware([adminMiddleware])
+  .validator((data: unknown) =>
+    z
+      .object({ content: z.object({ type: z.literal('doc') }).passthrough() })
+      .parse(data),
+  )
+  .handler(({ data }) => ({
+    html: renderRichText(data.content as RichTextDoc),
+  }))

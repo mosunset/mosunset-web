@@ -8,11 +8,11 @@ import {
   type CollectionAttributes,
   collections,
 } from '@/lib/collections'
-import type { RichTextDoc } from '@/lib/tiptap'
+import { collectImageKeys, type RichTextDoc } from '@/lib/tiptap'
 import { adminMiddleware } from '@/server/auth'
 import { getDb, schema } from '@/server/db'
 import { collectionKinds } from '@/server/db/schema'
-import { deleteImage } from '@/server/r2'
+import { deleteImage, deleteImages } from '@/server/r2'
 import { renderRichText, sanitizeDoc } from '@/server/rich-text'
 
 const { collectionItems: items } = schema
@@ -248,10 +248,14 @@ export const deleteItem = createServerFn({ method: 'POST' })
   .handler(async ({ data }) => {
     const db = getDb()
     const current = await db.query.collectionItems.findFirst({
-      columns: { imageKey: true },
+      columns: { imageKey: true, description: true },
       where: eq(items.id, data.id),
     })
     await db.delete(items).where(eq(items.id, data.id))
-    await deleteImage(current?.imageKey)
+    // 写真と、説明文に入れていた画像も消す
+    await deleteImages([
+      current?.imageKey,
+      ...collectImageKeys(current?.description as RichTextDoc | null),
+    ])
     return { ok: true }
   })

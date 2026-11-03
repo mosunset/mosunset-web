@@ -5,6 +5,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { flushSync } from 'react-dom'
 import { toast } from 'sonner'
 
+import { PreviewButton } from '@/components/admin/preview-dialog'
 import {
   BackupNotice,
   SaveStatus,
@@ -335,6 +336,21 @@ export function PostForm({ post }: Props) {
         </span>
 
         <div className="ml-auto flex items-center gap-1">
+          <PreviewButton
+            content={fields.content}
+            header={
+              <header className="border-b pb-6">
+                <h1 className="text-3xl font-bold leading-tight">
+                  {fields.title || '（タイトルなし）'}
+                </h1>
+                {fields.excerpt && (
+                  <p className="mt-3 text-lg text-muted-foreground">
+                    {fields.excerpt}
+                  </p>
+                )}
+              </header>
+            }
+          />
           {isPublished && post && (
             <Button asChild variant="ghost" size="sm">
               <Link

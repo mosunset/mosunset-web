@@ -18,14 +18,34 @@ function isAllowedHref(href: unknown) {
   }
 }
 
-/** javascript: などの危険なリンクを取り除く（保存前と表示前の両方で通す） */
+/** 画像は自分の R2（/images/〜）か https の画像だけ許可する */
+function isAllowedImageSrc(src: unknown) {
+  if (typeof src !== 'string') return false
+  if (
+    /^\/images\/[a-z0-9-]+\/[0-9a-f-]{36}\.(jpg|png|webp|gif|avif)$/.test(src)
+  ) {
+    return true
+  }
+  try {
+    return new URL(src).protocol === 'https:'
+  } catch {
+    return false
+  }
+}
+
+/** javascript: などの危険なリンクや画像を取り除く（保存前と表示前の両方で通す） */
 export function sanitizeDoc(node: RichTextDoc): RichTextDoc {
   return {
     ...node,
     marks: node.marks?.filter(
       (mark) => mark.type !== 'link' || isAllowedHref(mark.attrs?.href),
     ),
-    content: node.content?.map(sanitizeDoc),
+    content: node.content
+      ?.filter(
+        (child) =>
+          child.type !== 'image' || isAllowedImageSrc(child.attrs?.src),
+      )
+      .map(sanitizeDoc),
   }
 }
 
