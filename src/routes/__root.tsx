@@ -86,7 +86,7 @@ export const Route = createRootRoute({
 
 function NotFound() {
   return (
-    <div className="p-8">
+    <div className="mx-auto w-full max-w-5xl px-6 py-8">
       <h1 className="text-3xl font-bold">ページが見つかりません</h1>
       <p className="mt-4 text-muted-foreground">
         お探しのページは存在しないか、移動した可能性があります。
@@ -109,9 +109,7 @@ function RootDocument({ children }: { children: React.ReactNode }) {
               <div className="flex flex-1">
                 <AppSidebar className="top-(--header-height) h-[calc(100svh-var(--header-height))]!" />
                 <SidebarInset>
-                  <div className="px-8 pt-6">
-                    <AppBreadcrumb />
-                  </div>
+                  <AppBreadcrumb />
                   <div className="flex-1">{children}</div>
                   <SiteFooter />
                 </SidebarInset>

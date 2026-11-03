@@ -10,22 +10,49 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
-import { Route as AboutRouteImport } from './routes/about'
+import { Route as BlogRouteImport } from './routes/blog'
+import { Route as BooksRouteImport } from './routes/books'
+import { Route as CertificationsRouteImport } from './routes/certifications'
+import { Route as ContactRouteImport } from './routes/contact'
+import { Route as InstrumentsRouteImport } from './routes/instruments'
+import { Route as PlaygroundRouteImport } from './routes/playground'
 import { Route as RobotsDottxtRouteImport } from './routes/robots[.]txt'
 import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
-import { Route as TestRouteRouteImport } from './routes/test/route'
-import { Route as TestIndexRouteImport } from './routes/test/index'
-import { Route as TestIdRouteImport } from './routes/test/$id'
-import { Route as TestSettingsRouteImport } from './routes/test/settings'
+import { Route as ToysRouteImport } from './routes/toys'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
-const AboutRoute = AboutRouteImport.update({
-  id: '/about',
-  path: '/about',
+const BlogRoute = BlogRouteImport.update({
+  id: '/blog',
+  path: '/blog',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const BooksRoute = BooksRouteImport.update({
+  id: '/books',
+  path: '/books',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CertificationsRoute = CertificationsRouteImport.update({
+  id: '/certifications',
+  path: '/certifications',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ContactRoute = ContactRouteImport.update({
+  id: '/contact',
+  path: '/contact',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const InstrumentsRoute = InstrumentsRouteImport.update({
+  id: '/instruments',
+  path: '/instruments',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PlaygroundRoute = PlaygroundRouteImport.update({
+  id: '/playground',
+  path: '/playground',
   getParentRoute: () => rootRouteImport,
 } as any)
 const RobotsDottxtRoute = RobotsDottxtRouteImport.update({
@@ -38,95 +65,99 @@ const SitemapDotxmlRoute = SitemapDotxmlRouteImport.update({
   path: '/sitemap.xml',
   getParentRoute: () => rootRouteImport,
 } as any)
-const TestRouteRoute = TestRouteRouteImport.update({
-  id: '/test',
-  path: '/test',
+const ToysRoute = ToysRouteImport.update({
+  id: '/toys',
+  path: '/toys',
   getParentRoute: () => rootRouteImport,
-} as any)
-const TestIndexRoute = TestIndexRouteImport.update({
-  id: '/',
-  path: '/',
-  getParentRoute: () => TestRouteRoute,
-} as any)
-const TestIdRoute = TestIdRouteImport.update({
-  id: '/$id',
-  path: '/$id',
-  getParentRoute: () => TestRouteRoute,
-} as any)
-const TestSettingsRoute = TestSettingsRouteImport.update({
-  id: '/settings',
-  path: '/settings',
-  getParentRoute: () => TestRouteRoute,
 } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
-  '/test': typeof TestRouteRouteWithChildren
-  '/about': typeof AboutRoute
+  '/blog': typeof BlogRoute
+  '/books': typeof BooksRoute
+  '/certifications': typeof CertificationsRoute
+  '/contact': typeof ContactRoute
+  '/instruments': typeof InstrumentsRoute
+  '/playground': typeof PlaygroundRoute
   '/robots.txt': typeof RobotsDottxtRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
-  '/test/$id': typeof TestIdRoute
-  '/test/settings': typeof TestSettingsRoute
-  '/test/': typeof TestIndexRoute
+  '/toys': typeof ToysRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
-  '/about': typeof AboutRoute
+  '/blog': typeof BlogRoute
+  '/books': typeof BooksRoute
+  '/certifications': typeof CertificationsRoute
+  '/contact': typeof ContactRoute
+  '/instruments': typeof InstrumentsRoute
+  '/playground': typeof PlaygroundRoute
   '/robots.txt': typeof RobotsDottxtRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
-  '/test/$id': typeof TestIdRoute
-  '/test/settings': typeof TestSettingsRoute
-  '/test': typeof TestIndexRoute
+  '/toys': typeof ToysRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
-  '/test': typeof TestRouteRouteWithChildren
-  '/about': typeof AboutRoute
+  '/blog': typeof BlogRoute
+  '/books': typeof BooksRoute
+  '/certifications': typeof CertificationsRoute
+  '/contact': typeof ContactRoute
+  '/instruments': typeof InstrumentsRoute
+  '/playground': typeof PlaygroundRoute
   '/robots.txt': typeof RobotsDottxtRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
-  '/test/$id': typeof TestIdRoute
-  '/test/settings': typeof TestSettingsRoute
-  '/test/': typeof TestIndexRoute
+  '/toys': typeof ToysRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
-    | '/test'
-    | '/about'
+    | '/blog'
+    | '/books'
+    | '/certifications'
+    | '/contact'
+    | '/instruments'
+    | '/playground'
     | '/robots.txt'
     | '/sitemap.xml'
-    | '/test/$id'
-    | '/test/settings'
-    | '/test/'
+    | '/toys'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
-    | '/about'
+    | '/blog'
+    | '/books'
+    | '/certifications'
+    | '/contact'
+    | '/instruments'
+    | '/playground'
     | '/robots.txt'
     | '/sitemap.xml'
-    | '/test/$id'
-    | '/test/settings'
-    | '/test'
+    | '/toys'
   id:
     | '__root__'
     | '/'
-    | '/test'
-    | '/about'
+    | '/blog'
+    | '/books'
+    | '/certifications'
+    | '/contact'
+    | '/instruments'
+    | '/playground'
     | '/robots.txt'
     | '/sitemap.xml'
-    | '/test/$id'
-    | '/test/settings'
-    | '/test/'
+    | '/toys'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
-  TestRouteRoute: typeof TestRouteRouteWithChildren
-  AboutRoute: typeof AboutRoute
+  BlogRoute: typeof BlogRoute
+  BooksRoute: typeof BooksRoute
+  CertificationsRoute: typeof CertificationsRoute
+  ContactRoute: typeof ContactRoute
+  InstrumentsRoute: typeof InstrumentsRoute
+  PlaygroundRoute: typeof PlaygroundRoute
   RobotsDottxtRoute: typeof RobotsDottxtRoute
   SitemapDotxmlRoute: typeof SitemapDotxmlRoute
+  ToysRoute: typeof ToysRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -138,11 +169,46 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/about': {
-      id: '/about'
-      path: '/about'
-      fullPath: '/about'
-      preLoaderRoute: typeof AboutRouteImport
+    '/blog': {
+      id: '/blog'
+      path: '/blog'
+      fullPath: '/blog'
+      preLoaderRoute: typeof BlogRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/books': {
+      id: '/books'
+      path: '/books'
+      fullPath: '/books'
+      preLoaderRoute: typeof BooksRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/certifications': {
+      id: '/certifications'
+      path: '/certifications'
+      fullPath: '/certifications'
+      preLoaderRoute: typeof CertificationsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/contact': {
+      id: '/contact'
+      path: '/contact'
+      fullPath: '/contact'
+      preLoaderRoute: typeof ContactRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/instruments': {
+      id: '/instruments'
+      path: '/instruments'
+      fullPath: '/instruments'
+      preLoaderRoute: typeof InstrumentsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/playground': {
+      id: '/playground'
+      path: '/playground'
+      fullPath: '/playground'
+      preLoaderRoute: typeof PlaygroundRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/robots.txt': {
@@ -159,59 +225,27 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SitemapDotxmlRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/test': {
-      id: '/test'
-      path: '/test'
-      fullPath: '/test'
-      preLoaderRoute: typeof TestRouteRouteImport
+    '/toys': {
+      id: '/toys'
+      path: '/toys'
+      fullPath: '/toys'
+      preLoaderRoute: typeof ToysRouteImport
       parentRoute: typeof rootRouteImport
-    }
-    '/test/': {
-      id: '/test/'
-      path: '/'
-      fullPath: '/test/'
-      preLoaderRoute: typeof TestIndexRouteImport
-      parentRoute: typeof TestRouteRoute
-    }
-    '/test/$id': {
-      id: '/test/$id'
-      path: '/$id'
-      fullPath: '/test/$id'
-      preLoaderRoute: typeof TestIdRouteImport
-      parentRoute: typeof TestRouteRoute
-    }
-    '/test/settings': {
-      id: '/test/settings'
-      path: '/settings'
-      fullPath: '/test/settings'
-      preLoaderRoute: typeof TestSettingsRouteImport
-      parentRoute: typeof TestRouteRoute
     }
   }
 }
 
-interface TestRouteRouteChildren {
-  TestIdRoute: typeof TestIdRoute
-  TestSettingsRoute: typeof TestSettingsRoute
-  TestIndexRoute: typeof TestIndexRoute
-}
-
-const TestRouteRouteChildren: TestRouteRouteChildren = {
-  TestIdRoute: TestIdRoute,
-  TestSettingsRoute: TestSettingsRoute,
-  TestIndexRoute: TestIndexRoute,
-}
-
-const TestRouteRouteWithChildren = TestRouteRoute._addFileChildren(
-  TestRouteRouteChildren,
-)
-
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
-  TestRouteRoute: TestRouteRouteWithChildren,
-  AboutRoute: AboutRoute,
+  BlogRoute: BlogRoute,
+  BooksRoute: BooksRoute,
+  CertificationsRoute: CertificationsRoute,
+  ContactRoute: ContactRoute,
+  InstrumentsRoute: InstrumentsRoute,
+  PlaygroundRoute: PlaygroundRoute,
   RobotsDottxtRoute: RobotsDottxtRoute,
   SitemapDotxmlRoute: SitemapDotxmlRoute,
+  ToysRoute: ToysRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

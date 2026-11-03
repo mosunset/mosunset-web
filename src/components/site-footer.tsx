@@ -1,26 +1,19 @@
 import { Link } from '@tanstack/react-router'
 
 import { SocialIcon } from '@/components/social-icons'
+import { contactNav, mainNav } from '@/lib/navigation'
 import { site } from '@/lib/site'
 
 export function SiteFooter() {
   const year = new Date().getFullYear()
 
   return (
-    <footer className="border-t px-4 py-6 text-sm text-muted-foreground">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <p>
-          © {year} {site.name}
-        </p>
-        <div className="flex items-center gap-4">
-          <nav className="flex gap-4">
-            <Link to="/" className="hover:text-foreground">
-              ホーム
-            </Link>
-            <Link to="/about" className="hover:text-foreground">
-              このサイトについて
-            </Link>
-          </nav>
+    <footer className="border-t text-sm text-muted-foreground">
+      <div className="mx-auto flex w-full max-w-5xl flex-col gap-6 px-6 py-8 sm:flex-row sm:justify-between">
+        <div className="space-y-3">
+          <Link to="/" className="font-semibold text-foreground">
+            {site.name}
+          </Link>
           <div className="flex items-center gap-3">
             {site.social.map((s) => (
               <a
@@ -35,7 +28,24 @@ export function SiteFooter() {
               </a>
             ))}
           </div>
+          <p>
+            © {year} {site.name}
+          </p>
         </div>
+
+        <nav className="grid grid-cols-2 content-start gap-x-8 gap-y-2 sm:grid-cols-3">
+          {mainNav.map((item) => (
+            <Link key={item.to} to={item.to} className="hover:text-foreground">
+              {item.title}
+            </Link>
+          ))}
+          <Link
+            to={contactNav.to}
+            className="font-medium text-foreground hover:underline"
+          >
+            {contactNav.title}
+          </Link>
+        </nav>
       </div>
     </footer>
   )

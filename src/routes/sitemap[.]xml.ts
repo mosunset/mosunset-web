@@ -1,7 +1,10 @@
 import { createFileRoute } from '@tanstack/react-router'
 
 import { absoluteUrl } from '@/lib/seo'
-import { sitemapPaths } from '@/lib/site'
+import { contactNav, mainNav } from '@/lib/navigation'
+
+/** sitemap.xml に載せるページ */
+const sitemapPaths = ['/', ...mainNav.map((i) => i.to), contactNav.to]
 
 export const Route = createFileRoute('/sitemap.xml')({
   server: {

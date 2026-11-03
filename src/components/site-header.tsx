@@ -2,13 +2,22 @@ import { Link } from '@tanstack/react-router'
 
 import { Separator } from '@/components/ui/separator'
 import { SidebarTrigger } from '@/components/ui/sidebar'
+import { contactNav, mainNav } from '@/lib/navigation'
 import { site } from '@/lib/site'
+import { cn } from '@/lib/utils'
+
+const navLinkClass =
+  'rounded-md px-3 py-2 text-sm text-muted-foreground transition-colors hover:text-foreground'
 
 export function SiteHeader() {
   return (
-    <header className="sticky top-0 z-50 flex h-(--header-height) w-full shrink-0 items-center gap-2 border-b bg-background px-4">
-      <SidebarTrigger className="-ml-1" />
-      <Separator orientation="vertical" className="mr-2 data-[orientation=vertical]:h-4" />
+    <header className="sticky top-0 z-50 flex h-(--header-height) w-full shrink-0 items-center gap-2 border-b bg-background/95 px-4 backdrop-blur">
+      {/* 狭い画面ではメニューをサイドバー（ドロワー）で開く */}
+      <SidebarTrigger className="-ml-1 lg:hidden" />
+      <Separator
+        orientation="vertical"
+        className="mr-2 data-[orientation=vertical]:h-4 lg:hidden"
+      />
       <Link to="/" className="flex items-center gap-2 font-semibold">
         <img
           src={site.image.path}
@@ -19,6 +28,28 @@ export function SiteHeader() {
         />
         {site.name}
       </Link>
+
+      <nav className="ml-auto hidden items-center lg:flex">
+        {mainNav.map((item) => (
+          <Link
+            key={item.to}
+            to={item.to}
+            className={navLinkClass}
+            activeProps={{ className: 'font-medium text-foreground!' }}
+          >
+            {item.title}
+          </Link>
+        ))}
+        <Link
+          to={contactNav.to}
+          className={cn(
+            navLinkClass,
+            'ml-2 bg-primary text-primary-foreground hover:text-primary-foreground hover:opacity-90',
+          )}
+        >
+          {contactNav.title}
+        </Link>
+      </nav>
     </header>
   )
 }

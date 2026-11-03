@@ -44,10 +44,11 @@ function useBreadcrumbs(): Crumb[] {
 
 export function AppBreadcrumb() {
   const crumbs = useBreadcrumbs()
-  if (crumbs.length === 0) return null
+  // トップページ（ホームだけ）では出さない
+  if (crumbs.length <= 1) return null
 
   return (
-    <Breadcrumb>
+    <Breadcrumb className="mx-auto w-full max-w-5xl px-6 pt-6">
       <BreadcrumbList>
         {crumbs.map((crumb, i) => {
           const isLast = i === crumbs.length - 1
