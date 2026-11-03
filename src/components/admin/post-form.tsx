@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
+import { errorMessage } from '@/lib/errors'
 import { emptyDoc, type RichTextDoc } from '@/lib/tiptap'
 import { deletePost, type PostInput, savePost } from '@/server/posts'
 
@@ -209,16 +210,4 @@ export function PostForm({ post }: Props) {
       </div>
     </form>
   )
-}
-
-function errorMessage(e: unknown) {
-  if (e instanceof Error) {
-    // zod の検証エラーは JSON 文字列で届くので、最初のメッセージだけ取り出す
-    try {
-      const issues = JSON.parse(e.message) as { message: string }[]
-      if (Array.isArray(issues) && issues[0]?.message) return issues[0].message
-    } catch {}
-    return e.message
-  }
-  return '保存できませんでした'
 }

@@ -12,22 +12,37 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AdminRouteRouteImport } from './routes/admin/route'
 import { Route as BlogRouteRouteImport } from './routes/blog/route'
-import { Route as BooksRouteImport } from './routes/books'
-import { Route as CertificationsRouteImport } from './routes/certifications'
+import { Route as BooksRouteRouteImport } from './routes/books/route'
+import { Route as CertificationsRouteRouteImport } from './routes/certifications/route'
 import { Route as ContactRouteImport } from './routes/contact'
-import { Route as InstrumentsRouteImport } from './routes/instruments'
+import { Route as InstrumentsRouteRouteImport } from './routes/instruments/route'
 import { Route as PlaygroundRouteImport } from './routes/playground'
 import { Route as RobotsDottxtRouteImport } from './routes/robots[.]txt'
 import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
-import { Route as ToysRouteImport } from './routes/toys'
+import { Route as ToysRouteRouteImport } from './routes/toys/route'
 import { Route as AdminIndexRouteImport } from './routes/admin/index'
+import { Route as AdminCollectionsRouteRouteImport } from './routes/admin/collections/route'
 import { Route as AdminPostsRouteRouteImport } from './routes/admin/posts/route'
 import { Route as BlogIndexRouteImport } from './routes/blog/index'
 import { Route as BlogSlugRouteImport } from './routes/blog/$slug'
+import { Route as BooksIndexRouteImport } from './routes/books/index'
+import { Route as BooksSlugRouteImport } from './routes/books/$slug'
+import { Route as CertificationsIndexRouteImport } from './routes/certifications/index'
+import { Route as CertificationsSlugRouteImport } from './routes/certifications/$slug'
+import { Route as ImagesSplatRouteImport } from './routes/images/$'
+import { Route as InstrumentsIndexRouteImport } from './routes/instruments/index'
+import { Route as InstrumentsSlugRouteImport } from './routes/instruments/$slug'
 import { Route as SignInSplatRouteImport } from './routes/sign-in.$'
+import { Route as ToysIndexRouteImport } from './routes/toys/index'
+import { Route as ToysSlugRouteImport } from './routes/toys/$slug'
+import { Route as AdminCollectionsIndexRouteImport } from './routes/admin/collections/index'
+import { Route as AdminCollectionsKindRouteRouteImport } from './routes/admin/collections/$kind/route'
 import { Route as AdminPostsIndexRouteImport } from './routes/admin/posts/index'
 import { Route as AdminPostsIdRouteImport } from './routes/admin/posts/$id'
 import { Route as AdminPostsNewRouteImport } from './routes/admin/posts/new'
+import { Route as AdminCollectionsKindIndexRouteImport } from './routes/admin/collections/$kind/index'
+import { Route as AdminCollectionsKindIdRouteImport } from './routes/admin/collections/$kind/$id'
+import { Route as AdminCollectionsKindNewRouteImport } from './routes/admin/collections/$kind/new'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -44,12 +59,12 @@ const BlogRouteRoute = BlogRouteRouteImport.update({
   path: '/blog',
   getParentRoute: () => rootRouteImport,
 } as any)
-const BooksRoute = BooksRouteImport.update({
+const BooksRouteRoute = BooksRouteRouteImport.update({
   id: '/books',
   path: '/books',
   getParentRoute: () => rootRouteImport,
 } as any)
-const CertificationsRoute = CertificationsRouteImport.update({
+const CertificationsRouteRoute = CertificationsRouteRouteImport.update({
   id: '/certifications',
   path: '/certifications',
   getParentRoute: () => rootRouteImport,
@@ -59,7 +74,7 @@ const ContactRoute = ContactRouteImport.update({
   path: '/contact',
   getParentRoute: () => rootRouteImport,
 } as any)
-const InstrumentsRoute = InstrumentsRouteImport.update({
+const InstrumentsRouteRoute = InstrumentsRouteRouteImport.update({
   id: '/instruments',
   path: '/instruments',
   getParentRoute: () => rootRouteImport,
@@ -79,7 +94,7 @@ const SitemapDotxmlRoute = SitemapDotxmlRouteImport.update({
   path: '/sitemap.xml',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ToysRoute = ToysRouteImport.update({
+const ToysRouteRoute = ToysRouteRouteImport.update({
   id: '/toys',
   path: '/toys',
   getParentRoute: () => rootRouteImport,
@@ -87,6 +102,11 @@ const ToysRoute = ToysRouteImport.update({
 const AdminIndexRoute = AdminIndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => AdminRouteRoute,
+} as any)
+const AdminCollectionsRouteRoute = AdminCollectionsRouteRouteImport.update({
+  id: '/collections',
+  path: '/collections',
   getParentRoute: () => AdminRouteRoute,
 } as any)
 const AdminPostsRouteRoute = AdminPostsRouteRouteImport.update({
@@ -104,11 +124,67 @@ const BlogSlugRoute = BlogSlugRouteImport.update({
   path: '/$slug',
   getParentRoute: () => BlogRouteRoute,
 } as any)
+const BooksIndexRoute = BooksIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => BooksRouteRoute,
+} as any)
+const BooksSlugRoute = BooksSlugRouteImport.update({
+  id: '/$slug',
+  path: '/$slug',
+  getParentRoute: () => BooksRouteRoute,
+} as any)
+const CertificationsIndexRoute = CertificationsIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => CertificationsRouteRoute,
+} as any)
+const CertificationsSlugRoute = CertificationsSlugRouteImport.update({
+  id: '/$slug',
+  path: '/$slug',
+  getParentRoute: () => CertificationsRouteRoute,
+} as any)
+const ImagesSplatRoute = ImagesSplatRouteImport.update({
+  id: '/images/$',
+  path: '/images/$',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const InstrumentsIndexRoute = InstrumentsIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => InstrumentsRouteRoute,
+} as any)
+const InstrumentsSlugRoute = InstrumentsSlugRouteImport.update({
+  id: '/$slug',
+  path: '/$slug',
+  getParentRoute: () => InstrumentsRouteRoute,
+} as any)
 const SignInSplatRoute = SignInSplatRouteImport.update({
   id: '/sign-in/$',
   path: '/sign-in/$',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ToysIndexRoute = ToysIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => ToysRouteRoute,
+} as any)
+const ToysSlugRoute = ToysSlugRouteImport.update({
+  id: '/$slug',
+  path: '/$slug',
+  getParentRoute: () => ToysRouteRoute,
+} as any)
+const AdminCollectionsIndexRoute = AdminCollectionsIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => AdminCollectionsRouteRoute,
+} as any)
+const AdminCollectionsKindRouteRoute =
+  AdminCollectionsKindRouteRouteImport.update({
+    id: '/$kind',
+    path: '/$kind',
+    getParentRoute: () => AdminCollectionsRouteRoute,
+  } as any)
 const AdminPostsIndexRoute = AdminPostsIndexRouteImport.update({
   id: '/',
   path: '/',
@@ -124,67 +200,122 @@ const AdminPostsNewRoute = AdminPostsNewRouteImport.update({
   path: '/new',
   getParentRoute: () => AdminPostsRouteRoute,
 } as any)
+const AdminCollectionsKindIndexRoute =
+  AdminCollectionsKindIndexRouteImport.update({
+    id: '/',
+    path: '/',
+    getParentRoute: () => AdminCollectionsKindRouteRoute,
+  } as any)
+const AdminCollectionsKindIdRoute = AdminCollectionsKindIdRouteImport.update({
+  id: '/$id',
+  path: '/$id',
+  getParentRoute: () => AdminCollectionsKindRouteRoute,
+} as any)
+const AdminCollectionsKindNewRoute = AdminCollectionsKindNewRouteImport.update({
+  id: '/new',
+  path: '/new',
+  getParentRoute: () => AdminCollectionsKindRouteRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/admin': typeof AdminRouteRouteWithChildren
   '/blog': typeof BlogRouteRouteWithChildren
-  '/books': typeof BooksRoute
-  '/certifications': typeof CertificationsRoute
+  '/books': typeof BooksRouteRouteWithChildren
+  '/certifications': typeof CertificationsRouteRouteWithChildren
+  '/instruments': typeof InstrumentsRouteRouteWithChildren
+  '/toys': typeof ToysRouteRouteWithChildren
   '/contact': typeof ContactRoute
-  '/instruments': typeof InstrumentsRoute
   '/playground': typeof PlaygroundRoute
   '/robots.txt': typeof RobotsDottxtRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
-  '/toys': typeof ToysRoute
+  '/admin/collections': typeof AdminCollectionsRouteRouteWithChildren
   '/admin/posts': typeof AdminPostsRouteRouteWithChildren
   '/blog/$slug': typeof BlogSlugRoute
+  '/books/$slug': typeof BooksSlugRoute
+  '/certifications/$slug': typeof CertificationsSlugRoute
+  '/images/$': typeof ImagesSplatRoute
+  '/instruments/$slug': typeof InstrumentsSlugRoute
   '/sign-in/$': typeof SignInSplatRoute
+  '/toys/$slug': typeof ToysSlugRoute
   '/admin/': typeof AdminIndexRoute
   '/blog/': typeof BlogIndexRoute
+  '/books/': typeof BooksIndexRoute
+  '/certifications/': typeof CertificationsIndexRoute
+  '/instruments/': typeof InstrumentsIndexRoute
+  '/toys/': typeof ToysIndexRoute
+  '/admin/collections/$kind': typeof AdminCollectionsKindRouteRouteWithChildren
   '/admin/posts/$id': typeof AdminPostsIdRoute
   '/admin/posts/new': typeof AdminPostsNewRoute
+  '/admin/collections/': typeof AdminCollectionsIndexRoute
   '/admin/posts/': typeof AdminPostsIndexRoute
+  '/admin/collections/$kind/$id': typeof AdminCollectionsKindIdRoute
+  '/admin/collections/$kind/new': typeof AdminCollectionsKindNewRoute
+  '/admin/collections/$kind/': typeof AdminCollectionsKindIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
-  '/books': typeof BooksRoute
-  '/certifications': typeof CertificationsRoute
   '/contact': typeof ContactRoute
-  '/instruments': typeof InstrumentsRoute
   '/playground': typeof PlaygroundRoute
   '/robots.txt': typeof RobotsDottxtRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
-  '/toys': typeof ToysRoute
   '/blog/$slug': typeof BlogSlugRoute
+  '/books/$slug': typeof BooksSlugRoute
+  '/certifications/$slug': typeof CertificationsSlugRoute
+  '/images/$': typeof ImagesSplatRoute
+  '/instruments/$slug': typeof InstrumentsSlugRoute
   '/sign-in/$': typeof SignInSplatRoute
+  '/toys/$slug': typeof ToysSlugRoute
   '/admin': typeof AdminIndexRoute
   '/blog': typeof BlogIndexRoute
+  '/books': typeof BooksIndexRoute
+  '/certifications': typeof CertificationsIndexRoute
+  '/instruments': typeof InstrumentsIndexRoute
+  '/toys': typeof ToysIndexRoute
   '/admin/posts/$id': typeof AdminPostsIdRoute
   '/admin/posts/new': typeof AdminPostsNewRoute
+  '/admin/collections': typeof AdminCollectionsIndexRoute
   '/admin/posts': typeof AdminPostsIndexRoute
+  '/admin/collections/$kind/$id': typeof AdminCollectionsKindIdRoute
+  '/admin/collections/$kind/new': typeof AdminCollectionsKindNewRoute
+  '/admin/collections/$kind': typeof AdminCollectionsKindIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/admin': typeof AdminRouteRouteWithChildren
   '/blog': typeof BlogRouteRouteWithChildren
-  '/books': typeof BooksRoute
-  '/certifications': typeof CertificationsRoute
+  '/books': typeof BooksRouteRouteWithChildren
+  '/certifications': typeof CertificationsRouteRouteWithChildren
+  '/instruments': typeof InstrumentsRouteRouteWithChildren
+  '/toys': typeof ToysRouteRouteWithChildren
   '/contact': typeof ContactRoute
-  '/instruments': typeof InstrumentsRoute
   '/playground': typeof PlaygroundRoute
   '/robots.txt': typeof RobotsDottxtRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
-  '/toys': typeof ToysRoute
+  '/admin/collections': typeof AdminCollectionsRouteRouteWithChildren
   '/admin/posts': typeof AdminPostsRouteRouteWithChildren
   '/blog/$slug': typeof BlogSlugRoute
+  '/books/$slug': typeof BooksSlugRoute
+  '/certifications/$slug': typeof CertificationsSlugRoute
+  '/images/$': typeof ImagesSplatRoute
+  '/instruments/$slug': typeof InstrumentsSlugRoute
   '/sign-in/$': typeof SignInSplatRoute
+  '/toys/$slug': typeof ToysSlugRoute
   '/admin/': typeof AdminIndexRoute
   '/blog/': typeof BlogIndexRoute
+  '/books/': typeof BooksIndexRoute
+  '/certifications/': typeof CertificationsIndexRoute
+  '/instruments/': typeof InstrumentsIndexRoute
+  '/toys/': typeof ToysIndexRoute
+  '/admin/collections/$kind': typeof AdminCollectionsKindRouteRouteWithChildren
   '/admin/posts/$id': typeof AdminPostsIdRoute
   '/admin/posts/new': typeof AdminPostsNewRoute
+  '/admin/collections/': typeof AdminCollectionsIndexRoute
   '/admin/posts/': typeof AdminPostsIndexRoute
+  '/admin/collections/$kind/$id': typeof AdminCollectionsKindIdRoute
+  '/admin/collections/$kind/new': typeof AdminCollectionsKindNewRoute
+  '/admin/collections/$kind/': typeof AdminCollectionsKindIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -194,38 +325,62 @@ export interface FileRouteTypes {
     | '/blog'
     | '/books'
     | '/certifications'
-    | '/contact'
     | '/instruments'
+    | '/toys'
+    | '/contact'
     | '/playground'
     | '/robots.txt'
     | '/sitemap.xml'
-    | '/toys'
+    | '/admin/collections'
     | '/admin/posts'
     | '/blog/$slug'
+    | '/books/$slug'
+    | '/certifications/$slug'
+    | '/images/$'
+    | '/instruments/$slug'
     | '/sign-in/$'
+    | '/toys/$slug'
     | '/admin/'
     | '/blog/'
+    | '/books/'
+    | '/certifications/'
+    | '/instruments/'
+    | '/toys/'
+    | '/admin/collections/$kind'
     | '/admin/posts/$id'
     | '/admin/posts/new'
+    | '/admin/collections/'
     | '/admin/posts/'
+    | '/admin/collections/$kind/$id'
+    | '/admin/collections/$kind/new'
+    | '/admin/collections/$kind/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
-    | '/books'
-    | '/certifications'
     | '/contact'
-    | '/instruments'
     | '/playground'
     | '/robots.txt'
     | '/sitemap.xml'
-    | '/toys'
     | '/blog/$slug'
+    | '/books/$slug'
+    | '/certifications/$slug'
+    | '/images/$'
+    | '/instruments/$slug'
     | '/sign-in/$'
+    | '/toys/$slug'
     | '/admin'
     | '/blog'
+    | '/books'
+    | '/certifications'
+    | '/instruments'
+    | '/toys'
     | '/admin/posts/$id'
     | '/admin/posts/new'
+    | '/admin/collections'
     | '/admin/posts'
+    | '/admin/collections/$kind/$id'
+    | '/admin/collections/$kind/new'
+    | '/admin/collections/$kind'
   id:
     | '__root__'
     | '/'
@@ -233,34 +388,50 @@ export interface FileRouteTypes {
     | '/blog'
     | '/books'
     | '/certifications'
-    | '/contact'
     | '/instruments'
+    | '/toys'
+    | '/contact'
     | '/playground'
     | '/robots.txt'
     | '/sitemap.xml'
-    | '/toys'
+    | '/admin/collections'
     | '/admin/posts'
     | '/blog/$slug'
+    | '/books/$slug'
+    | '/certifications/$slug'
+    | '/images/$'
+    | '/instruments/$slug'
     | '/sign-in/$'
+    | '/toys/$slug'
     | '/admin/'
     | '/blog/'
+    | '/books/'
+    | '/certifications/'
+    | '/instruments/'
+    | '/toys/'
+    | '/admin/collections/$kind'
     | '/admin/posts/$id'
     | '/admin/posts/new'
+    | '/admin/collections/'
     | '/admin/posts/'
+    | '/admin/collections/$kind/$id'
+    | '/admin/collections/$kind/new'
+    | '/admin/collections/$kind/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AdminRouteRoute: typeof AdminRouteRouteWithChildren
   BlogRouteRoute: typeof BlogRouteRouteWithChildren
-  BooksRoute: typeof BooksRoute
-  CertificationsRoute: typeof CertificationsRoute
+  BooksRouteRoute: typeof BooksRouteRouteWithChildren
+  CertificationsRouteRoute: typeof CertificationsRouteRouteWithChildren
+  InstrumentsRouteRoute: typeof InstrumentsRouteRouteWithChildren
+  ToysRouteRoute: typeof ToysRouteRouteWithChildren
   ContactRoute: typeof ContactRoute
-  InstrumentsRoute: typeof InstrumentsRoute
   PlaygroundRoute: typeof PlaygroundRoute
   RobotsDottxtRoute: typeof RobotsDottxtRoute
   SitemapDotxmlRoute: typeof SitemapDotxmlRoute
-  ToysRoute: typeof ToysRoute
+  ImagesSplatRoute: typeof ImagesSplatRoute
   SignInSplatRoute: typeof SignInSplatRoute
 }
 
@@ -291,14 +462,14 @@ declare module '@tanstack/react-router' {
       id: '/books'
       path: '/books'
       fullPath: '/books'
-      preLoaderRoute: typeof BooksRouteImport
+      preLoaderRoute: typeof BooksRouteRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/certifications': {
       id: '/certifications'
       path: '/certifications'
       fullPath: '/certifications'
-      preLoaderRoute: typeof CertificationsRouteImport
+      preLoaderRoute: typeof CertificationsRouteRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/contact': {
@@ -312,7 +483,7 @@ declare module '@tanstack/react-router' {
       id: '/instruments'
       path: '/instruments'
       fullPath: '/instruments'
-      preLoaderRoute: typeof InstrumentsRouteImport
+      preLoaderRoute: typeof InstrumentsRouteRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/playground': {
@@ -340,7 +511,7 @@ declare module '@tanstack/react-router' {
       id: '/toys'
       path: '/toys'
       fullPath: '/toys'
-      preLoaderRoute: typeof ToysRouteImport
+      preLoaderRoute: typeof ToysRouteRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/admin/': {
@@ -348,6 +519,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/admin/'
       preLoaderRoute: typeof AdminIndexRouteImport
+      parentRoute: typeof AdminRouteRoute
+    }
+    '/admin/collections': {
+      id: '/admin/collections'
+      path: '/collections'
+      fullPath: '/admin/collections'
+      preLoaderRoute: typeof AdminCollectionsRouteRouteImport
       parentRoute: typeof AdminRouteRoute
     }
     '/admin/posts': {
@@ -371,12 +549,89 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof BlogSlugRouteImport
       parentRoute: typeof BlogRouteRoute
     }
+    '/books/': {
+      id: '/books/'
+      path: '/'
+      fullPath: '/books/'
+      preLoaderRoute: typeof BooksIndexRouteImport
+      parentRoute: typeof BooksRouteRoute
+    }
+    '/books/$slug': {
+      id: '/books/$slug'
+      path: '/$slug'
+      fullPath: '/books/$slug'
+      preLoaderRoute: typeof BooksSlugRouteImport
+      parentRoute: typeof BooksRouteRoute
+    }
+    '/certifications/': {
+      id: '/certifications/'
+      path: '/'
+      fullPath: '/certifications/'
+      preLoaderRoute: typeof CertificationsIndexRouteImport
+      parentRoute: typeof CertificationsRouteRoute
+    }
+    '/certifications/$slug': {
+      id: '/certifications/$slug'
+      path: '/$slug'
+      fullPath: '/certifications/$slug'
+      preLoaderRoute: typeof CertificationsSlugRouteImport
+      parentRoute: typeof CertificationsRouteRoute
+    }
+    '/images/$': {
+      id: '/images/$'
+      path: '/images/$'
+      fullPath: '/images/$'
+      preLoaderRoute: typeof ImagesSplatRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/instruments/': {
+      id: '/instruments/'
+      path: '/'
+      fullPath: '/instruments/'
+      preLoaderRoute: typeof InstrumentsIndexRouteImport
+      parentRoute: typeof InstrumentsRouteRoute
+    }
+    '/instruments/$slug': {
+      id: '/instruments/$slug'
+      path: '/$slug'
+      fullPath: '/instruments/$slug'
+      preLoaderRoute: typeof InstrumentsSlugRouteImport
+      parentRoute: typeof InstrumentsRouteRoute
+    }
     '/sign-in/$': {
       id: '/sign-in/$'
       path: '/sign-in/$'
       fullPath: '/sign-in/$'
       preLoaderRoute: typeof SignInSplatRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/toys/': {
+      id: '/toys/'
+      path: '/'
+      fullPath: '/toys/'
+      preLoaderRoute: typeof ToysIndexRouteImport
+      parentRoute: typeof ToysRouteRoute
+    }
+    '/toys/$slug': {
+      id: '/toys/$slug'
+      path: '/$slug'
+      fullPath: '/toys/$slug'
+      preLoaderRoute: typeof ToysSlugRouteImport
+      parentRoute: typeof ToysRouteRoute
+    }
+    '/admin/collections/': {
+      id: '/admin/collections/'
+      path: '/'
+      fullPath: '/admin/collections/'
+      preLoaderRoute: typeof AdminCollectionsIndexRouteImport
+      parentRoute: typeof AdminCollectionsRouteRoute
+    }
+    '/admin/collections/$kind': {
+      id: '/admin/collections/$kind'
+      path: '/$kind'
+      fullPath: '/admin/collections/$kind'
+      preLoaderRoute: typeof AdminCollectionsKindRouteRouteImport
+      parentRoute: typeof AdminCollectionsRouteRoute
     }
     '/admin/posts/': {
       id: '/admin/posts/'
@@ -399,8 +654,62 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminPostsNewRouteImport
       parentRoute: typeof AdminPostsRouteRoute
     }
+    '/admin/collections/$kind/': {
+      id: '/admin/collections/$kind/'
+      path: '/'
+      fullPath: '/admin/collections/$kind/'
+      preLoaderRoute: typeof AdminCollectionsKindIndexRouteImport
+      parentRoute: typeof AdminCollectionsKindRouteRoute
+    }
+    '/admin/collections/$kind/$id': {
+      id: '/admin/collections/$kind/$id'
+      path: '/$id'
+      fullPath: '/admin/collections/$kind/$id'
+      preLoaderRoute: typeof AdminCollectionsKindIdRouteImport
+      parentRoute: typeof AdminCollectionsKindRouteRoute
+    }
+    '/admin/collections/$kind/new': {
+      id: '/admin/collections/$kind/new'
+      path: '/new'
+      fullPath: '/admin/collections/$kind/new'
+      preLoaderRoute: typeof AdminCollectionsKindNewRouteImport
+      parentRoute: typeof AdminCollectionsKindRouteRoute
+    }
   }
 }
+
+interface AdminCollectionsKindRouteRouteChildren {
+  AdminCollectionsKindIdRoute: typeof AdminCollectionsKindIdRoute
+  AdminCollectionsKindNewRoute: typeof AdminCollectionsKindNewRoute
+  AdminCollectionsKindIndexRoute: typeof AdminCollectionsKindIndexRoute
+}
+
+const AdminCollectionsKindRouteRouteChildren: AdminCollectionsKindRouteRouteChildren =
+  {
+    AdminCollectionsKindIdRoute: AdminCollectionsKindIdRoute,
+    AdminCollectionsKindNewRoute: AdminCollectionsKindNewRoute,
+    AdminCollectionsKindIndexRoute: AdminCollectionsKindIndexRoute,
+  }
+
+const AdminCollectionsKindRouteRouteWithChildren =
+  AdminCollectionsKindRouteRoute._addFileChildren(
+    AdminCollectionsKindRouteRouteChildren,
+  )
+
+interface AdminCollectionsRouteRouteChildren {
+  AdminCollectionsKindRouteRoute: typeof AdminCollectionsKindRouteRouteWithChildren
+  AdminCollectionsIndexRoute: typeof AdminCollectionsIndexRoute
+}
+
+const AdminCollectionsRouteRouteChildren: AdminCollectionsRouteRouteChildren = {
+  AdminCollectionsKindRouteRoute: AdminCollectionsKindRouteRouteWithChildren,
+  AdminCollectionsIndexRoute: AdminCollectionsIndexRoute,
+}
+
+const AdminCollectionsRouteRouteWithChildren =
+  AdminCollectionsRouteRoute._addFileChildren(
+    AdminCollectionsRouteRouteChildren,
+  )
 
 interface AdminPostsRouteRouteChildren {
   AdminPostsIdRoute: typeof AdminPostsIdRoute
@@ -419,11 +728,13 @@ const AdminPostsRouteRouteWithChildren = AdminPostsRouteRoute._addFileChildren(
 )
 
 interface AdminRouteRouteChildren {
+  AdminCollectionsRouteRoute: typeof AdminCollectionsRouteRouteWithChildren
   AdminPostsRouteRoute: typeof AdminPostsRouteRouteWithChildren
   AdminIndexRoute: typeof AdminIndexRoute
 }
 
 const AdminRouteRouteChildren: AdminRouteRouteChildren = {
+  AdminCollectionsRouteRoute: AdminCollectionsRouteRouteWithChildren,
   AdminPostsRouteRoute: AdminPostsRouteRouteWithChildren,
   AdminIndexRoute: AdminIndexRoute,
 }
@@ -446,18 +757,73 @@ const BlogRouteRouteWithChildren = BlogRouteRoute._addFileChildren(
   BlogRouteRouteChildren,
 )
 
+interface BooksRouteRouteChildren {
+  BooksSlugRoute: typeof BooksSlugRoute
+  BooksIndexRoute: typeof BooksIndexRoute
+}
+
+const BooksRouteRouteChildren: BooksRouteRouteChildren = {
+  BooksSlugRoute: BooksSlugRoute,
+  BooksIndexRoute: BooksIndexRoute,
+}
+
+const BooksRouteRouteWithChildren = BooksRouteRoute._addFileChildren(
+  BooksRouteRouteChildren,
+)
+
+interface CertificationsRouteRouteChildren {
+  CertificationsSlugRoute: typeof CertificationsSlugRoute
+  CertificationsIndexRoute: typeof CertificationsIndexRoute
+}
+
+const CertificationsRouteRouteChildren: CertificationsRouteRouteChildren = {
+  CertificationsSlugRoute: CertificationsSlugRoute,
+  CertificationsIndexRoute: CertificationsIndexRoute,
+}
+
+const CertificationsRouteRouteWithChildren =
+  CertificationsRouteRoute._addFileChildren(CertificationsRouteRouteChildren)
+
+interface InstrumentsRouteRouteChildren {
+  InstrumentsSlugRoute: typeof InstrumentsSlugRoute
+  InstrumentsIndexRoute: typeof InstrumentsIndexRoute
+}
+
+const InstrumentsRouteRouteChildren: InstrumentsRouteRouteChildren = {
+  InstrumentsSlugRoute: InstrumentsSlugRoute,
+  InstrumentsIndexRoute: InstrumentsIndexRoute,
+}
+
+const InstrumentsRouteRouteWithChildren =
+  InstrumentsRouteRoute._addFileChildren(InstrumentsRouteRouteChildren)
+
+interface ToysRouteRouteChildren {
+  ToysSlugRoute: typeof ToysSlugRoute
+  ToysIndexRoute: typeof ToysIndexRoute
+}
+
+const ToysRouteRouteChildren: ToysRouteRouteChildren = {
+  ToysSlugRoute: ToysSlugRoute,
+  ToysIndexRoute: ToysIndexRoute,
+}
+
+const ToysRouteRouteWithChildren = ToysRouteRoute._addFileChildren(
+  ToysRouteRouteChildren,
+)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AdminRouteRoute: AdminRouteRouteWithChildren,
   BlogRouteRoute: BlogRouteRouteWithChildren,
-  BooksRoute: BooksRoute,
-  CertificationsRoute: CertificationsRoute,
+  BooksRouteRoute: BooksRouteRouteWithChildren,
+  CertificationsRouteRoute: CertificationsRouteRouteWithChildren,
+  InstrumentsRouteRoute: InstrumentsRouteRouteWithChildren,
+  ToysRouteRoute: ToysRouteRouteWithChildren,
   ContactRoute: ContactRoute,
-  InstrumentsRoute: InstrumentsRoute,
   PlaygroundRoute: PlaygroundRoute,
   RobotsDottxtRoute: RobotsDottxtRoute,
   SitemapDotxmlRoute: SitemapDotxmlRoute,
-  ToysRoute: ToysRoute,
+  ImagesSplatRoute: ImagesSplatRoute,
   SignInSplatRoute: SignInSplatRoute,
 }
 export const routeTree = rootRouteImport

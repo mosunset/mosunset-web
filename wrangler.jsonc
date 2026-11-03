@@ -15,5 +15,12 @@
       "database_id": "00000000-0000-0000-0000-000000000000",
       "migrations_dir": "drizzle"
     }
+  ],
+  "r2_buckets": [
+    {
+      // コレクションやブログの画像。本番用は `npx wrangler r2 bucket create mosunset-web-images` で作成する
+      "binding": "IMAGES",
+      "bucket_name": "mosunset-web-images"
+    }
   ]
 }

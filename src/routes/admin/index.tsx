@@ -19,9 +19,9 @@ const sections = [
   },
   {
     title: 'コレクション',
-    description: '楽器・資格・おもちゃ・本の登録（準備中）',
+    description: '楽器・資格・おもちゃ・本の登録',
     icon: Library,
-    to: undefined,
+    to: '/admin/collections',
   },
   {
     title: 'お問い合わせ',

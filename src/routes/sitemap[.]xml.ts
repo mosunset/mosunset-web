@@ -1,6 +1,7 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { desc, eq } from 'drizzle-orm'
 
+import { collections } from '@/lib/collections'
 import { contactNav, mainNav } from '@/lib/navigation'
 import { absoluteUrl } from '@/lib/seo'
 import { getDb, schema } from '@/server/db'
@@ -23,11 +24,24 @@ export const Route = createFileRoute('/sitemap.xml')({
           .where(eq(schema.posts.status, 'published'))
           .orderBy(desc(schema.posts.publishedAt))
 
+        const collectionRows = await getDb()
+          .select({
+            kind: schema.collectionItems.kind,
+            slug: schema.collectionItems.slug,
+            updatedAt: schema.collectionItems.updatedAt,
+          })
+          .from(schema.collectionItems)
+          .where(eq(schema.collectionItems.published, true))
+
         const entries: Entry[] = [
           ...staticPaths.map((path) => ({ path })),
           ...posts.map((p) => ({
             path: `/blog/${p.slug}`,
             lastmod: p.updatedAt,
+          })),
+          ...collectionRows.map((c) => ({
+            path: `${collections[c.kind].path}/${c.slug}`,
+            lastmod: c.updatedAt,
           })),
         ]
 
