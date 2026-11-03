@@ -20,8 +20,10 @@ import { Route as LlmsDottxtRouteImport } from './routes/llms[.]txt'
 import { Route as PlaygroundRouteRouteImport } from './routes/playground/route'
 import { Route as RobotsDottxtRouteImport } from './routes/robots[.]txt'
 import { Route as RssDotxmlRouteImport } from './routes/rss[.]xml'
+import { Route as SecurityDottxtRouteImport } from './routes/security[.]txt'
 import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
 import { Route as ToysRouteRouteImport } from './routes/toys/route'
+import { Route as DotwellKnownSecurityDottxtRouteImport } from './routes/[.]well-known/security[.]txt'
 import { Route as AdminIndexRouteImport } from './routes/admin/index'
 import { Route as AdminCollectionsRouteRouteImport } from './routes/admin/collections/route'
 import { Route as AdminMessagesRouteRouteImport } from './routes/admin/messages/route'
@@ -117,6 +119,11 @@ const RssDotxmlRoute = RssDotxmlRouteImport.update({
   path: '/rss.xml',
   getParentRoute: () => rootRouteImport,
 } as any)
+const SecurityDottxtRoute = SecurityDottxtRouteImport.update({
+  id: '/security.txt',
+  path: '/security.txt',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const SitemapDotxmlRoute = SitemapDotxmlRouteImport.update({
   id: '/sitemap.xml',
   path: '/sitemap.xml',
@@ -127,6 +134,12 @@ const ToysRouteRoute = ToysRouteRouteImport.update({
   path: '/toys',
   getParentRoute: () => rootRouteImport,
 } as any)
+const DotwellKnownSecurityDottxtRoute =
+  DotwellKnownSecurityDottxtRouteImport.update({
+    id: '/.well-known/security.txt',
+    path: '/.well-known/security.txt',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const AdminIndexRoute = AdminIndexRouteImport.update({
   id: '/',
   path: '/',
@@ -344,10 +357,12 @@ export interface FileRoutesByFullPath {
   '/llms.txt': typeof LlmsDottxtRoute
   '/robots.txt': typeof RobotsDottxtRoute
   '/rss.xml': typeof RssDotxmlRoute
+  '/security.txt': typeof SecurityDottxtRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/admin/collections': typeof AdminCollectionsRouteRouteWithChildren
   '/admin/messages': typeof AdminMessagesRouteRouteWithChildren
   '/admin/posts': typeof AdminPostsRouteRouteWithChildren
+  '/.well-known/security.txt': typeof DotwellKnownSecurityDottxtRoute
   '/blog/$slug': typeof BlogSlugRoute
   '/books/$slug': typeof BooksSlugRoute
   '/certifications/$slug': typeof CertificationsSlugRoute
@@ -391,7 +406,9 @@ export interface FileRoutesByTo {
   '/llms.txt': typeof LlmsDottxtRoute
   '/robots.txt': typeof RobotsDottxtRoute
   '/rss.xml': typeof RssDotxmlRoute
+  '/security.txt': typeof SecurityDottxtRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
+  '/.well-known/security.txt': typeof DotwellKnownSecurityDottxtRoute
   '/blog/$slug': typeof BlogSlugRoute
   '/books/$slug': typeof BooksSlugRoute
   '/certifications/$slug': typeof CertificationsSlugRoute
@@ -442,10 +459,12 @@ export interface FileRoutesById {
   '/llms.txt': typeof LlmsDottxtRoute
   '/robots.txt': typeof RobotsDottxtRoute
   '/rss.xml': typeof RssDotxmlRoute
+  '/security.txt': typeof SecurityDottxtRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/admin/collections': typeof AdminCollectionsRouteRouteWithChildren
   '/admin/messages': typeof AdminMessagesRouteRouteWithChildren
   '/admin/posts': typeof AdminPostsRouteRouteWithChildren
+  '/.well-known/security.txt': typeof DotwellKnownSecurityDottxtRoute
   '/blog/$slug': typeof BlogSlugRoute
   '/books/$slug': typeof BooksSlugRoute
   '/certifications/$slug': typeof CertificationsSlugRoute
@@ -498,10 +517,12 @@ export interface FileRouteTypes {
     | '/llms.txt'
     | '/robots.txt'
     | '/rss.xml'
+    | '/security.txt'
     | '/sitemap.xml'
     | '/admin/collections'
     | '/admin/messages'
     | '/admin/posts'
+    | '/.well-known/security.txt'
     | '/blog/$slug'
     | '/books/$slug'
     | '/certifications/$slug'
@@ -545,7 +566,9 @@ export interface FileRouteTypes {
     | '/llms.txt'
     | '/robots.txt'
     | '/rss.xml'
+    | '/security.txt'
     | '/sitemap.xml'
+    | '/.well-known/security.txt'
     | '/blog/$slug'
     | '/books/$slug'
     | '/certifications/$slug'
@@ -595,10 +618,12 @@ export interface FileRouteTypes {
     | '/llms.txt'
     | '/robots.txt'
     | '/rss.xml'
+    | '/security.txt'
     | '/sitemap.xml'
     | '/admin/collections'
     | '/admin/messages'
     | '/admin/posts'
+    | '/.well-known/security.txt'
     | '/blog/$slug'
     | '/books/$slug'
     | '/certifications/$slug'
@@ -650,7 +675,9 @@ export interface RootRouteChildren {
   LlmsDottxtRoute: typeof LlmsDottxtRoute
   RobotsDottxtRoute: typeof RobotsDottxtRoute
   RssDotxmlRoute: typeof RssDotxmlRoute
+  SecurityDottxtRoute: typeof SecurityDottxtRoute
   SitemapDotxmlRoute: typeof SitemapDotxmlRoute
+  DotwellKnownSecurityDottxtRoute: typeof DotwellKnownSecurityDottxtRoute
   ImagesSplatRoute: typeof ImagesSplatRoute
   SignInSplatRoute: typeof SignInSplatRoute
 }
@@ -734,6 +761,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof RssDotxmlRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/security.txt': {
+      id: '/security.txt'
+      path: '/security.txt'
+      fullPath: '/security.txt'
+      preLoaderRoute: typeof SecurityDottxtRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/sitemap.xml': {
       id: '/sitemap.xml'
       path: '/sitemap.xml'
@@ -746,6 +780,13 @@ declare module '@tanstack/react-router' {
       path: '/toys'
       fullPath: '/toys'
       preLoaderRoute: typeof ToysRouteRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/.well-known/security.txt': {
+      id: '/.well-known/security.txt'
+      path: '/.well-known/security.txt'
+      fullPath: '/.well-known/security.txt'
+      preLoaderRoute: typeof DotwellKnownSecurityDottxtRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/admin/': {
@@ -1222,7 +1263,9 @@ const rootRouteChildren: RootRouteChildren = {
   LlmsDottxtRoute: LlmsDottxtRoute,
   RobotsDottxtRoute: RobotsDottxtRoute,
   RssDotxmlRoute: RssDotxmlRoute,
+  SecurityDottxtRoute: SecurityDottxtRoute,
   SitemapDotxmlRoute: SitemapDotxmlRoute,
+  DotwellKnownSecurityDottxtRoute: DotwellKnownSecurityDottxtRoute,
   ImagesSplatRoute: ImagesSplatRoute,
   SignInSplatRoute: SignInSplatRoute,
 }
