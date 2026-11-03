@@ -49,6 +49,17 @@ export const collections = {
       { key: 'maker', label: 'メーカー', type: 'text' },
       { key: 'model', label: 'モデル', type: 'text' },
       { key: 'year', label: '製造年', type: 'text', placeholder: '2020' },
+      { key: 'serialNumber', label: '製造番号', type: 'text' },
+      {
+        key: 'status',
+        label: '状態',
+        type: 'select',
+        options: [
+          { value: 'using', label: '使用中' },
+          { value: 'stored', label: '保管中' },
+          { value: 'gone', label: '手放した' },
+        ],
+      },
     ],
   },
   certification: {
@@ -59,7 +70,19 @@ export const collections = {
     acquiredAtLabel: '取得日',
     subtitleKeys: ['issuer'],
     fields: [
+      {
+        key: 'status',
+        label: '状態',
+        type: 'select',
+        options: [
+          { value: 'acquired', label: '取得済み' },
+          { value: 'studying', label: '学習中' },
+          { value: 'planned', label: '未取得' },
+        ],
+      },
       { key: 'issuer', label: '発行元', type: 'text' },
+      { key: 'category', label: '分類', type: 'text' },
+      { key: 'score', label: 'スコア', type: 'text' },
       { key: 'credentialId', label: '認定番号', type: 'text' },
       { key: 'expiresAt', label: '有効期限', type: 'date' },
       { key: 'verifyUrl', label: '証明ページの URL', type: 'url' },
@@ -94,6 +117,9 @@ export const collections = {
       { key: 'author', label: '著者', type: 'text' },
       { key: 'publisher', label: '出版社', type: 'text' },
       { key: 'isbn', label: 'ISBN', type: 'text' },
+      { key: 'publishedDate', label: '発行日', type: 'date' },
+      { key: 'category', label: '分類', type: 'text' },
+      { key: 'format', label: '形式', type: 'text', placeholder: '紙・電子' },
       {
         key: 'readingStatus',
         label: '読書状況',

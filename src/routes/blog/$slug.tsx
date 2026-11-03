@@ -1,8 +1,9 @@
 import { createFileRoute, Link } from '@tanstack/react-router'
 import { ArrowLeft } from 'lucide-react'
 
+import { imageUrl } from '@/lib/collections'
 import { formatDate } from '@/lib/format'
-import { seo } from '@/lib/seo'
+import { absoluteUrl, seo } from '@/lib/seo'
 import { getPublishedPost } from '@/server/posts'
 
 export const Route = createFileRoute('/blog/$slug')({
@@ -31,6 +32,21 @@ export const Route = createFileRoute('/blog/$slug')({
               property: 'article:modified_time',
               content: loaderData.updatedAt.toISOString(),
             },
+            // 表紙があれば SNS のカードにも使う（サイト共通の画像を上書きする）
+            ...(loaderData.coverImageKey
+              ? [
+                  {
+                    property: 'og:image',
+                    content: absoluteUrl(`/images/${loaderData.coverImageKey}`),
+                  },
+                  { property: 'og:image:alt', content: loaderData.title },
+                  {
+                    name: 'twitter:image',
+                    content: absoluteUrl(`/images/${loaderData.coverImageKey}`),
+                  },
+                  { name: 'twitter:card', content: 'summary_large_image' },
+                ]
+              : []),
           ],
         }
       : { meta: seo({ title: '記事が見つかりません', noindex: true }) },
@@ -54,6 +70,13 @@ function BlogPost() {
   return (
     <article className="mx-auto w-full max-w-3xl px-6 py-8">
       <header className="border-b pb-6">
+        {post.coverImageKey && (
+          <img
+            src={imageUrl(post.coverImageKey) ?? ''}
+            alt=""
+            className="mb-6 aspect-[1200/630] w-full rounded-lg border object-cover"
+          />
+        )}
         {post.publishedAt && (
           <time
             dateTime={post.publishedAt.toISOString()}

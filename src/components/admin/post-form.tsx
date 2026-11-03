@@ -5,6 +5,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { flushSync } from 'react-dom'
 import { toast } from 'sonner'
 
+import { ImageUpload } from '@/components/admin/image-upload'
 import { PreviewButton } from '@/components/admin/preview-dialog'
 import {
   BackupNotice,
@@ -29,6 +30,7 @@ type Props = {
     title: string
     slug: string
     excerpt: string
+    coverImageKey: string | null
     status: 'draft' | 'published'
     content: RichTextDoc
     publishedAt: Date | null
@@ -40,6 +42,7 @@ type Fields = {
   title: string
   slug: string
   excerpt: string
+  coverImageKey: string | null
   content: RichTextDoc
 }
 
@@ -57,6 +60,7 @@ export function PostForm({ post }: Props) {
       title: post?.title ?? '',
       slug: post?.slug ?? '',
       excerpt: post?.excerpt ?? '',
+      coverImageKey: post?.coverImageKey ?? null,
       content: post?.content ?? emptyDoc,
     }),
     [post],
@@ -230,43 +234,53 @@ export function PostForm({ post }: Props) {
         />
       </div>
 
-      <div className="grid gap-6 sm:grid-cols-2">
+      <div className="grid gap-6 md:grid-cols-[12rem_1fr]">
         <div className="space-y-2">
-          <Label htmlFor="slug">URL</Label>
-          <div className="flex items-center gap-1 text-sm text-muted-foreground">
-            <span className="shrink-0">/blog/</span>
-            <Input
-              id="slug"
-              value={fields.slug}
-              onChange={(e) => set('slug', e.target.value.toLowerCase())}
-              placeholder="my-first-post"
-              pattern="[a-z0-9]+(-[a-z0-9]+)*"
-              title="半角英小文字・数字・ハイフン"
-              required
-            />
-            {!fields.slug && (
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon"
-                title="日時から作る"
-                aria-label="URL を日時から作る"
-                onClick={fillSlugFromDate}
-              >
-                <Wand2 />
-              </Button>
-            )}
-          </div>
-        </div>
-        <div className="space-y-2">
-          <Label htmlFor="excerpt">概要（一覧・検索結果・SNS に表示）</Label>
-          <Textarea
-            id="excerpt"
-            value={fields.excerpt}
-            onChange={(e) => set('excerpt', e.target.value)}
-            maxLength={300}
-            rows={2}
+          <Label>表紙（一覧・SNS に表示）</Label>
+          <ImageUpload
+            value={fields.coverImageKey}
+            onChange={(key) => set('coverImageKey', key)}
+            folder="posts"
           />
+        </div>
+        <div className="space-y-6">
+          <div className="space-y-2">
+            <Label htmlFor="slug">URL</Label>
+            <div className="flex items-center gap-1 text-sm text-muted-foreground">
+              <span className="shrink-0">/blog/</span>
+              <Input
+                id="slug"
+                value={fields.slug}
+                onChange={(e) => set('slug', e.target.value.toLowerCase())}
+                placeholder="my-first-post"
+                pattern="[a-z0-9]+(-[a-z0-9]+)*"
+                title="半角英小文字・数字・ハイフン"
+                required
+              />
+              {!fields.slug && (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  title="日時から作る"
+                  aria-label="URL を日時から作る"
+                  onClick={fillSlugFromDate}
+                >
+                  <Wand2 />
+                </Button>
+              )}
+            </div>
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="excerpt">概要（一覧・検索結果・SNS に表示）</Label>
+            <Textarea
+              id="excerpt"
+              value={fields.excerpt}
+              onChange={(e) => set('excerpt', e.target.value)}
+              maxLength={300}
+              rows={3}
+            />
+          </div>
         </div>
       </div>
 

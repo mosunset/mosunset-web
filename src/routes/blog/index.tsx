@@ -1,6 +1,7 @@
 import { createFileRoute, Link } from '@tanstack/react-router'
 
 import { SectionPage } from '@/components/section-page'
+import { imageUrl } from '@/lib/collections'
 import { formatDate } from '@/lib/format'
 import { getNavItem } from '@/lib/navigation'
 import { seo } from '@/lib/seo'
@@ -32,21 +33,33 @@ function BlogIndex() {
               <Link
                 to="/blog/$slug"
                 params={{ slug: post.slug }}
-                className="group block py-6"
+                className="group flex gap-4 py-6 sm:gap-6"
               >
-                {post.publishedAt && (
-                  <time
-                    dateTime={post.publishedAt.toISOString()}
-                    className="text-sm text-muted-foreground"
-                  >
-                    {formatDate(post.publishedAt)}
-                  </time>
-                )}
-                <h2 className="mt-1 text-xl font-semibold group-hover:underline">
-                  {post.title}
-                </h2>
-                {post.excerpt && (
-                  <p className="mt-2 text-muted-foreground">{post.excerpt}</p>
+                <div className="min-w-0 flex-1">
+                  {post.publishedAt && (
+                    <time
+                      dateTime={post.publishedAt.toISOString()}
+                      className="text-sm text-muted-foreground"
+                    >
+                      {formatDate(post.publishedAt)}
+                    </time>
+                  )}
+                  <h2 className="mt-1 text-lg font-semibold group-hover:underline sm:text-xl">
+                    {post.title}
+                  </h2>
+                  {post.excerpt && (
+                    <p className="mt-2 line-clamp-3 text-sm text-muted-foreground sm:text-base">
+                      {post.excerpt}
+                    </p>
+                  )}
+                </div>
+                {post.coverImageKey && (
+                  <img
+                    src={imageUrl(post.coverImageKey) ?? ''}
+                    alt=""
+                    loading="lazy"
+                    className="aspect-[4/3] w-24 shrink-0 self-start rounded-md border object-cover sm:w-40"
+                  />
                 )}
               </Link>
             </li>

@@ -23,6 +23,7 @@ export const listPublishedPosts = createServerFn({ method: 'GET' }).handler(
         slug: posts.slug,
         title: posts.title,
         excerpt: posts.excerpt,
+        coverImageKey: posts.coverImageKey,
         publishedAt: posts.publishedAt,
       })
       .from(posts)
@@ -44,6 +45,7 @@ export const getPublishedPost = createServerFn({ method: 'GET' })
       slug: post.slug,
       title: post.title,
       excerpt: post.excerpt,
+      coverImageKey: post.coverImageKey,
       publishedAt: post.publishedAt,
       updatedAt: post.updatedAt,
       html: renderRichText(post.content as RichTextDoc),
@@ -66,6 +68,7 @@ export const postInputSchema = z.object({
     .max(100)
     .regex(slugPattern, 'URL は半角英小文字・数字・ハイフンで入力してください'),
   excerpt: z.string().trim().max(300).default(''),
+  coverImageKey: z.string().nullable().default(null),
   status: z.enum(['draft', 'published']),
   content: z.object({ type: z.literal('doc') }).passthrough(),
 })
@@ -119,6 +122,7 @@ export const savePost = createServerFn({ method: 'POST' })
       title: data.title,
       slug: data.slug,
       excerpt: data.excerpt,
+      coverImageKey: data.coverImageKey,
       status: data.status,
       content: sanitizeDoc(data.content as RichTextDoc),
     }
@@ -135,7 +139,7 @@ export const savePost = createServerFn({ method: 'POST' })
     }
 
     const current = await db.query.posts.findFirst({
-      columns: { publishedAt: true },
+      columns: { publishedAt: true, coverImageKey: true },
       where: eq(posts.id, data.id),
     })
     if (!current) throw notFound()
@@ -151,6 +155,10 @@ export const savePost = createServerFn({ method: 'POST' })
             : current.publishedAt,
       })
       .where(eq(posts.id, data.id))
+    // 表紙を差し替えた・外したときは古い画像を消す
+    if (current.coverImageKey && current.coverImageKey !== data.coverImageKey) {
+      await deleteImages([current.coverImageKey])
+    }
     return { id: data.id }
   })
 
