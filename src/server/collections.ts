@@ -8,6 +8,7 @@ import {
   type CollectionAttributes,
   collections,
 } from '@/lib/collections'
+import { htmlToSummary } from '@/lib/seo'
 import { collectImageKeys, type RichTextDoc } from '@/lib/tiptap'
 import { adminMiddleware } from '@/server/auth'
 import { getDb, schema } from '@/server/db'
@@ -101,15 +102,19 @@ export const getPublishedItem = createServerFn({ method: 'GET' })
       ),
     })
     if (!item) throw notFound()
+    const html = item.description
+      ? renderRichText(item.description as RichTextDoc)
+      : ''
     return {
       slug: item.slug,
       title: item.title,
       imageKey: item.imageKey,
       attributes: toAttributes(item.attributes),
       acquiredAt: item.acquiredAt,
-      html: item.description
-        ? renderRichText(item.description as RichTextDoc)
-        : '',
+      updatedAt: item.updatedAt,
+      html,
+      /** description や SNS のカードに使う、本文の最初の一部 */
+      summary: htmlToSummary(html),
     }
   })
 

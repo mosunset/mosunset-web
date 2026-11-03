@@ -1,9 +1,17 @@
 import { createFileRoute, Link } from '@tanstack/react-router'
 import { ArrowLeft } from 'lucide-react'
 
+import { RichTextContent, ZoomableImage } from '@/components/image-viewer'
 import { imageUrl } from '@/lib/collections'
 import { formatDate } from '@/lib/format'
-import { absoluteUrl, seo } from '@/lib/seo'
+import {
+  absoluteUrl,
+  jsonLd,
+  ogImage,
+  personId,
+  seo,
+  websiteId,
+} from '@/lib/seo'
 import { getPublishedPost } from '@/server/posts'
 
 export const Route = createFileRoute('/blog/$slug')({
@@ -34,19 +42,30 @@ export const Route = createFileRoute('/blog/$slug')({
             },
             // 表紙があれば SNS のカードにも使う（サイト共通の画像を上書きする）
             ...(loaderData.coverImageKey
-              ? [
-                  {
-                    property: 'og:image',
-                    content: absoluteUrl(`/images/${loaderData.coverImageKey}`),
-                  },
-                  { property: 'og:image:alt', content: loaderData.title },
-                  {
-                    name: 'twitter:image',
-                    content: absoluteUrl(`/images/${loaderData.coverImageKey}`),
-                  },
-                  { name: 'twitter:card', content: 'summary_large_image' },
-                ]
+              ? ogImage(`/images/${loaderData.coverImageKey}`, loaderData.title)
               : []),
+            jsonLd({
+              '@type': 'BlogPosting',
+              headline: loaderData.title,
+              ...(loaderData.excerpt
+                ? { description: loaderData.excerpt }
+                : {}),
+              url: absoluteUrl(`/blog/${loaderData.slug}`),
+              mainEntityOfPage: absoluteUrl(`/blog/${loaderData.slug}`),
+              ...(loaderData.coverImageKey
+                ? {
+                    image: absoluteUrl(`/images/${loaderData.coverImageKey}`),
+                  }
+                : {}),
+              ...(loaderData.publishedAt
+                ? { datePublished: loaderData.publishedAt.toISOString() }
+                : {}),
+              dateModified: loaderData.updatedAt.toISOString(),
+              inLanguage: 'ja',
+              author: { '@id': personId },
+              publisher: { '@id': personId },
+              isPartOf: { '@id': websiteId },
+            }),
           ],
         }
       : { meta: seo({ title: '記事が見つかりません', noindex: true }) },
@@ -71,10 +90,11 @@ function BlogPost() {
     <article className="mx-auto w-full max-w-3xl px-6 py-8">
       <header className="border-b pb-6">
         {post.coverImageKey && (
-          <img
+          <ZoomableImage
             src={imageUrl(post.coverImageKey) ?? ''}
-            alt=""
-            className="mb-6 aspect-[1200/630] w-full rounded-lg border object-cover"
+            alt={post.title}
+            className="mb-6 rounded-lg border"
+            imgClassName="aspect-[1200/630] w-full object-cover"
           />
         )}
         {post.publishedAt && (
@@ -85,6 +105,16 @@ function BlogPost() {
             {formatDate(post.publishedAt)}
           </time>
         )}
+        {post.publishedAt &&
+          formatDate(post.updatedAt) !== formatDate(post.publishedAt) && (
+            <span className="ml-3 text-sm text-muted-foreground">
+              （更新：
+              <time dateTime={post.updatedAt.toISOString()}>
+                {formatDate(post.updatedAt)}
+              </time>
+              ）
+            </span>
+          )}
         <h1 className="mt-2 text-3xl font-bold leading-tight sm:text-4xl">
           {post.title}
         </h1>
@@ -93,11 +123,7 @@ function BlogPost() {
         )}
       </header>
 
-      <div
-        className="prose prose-neutral dark:prose-invert mt-8 max-w-none"
-        // biome-ignore lint/security/noDangerouslySetInnerHtml: サーバーで Tiptap の JSON から生成し、危険なリンクを取り除いた HTML
-        dangerouslySetInnerHTML={{ __html: post.html }}
-      />
+      <RichTextContent html={post.html} className="mt-8" />
 
       <footer className="mt-12 border-t pt-6">
         <Link

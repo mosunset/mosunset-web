@@ -3,6 +3,7 @@ import { ClerkProvider } from '@clerk/tanstack-react-start'
 import { shadcn } from '@clerk/ui/themes'
 import { TanStackDevtools } from '@tanstack/react-devtools'
 import {
+  type AnyRouteMatch,
   createRootRoute,
   HeadContent,
   rootRouteId,
@@ -15,10 +16,42 @@ import { SiteShell } from '@/components/site-shell'
 import { Toaster } from '@/components/ui/sonner'
 import { TooltipProvider } from '@/components/ui/tooltip'
 
-import { absoluteUrl, normalizePath, seo } from '@/lib/seo'
+import {
+  absoluteUrl,
+  jsonLd,
+  normalizePath,
+  personId,
+  seo,
+  websiteId,
+} from '@/lib/seo'
 import { site } from '@/lib/site'
 
 import appCss from '../styles.css?url'
+
+/** パンくず（staticData.breadcrumb）を構造化データにする。2 階層目から出す */
+function breadcrumbJsonLd(matches: AnyRouteMatch[]) {
+  const crumbs: { name: string; path: string }[] = []
+  for (const match of matches) {
+    const option = match.staticData?.breadcrumb
+    const name = typeof option === 'function' ? option(match) : option
+    if (!name) continue
+    const path = normalizePath(match.pathname)
+    if (crumbs.at(-1)?.path === path) crumbs.pop()
+    crumbs.push({ name, path })
+  }
+  if (crumbs.length <= 1) return []
+  return [
+    jsonLd({
+      '@type': 'BreadcrumbList',
+      itemListElement: crumbs.map((c, i) => ({
+        '@type': 'ListItem',
+        position: i + 1,
+        name: c.name,
+        item: absoluteUrl(c.path),
+      })),
+    }),
+  ]
+}
 
 export const Route = createRootRoute({
   staticData: { breadcrumb: 'ホーム' },
@@ -56,26 +89,40 @@ export const Route = createRootRoute({
         { name: 'twitter:creator', content: site.xHandle },
         ...(isNotFound ? [] : [{ name: 'twitter:url', content: url }]),
         { name: 'twitter:image', content: imageUrl },
-        {
-          'script:ld+json': {
-            '@context': 'https://schema.org',
-            '@type': 'WebSite',
-            name: site.name,
-            url: absoluteUrl('/'),
-            description: site.description,
-            inLanguage: 'ja',
-            author: {
-              '@type': 'Person',
+        jsonLd({
+          '@graph': [
+            {
+              '@type': 'WebSite',
+              '@id': websiteId,
               name: site.name,
               url: absoluteUrl('/'),
+              description: site.description,
+              inLanguage: 'ja',
+              publisher: { '@id': personId },
+            },
+            {
+              '@type': 'Person',
+              '@id': personId,
+              name: site.name,
+              url: absoluteUrl('/'),
+              image: imageUrl,
+              description: site.personDescription,
+              knowsAbout: site.knowsAbout,
               sameAs: site.social.map((s) => s.url),
             },
-          },
-        },
+          ],
+        }),
+        ...(isNotFound ? [] : breadcrumbJsonLd(matches)),
       ],
       links: [
         { rel: 'stylesheet', href: appCss },
         { rel: 'icon', href: '/favicon.ico', sizes: 'any' },
+        {
+          rel: 'alternate',
+          type: 'application/rss+xml',
+          title: `${site.name} のブログ`,
+          href: absoluteUrl('/rss.xml'),
+        },
         // link は親子で重複排除されないので canonical はここだけで出す
         ...(isNotFound ? [] : [{ rel: 'canonical', href: url }]),
       ],

@@ -6,7 +6,20 @@ export const site = {
   /** サイトのテーマ（トップのキャッチコピー） */
   tagline: 'たのしく、つくる。',
   description:
-    'たのしく、つくる。mosunset のポートフォリオ兼ブログです。作ったツールやブログ、資格・本・楽器などのコレクションを置いています。',
+    'たのしく、つくる。mosunset のポートフォリオ兼ブログです。作ったツールやブログと、資格・本・楽器・フィギュアなどのコレクションを置いています。',
+  /** 構造化データ（Person）の説明。特定につながる情報は書かない */
+  personDescription:
+    '会社員として働きながら、趣味で Web アプリや小さなツールを作っています。Chrome 拡張機能「YouTube Watch Thumbnails」の作者。',
+  /** 構造化データ（Person）の得意分野 */
+  knowsAbout: [
+    'TypeScript',
+    'React',
+    'Next.js',
+    'Astro',
+    'Python',
+    'Chrome 拡張機能',
+    '業務の自動化',
+  ],
   locale: 'ja_JP',
   themeColor: '#ffffff',
   /** public/ に置いた画像のパス */

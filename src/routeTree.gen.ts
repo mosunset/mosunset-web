@@ -16,8 +16,10 @@ import { Route as BooksRouteRouteImport } from './routes/books/route'
 import { Route as CertificationsRouteRouteImport } from './routes/certifications/route'
 import { Route as ContactRouteImport } from './routes/contact'
 import { Route as InstrumentsRouteRouteImport } from './routes/instruments/route'
+import { Route as LlmsDottxtRouteImport } from './routes/llms[.]txt'
 import { Route as PlaygroundRouteRouteImport } from './routes/playground/route'
 import { Route as RobotsDottxtRouteImport } from './routes/robots[.]txt'
+import { Route as RssDotxmlRouteImport } from './routes/rss[.]xml'
 import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
 import { Route as ToysRouteRouteImport } from './routes/toys/route'
 import { Route as AdminIndexRouteImport } from './routes/admin/index'
@@ -95,6 +97,11 @@ const InstrumentsRouteRoute = InstrumentsRouteRouteImport.update({
   path: '/instruments',
   getParentRoute: () => rootRouteImport,
 } as any)
+const LlmsDottxtRoute = LlmsDottxtRouteImport.update({
+  id: '/llms.txt',
+  path: '/llms.txt',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const PlaygroundRouteRoute = PlaygroundRouteRouteImport.update({
   id: '/playground',
   path: '/playground',
@@ -103,6 +110,11 @@ const PlaygroundRouteRoute = PlaygroundRouteRouteImport.update({
 const RobotsDottxtRoute = RobotsDottxtRouteImport.update({
   id: '/robots.txt',
   path: '/robots.txt',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const RssDotxmlRoute = RssDotxmlRouteImport.update({
+  id: '/rss.xml',
+  path: '/rss.xml',
   getParentRoute: () => rootRouteImport,
 } as any)
 const SitemapDotxmlRoute = SitemapDotxmlRouteImport.update({
@@ -329,7 +341,9 @@ export interface FileRoutesByFullPath {
   '/playground': typeof PlaygroundRouteRouteWithChildren
   '/toys': typeof ToysRouteRouteWithChildren
   '/contact': typeof ContactRoute
+  '/llms.txt': typeof LlmsDottxtRoute
   '/robots.txt': typeof RobotsDottxtRoute
+  '/rss.xml': typeof RssDotxmlRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/admin/collections': typeof AdminCollectionsRouteRouteWithChildren
   '/admin/messages': typeof AdminMessagesRouteRouteWithChildren
@@ -374,7 +388,9 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/contact': typeof ContactRoute
+  '/llms.txt': typeof LlmsDottxtRoute
   '/robots.txt': typeof RobotsDottxtRoute
+  '/rss.xml': typeof RssDotxmlRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/blog/$slug': typeof BlogSlugRoute
   '/books/$slug': typeof BooksSlugRoute
@@ -423,7 +439,9 @@ export interface FileRoutesById {
   '/playground': typeof PlaygroundRouteRouteWithChildren
   '/toys': typeof ToysRouteRouteWithChildren
   '/contact': typeof ContactRoute
+  '/llms.txt': typeof LlmsDottxtRoute
   '/robots.txt': typeof RobotsDottxtRoute
+  '/rss.xml': typeof RssDotxmlRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/admin/collections': typeof AdminCollectionsRouteRouteWithChildren
   '/admin/messages': typeof AdminMessagesRouteRouteWithChildren
@@ -477,7 +495,9 @@ export interface FileRouteTypes {
     | '/playground'
     | '/toys'
     | '/contact'
+    | '/llms.txt'
     | '/robots.txt'
+    | '/rss.xml'
     | '/sitemap.xml'
     | '/admin/collections'
     | '/admin/messages'
@@ -522,7 +542,9 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/contact'
+    | '/llms.txt'
     | '/robots.txt'
+    | '/rss.xml'
     | '/sitemap.xml'
     | '/blog/$slug'
     | '/books/$slug'
@@ -570,7 +592,9 @@ export interface FileRouteTypes {
     | '/playground'
     | '/toys'
     | '/contact'
+    | '/llms.txt'
     | '/robots.txt'
+    | '/rss.xml'
     | '/sitemap.xml'
     | '/admin/collections'
     | '/admin/messages'
@@ -623,7 +647,9 @@ export interface RootRouteChildren {
   PlaygroundRouteRoute: typeof PlaygroundRouteRouteWithChildren
   ToysRouteRoute: typeof ToysRouteRouteWithChildren
   ContactRoute: typeof ContactRoute
+  LlmsDottxtRoute: typeof LlmsDottxtRoute
   RobotsDottxtRoute: typeof RobotsDottxtRoute
+  RssDotxmlRoute: typeof RssDotxmlRoute
   SitemapDotxmlRoute: typeof SitemapDotxmlRoute
   ImagesSplatRoute: typeof ImagesSplatRoute
   SignInSplatRoute: typeof SignInSplatRoute
@@ -680,6 +706,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof InstrumentsRouteRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/llms.txt': {
+      id: '/llms.txt'
+      path: '/llms.txt'
+      fullPath: '/llms.txt'
+      preLoaderRoute: typeof LlmsDottxtRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/playground': {
       id: '/playground'
       path: '/playground'
@@ -692,6 +725,13 @@ declare module '@tanstack/react-router' {
       path: '/robots.txt'
       fullPath: '/robots.txt'
       preLoaderRoute: typeof RobotsDottxtRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/rss.xml': {
+      id: '/rss.xml'
+      path: '/rss.xml'
+      fullPath: '/rss.xml'
+      preLoaderRoute: typeof RssDotxmlRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/sitemap.xml': {
@@ -1179,7 +1219,9 @@ const rootRouteChildren: RootRouteChildren = {
   PlaygroundRouteRoute: PlaygroundRouteRouteWithChildren,
   ToysRouteRoute: ToysRouteRouteWithChildren,
   ContactRoute: ContactRoute,
+  LlmsDottxtRoute: LlmsDottxtRoute,
   RobotsDottxtRoute: RobotsDottxtRoute,
+  RssDotxmlRoute: RssDotxmlRoute,
   SitemapDotxmlRoute: SitemapDotxmlRoute,
   ImagesSplatRoute: ImagesSplatRoute,
   SignInSplatRoute: SignInSplatRoute,
