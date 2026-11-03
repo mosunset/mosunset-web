@@ -66,7 +66,7 @@ function About() {
       <div className="mt-6 grid gap-8 md:grid-cols-[2fr_1fr]">
         <div className="space-y-4 leading-relaxed">
           <p>
-            岐阜を拠点に、会社員として働きながら、趣味で Web
+            岐阜県を拠点に、会社員として働きながら、趣味で Web
             アプリや小さなツールを作っています。中学生の頃に Scratch
             や電子工作に触れて、「自分で仕組みを作る面白さ」を知ったのが始まりです。
           </p>
@@ -76,7 +76,7 @@ function About() {
             Thumbnails」で、約 7,000 人に使ってもらっています。
           </p>
           <p>
-            ほかに、資格の勉強、吹奏楽、料理、フィギュアやぬいぐるみ集めも楽しんでいます。基本は「作りたいから作る」ゆるいスタイルです。
+            ほかに、資格の勉強、吹奏楽、料理も楽しんでいます。基本は「作りたいから作る」ゆるいスタイルです。
           </p>
           <Link
             to="/blog/$slug"
@@ -101,12 +101,12 @@ function About() {
 }
 
 const aboutFacts = [
-  { label: '拠点', value: '岐阜' },
+  { label: '拠点', value: '岐阜県' },
   { label: 'しごと', value: '会社員' },
   { label: 'よく使う技術', value: 'TypeScript・React・Next.js・Astro・Python' },
   {
     label: '好きなこと',
-    value: '小さなツール作り・自動化・吹奏楽・料理・フィギュア集め',
+    value: '小さなツール作り・自動化・吹奏楽・料理',
   },
   {
     label: '学習中',
