@@ -7,14 +7,12 @@ import {
   HeadContent,
   rootRouteId,
   Scripts,
+  useRouterState,
 } from '@tanstack/react-router'
 import { TanStackRouterDevtoolsPanel } from '@tanstack/react-router-devtools'
 
-import { AppBreadcrumb } from '@/components/app-breadcrumb'
-import { AppSidebar } from '@/components/app-sidebar'
-import { SiteFooter } from '@/components/site-footer'
-import { SiteHeader } from '@/components/site-header'
-import { SidebarInset, SidebarProvider } from '@/components/ui/sidebar'
+import { SiteShell } from '@/components/site-shell'
+import { Toaster } from '@/components/ui/sonner'
 import { TooltipProvider } from '@/components/ui/tooltip'
 
 import { absoluteUrl, normalizePath, seo } from '@/lib/seo'
@@ -99,6 +97,12 @@ function NotFound() {
 }
 
 function RootDocument({ children }: { children: React.ReactNode }) {
+  const isAdmin = useRouterState({
+    select: (state) =>
+      state.location.pathname === '/admin' ||
+      state.location.pathname.startsWith('/admin/'),
+  })
+
   return (
     <html lang="ja">
       <head>
@@ -111,19 +115,9 @@ function RootDocument({ children }: { children: React.ReactNode }) {
           localization={jaJP}
         >
           <TooltipProvider>
-            <div className="[--header-height:--spacing(14)]">
-              <SidebarProvider defaultOpen={false} className="flex flex-col">
-                <SiteHeader />
-                <div className="flex flex-1">
-                  <AppSidebar className="top-(--header-height) h-[calc(100svh-var(--header-height))]!" />
-                  <SidebarInset>
-                    <AppBreadcrumb />
-                    <div className="flex-1">{children}</div>
-                    <SiteFooter />
-                  </SidebarInset>
-                </div>
-              </SidebarProvider>
-            </div>
+            {/* 管理画面は /admin のルートで専用のレイアウトを使う */}
+            {isAdmin ? children : <SiteShell>{children}</SiteShell>}
+            <Toaster richColors position="top-center" />
           </TooltipProvider>
         </ClerkProvider>
         <TanStackDevtools

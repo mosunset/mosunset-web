@@ -1,7 +1,9 @@
 import { createFileRoute, Outlet, redirect } from '@tanstack/react-router'
 
+import { AdminShell } from '@/components/admin/admin-shell'
 import { seo } from '@/lib/seo'
 import { getAdminStatus } from '@/server/auth'
+import { countUnreadMessages } from '@/server/contact'
 
 export const Route = createFileRoute('/admin')({
   staticData: { breadcrumb: '管理' },
@@ -15,6 +17,11 @@ export const Route = createFileRoute('/admin')({
     }
     return { admin }
   },
+  // 左メニューの未読バッジ用。管理者でなければ取得しない
+  loader: async ({ context }) => ({
+    unreadCount:
+      context.admin.status === 'admin' ? await countUnreadMessages() : 0,
+  }),
   component: AdminLayout,
 })
 
@@ -36,5 +43,9 @@ function AdminLayout() {
     )
   }
 
-  return <Outlet />
+  return (
+    <AdminShell>
+      <Outlet />
+    </AdminShell>
+  )
 }
