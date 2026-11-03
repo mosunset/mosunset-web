@@ -279,10 +279,12 @@ const count = (label: string, published: boolean) => {
 const SKIP_POSTS = new Set(['test'])
 
 for (const path of listFiles('src/content/blog')) {
-  const slug = slugOf(path)
-  if (SKIP_POSTS.has(slug)) continue
+  if (SKIP_POSTS.has(slugOf(path))) continue
   const { data, body, overridden } = loadEntry('blog', path)
   if (overridden) edited++
+  // URL を変えたときは、前回取り込んだ古い URL の記事も消す
+  const slug = str(data.slug) || slugOf(path)
+  await deletePostBySlug(slugOf(path))
   await deletePostBySlug(slug)
 
   const published = isPublic(data)
