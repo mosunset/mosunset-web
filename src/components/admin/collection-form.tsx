@@ -1,13 +1,22 @@
 import { Link, useRouter } from '@tanstack/react-router'
 import { useServerFn } from '@tanstack/react-start'
 import { ExternalLink, Trash2 } from 'lucide-react'
-import { useState } from 'react'
+import { useCallback, useMemo, useRef, useState } from 'react'
+import { flushSync } from 'react-dom'
+import { toast } from 'sonner'
 
 import { ImageUpload } from '@/components/admin/image-upload'
+import {
+  BackupNotice,
+  SaveStatus,
+  UnsavedChangesGuard,
+} from '@/components/admin/unsaved-changes'
 import { RichTextEditor } from '@/components/editor/rich-text-editor'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { useLocalBackup } from '@/hooks/use-local-backup'
+import { useSaveShortcut } from '@/hooks/use-save-shortcut'
 import {
   type AttributeField,
   type CollectionAttributes,
@@ -31,7 +40,18 @@ type Props = {
     imageKey: string | null
     attributes: CollectionAttributes
     description: RichTextDoc | null
+    updatedAt: Date
   }
+}
+
+export type CollectionFields = {
+  title: string
+  slug: string
+  acquiredAt: string
+  published: boolean
+  imageKey: string | null
+  attributes: CollectionAttributes
+  description: RichTextDoc
 }
 
 export function CollectionForm({ kind, item }: Props) {
@@ -40,71 +60,112 @@ export function CollectionForm({ kind, item }: Props) {
   const save = useServerFn(saveItem)
   const remove = useServerFn(deleteItem)
 
-  const [title, setTitle] = useState(item?.title ?? '')
-  const [slug, setSlug] = useState(item?.slug ?? '')
-  const [acquiredAt, setAcquiredAt] = useState(item?.acquiredAt ?? '')
-  const [sortOrder, setSortOrder] = useState(item?.sortOrder ?? 0)
-  const [published, setPublished] = useState(item?.published ?? true)
-  const [imageKey, setImageKey] = useState(item?.imageKey ?? null)
-  const [attributes, setAttributes] = useState<CollectionAttributes>(
-    item?.attributes ?? {},
+  const initial = useMemo<CollectionFields>(
+    () => ({
+      title: item?.title ?? '',
+      slug: item?.slug ?? '',
+      acquiredAt: item?.acquiredAt ?? '',
+      published: item?.published ?? true,
+      imageKey: item?.imageKey ?? null,
+      attributes: item?.attributes ?? {},
+      description: item?.description ?? emptyDoc,
+    }),
+    [item],
   )
-  const [description, setDescription] = useState<RichTextDoc>(
-    item?.description ?? emptyDoc,
+  const [fields, setFields] = useState<CollectionFields>(initial)
+  const [savedSnapshot, setSavedSnapshot] = useState(() =>
+    JSON.stringify(initial),
   )
-  const [pending, setPending] = useState(false)
+  const [editorKey, setEditorKey] = useState(0)
+  const [saving, setSaving] = useState(false)
+  const [savedAt, setSavedAt] = useState<Date | null>(
+    item ? item.updatedAt : null,
+  )
   const [error, setError] = useState<string | null>(null)
-  const [savedAt, setSavedAt] = useState<Date | null>(null)
 
-  const onSubmit = async () => {
-    setPending(true)
+  const dirty = JSON.stringify(fields) !== savedSnapshot
+  const {
+    backup,
+    clear: clearBackup,
+    dismiss: dismissBackup,
+  } = useLocalBackup(`collection:${kind}:${item?.id ?? 'new'}`, fields, dirty)
+
+  const set = <K extends keyof CollectionFields>(
+    key: K,
+    value: CollectionFields[K],
+  ) => setFields((prev) => ({ ...prev, [key]: value }))
+  const setAttribute = (key: string, value: string) =>
+    setFields((prev) => ({
+      ...prev,
+      attributes: { ...prev.attributes, [key]: value },
+    }))
+
+  const savingRef = useRef(false)
+  const submit = useCallback(async (): Promise<boolean> => {
+    if (savingRef.current) return false
+    savingRef.current = true
+    setSaving(true)
     setError(null)
+    const snapshot = JSON.stringify(fields)
     try {
       const result = await save({
         data: {
           id: item?.id,
           kind,
-          title,
-          slug,
-          acquiredAt,
-          sortOrder,
-          published,
-          imageKey,
-          attributes,
-          description,
+          ...fields,
+          // 並び順は一覧のドラッグで変えるので、ここでは今の値を保つ
+          sortOrder: item?.sortOrder ?? 0,
         },
       })
-      setSavedAt(new Date())
+      flushSync(() => {
+        setSavedSnapshot(snapshot)
+        setSavedAt(new Date())
+      })
+      clearBackup()
+      toast.success(item ? '保存しました' : `${config.label}を追加しました`)
       if (!item) {
         await router.navigate({
           to: '/admin/collections/$kind/$id',
           params: { kind, id: result.id },
+          replace: true,
         })
       } else {
         await router.invalidate()
       }
+      return true
     } catch (e) {
-      setError(errorMessage(e))
+      const message = errorMessage(e)
+      setError(message)
+      toast.error(message)
+      return false
     } finally {
-      setPending(false)
+      savingRef.current = false
+      setSaving(false)
     }
-  }
+  }, [fields, item, kind, save, router, clearBackup, config.label])
+
+  useSaveShortcut(() => {
+    submit()
+  })
 
   const onDelete = async () => {
     if (!item) return
     if (!window.confirm(`「${item.title}」を削除します。元に戻せません。`)) {
       return
     }
-    setPending(true)
+    setSaving(true)
     try {
       await remove({ data: { id: item.id } })
+      flushSync(() => setSavedSnapshot(JSON.stringify(fields)))
+      clearBackup()
+      toast.success('削除しました')
       await router.navigate({
         to: '/admin/collections/$kind',
         params: { kind },
       })
     } catch (e) {
-      setError(errorMessage(e, '削除できませんでした'))
-      setPending(false)
+      toast.error(errorMessage(e, '削除できませんでした'))
+      setSaving(false)
     }
   }
 
@@ -113,13 +174,27 @@ export function CollectionForm({ kind, item }: Props) {
       className="space-y-8"
       onSubmit={(e) => {
         e.preventDefault()
-        onSubmit()
+        submit()
       }}
     >
+      <UnsavedChangesGuard dirty={dirty} onSave={submit} />
+
+      {backup && JSON.stringify(backup.value) !== JSON.stringify(fields) && (
+        <BackupNotice
+          savedAt={backup.savedAt}
+          onRestore={() => {
+            setFields(backup.value)
+            setEditorKey((k) => k + 1)
+            dismissBackup()
+          }}
+          onDiscard={clearBackup}
+        />
+      )}
+
       <div className="grid gap-8 md:grid-cols-[16rem_1fr]">
         <ImageUpload
-          value={imageKey}
-          onChange={setImageKey}
+          value={fields.imageKey}
+          onChange={(key) => set('imageKey', key)}
           folder={`collections-${kind}`}
         />
 
@@ -128,8 +203,8 @@ export function CollectionForm({ kind, item }: Props) {
             <Label htmlFor="title">名前</Label>
             <Input
               id="title"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
+              value={fields.title}
+              onChange={(e) => set('title', e.target.value)}
               className="h-11 text-lg"
               required
             />
@@ -140,10 +215,8 @@ export function CollectionForm({ kind, item }: Props) {
               <AttributeInput
                 key={field.key}
                 field={field}
-                value={attributes[field.key] ?? ''}
-                onChange={(value) =>
-                  setAttributes((prev) => ({ ...prev, [field.key]: value }))
-                }
+                value={fields.attributes[field.key] ?? ''}
+                onChange={(value) => setAttribute(field.key, value)}
               />
             ))}
             <div className="space-y-2">
@@ -151,8 +224,8 @@ export function CollectionForm({ kind, item }: Props) {
               <Input
                 id="acquiredAt"
                 type="date"
-                value={acquiredAt}
-                onChange={(e) => setAcquiredAt(e.target.value)}
+                value={fields.acquiredAt}
+                onChange={(e) => set('acquiredAt', e.target.value)}
               />
             </div>
           </div>
@@ -162,41 +235,33 @@ export function CollectionForm({ kind, item }: Props) {
       <div className="space-y-2">
         <Label>説明・思い出など</Label>
         <RichTextEditor
-          value={description}
-          onChange={setDescription}
+          key={editorKey}
+          value={fields.description}
+          onChange={(value) => set('description', value)}
           placeholder="どんなものか、手に入れた経緯など…"
         />
       </div>
 
-      <div className="grid gap-6 rounded-lg border p-4 sm:grid-cols-3">
+      <div className="grid gap-6 rounded-lg border p-4 sm:grid-cols-2">
         <div className="space-y-2">
           <Label htmlFor="slug">URL</Label>
           <div className="flex items-center gap-1 text-sm text-muted-foreground">
             <span className="shrink-0">{config.path}/</span>
             <Input
               id="slug"
-              value={slug}
-              onChange={(e) => setSlug(e.target.value.toLowerCase())}
+              value={fields.slug}
+              onChange={(e) => set('slug', e.target.value.toLowerCase())}
               placeholder="空なら自動"
               pattern="[a-z0-9]+(-[a-z0-9]+)*"
               title="半角英小文字・数字・ハイフン"
             />
           </div>
         </div>
-        <div className="space-y-2">
-          <Label htmlFor="sortOrder">並び順（小さいほど前）</Label>
-          <Input
-            id="sortOrder"
-            type="number"
-            value={sortOrder}
-            onChange={(e) => setSortOrder(Number(e.target.value))}
-          />
-        </div>
         <label className="flex items-center gap-2 self-end pb-2 text-sm">
           <input
             type="checkbox"
-            checked={published}
-            onChange={(e) => setPublished(e.target.checked)}
+            checked={fields.published}
+            onChange={(e) => set('published', e.target.checked)}
             className="size-4 accent-primary"
           />
           公開ページに表示する
@@ -209,52 +274,42 @@ export function CollectionForm({ kind, item }: Props) {
         </p>
       )}
 
-      <div className="flex flex-wrap items-center gap-3 border-t pt-6">
-        <Button type="submit" disabled={pending}>
+      <div className="sticky bottom-0 z-10 -mx-4 flex flex-wrap items-center gap-2 border-t bg-background/95 px-4 py-3 backdrop-blur sm:-mx-6 sm:px-6">
+        <Button type="submit" disabled={saving}>
           {item ? '保存する' : '追加する'}
         </Button>
-        {savedAt && !pending && (
-          <span className="text-sm text-muted-foreground">
-            {savedAt.toLocaleTimeString('ja-JP')} に保存しました
-          </span>
-        )}
-        <div className="ml-auto flex items-center gap-2">
+        <SaveStatus dirty={dirty} saving={saving} savedAt={savedAt} />
+        <span className="hidden text-xs text-muted-foreground lg:inline">
+          Ctrl+S で保存
+        </span>
+        <div className="ml-auto flex items-center gap-1">
           {item?.published && (
-            <Button asChild variant="ghost">
-              <a
-                href={`${config.path}/${item.slug}`}
+            <Button asChild variant="ghost" size="sm">
+              <Link
+                to={config.detailPath}
+                params={{ slug: item.slug }}
                 target="_blank"
-                rel="noreferrer"
               >
                 <ExternalLink />
-                公開ページ
-              </a>
+                <span className="hidden sm:inline">公開ページ</span>
+              </Link>
             </Button>
           )}
           {item && (
             <Button
               type="button"
               variant="ghost"
+              size="sm"
               className="text-destructive hover:text-destructive"
-              disabled={pending}
+              disabled={saving}
               onClick={onDelete}
             >
               <Trash2 />
-              削除
+              <span className="hidden sm:inline">削除</span>
             </Button>
           )}
         </div>
       </div>
-
-      <p className="text-sm text-muted-foreground">
-        <Link
-          to="/admin/collections/$kind"
-          params={{ kind }}
-          className="underline"
-        >
-          {config.label}の一覧に戻る
-        </Link>
-      </p>
     </form>
   )
 }
