@@ -15,3 +15,5 @@ todos.json
 # Cloudflare
 .dev.vars*
 !.dev.vars.example
+
+/old_web/
