@@ -2,6 +2,8 @@
 attributes:
   maker: "YAMAHA"
   model: "Xeno YTR-8335RG"
+  # 製造年はわからないので出さない（旧サイトの 1889 は誤り）
+  year: ""
 ---
 父が知人から譲り受けた、YAMAHA の Xeno シリーズのトランペットです。
 
