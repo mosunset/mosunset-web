@@ -3,6 +3,7 @@ import { TanStackRouterDevtoolsPanel } from '@tanstack/react-router-devtools'
 import { TanStackDevtools } from '@tanstack/react-devtools'
 
 import { AppSidebar } from '@/components/app-sidebar'
+import { SiteFooter } from '@/components/site-footer'
 import { SiteHeader } from '@/components/site-header'
 import { SidebarInset, SidebarProvider } from '@/components/ui/sidebar'
 import { TooltipProvider } from '@/components/ui/tooltip'
@@ -46,7 +47,10 @@ function RootDocument({ children }: { children: React.ReactNode }) {
               <SiteHeader />
               <div className="flex flex-1">
                 <AppSidebar className="top-(--header-height) h-[calc(100svh-var(--header-height))]!" />
-                <SidebarInset>{children}</SidebarInset>
+                <SidebarInset>
+                  <div className="flex-1">{children}</div>
+                  <SiteFooter />
+                </SidebarInset>
               </div>
             </SidebarProvider>
           </div>
