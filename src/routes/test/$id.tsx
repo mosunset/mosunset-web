@@ -1,5 +1,7 @@
 import { createFileRoute, notFound } from '@tanstack/react-router'
 
+import { seo } from '@/lib/seo'
+
 import { findTestItem } from './-data'
 
 export const Route = createFileRoute('/test/$id')({
@@ -12,6 +14,12 @@ export const Route = createFileRoute('/test/$id')({
   staticData: {
     breadcrumb: (match) => match.loaderData?.item?.name,
   },
+  head: ({ loaderData }) => ({
+    meta: seo({
+      title: loaderData?.item.name ?? '見つかりません',
+      description: loaderData?.item.description,
+    }),
+  }),
   component: TestItemPage,
   notFoundComponent: () => (
     <div className="p-8">

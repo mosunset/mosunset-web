@@ -1,4 +1,9 @@
-import { HeadContent, Scripts, createRootRoute } from '@tanstack/react-router'
+import {
+  HeadContent,
+  Scripts,
+  createRootRoute,
+  rootRouteId,
+} from '@tanstack/react-router'
 import { TanStackRouterDevtoolsPanel } from '@tanstack/react-router-devtools'
 import { TanStackDevtools } from '@tanstack/react-devtools'
 
@@ -9,32 +14,77 @@ import { SiteHeader } from '@/components/site-header'
 import { SidebarInset, SidebarProvider } from '@/components/ui/sidebar'
 import { TooltipProvider } from '@/components/ui/tooltip'
 
+import { absoluteUrl, normalizePath, seo } from '@/lib/seo'
+import { site } from '@/lib/site'
+
 import appCss from '../styles.css?url'
 
 export const Route = createRootRoute({
   staticData: { breadcrumb: 'ホーム' },
-  head: () => ({
-    meta: [
-      {
-        charSet: 'utf-8',
-      },
-      {
-        name: 'viewport',
-        content: 'width=device-width, initial-scale=1',
-      },
-      {
-        title: 'mosunset',
-      },
-    ],
-    links: [
-      {
-        rel: 'stylesheet',
-        href: appCss,
-      },
-    ],
-  }),
+  // サイト共通の head。ページ固有の title / description は各ルートの head で上書きする
+  head: ({ matches }) => {
+    const leaf = matches.at(-1)
+    // どのルートにもマッチしない URL では root しか残らない
+    const isGlobalNotFound = !leaf || leaf.routeId === rootRouteId
+    const isNotFound =
+      isGlobalNotFound || matches.some((m) => m.status === 'notFound')
+    const url = absoluteUrl(normalizePath(leaf?.pathname ?? '/'))
+    const imageUrl = absoluteUrl(site.image.path)
+
+    return {
+      meta: [
+        { charSet: 'utf-8' },
+        { name: 'viewport', content: 'width=device-width, initial-scale=1' },
+        { name: 'theme-color', content: site.themeColor },
+        ...seo({
+          title: isGlobalNotFound ? 'ページが見つかりません' : undefined,
+          description: site.description,
+          noindex: isNotFound,
+        }),
+        { property: 'og:type', content: 'website' },
+        { property: 'og:site_name', content: site.name },
+        { property: 'og:locale', content: site.locale },
+        ...(isNotFound ? [] : [{ property: 'og:url', content: url }]),
+        { property: 'og:image', content: imageUrl },
+        { property: 'og:image:type', content: site.image.type },
+        { property: 'og:image:width', content: String(site.image.width) },
+        { property: 'og:image:height', content: String(site.image.height) },
+        { property: 'og:image:alt', content: site.image.alt },
+        { name: 'twitter:card', content: 'summary' },
+        { name: 'twitter:image', content: imageUrl },
+        {
+          'script:ld+json': {
+            '@context': 'https://schema.org',
+            '@type': 'WebSite',
+            name: site.name,
+            url: absoluteUrl('/'),
+            description: site.description,
+            inLanguage: 'ja',
+          },
+        },
+      ],
+      links: [
+        { rel: 'stylesheet', href: appCss },
+        { rel: 'icon', href: '/favicon.ico', sizes: 'any' },
+        // link は親子で重複排除されないので canonical はここだけで出す
+        ...(isNotFound ? [] : [{ rel: 'canonical', href: url }]),
+      ],
+    }
+  },
+  notFoundComponent: NotFound,
   shellComponent: RootDocument,
 })
+
+function NotFound() {
+  return (
+    <div className="p-8">
+      <h1 className="text-3xl font-bold">ページが見つかりません</h1>
+      <p className="mt-4 text-muted-foreground">
+        お探しのページは存在しないか、移動した可能性があります。
+      </p>
+    </div>
+  )
+}
 
 function RootDocument({ children }: { children: React.ReactNode }) {
   return (

@@ -1,7 +1,10 @@
 import { createFileRoute } from '@tanstack/react-router'
 
+import { seo } from '@/lib/seo'
+
 export const Route = createFileRoute('/test/settings')({
   staticData: { breadcrumb: '設定' },
+  head: () => ({ meta: seo({ title: '設定' }) }),
   component: TestSettings,
 })
 

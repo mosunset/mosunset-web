@@ -11,6 +11,8 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AboutRouteImport } from './routes/about'
+import { Route as RobotsDottxtRouteImport } from './routes/robots[.]txt'
+import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
 import { Route as TestRouteRouteImport } from './routes/test/route'
 import { Route as TestIndexRouteImport } from './routes/test/index'
 import { Route as TestIdRouteImport } from './routes/test/$id'
@@ -24,6 +26,16 @@ const IndexRoute = IndexRouteImport.update({
 const AboutRoute = AboutRouteImport.update({
   id: '/about',
   path: '/about',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const RobotsDottxtRoute = RobotsDottxtRouteImport.update({
+  id: '/robots.txt',
+  path: '/robots.txt',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SitemapDotxmlRoute = SitemapDotxmlRouteImport.update({
+  id: '/sitemap.xml',
+  path: '/sitemap.xml',
   getParentRoute: () => rootRouteImport,
 } as any)
 const TestRouteRoute = TestRouteRouteImport.update({
@@ -51,6 +63,8 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/test': typeof TestRouteRouteWithChildren
   '/about': typeof AboutRoute
+  '/robots.txt': typeof RobotsDottxtRoute
+  '/sitemap.xml': typeof SitemapDotxmlRoute
   '/test/$id': typeof TestIdRoute
   '/test/settings': typeof TestSettingsRoute
   '/test/': typeof TestIndexRoute
@@ -58,6 +72,8 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/about': typeof AboutRoute
+  '/robots.txt': typeof RobotsDottxtRoute
+  '/sitemap.xml': typeof SitemapDotxmlRoute
   '/test/$id': typeof TestIdRoute
   '/test/settings': typeof TestSettingsRoute
   '/test': typeof TestIndexRoute
@@ -67,6 +83,8 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/test': typeof TestRouteRouteWithChildren
   '/about': typeof AboutRoute
+  '/robots.txt': typeof RobotsDottxtRoute
+  '/sitemap.xml': typeof SitemapDotxmlRoute
   '/test/$id': typeof TestIdRoute
   '/test/settings': typeof TestSettingsRoute
   '/test/': typeof TestIndexRoute
@@ -74,14 +92,30 @@ export interface FileRoutesById {
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
-    '/' | '/test' | '/about' | '/test/$id' | '/test/settings' | '/test/'
+    | '/'
+    | '/test'
+    | '/about'
+    | '/robots.txt'
+    | '/sitemap.xml'
+    | '/test/$id'
+    | '/test/settings'
+    | '/test/'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/about' | '/test/$id' | '/test/settings' | '/test'
+  to:
+    | '/'
+    | '/about'
+    | '/robots.txt'
+    | '/sitemap.xml'
+    | '/test/$id'
+    | '/test/settings'
+    | '/test'
   id:
     | '__root__'
     | '/'
     | '/test'
     | '/about'
+    | '/robots.txt'
+    | '/sitemap.xml'
     | '/test/$id'
     | '/test/settings'
     | '/test/'
@@ -91,6 +125,8 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   TestRouteRoute: typeof TestRouteRouteWithChildren
   AboutRoute: typeof AboutRoute
+  RobotsDottxtRoute: typeof RobotsDottxtRoute
+  SitemapDotxmlRoute: typeof SitemapDotxmlRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -107,6 +143,20 @@ declare module '@tanstack/react-router' {
       path: '/about'
       fullPath: '/about'
       preLoaderRoute: typeof AboutRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/robots.txt': {
+      id: '/robots.txt'
+      path: '/robots.txt'
+      fullPath: '/robots.txt'
+      preLoaderRoute: typeof RobotsDottxtRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/sitemap.xml': {
+      id: '/sitemap.xml'
+      path: '/sitemap.xml'
+      fullPath: '/sitemap.xml'
+      preLoaderRoute: typeof SitemapDotxmlRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/test': {
@@ -160,6 +210,8 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   TestRouteRoute: TestRouteRouteWithChildren,
   AboutRoute: AboutRoute,
+  RobotsDottxtRoute: RobotsDottxtRoute,
+  SitemapDotxmlRoute: SitemapDotxmlRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

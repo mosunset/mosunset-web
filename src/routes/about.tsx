@@ -1,7 +1,15 @@
 import { createFileRoute } from '@tanstack/react-router'
 
+import { seo } from '@/lib/seo'
+
 export const Route = createFileRoute('/about')({
   staticData: { breadcrumb: 'このサイトについて' },
+  head: () => ({
+    meta: seo({
+      title: 'このサイトについて',
+      description: 'mosunset について紹介するページです。',
+    }),
+  }),
   component: About,
 })
 
