@@ -10,8 +10,8 @@ export const Route = createFileRoute('/admin/collections/')({
 
 function AdminCollections() {
   return (
-    <div className="mx-auto w-full max-w-5xl px-6 py-8">
-      <h1 className="text-3xl font-bold">コレクション</h1>
+    <div className="mx-auto w-full max-w-5xl px-4 py-6 sm:px-6 sm:py-8">
+      <h1 className="text-2xl font-bold sm:text-3xl">コレクション</h1>
       <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {collectionList.map((c) => {
           const Icon = getNavItem(c.path).icon

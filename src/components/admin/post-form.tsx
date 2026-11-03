@@ -286,7 +286,7 @@ export function PostForm({ post }: Props) {
       )}
 
       {/* 下に固定する操作バー。長い記事でもすぐ保存できる */}
-      <div className="sticky bottom-0 z-10 -mx-4 flex flex-wrap items-center gap-2 border-t bg-background/95 px-4 py-3 backdrop-blur sm:-mx-6 sm:px-6">
+      <div className="sticky bottom-0 z-10 -mx-4 flex flex-wrap items-center gap-2 border-t bg-background/95 px-4 py-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] backdrop-blur sm:-mx-6 sm:px-6">
         {isPublished ? (
           <>
             <Button

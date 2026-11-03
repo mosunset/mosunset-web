@@ -13,8 +13,10 @@ function EditPost() {
   const post = Route.useLoaderData()
 
   return (
-    <div className="mx-auto w-full max-w-4xl px-6 py-8">
-      <h1 className="mb-8 text-3xl font-bold">記事を編集</h1>
+    <div className="mx-auto w-full max-w-4xl px-4 py-6 sm:px-6 sm:py-8">
+      <h1 className="mb-6 text-2xl font-bold sm:mb-8 sm:text-3xl">
+        記事を編集
+      </h1>
       {/* 別の記事に移ったときにフォームの状態を作り直す */}
       <PostForm key={post.id} post={post} />
     </div>

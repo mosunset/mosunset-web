@@ -73,7 +73,7 @@ export function ImageUpload({ value, onChange, folder }: Props) {
         }}
         aria-label={src ? '画像を変更' : '画像を選ぶ'}
         className={cn(
-          'group relative flex aspect-square w-full max-w-64 items-center justify-center overflow-hidden rounded-lg border border-dashed bg-muted/30 outline-none transition-colors focus-visible:ring-3 focus-visible:ring-ring/50',
+          'group relative mx-auto flex aspect-square w-full max-w-64 items-center md:mx-0 justify-center overflow-hidden rounded-lg border border-dashed bg-muted/30 outline-none transition-colors focus-visible:ring-3 focus-visible:ring-ring/50',
           dragging && 'border-primary bg-primary/5',
         )}
       >

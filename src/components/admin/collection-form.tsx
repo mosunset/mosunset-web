@@ -326,7 +326,7 @@ export function CollectionForm({ kind, item }: Props) {
         </p>
       )}
 
-      <div className="sticky bottom-0 z-10 -mx-4 flex flex-wrap items-center gap-2 border-t bg-background/95 px-4 py-3 backdrop-blur sm:-mx-6 sm:px-6">
+      <div className="sticky bottom-0 z-10 -mx-4 flex flex-wrap items-center gap-2 border-t bg-background/95 px-4 py-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] backdrop-blur sm:-mx-6 sm:px-6">
         <Button type="submit" disabled={saving}>
           {item ? '保存する' : '追加する'}
         </Button>
@@ -407,7 +407,7 @@ function AttributeInput({
           id={id}
           value={value}
           onChange={(e) => onChange(e.target.value)}
-          className="h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+          className="h-10 w-full rounded-lg border border-input bg-transparent px-2.5 text-base outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 md:h-8 md:text-sm dark:bg-input/30"
         >
           <option value="">—</option>
           {field.options.map((o) => (

@@ -43,7 +43,7 @@ function MessageDetail() {
   )}`
 
   return (
-    <div className="mx-auto w-full max-w-3xl px-6 py-8">
+    <div className="mx-auto w-full max-w-3xl px-4 py-6 sm:px-6 sm:py-8">
       <h1 className="text-2xl font-bold">
         {message.subject || '（件名なし）'}
       </h1>
