@@ -27,7 +27,7 @@ import {
   random,
   type Walls,
 } from './box-packing-solver'
-import { PackingView, type ViewOptions } from './box-packing-view'
+import { gridStep, PackingView, type ViewOptions } from './box-packing-view'
 
 // ---- 設定 ----
 
@@ -404,6 +404,7 @@ export function BoxPacking() {
     translucentFloor: false,
     wireframe: false,
     opacity: 1,
+    showGrid: true,
   })
   const [status, setStatus] = useState<RunStatus>('waiting')
   const [progress, setProgress] = useState({ tried: 0, elapsed: 0 })
@@ -661,8 +662,28 @@ export function BoxPacking() {
             onChange={(v) => setView((o) => ({ ...o, opacity: v / 100 }))}
           />
         </div>
+        <label className="flex items-center gap-2">
+          <input
+            type="checkbox"
+            checked={view.showGrid}
+            onChange={(e) =>
+              setView((v) => ({ ...v, showGrid: e.target.checked }))
+            }
+            className="size-4 accent-primary"
+          />
+          格子と原点
+        </label>
+        <HelpTip>
+          床に格子を引き、原点（床の左手前の角）に X・Y・Z の矢印を出します。5
+          本ごとに少し濃い線です。重心の位置を読むときの目安に使います。
+        </HelpTip>
         <span className="text-xs text-muted-foreground">
-          赤い玉は全体の重心です。
+          赤い玉と床の十字は全体の重心です。
+          {view.showGrid &&
+            `格子は ${gridStep(
+              current?.settings.floorX ?? settings.floorX,
+              current?.settings.floorY ?? settings.floorY,
+            )} mm 間隔です。`}
         </span>
       </div>
 

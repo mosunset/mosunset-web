@@ -16,6 +16,38 @@ export type ViewOptions = {
   wireframe: boolean
   /** 箱の不透明度（0.1〜1） */
   opacity: number
+  /** 床の格子と、原点の X・Y・Z の矢印 */
+  showGrid: boolean
+}
+
+/** 格子の間隔（mm）。床の長い辺に 10〜20 本くらい線が入る、切りのいい値 */
+export function gridStep(floorX: number, floorY: number) {
+  const steps = [10, 20, 25, 50, 100, 200, 250, 500, 1000, 2000, 2500, 5000]
+  const size = Math.max(floorX, floorY)
+  return steps.find((s) => size / s <= 20) ?? 10000
+}
+
+/** 文字を描いた板（軸のラベル用）。いつもカメラのほうを向く */
+function textSprite(text: string, color: string, size: number) {
+  const canvas = document.createElement('canvas')
+  canvas.width = 128
+  canvas.height = 64
+  const ctx = canvas.getContext('2d')
+  if (ctx) {
+    ctx.font = 'bold 44px sans-serif'
+    ctx.fillStyle = color
+    ctx.textAlign = 'center'
+    ctx.textBaseline = 'middle'
+    ctx.fillText(text, 64, 34)
+  }
+  const texture = new THREE.CanvasTexture(canvas)
+  texture.colorSpace = THREE.SRGBColorSpace
+  const sprite = new THREE.Sprite(
+    new THREE.SpriteMaterial({ map: texture, depthTest: false }),
+  )
+  sprite.renderOrder = 12
+  sprite.scale.set(size * 2, size, 1)
+  return sprite
 }
 
 type Props = ViewOptions & {
@@ -259,6 +291,73 @@ function buildModel(p: Props) {
     group.add(highlight)
   }
 
+  // 床の格子（うっすら。5 本ごとに少し濃く）と、原点（左手前の角）の X・Y・Z の矢印
+  if (p.showGrid) {
+    const step = gridStep(X, Y)
+    const minor: number[] = []
+    const major: number[] = []
+    const z = 0.5
+    for (let x = 0; x <= X + 1e-6; x += step) {
+      const into = Math.round(x / step) % 5 === 0 ? major : minor
+      into.push(x, 0, z, x, Y, z)
+    }
+    for (let y = 0; y <= Y + 1e-6; y += step) {
+      const into = Math.round(y / step) % 5 === 0 ? major : minor
+      into.push(0, y, z, X, y, z)
+    }
+    for (const [points, opacity] of [
+      [minor, 0.18],
+      [major, 0.4],
+    ] as const) {
+      const geometry = new THREE.BufferGeometry()
+      geometry.setAttribute(
+        'position',
+        new THREE.Float32BufferAttribute(points, 3),
+      )
+      const lines = new THREE.LineSegments(
+        geometry,
+        new THREE.LineBasicMaterial({
+          color: 0x0f172a,
+          transparent: true,
+          opacity,
+          depthWrite: false,
+        }),
+      )
+      lines.renderOrder = 1
+      group.add(lines)
+    }
+
+    const length = Math.max(X, Y) * 0.3
+    const label = length * 0.2
+    const axes: [THREE.Vector3, number, string, string][] = [
+      [new THREE.Vector3(1, 0, 0), 0xef4444, 'X', '#dc2626'],
+      [new THREE.Vector3(0, 1, 0), 0x22c55e, 'Y', '#16a34a'],
+      [new THREE.Vector3(0, 0, 1), 0x3b82f6, 'Z', '#2563eb'],
+    ]
+    for (const [dir, color, text, css] of axes) {
+      const arrow = new THREE.ArrowHelper(
+        dir,
+        new THREE.Vector3(0, 0, 0),
+        length,
+        color,
+        length * 0.12,
+        length * 0.06,
+      )
+      // 箱に隠れないよう、いちばん手前に描く
+      for (const part of [arrow.line, arrow.cone]) {
+        ;(part.material as THREE.Material).depthTest = false
+        part.renderOrder = 12
+      }
+      group.add(arrow)
+      const sprite = textSprite(text, css, label)
+      sprite.position.copy(dir).multiplyScalar(length + label * 0.8)
+      group.add(sprite)
+    }
+    const origin = textSprite('0', '#334155', label * 0.8)
+    origin.position.set(-label * 0.6, -label * 0.6, 0)
+    group.add(origin)
+  }
+
   // 重心（赤い玉と、床に落とした線）
   if (p.cog && p.placements.length > 0) {
     const marker = new THREE.Mesh(
@@ -278,6 +377,20 @@ function buildModel(p: Props) {
     )
     line.renderOrder = 11
     group.add(line)
+    // 床の上の印（格子のどこに重心があるかを見やすくする十字）
+    const r = span * 0.02
+    const cross = new THREE.BufferGeometry().setFromPoints([
+      new THREE.Vector3(p.cog.x - r, p.cog.y, 1),
+      new THREE.Vector3(p.cog.x + r, p.cog.y, 1),
+      new THREE.Vector3(p.cog.x, p.cog.y - r, 1),
+      new THREE.Vector3(p.cog.x, p.cog.y + r, 1),
+    ])
+    const crossLines = new THREE.LineSegments(
+      cross,
+      new THREE.LineBasicMaterial({ color: 0xdc2626, depthTest: false }),
+    )
+    crossLines.renderOrder = 11
+    group.add(crossLines)
   }
 
   return { group, meshes }
@@ -497,6 +610,7 @@ export function PackingView(props: Props) {
     translucentFloor,
     wireframe,
     opacity,
+    showGrid,
   } = props
   // biome-ignore lint/correctness/useExhaustiveDependencies: props は上でばらした値で見張る
   useEffect(() => {
@@ -525,6 +639,7 @@ export function PackingView(props: Props) {
     translucentFloor,
     wireframe,
     opacity,
+    showGrid,
   ])
 
   // 視点を合わせ直す。3D を触る前は毎回、触ったあとは全体の大きさが大きく変わったときだけ
