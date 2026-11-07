@@ -1,4 +1,5 @@
 import { Eye, Play, RotateCcw, Save, Trash2 } from 'lucide-react'
+import type { ReactNode } from 'react'
 
 import { HelpTip } from '@/components/playground/parts'
 import { Button } from '@/components/ui/button'
@@ -252,6 +253,7 @@ export function BestResults({
   onContinue,
   onSave,
   onClear,
+  children,
 }: {
   bests: BestView[]
   current: SettingsSummary
@@ -262,13 +264,15 @@ export function BestResults({
   onContinue: (metric: Metric) => void
   onSave: (metric: Metric) => void
   onClear: () => void
+  /** 表の上に差し込む中身（3D の横並び） */
+  children?: ReactNode
 }) {
   const byMetric = new Map(bests.map((b) => [b.metric, b]))
   return (
     <section className="space-y-2 rounded-lg border p-4">
       <div className="flex min-h-8 flex-wrap items-center justify-between gap-2">
         <h2 className="flex items-center gap-1 font-semibold">
-          この床と箱での部門別ベスト
+          5. この床と箱での部門別ベスト
           <HelpTip>
             床の X・Y
             と箱（寸法・個数・使うかどうか）が今と同じ結果を、すき間・支え・優先・壁・横倒しの許可・探し方が違っても全部まとめて比べ、部門ごとのいちばんを自動で記録します。全部の箱を置けた結果だけが対象です。ページを読み込み直しても残ります。
@@ -292,6 +296,7 @@ export function BestResults({
           </Button>
         )}
       </div>
+      {children}
       <div className="overflow-x-auto rounded-md border">
         <table className="w-full min-w-[64rem] text-sm [&_td]:px-3 [&_th]:px-3 [&_th]:whitespace-nowrap">
           <thead className="text-left text-xs text-muted-foreground">

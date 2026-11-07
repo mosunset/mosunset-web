@@ -3,12 +3,10 @@ import {
   Download,
   FileJson,
   ImageDown,
-  Loader2,
   Play,
   Plus,
   RotateCcw,
   Save,
-  Square,
   Trash2,
   Upload,
 } from 'lucide-react'
@@ -42,11 +40,12 @@ import {
   buildCombos,
   comboChips,
   defaultSweep,
-  isSweepActive,
+  planSearch,
   RangeOrValue,
+  SearchBar,
   type SweepConfig,
-  SweepPanel,
   type SweepRow,
+  SweepTable,
 } from './box-packing-sweep'
 import { gridStep, PackingView, type ViewOptions } from './box-packing-view'
 
@@ -73,10 +72,6 @@ const MAX_SIZE = 20000
 const MAX_COUNT_PER_ROW = 200
 const MAX_TOTAL = 200
 const MAX_ROWS = 50
-/** 設定を最後に触ってから計算し直すまでの時間（触っている間は計算し直さない） */
-const DEBOUNCE_MS = 1000
-/** 保存しておく候補の数 */
-const MAX_CANDIDATES = 10
 
 let nextId = 1
 const row = (box: BoxSpec, enabled = true): BoxRow => ({
@@ -569,38 +564,7 @@ function boxesMark(boxes: BoxRow[]) {
 
 // ---- 計算の状態 ----
 
-type Candidate = {
-  id: number
-  /** 何回目の探し方（乱数の種）で見つけたか */
-  run: number
-  settings: Settings
-  result: PackResult
-  /** 計算を始めてから見つかるまでの時間 */
-  elapsed: number
-}
-
-type RunStatus =
-  | 'waiting'
-  | 'running'
-  | 'stopped'
-  | 'done'
-  | 'invalid'
-  | 'sweep'
-  | 'sweepReady'
-
-const statusText: Record<RunStatus, string> = {
-  waiting: '設定の変更を待っています（最後に触ってから 1 秒で計算し直します）',
-  running: '計算中（裏で良い並べ方を探し続けています）',
-  stopped: '止めました',
-  done: 'しばらく良い結果が出なくなったので止めました',
-  invalid: '入力を直すと計算します',
-  sweep: '範囲でまとめて試しています（その間、ふつうの計算は止めています）',
-  sweepReady:
-    '範囲で試す項目があるので、自動では計算しません（下の「範囲でまとめて試す」で計算します）',
-}
-
 const percent = (v: number) => (v * 100).toFixed(1)
-const seconds = (ms: number) => `${(ms / 1000).toFixed(1)} 秒`
 
 // ---- 計算を動かす ----
 
@@ -726,9 +690,7 @@ function loadSweep(): SweepConfig {
       typeof v.bothLayDown === 'boolean'
         ? v.bothLayDown
         : defaultSweep.bothLayDown,
-    perComboSec: int(v.perComboSec, defaultSweep.perComboSec, 5, 300),
-    mode: v.mode === 'random' ? 'random' : 'all',
-    randomCount: int(v.randomCount, defaultSweep.randomCount, 1, 500),
+    totalSec: int(v.totalSec, defaultSweep.totalSec, 60, 3600),
   }
 }
 
@@ -875,39 +837,33 @@ export function BoxPacking() {
   const [view, setView] = useState<ViewOptions>(loadView)
   const [saved, setSaved] = useState<Saved[]>(loadSaved)
   const [bests, setBests] = useState<Record<string, BestGroup>>(loadBests)
-  /** 次の計算の出発点にする並べ順（「続けて詰める」で入れる） */
-  const startOrderRef = useRef<number[] | null>(null)
-  /** 表示している保存した結果（null なら今の計算の結果） */
-  const [viewingSaved, setViewingSaved] = useState<string | null>(null)
-  const [status, setStatus] = useState<RunStatus>('waiting')
+  const [sweepConfig, setSweepConfig] = useState<SweepConfig>(loadSweep)
+  /**
+   * 詳しく見る結果。'best:height' などの部門別ベスト、'sweep:3' などの試した組み合わせ、
+   * または保存した結果の id。null なら「いちばん低い」部門別ベスト
+   */
+  const [viewing, setViewing] = useState<string | null>(null)
   const [progress, setProgress] = useState({ tried: 0, elapsed: 0 })
-  const [candidates, setCandidates] = useState<Candidate[]>([])
-  /** null なら、いちばん新しい（良い）候補を見せ続ける */
-  const [pinned, setPinned] = useState<number | null>(null)
   const [visible, setVisible] = useState<number | null>(null)
   const [selected, setSelected] = useState<number | null>(null)
-  const [runToken, setRunToken] = useState(0)
-  const [sweepConfig, setSweepConfig] = useState<SweepConfig>(loadSweep)
-  /** 範囲でまとめて試している状態（combos は試す設定の一覧、rows は進み具合と結果） */
-  const [sweep, setSweep] = useState<{
+  /** 何回目の「探す」か（部門別ベストの「#1」などに出す） */
+  const [searchNo, setSearchNo] = useState(0)
+  /** 探している状態（combos は試す設定の一覧、rows は進み具合と結果） */
+  const [search, setSearch] = useState<{
     running: boolean
     index: number
     combos: Settings[]
     rows: SweepRow[]
-  }>({ running: false, index: 0, combos: [], rows: [] })
+    /** 1 つの組み合わせにかける時間 */
+    perComboMs: number
+    /** 「続けて詰める」のときの出発点の並べ順 */
+    startOrder?: number[]
+  }>({ running: false, index: 0, combos: [], rows: [], perComboMs: 0 })
   const [showBest3D, setShowBest3D] = useState(true)
-  const sweepActive = isSweepActive(sweepConfig)
-  const setRange = <
-    K extends 'gap' | 'edgeGap' | 'supportPercent' | 'wallBias',
-  >(
-    key: K,
-    r: SweepConfig[K],
-  ) => setSweepConfig((c) => ({ ...c, [key]: r }))
-  /** 今のふつうの計算を止める関数（「停止」ボタンで使う） */
-  const stopWorkersRef = useRef<(() => void) | null>(null)
   const captureRef = useRef<(() => Promise<Blob | null>) | null>(null)
   const fileRef = useRef<HTMLInputElement>(null)
   const layDownAllRef = useRef<HTMLInputElement>(null)
+  const detailsRef = useRef<HTMLElement>(null)
 
   const set = <K extends keyof Settings>(key: K, value: Settings[K]) =>
     setSettings((s) => ({ ...s, [key]: value }))
@@ -918,101 +874,16 @@ export function BoxPacking() {
     }))
   const setRandom = (patch: Partial<RandomOptions>) =>
     setSettings((s) => ({ ...s, random: { ...s.random, ...patch } }))
+  const setRange = <
+    K extends 'gap' | 'edgeGap' | 'supportPercent' | 'wallBias',
+  >(
+    key: K,
+    r: SweepConfig[K],
+  ) => setSweepConfig((c) => ({ ...c, [key]: r }))
 
   const error = validate(settings)
-  // ランダム生成の設定だけを変えたときは、計算し直さない
-  const { random: _randomOptions, ...packSettings } = settings
-  const packKey = JSON.stringify(packSettings)
 
-  // 設定が変わったら前の計算を止め、最後に触ってから DEBOUNCE_MS たったら計算し直す。
-  // 待っている間は、前の結果を表示したままにする（スライダーを動かしている間に 3D が空にならないように）。
-  // 範囲でまとめて試している間は、ふつうの計算はしない
-  // biome-ignore lint/correctness/useExhaustiveDependencies: packKey が中身の変化を表す
-  useEffect(() => {
-    const clear = () => {
-      setCandidates([])
-      setPinned(null)
-      setSelected(null)
-      setVisible(null)
-      setProgress({ tried: 0, elapsed: 0 })
-    }
-    if (sweep.running || sweepActive) {
-      setStatus(sweep.running ? 'sweep' : 'sweepReady')
-      return
-    }
-    if (error) {
-      clear()
-      setStatus('invalid')
-      return
-    }
-    setStatus('waiting')
-    const snapshot = settings
-    let nextCandidateId = 1
-    // 全部の Worker を通して、いちばん良い結果だけを候補にする
-    let bestScore = Number.POSITIVE_INFINITY
-    let stopRun: (() => void) | null = null
-    const timer = window.setTimeout(() => {
-      clear()
-      setStatus('running')
-      // 「続けて詰める」の出発点は、この 1 回だけ使う
-      const startOrder = startOrderRef.current
-      startOrderRef.current = null
-      const { seed: _seed, ...input } = toInput(snapshot, 0)
-      stopRun = startWorkers(
-        { ...input, startOrder: startOrder ?? undefined },
-        (runToken + 1) * 1000,
-        {
-          best: (found, elapsed) => {
-            if (found.score >= bestScore - 1e-9) return
-            bestScore = found.score
-            const candidate: Candidate = {
-              id: nextCandidateId++,
-              run: runToken + 1,
-              settings: snapshot,
-              result: found,
-              elapsed,
-            }
-            setCandidates((list) => [...list, candidate].slice(-MAX_CANDIDATES))
-          },
-          metric: (metric, found) => {
-            const key = groupKeyOf(snapshot)
-            setBests((all) =>
-              withBest(all, key, metric, {
-                run: runToken + 1,
-                foundAt: Date.now(),
-                settings: snapshot,
-                result: found,
-              }),
-            )
-          },
-          progress: (tried, elapsed) => setProgress({ tried, elapsed }),
-          done: () => setStatus('done'),
-          error: () => {
-            setStatus('stopped')
-            toast.error('計算に失敗しました')
-          },
-        },
-      )
-      stopWorkersRef.current = stopRun
-    }, DEBOUNCE_MS)
-    return () => {
-      window.clearTimeout(timer)
-      stopRun?.()
-      stopWorkersRef.current = null
-    }
-  }, [packKey, error, runToken, sweep.running, sweepActive])
-
-  const stop = () => {
-    stopWorkersRef.current?.()
-    stopWorkersRef.current = null
-    setStatus('stopped')
-  }
-
-  // ---- 範囲でまとめて試す ----
-  useEffect(() => {
-    writeStorage(STORAGE.sweep, sweepConfig)
-  }, [sweepConfig])
-
+  // ---- 探す ----
   const sweepBase = {
     gap: settings.gap,
     edgeGap: settings.edgeGap,
@@ -1020,43 +891,47 @@ export function BoxPacking() {
     wallBias: settings.wallBias,
     objective: settings.objective,
   }
-  // 数えるときはランダムに混ぜない（全部の数と、ランダムに選ぶ数の小さいほう）
-  const allComboCount = buildCombos(
-    { ...sweepConfig, mode: 'all' },
-    sweepBase,
-  ).length
-  const comboCount =
-    sweepConfig.mode === 'random'
-      ? Math.min(allComboCount, sweepConfig.randomCount)
-      : allComboCount
+  const plan = planSearch(sweepConfig, sweepBase)
 
-  const startSweep = () => {
-    const combos = buildCombos(sweepConfig, sweepBase)
-    const variants = combos.map((c) => ({
-      ...settings,
-      gap: c.gap,
-      edgeGap: c.edgeGap,
-      supportPercent: c.supportPercent,
-      wallBias: c.wallBias,
-      objective: c.objective,
-      boxes: c.layDownAll
-        ? settings.boxes.map((b) => ({ ...b, canLayDown: true }))
-        : settings.boxes,
-    }))
-    setViewingSaved(null)
-    setSweep({
+  /** 条件の組み合わせを作って探し始める。from を渡すと、その結果 1 つから続けて詰める */
+  const startSearch = (from?: { settings: Settings; result: PackResult }) => {
+    let combos: Settings[]
+    let chips: string[][]
+    let perComboMs: number
+    if (from) {
+      combos = [from.settings]
+      chips = [['続けて詰める']]
+      perComboMs = sweepConfig.totalSec * 1000
+    } else {
+      const picked = buildCombos(sweepConfig, sweepBase, plan.count)
+      combos = picked.map((c) => ({
+        ...settings,
+        gap: c.gap,
+        edgeGap: c.edgeGap,
+        supportPercent: c.supportPercent,
+        wallBias: c.wallBias,
+        objective: c.objective,
+        boxes: c.layDownAll
+          ? settings.boxes.map((b) => ({ ...b, canLayDown: true }))
+          : settings.boxes,
+      }))
+      chips = picked.map((c) => comboChips(sweepConfig, c))
+      perComboMs = plan.perComboSec * 1000
+    }
+    setSearchNo((n) => n + 1)
+    setProgress({ tried: 0, elapsed: 0 })
+    setSearch({
       running: true,
       index: 0,
-      combos: variants,
-      rows: combos.map((c) => ({
-        chips: comboChips(sweepConfig, c),
-        status: 'wait',
-      })),
+      combos,
+      rows: chips.map((c) => ({ chips: c, status: 'wait' })),
+      perComboMs,
+      startOrder: from?.result.placements.map((p) => p.type),
     })
   }
 
-  const stopSweep = () =>
-    setSweep((s) => ({
+  const stopSearch = () =>
+    setSearch((s) => ({
       ...s,
       running: false,
       rows: s.rows.map((r) =>
@@ -1064,21 +939,19 @@ export function BoxPacking() {
       ),
     }))
 
-  // 組み合わせを 1 つずつ計算する（決めた秒数たつか、良い結果が出なくなったら次へ）
+  // 組み合わせを 1 つずつ計算する（決めた時間がたつか、良い結果が出なくなったら次へ）
   // biome-ignore lint/correctness/useExhaustiveDependencies: 試している組み合わせが変わったときだけ動かす
   useEffect(() => {
-    if (!sweep.running) return
-    const index = sweep.index
-    const snapshot = sweep.combos[index]
+    if (!search.running) return
+    const index = search.index
+    const snapshot = search.combos[index]
     if (!snapshot) {
-      setSweep((s) => ({ ...s, running: false }))
-      toast.success(
-        '範囲でまとめて試し終えました（結果は部門別ベストに入っています）',
-      )
+      setSearch((s) => ({ ...s, running: false }))
+      toast.success('探し終えました（結果は部門別ベストに入っています）')
       return
     }
     const markRow = (patch: (r: SweepRow) => SweepRow) =>
-      setSweep((s) => {
+      setSearch((s) => {
         if (s.index !== index) return s
         const rows = [...s.rows]
         rows[index] = patch(rows[index])
@@ -1091,9 +964,9 @@ export function BoxPacking() {
       advanced = true
       stopRun?.()
       markRow((r) => ({ ...r, status: 'done' }))
-      setSweep((s) => (s.index === index ? { ...s, index: index + 1 } : s))
+      setSearch((s) => (s.index === index ? { ...s, index: index + 1 } : s))
     }
-    // 入力の組み合わせとして成り立たないもの（床が端のすき間より狭いなど）は飛ばす
+    // 組み合わせとして成り立たないもの（床が端のすき間より狭いなど）は飛ばす
     if (validate(snapshot)) {
       next()
       return
@@ -1101,49 +974,62 @@ export function BoxPacking() {
     markRow((r) => ({ ...r, status: 'run' }))
     setProgress({ tried: 0, elapsed: 0 })
     const { seed: _seed, ...input } = toInput(snapshot, 0)
-    stopRun = startWorkers(input, (index + 1) * 7919, {
-      metric: (metric, found) => {
-        setBests((all) =>
-          withBest(all, groupKeyOf(snapshot), metric, {
-            run: runToken + 1,
-            sweep: index + 1,
-            foundAt: Date.now(),
-            settings: snapshot,
-            result: found,
-          }),
-        )
-        markRow((r) => {
-          if (metric === 'height' && betterFor('height', found, r.lowest)) {
-            return { ...r, lowest: found }
-          }
-          if (metric === 'floor' && found.floorCoverage > (r.bestFloor ?? -1)) {
-            return { ...r, bestFloor: found.floorCoverage }
-          }
-          if (
-            metric === 'low' &&
-            found.cog &&
-            found.cog.z < (r.bestCogZ ?? Number.POSITIVE_INFINITY)
-          ) {
-            return { ...r, bestCogZ: found.cog.z }
-          }
-          return r
-        })
+    stopRun = startWorkers(
+      { ...input, startOrder: index === 0 ? search.startOrder : undefined },
+      (searchNo * 1000 + index + 1) * 7919,
+      {
+        metric: (metric, found) => {
+          setBests((all) =>
+            withBest(all, groupKeyOf(snapshot), metric, {
+              run: searchNo,
+              sweep: search.combos.length > 1 ? index + 1 : undefined,
+              foundAt: Date.now(),
+              settings: snapshot,
+              result: found,
+            }),
+          )
+          markRow((r) => {
+            if (metric === 'height' && betterFor('height', found, r.lowest)) {
+              return { ...r, lowest: found }
+            }
+            if (
+              metric === 'floor' &&
+              found.floorCoverage > (r.bestFloor ?? -1)
+            ) {
+              return { ...r, bestFloor: found.floorCoverage }
+            }
+            if (
+              metric === 'low' &&
+              found.cog &&
+              found.cog.z < (r.bestCogZ ?? Number.POSITIVE_INFINITY)
+            ) {
+              return { ...r, bestCogZ: found.cog.z }
+            }
+            return r
+          })
+        },
+        progress: (tried, elapsed) => setProgress({ tried, elapsed }),
+        done: next,
+        error: () => {
+          toast.error('計算に失敗しました')
+          next()
+        },
       },
-      progress: (tried, elapsed) => setProgress({ tried, elapsed }),
-      done: next,
-      error: () => {
-        toast.error('計算に失敗しました')
-        next()
-      },
-    })
-    const timer = window.setTimeout(next, sweepConfig.perComboSec * 1000)
+    )
+    const timer = window.setTimeout(next, search.perComboMs)
     return () => {
       window.clearTimeout(timer)
       advanced = true
       stopRun?.()
     }
-  }, [sweep.running, sweep.index])
+  }, [search.running, search.index])
 
+  const remainingMs = search.running
+    ? Math.max(0, search.combos.length - search.index - 1) * search.perComboMs +
+      Math.max(0, search.perComboMs - progress.elapsed)
+    : 0
+
+  // ---- ブラウザへの保存 ----
   const allLayDown = settings.boxes.every((b) => b.canLayDown)
   const someLayDown = settings.boxes.some((b) => b.canLayDown)
   useEffect(() => {
@@ -1152,13 +1038,15 @@ export function BoxPacking() {
     }
   }, [someLayDown, allLayDown])
 
-  // 変えるたびにブラウザへ保存する
   useEffect(() => {
     writeStorage(STORAGE.settings, serializeSettings(settings))
   }, [settings])
   useEffect(() => {
     writeStorage(STORAGE.view, view)
   }, [view])
+  useEffect(() => {
+    writeStorage(STORAGE.sweep, sweepConfig)
+  }, [sweepConfig])
   useEffect(() => {
     const ok = writeStorage(
       STORAGE.saved,
@@ -1170,8 +1058,7 @@ export function BoxPacking() {
       )
     }
   }, [saved])
-
-  // 部門別ベストは計算中に何度も更新されるので、最後の更新から少し待ってまとめて書き込む
+  // 部門別ベストは探している間に何度も更新されるので、最後の更新から少し待ってまとめて書き込む
   useEffect(() => {
     const timer = window.setTimeout(() => {
       const plain = Object.fromEntries(
@@ -1193,49 +1080,60 @@ export function BoxPacking() {
     return () => window.clearTimeout(timer)
   }, [bests])
 
-  const latest = candidates.at(-1)
-  const candidate = candidates.find((c) => c.id === pinned) ?? latest
-  const savedShown = saved.find((x) => x.id === viewingSaved)
+  // ---- 詳しく見る結果 ----
   const groupKey = groupKeyOf(settings)
   const groupBests = bests[groupKey]?.entries ?? {}
-  const viewingMetric = viewingSaved?.startsWith('best:')
-    ? (viewingSaved.slice(5) as Metric)
+  const viewId = viewing ?? 'best:height'
+  const viewingMetric = viewId.startsWith('best:')
+    ? (viewId.slice(5) as Metric)
     : null
-  const bestShown = viewingMetric ? groupBests[viewingMetric] : undefined
-  const sweepIndex = viewingSaved?.startsWith('sweep:')
-    ? Number(viewingSaved.slice(6))
+  const sweepIndex = viewId.startsWith('sweep:')
+    ? Number(viewId.slice(6))
     : null
-  const sweepShown =
-    sweepIndex !== null && sweep.rows[sweepIndex]?.lowest
+  const savedShown = saved.find((x) => x.id === viewId)
+  const current:
+    | {
+        key: string
+        label: string
+        run: number
+        settings: Settings
+        result: PackResult
+      }
+    | undefined = (() => {
+    if (viewingMetric) {
+      const e = groupBests[viewingMetric]
+      return e
+        ? {
+            key: `b${viewingMetric}${e.foundAt}`,
+            label: `部門別ベスト：${metricLabels[viewingMetric]}`,
+            run: e.run,
+            settings: e.settings,
+            result: e.result,
+          }
+        : undefined
+    }
+    if (sweepIndex !== null) {
+      const r = search.rows[sweepIndex]
+      return r?.lowest
+        ? {
+            key: `w${searchNo}-${sweepIndex}-${r.lowest.height}`,
+            label: `試した組み合わせ ${sweepIndex + 1} のいちばん低い結果`,
+            run: searchNo,
+            settings: search.combos[sweepIndex],
+            result: r.lowest,
+          }
+        : undefined
+    }
+    return savedShown
       ? {
-          settings: sweep.combos[sweepIndex],
-          result: sweep.rows[sweepIndex].lowest,
+          key: `s${savedShown.id}`,
+          label: '保存した結果',
+          run: savedShown.run,
+          settings: savedShown.settings,
+          result: savedShown.result,
         }
       : undefined
-  // 部門別ベスト・保存した結果を表示しているときはそれを、そうでなければ今の計算の候補を見せる
-  const current = sweepShown?.result
-    ? {
-        key: `w${sweepIndex}${sweepShown.result.height}`,
-        settings: sweepShown.settings,
-        result: sweepShown.result,
-      }
-    : bestShown
-      ? {
-          key: `b${viewingMetric}${bestShown.foundAt}`,
-          settings: bestShown.settings,
-          result: bestShown.result,
-        }
-      : savedShown
-        ? {
-            key: `s${savedShown.id}`,
-            settings: savedShown.settings,
-            result: savedShown.result,
-          }
-        : candidate && {
-            key: `c${candidate.id}`,
-            settings: candidate.settings,
-            result: candidate.result,
-          }
+  })()
   const result = current?.result
   const shownBoxes = current?.settings.boxes ?? settings.boxes
   const names = useMemo(
@@ -1261,8 +1159,25 @@ export function BoxPacking() {
     setSelected(null)
   }, [current?.key])
 
+  /** 結果を「詳しく見る」に出し、そこまでスクロールする */
+  const show = (id: string | null) => {
+    setViewing(id)
+    window.setTimeout(
+      () =>
+        detailsRef.current?.scrollIntoView({
+          behavior: 'smooth',
+          block: 'start',
+        }),
+      50,
+    )
+  }
+
   /** 結果を「保存した結果」に足す（いっぱいなら古いものから消す） */
-  const saveCandidate = (c: Pick<Candidate, 'run' | 'settings' | 'result'>) => {
+  const saveResult = (c: {
+    run: number
+    settings: Settings
+    result: PackResult
+  }) => {
     const entry: Saved = {
       id: `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`,
       savedAt: Date.now(),
@@ -1271,7 +1186,7 @@ export function BoxPacking() {
       result: c.result,
     }
     setSaved((list) => [...list, entry].slice(-MAX_SAVED))
-    toast.success('保存しました（下の「保存した結果」で比べられます）')
+    toast.success('保存しました（いちばん下の「保存した結果」で比べられます）')
   }
 
   /** 結果の設定を設定欄に戻す（箱の行は作り直して、今の行と番号が重ならないようにする） */
@@ -1283,55 +1198,33 @@ export function BoxPacking() {
       ),
     })
 
-  const restoreBest = (metric: Metric) => {
-    const entry = groupBests[metric]
-    if (!entry) return
+  const restoreFrom = (from: { settings: Settings } | undefined) => {
+    if (!from) return
     if (
       !window.confirm(
-        '今の設定を、この結果の設定に置き換えます。よろしいですか？',
+        '設定欄を、この結果の設定に置き換えます。よろしいですか？',
       )
     )
       return
-    applySettings(entry.settings)
-    setViewingSaved(null)
+    applySettings(from.settings)
+    setViewing(null)
     toast.success('設定を戻しました')
   }
 
-  /** その結果の設定に戻し、その結果の積む順番を出発点にして計算し直す */
-  const continueBest = (metric: Metric) => {
-    const entry = groupBests[metric]
-    if (!entry) return
-    startOrderRef.current = entry.result.placements.map((p) => p.type)
-    applySettings(entry.settings)
-    setViewingSaved(null)
-    setRunToken((t) => t + 1)
+  /** その結果の設定に戻し、その結果の積む順番を出発点にして、もう一度探す */
+  const continueFrom = (
+    from: { settings: Settings; result: PackResult } | undefined,
+  ) => {
+    if (!from || search.running) return
+    applySettings(from.settings)
+    startSearch(from)
     toast.success('この結果から続けて詰めます')
-  }
-
-  const restoreSaved = (id: string) => {
-    const entry = saved.find((x) => x.id === id)
-    if (!entry) return
-    if (
-      !window.confirm(
-        '今の設定を、この結果の設定に置き換えます。よろしいですか？',
-      )
-    )
-      return
-    // 箱の行は作り直す（今の行と番号が重ならないように）
-    setSettings({
-      ...entry.settings,
-      boxes: entry.settings.boxes.map(({ id: _id, enabled, ...box }) =>
-        row(box, enabled),
-      ),
-    })
-    setViewingSaved(null)
-    toast.success('設定を戻しました')
   }
 
   const resetAll = () => {
     if (
       !window.confirm(
-        '床・積み方（範囲で試す設定も）・箱のリスト・ランダム生成・表示の設定を、すべて初期値に戻します。保存した結果と部門別ベストは消しません。よろしいですか？',
+        '床・箱のリスト・条件（範囲）・ランダム生成・表示の設定を、すべて初期値に戻します。保存した結果と部門別ベストは消しません。よろしいですか？',
       )
     ) {
       return
@@ -1339,7 +1232,7 @@ export function BoxPacking() {
     setSettings(freshInitial())
     setSweepConfig(defaultSweep)
     setView(defaultView)
-    setViewingSaved(null)
+    setViewing(null)
     toast.success('設定を初期値に戻しました')
   }
 
@@ -1379,407 +1272,10 @@ export function BoxPacking() {
 
   return (
     <div className="space-y-6">
-      <PackingView
-        {...view}
-        floorX={current?.settings.floorX ?? settings.floorX}
-        floorY={current?.settings.floorY ?? settings.floorY}
-        walls={current?.settings.walls ?? settings.walls}
-        height={result?.height ?? 0}
-        placements={placements}
-        names={names}
-        hues={hues}
-        cog={visible === null ? (result?.cog ?? null) : null}
-        selected={selected}
-        onSelect={setSelected}
-        captureRef={captureRef}
-      />
-
-      <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm">
-        <label className="flex items-center gap-2">
-          <input
-            type="checkbox"
-            checked={view.showTags}
-            onChange={(e) =>
-              setView((v) => ({ ...v, showTags: e.target.checked }))
-            }
-            className="size-4 accent-primary"
-          />
-          タグ
-        </label>
-        <HelpTip>
-          箱の上の面と手前の面に、入力したタグ（何の箱か）を表示します。
-        </HelpTip>
-        <label className="flex items-center gap-2">
-          <input
-            type="checkbox"
-            checked={view.showFaceLabels}
-            onChange={(e) =>
-              setView((v) => ({ ...v, showFaceLabels: e.target.checked }))
-            }
-            className="size-4 accent-primary"
-          />
-          向きの文字（上・下・左・右・前・後）
-        </label>
-        <HelpTip>
-          箱の 6
-          つの面に、入力したときの向きでの面の名前を表示します。横倒しにした箱は、上を向いた面に「前」か「左」と出るので、どう倒したかが分かります。
-        </HelpTip>
-        <label className="flex items-center gap-2">
-          <input
-            type="checkbox"
-            checked={view.translucentFloor}
-            onChange={(e) =>
-              setView((v) => ({ ...v, translucentFloor: e.target.checked }))
-            }
-            className="size-4 accent-primary"
-          />
-          床を半透明にする
-        </label>
-        <HelpTip>
-          床を透かして、視点を床の下に回したときに、箱の下の面も見られるようにします。
-        </HelpTip>
-        <label className="flex items-center gap-2">
-          <input
-            type="checkbox"
-            checked={view.wireframe}
-            onChange={(e) =>
-              setView((v) => ({ ...v, wireframe: e.target.checked }))
-            }
-            className="size-4 accent-primary"
-          />
-          ワイヤーフレーム
-        </label>
-        <HelpTip>
-          箱の面を描かず、枠線だけで表示します。奥や内側の箱の置き方を確かめるときに使います。枠線は箱の種類の色です。
-        </HelpTip>
-        <div className="w-44">
-          <RangeSlider
-            label="箱の不透明度"
-            value={Math.round(view.opacity * 100)}
-            min={10}
-            max={100}
-            step={5}
-            unit="%"
-            help="箱をどれだけ透かすかです。下げると、手前の箱越しに奥の箱が見えます。"
-            onChange={(v) => setView((o) => ({ ...o, opacity: v / 100 }))}
-          />
-        </div>
-        <label className="flex items-center gap-2">
-          <input
-            type="checkbox"
-            checked={view.showGrid}
-            onChange={(e) =>
-              setView((v) => ({ ...v, showGrid: e.target.checked }))
-            }
-            className="size-4 accent-primary"
-          />
-          格子と原点
-        </label>
-        <HelpTip>
-          床に格子を引き、原点（床の左手前の角）に X・Y・Z の矢印を出します。5
-          本ごとに少し濃い線です。重心の位置を読むときの目安に使います。
-        </HelpTip>
-        <span className="text-xs text-muted-foreground">
-          赤い玉と床の十字は全体の重心です。
-          {view.showGrid &&
-            `格子は ${gridStep(
-              current?.settings.floorX ?? settings.floorX,
-              current?.settings.floorY ?? settings.floorY,
-            )} mm 間隔です。`}
-        </span>
-      </div>
-
-      {/* 計算の状態 */}
-      <div className="flex flex-wrap items-center gap-3 rounded-lg border p-3 text-sm">
-        {(status === 'running' ||
-          status === 'waiting' ||
-          status === 'sweep') && (
-          <Loader2 className="size-4 animate-spin text-muted-foreground" />
-        )}
-        <span>{statusText[status]}</span>
-        {progress.tried > 0 && (
-          <span className="font-mono text-xs text-muted-foreground tabular-nums">
-            {progress.tried.toLocaleString()} 通り・{seconds(progress.elapsed)}
-            ・{workerCount} 並列
-          </span>
-        )}
-        <div className="ml-auto flex gap-2">
-          {status === 'sweep' || status === 'sweepReady' ? null : status ===
-            'running' ? (
-            <Button type="button" variant="outline" size="sm" onClick={stop}>
-              <Square />
-              停止
-            </Button>
-          ) : (
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              disabled={!!error}
-              onClick={() => setRunToken((t) => t + 1)}
-            >
-              <Play />
-              別の探し方でもう一度
-            </Button>
-          )}
-        </div>
-      </div>
-
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
-        <Stat
-          label="全体の高さ"
-          value={result ? result.height.toLocaleString() : '—'}
-          unit="mm"
-        />
-        <Stat
-          label="充填率"
-          value={result ? percent(result.fillRate) : '—'}
-          unit="%"
-          hint="箱の体積 ÷（床 × 高さ）"
-        />
-        <Stat
-          label="1 段目の埋まり"
-          value={result ? percent(result.floorCoverage) : '—'}
-          unit="%"
-          hint="床に直接置いた箱の底面積"
-        />
-        <Stat
-          label="置けた箱"
-          value={result ? result.placements.length : '—'}
-          unit={result ? `/ ${shownTotal} 個` : ''}
-        />
-        <Stat
-          label="重心（x, y, z）"
-          value={
-            result?.cog
-              ? `${Math.round(result.cog.x)}, ${Math.round(result.cog.y)}, ${Math.round(result.cog.z)}`
-              : '—'
-          }
-          unit="mm"
-          className="col-span-2 lg:col-span-1 [&_span.font-mono]:text-lg"
-        />
-      </div>
-
-      {result && result.unplaced.length > 0 && (
-        <div className="rounded-lg border border-destructive/50 bg-destructive/5 p-3 text-sm">
-          <p className="font-medium text-destructive">
-            置けなかった箱があります
-          </p>
-          <ul className="mt-1 list-disc pl-5">
-            {result.unplaced.map((u) => (
-              <li key={`${u.type}-${u.reason}`}>
-                {names[u.type]} × {u.count}：
-                {u.reason === 'too-big'
-                  ? 'どの向きでも床からはみ出します'
-                  : '下の支えが足りません（支えの割合を下げるか、横倒しを許可すると置けることがあります）'}
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
-
-      {/* 候補。増えても下の設定がずれないよう、高さを決めて中だけスクロールする */}
-      <section className="space-y-2 rounded-lg border p-4">
-        <div className="flex min-h-8 flex-wrap items-center justify-between gap-2">
-          <h2 className="font-semibold">
-            候補（探し方 #{runToken + 1}・良い結果が見つかるたびに追加）
-          </h2>
-          {pinned !== null && (
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={() => {
-                setPinned(null)
-                setViewingSaved(null)
-              }}
-            >
-              いちばん良い結果を表示し続ける
-            </Button>
-          )}
-        </div>
-        <div className="h-56 overflow-auto rounded-md border">
-          {candidates.length === 0 && (
-            <p className="flex h-full items-center justify-center text-sm text-muted-foreground">
-              {status === 'invalid'
-                ? '入力を直すと計算します'
-                : '計算すると、ここに候補が並びます'}
-            </p>
-          )}
-          <table
-            className={cn(
-              'w-full min-w-[32rem] text-sm [&_td]:px-3 [&_th]:px-3',
-              candidates.length === 0 && 'hidden',
-            )}
-          >
-            <thead className="sticky top-0 bg-background text-left text-xs text-muted-foreground">
-              <tr>
-                <th className="py-1 font-normal">見つかった時間</th>
-                <th className="py-1 font-normal">高さ</th>
-                <th className="py-1 font-normal">充填率</th>
-                <th className="py-1 font-normal">1 段目</th>
-                <th className="py-1 font-normal">置けた箱</th>
-                <th className="py-1 font-normal">重心 x, y</th>
-                <th className="py-1">
-                  <span className="sr-only">表示</span>
-                </th>
-              </tr>
-            </thead>
-            <tbody className="font-mono tabular-nums">
-              {[...candidates].reverse().map((c) => {
-                const active = !savedShown && c.id === candidate?.id
-                return (
-                  <tr
-                    key={c.id}
-                    className={cn('border-t', active && 'bg-muted/60')}
-                  >
-                    <td className="py-1">
-                      {seconds(c.elapsed)}
-                      {c.id === latest?.id && (
-                        <span className="ml-2 font-sans text-xs text-primary">
-                          最良
-                        </span>
-                      )}
-                    </td>
-                    <td className="py-1">
-                      {c.result.height.toLocaleString()} mm
-                    </td>
-                    <td className="py-1">{percent(c.result.fillRate)}%</td>
-                    <td className="py-1">{percent(c.result.floorCoverage)}%</td>
-                    <td className="py-1">{c.result.placements.length}</td>
-                    <td className="py-1">
-                      {c.result.cog
-                        ? `${Math.round(c.result.cog.x)}, ${Math.round(c.result.cog.y)}`
-                        : '—'}
-                    </td>
-                    <td className="py-1 text-right whitespace-nowrap">
-                      <Button
-                        type="button"
-                        variant={active ? 'secondary' : 'ghost'}
-                        size="sm"
-                        aria-pressed={active}
-                        onClick={() => {
-                          setPinned(c.id === latest?.id ? null : c.id)
-                          setViewingSaved(null)
-                        }}
-                      >
-                        {active ? '表示中' : '表示'}
-                      </Button>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        title="比べるために、下の「保存した結果」に残します"
-                        onClick={() => saveCandidate(c)}
-                      >
-                        <Save />
-                        保存
-                      </Button>
-                    </td>
-                  </tr>
-                )
-              })}
-            </tbody>
-          </table>
-        </div>
-      </section>
-
-      <BestResults
-        bests={metrics.flatMap((metric) => {
-          const e = groupBests[metric]
-          return e
-            ? [
-                {
-                  metric,
-                  label: e.sweep ? `範囲 ${e.sweep}` : `#${e.run}`,
-                  foundAt: e.foundAt,
-                  summary: summarize(e.settings),
-                  result: e.result,
-                },
-              ]
-            : []
-        })}
-        current={currentSummary}
-        viewing={bestShown ? viewingMetric : null}
-        onView={(metric) => setViewingSaved(metric ? `best:${metric}` : null)}
-        onRestore={restoreBest}
-        onContinue={continueBest}
-        onSave={(metric) => {
-          const e = groupBests[metric]
-          if (e) saveCandidate(e)
-        }}
-        onClear={() => {
-          setBests((all) => {
-            const next = { ...all }
-            delete next[groupKey]
-            return next
-          })
-          if (viewingMetric) setViewingSaved(null)
-        }}
-      />
-
-      <div className="space-y-2 rounded-lg border p-4">
-        <label className="flex items-center gap-2 text-sm font-semibold">
-          <input
-            type="checkbox"
-            checked={showBest3D}
-            onChange={(e) => setShowBest3D(e.target.checked)}
-            className="size-4 accent-primary"
-          />
-          部門別ベストを 3D で並べて見る
-        </label>
-        {showBest3D && (
-          <BestViews3D
-            entries={metrics.map((metric) => ({
-              metric,
-              entry: groupBests[metric],
-            }))}
-            view={view}
-          />
-        )}
-      </div>
-
-      <SavedResults
-        saved={savedViews}
-        current={currentSummary}
-        viewing={savedShown ? savedShown.id : null}
-        onView={setViewingSaved}
-        onRestore={restoreSaved}
-        onDelete={(id) => {
-          setSaved((list) => list.filter((x) => x.id !== id))
-          if (viewingSaved === id) setViewingSaved(null)
-        }}
-        onClear={() => {
-          setSaved([])
-          setViewingSaved(null)
-        }}
-      />
-
-      {/* 結果がないときも欄は出しておく（出たり消えたりで下の設定がずれないように） */}
-      <div
-        className={cn(
-          'rounded-lg border p-4',
-          !(result && result.placements.length > 1) &&
-            'pointer-events-none opacity-50',
-        )}
-      >
-        <RangeSlider
-          label="積む順に見る"
-          value={visible ?? result?.placements.length ?? 0}
-          min={0}
-          max={result?.placements.length ?? 0}
-          step={1}
-          unit={` / ${result?.placements.length ?? 0} 個`}
-          onChange={(v) =>
-            setVisible(v === result?.placements.length ? null : v)
-          }
-        />
-      </div>
-
-      {/* 床と積み方 */}
+      {/* 1. 床と壁 */}
       <section className="space-y-4 rounded-lg border p-4">
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <h2 className="font-semibold">床と積み方</h2>
+          <h2 className="font-semibold">1. 床と壁</h2>
           <span className="flex items-center gap-1">
             <Button
               type="button"
@@ -1791,8 +1287,8 @@ export function BoxPacking() {
               設定をすべて初期値に戻す
             </Button>
             <HelpTip>
-              床・積み方・箱のリスト・ランダム生成・3D
-              の表示の設定を、すべて初期値に戻します。保存した結果は消しません。設定はブラウザに保存しているので、ページを読み込み直しても残ります。
+              床・箱のリスト・条件（範囲）・ランダム生成・3D
+              の表示の設定を、すべて初期値に戻します。保存した結果と部門別ベストは消しません。設定はブラウザに保存しているので、ページを読み込み直しても残ります。
             </HelpTip>
           </span>
         </div>
@@ -1845,128 +1341,13 @@ export function BoxPacking() {
               ))}
             </div>
           </fieldset>
-          <RangeOrValue
-            label="箱どうしのすき間"
-            help="横に並べる箱の間にあけるすき間です。段ボールはぴったりくっつけられないので、その分の余裕を取ります。上下に重ねる箱の間にはあけません。「範囲で試す」にすると、最小〜最大を刻みごとに試します。"
-            value={settings.gap}
-            min={0}
-            max={50}
-            step={1}
-            unit=" mm"
-            range={sweepConfig.gap}
-            onValue={(v) => set('gap', v)}
-            onRange={(r) => setRange('gap', r)}
-          />
-          <RangeOrValue
-            label="箱と床の端・壁とのすき間"
-            help="床の端や壁と、箱の間にあけるすき間です。「範囲で試す」にすると、最小〜最大を刻みごとに試します。"
-            value={settings.edgeGap}
-            min={0}
-            max={50}
-            step={1}
-            unit=" mm"
-            range={sweepConfig.edgeGap}
-            onValue={(v) => set('edgeGap', v)}
-            onRange={(r) => setRange('edgeGap', r)}
-          />
-          <RangeOrValue
-            label="底面を支える割合"
-            help="上に載せる箱の底面のうち、下の箱で支えられていないといけない割合です。100% なら、はみ出して載せることはしません。下げるほど詰めやすくなりますが、不安定になります。「範囲で試す」にすると、最小〜最大を刻みごとに試します。"
-            value={settings.supportPercent}
-            min={50}
-            max={100}
-            step={5}
-            unit="% 以上"
-            range={sweepConfig.supportPercent}
-            onValue={(v) => set('supportPercent', v)}
-            onRange={(r) => setRange('supportPercent', r)}
-          />
-          <fieldset className="space-y-2">
-            <legend className="flex items-center gap-1 text-sm">
-              優先すること
-              <HelpTip>
-                「全体の高さを低く」は、積み上がった高さがいちばん低くなる並べ方を探します。「下の段から隙間なく」は、床に直接置く
-                1
-                段目をなるべく埋めることを優先します。「両方」にすると、範囲でまとめて試すときに両方を試します。
-              </HelpTip>
-            </legend>
-            <div className="inline-flex rounded-md border p-0.5">
-              {(
-                [
-                  ['height', '全体の高さを低く'],
-                  ['floor', '下の段から隙間なく'],
-                ] as const satisfies readonly [Objective, string][]
-              ).map(([value, label]) => {
-                const active =
-                  !sweepConfig.bothObjectives && settings.objective === value
-                return (
-                  <button
-                    key={value}
-                    type="button"
-                    aria-pressed={active}
-                    onClick={() => {
-                      set('objective', value)
-                      setSweepConfig((c) => ({ ...c, bothObjectives: false }))
-                    }}
-                    className={cn(
-                      'rounded px-3 py-1 text-xs text-muted-foreground',
-                      active && 'bg-muted text-foreground',
-                    )}
-                  >
-                    {label}
-                  </button>
-                )
-              })}
-              <button
-                type="button"
-                aria-pressed={sweepConfig.bothObjectives}
-                onClick={() =>
-                  setSweepConfig((c) => ({ ...c, bothObjectives: true }))
-                }
-                className={cn(
-                  'rounded px-3 py-1 text-xs text-muted-foreground',
-                  sweepConfig.bothObjectives && 'bg-muted text-foreground',
-                )}
-              >
-                両方
-              </button>
-            </div>
-          </fieldset>
-          <div
-            className={cn(
-              !(
-                settings.walls.back ||
-                settings.walls.left ||
-                settings.walls.right
-              ) && 'opacity-50',
-            )}
-          >
-            <RangeOrValue
-              label="重心を壁側に寄せる強さ"
-              help="壁があるとき、全体の重心をどれだけ壁側に寄せるかです（0〜100）。強くするほど、箱のかたまりが壁際に集まり、手前に高い山ができにくくなります。壁がないときは、重心を床の中心に近づけます。"
-              value={settings.wallBias}
-              min={0}
-              max={100}
-              step={10}
-              unit=""
-              format={(v) =>
-                v === 0 ? 'なし' : v <= 30 ? '弱' : v <= 70 ? '中' : '強'
-              }
-              range={sweepConfig.wallBias}
-              onValue={(v) => set('wallBias', v)}
-              onRange={(r) => setRange('wallBias', r)}
-            />
-            <p className="mt-1 text-xs text-muted-foreground">
-              壁がないときは、重心を床の中心に近づけます。
-            </p>
-          </div>
         </div>
       </section>
 
       {/* 箱のリスト */}
       <section className="space-y-3 rounded-lg border p-4">
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <h2 className="font-semibold">箱（全部で {total} 個）</h2>
+          <h2 className="font-semibold">2. 箱（全部で {total} 個）</h2>
           <span className="flex items-center gap-1">
             <label className="flex items-center gap-2 text-sm">
               <input
@@ -1991,23 +1372,6 @@ export function BoxPacking() {
             </label>
             <HelpTip>
               すべての箱の「横倒し」をまとめてオン・オフします。許可は「倒してもよい」という意味で、倒したほうが良く積めるときだけ倒します。倒すときに上へ向けるのは、元の「前」か「左」の面だけです。
-            </HelpTip>
-            <label className="ml-3 flex items-center gap-2 text-sm">
-              <input
-                type="checkbox"
-                checked={sweepConfig.bothLayDown}
-                onChange={(e) =>
-                  setSweepConfig((c) => ({
-                    ...c,
-                    bothLayDown: e.target.checked,
-                  }))
-                }
-                className="size-4 accent-primary"
-              />
-              全部オンでも試す
-            </label>
-            <HelpTip>
-              範囲でまとめて試すときに、横倒しの許可を「今の設定のまま」と「全部オン」の両方で試します。
             </HelpTip>
           </span>
         </div>
@@ -2205,266 +1569,746 @@ export function BoxPacking() {
         {error && <p className="text-sm text-destructive">{error}</p>}
 
         {/* ランダム生成 */}
-        <div className="space-y-3 rounded-md bg-muted/40 p-3">
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="text-sm font-medium">テスト用のランダムな箱</span>
-            <Button type="button" size="sm" onClick={() => generate('replace')}>
-              <Dices />
-              作って置き換える
+        <details className="rounded-md bg-muted/40 p-3">
+          <summary className="cursor-pointer text-sm font-medium">
+            テスト用のランダムな箱を作る
+          </summary>
+          <div className="mt-3 space-y-3">
+            <div className="flex flex-wrap items-center gap-2">
+              <Button
+                type="button"
+                size="sm"
+                onClick={() => generate('replace')}
+              >
+                <Dices />
+                作って置き換える
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => generate('append')}
+              >
+                作って後ろに足す
+              </Button>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={() =>
+                  setRandom({ seed: Math.floor(Math.random() * 1_000_000) })
+                }
+              >
+                番号を変える
+              </Button>
+            </div>
+            <NumberField
+              label="番号（同じ番号なら同じ箱を作ります）"
+              help="ランダムな箱を作るときの種です。同じ番号と同じ設定なら、何度作っても同じ箱になります。番号は JSON の書き出しにも入ります。"
+              inline
+              min={0}
+              max={999999}
+              value={settings.random.seed}
+              onChange={(v) => setRandom({ seed: Math.max(0, v || 0) })}
+            />
+            <details>
+              <summary className="cursor-pointer text-sm text-muted-foreground">
+                詳しく
+              </summary>
+              <div className="mt-3 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                <RangeSlider
+                  label="箱の種類の数"
+                  help="ランダムに作る箱の寸法の種類です。"
+                  value={settings.random.types}
+                  min={1}
+                  max={20}
+                  step={1}
+                  unit=" 種類"
+                  onChange={(v) => setRandom({ types: v })}
+                />
+                <RangeSlider
+                  label="全部の個数"
+                  help="ランダムに作る箱の個数の合計です。どの種類も 1 個以上になるよう配ります。"
+                  value={settings.random.total}
+                  min={1}
+                  max={MAX_TOTAL}
+                  step={1}
+                  unit=" 個"
+                  onChange={(v) => setRandom({ total: v })}
+                />
+                <RangeSlider
+                  label="横倒しを許可する割合"
+                  help="作った箱のうち、横倒しを許可する箱の割合のおおよその目安です。"
+                  value={settings.random.layDownPercent}
+                  min={0}
+                  max={100}
+                  step={10}
+                  unit="%"
+                  onChange={(v) => setRandom({ layDownPercent: v })}
+                />
+                <NumberField
+                  label="1 辺の長さの最小（mm）"
+                  help="作る箱の、1 辺の長さの下限です。"
+                  min={5}
+                  max={MAX_SIZE}
+                  value={settings.random.min}
+                  onChange={(v) => setRandom({ min: v })}
+                />
+                <NumberField
+                  label="1 辺の長さの最大（mm）"
+                  help="作る箱の、1 辺の長さの上限です。床からはみ出さないよう、幅・奥行きは床の大きさまでに抑えます。"
+                  min={5}
+                  max={MAX_SIZE}
+                  value={settings.random.max}
+                  onChange={(v) => setRandom({ max: v })}
+                />
+              </div>
+              <p className="mt-2 text-xs text-muted-foreground">
+                床からはみ出さないよう、X・Y
+                は床の幅・奥行きから端のすき間を引いた長さまでにします。
+              </p>
+            </details>
+          </div>
+        </details>
+      </section>
+
+      {/* 3. 条件 */}
+      <section className="space-y-4 rounded-lg border p-4">
+        <h2 className="flex items-center gap-1 font-semibold">
+          3. 条件
+          <HelpTip>
+            ぴったり 1
+            つに決めなくても、だいたいの範囲を渡せば、その中の組み合わせを「探す」でまとめて試します。決めたい項目だけ「1
+            つの値」にしてください。
+          </HelpTip>
+        </h2>
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <RangeOrValue
+            label="箱どうしのすき間"
+            help="横に並べる箱の間にあけるすき間です。段ボールはぴったりくっつけられないので、その分の余裕を取ります。上下に重ねる箱の間にはあけません。「範囲で試す」にすると、最小〜最大を刻みごとに試します。"
+            value={settings.gap}
+            min={0}
+            max={50}
+            step={1}
+            unit=" mm"
+            range={sweepConfig.gap}
+            onValue={(v) => set('gap', v)}
+            onRange={(r) => setRange('gap', r)}
+          />
+          <RangeOrValue
+            label="箱と床の端・壁とのすき間"
+            help="床の端や壁と、箱の間にあけるすき間です。「範囲で試す」にすると、最小〜最大を刻みごとに試します。"
+            value={settings.edgeGap}
+            min={0}
+            max={50}
+            step={1}
+            unit=" mm"
+            range={sweepConfig.edgeGap}
+            onValue={(v) => set('edgeGap', v)}
+            onRange={(r) => setRange('edgeGap', r)}
+          />
+          <RangeOrValue
+            label="底面を支える割合"
+            help="上に載せる箱の底面のうち、下の箱で支えられていないといけない割合です。100% なら、はみ出して載せることはしません。下げるほど詰めやすくなりますが、不安定になります。「範囲で試す」にすると、最小〜最大を刻みごとに試します。"
+            value={settings.supportPercent}
+            min={50}
+            max={100}
+            step={5}
+            unit="% 以上"
+            range={sweepConfig.supportPercent}
+            onValue={(v) => set('supportPercent', v)}
+            onRange={(r) => setRange('supportPercent', r)}
+          />
+          <fieldset className="space-y-2">
+            <legend className="flex items-center gap-1 text-sm">
+              優先すること
+              <HelpTip>
+                「全体の高さを低く」は、積み上がった高さがいちばん低くなる並べ方を探します。「下の段から隙間なく」は、床に直接置く
+                1
+                段目をなるべく埋めることを優先します。「両方」にすると、範囲でまとめて試すときに両方を試します。
+              </HelpTip>
+            </legend>
+            <div className="inline-flex rounded-md border p-0.5">
+              {(
+                [
+                  ['height', '全体の高さを低く'],
+                  ['floor', '下の段から隙間なく'],
+                ] as const satisfies readonly [Objective, string][]
+              ).map(([value, label]) => {
+                const active =
+                  !sweepConfig.bothObjectives && settings.objective === value
+                return (
+                  <button
+                    key={value}
+                    type="button"
+                    aria-pressed={active}
+                    onClick={() => {
+                      set('objective', value)
+                      setSweepConfig((c) => ({ ...c, bothObjectives: false }))
+                    }}
+                    className={cn(
+                      'rounded px-3 py-1 text-xs text-muted-foreground',
+                      active && 'bg-muted text-foreground',
+                    )}
+                  >
+                    {label}
+                  </button>
+                )
+              })}
+              <button
+                type="button"
+                aria-pressed={sweepConfig.bothObjectives}
+                onClick={() =>
+                  setSweepConfig((c) => ({ ...c, bothObjectives: true }))
+                }
+                className={cn(
+                  'rounded px-3 py-1 text-xs text-muted-foreground',
+                  sweepConfig.bothObjectives && 'bg-muted text-foreground',
+                )}
+              >
+                両方
+              </button>
+            </div>
+          </fieldset>
+          <div
+            className={cn(
+              !(
+                settings.walls.back ||
+                settings.walls.left ||
+                settings.walls.right
+              ) && 'opacity-50',
+            )}
+          >
+            <RangeOrValue
+              label="重心を壁側に寄せる強さ"
+              help="壁があるとき、全体の重心をどれだけ壁側に寄せるかです（0〜100）。強くするほど、箱のかたまりが壁際に集まり、手前に高い山ができにくくなります。壁がないときは、重心を床の中心に近づけます。"
+              value={settings.wallBias}
+              min={0}
+              max={100}
+              step={10}
+              unit=""
+              format={(v) =>
+                v === 0 ? 'なし' : v <= 30 ? '弱' : v <= 70 ? '中' : '強'
+              }
+              range={sweepConfig.wallBias}
+              onValue={(v) => set('wallBias', v)}
+              onRange={(r) => setRange('wallBias', r)}
+            />
+            <p className="mt-1 text-xs text-muted-foreground">
+              壁がないときは、重心を床の中心に近づけます。
+            </p>
+          </div>
+          <div className="space-y-2">
+            <span className="flex items-center gap-1 text-sm">
+              横倒し
+              <HelpTip>
+                「全部オンでも試す」にすると、横倒しの許可を「箱のリストの設定のまま」と「全部オン」の両方で試します。
+              </HelpTip>
+            </span>
+            <label className="flex items-center gap-2 text-sm">
+              <input
+                type="checkbox"
+                checked={sweepConfig.bothLayDown}
+                onChange={(e) =>
+                  setSweepConfig((c) => ({
+                    ...c,
+                    bothLayDown: e.target.checked,
+                  }))
+                }
+                className="size-4 accent-primary"
+              />
+              全部オンでも試す
+            </label>
+            <HelpTip>
+              範囲でまとめて試すときに、横倒しの許可を「今の設定のまま」と「全部オン」の両方で試します。
+            </HelpTip>
+          </div>
+        </div>
+      </section>
+
+      {/* 4. 探す */}
+      <SearchBar
+        totalSec={sweepConfig.totalSec}
+        onTotalSec={(sec) => setSweepConfig((c) => ({ ...c, totalSec: sec }))}
+        plan={plan}
+        running={search.running}
+        index={search.index}
+        count={search.combos.length}
+        remainingMs={remainingMs}
+        tried={progress.tried}
+        workers={workerCount}
+        error={error}
+        onStart={() => startSearch()}
+        onStop={stopSearch}
+      />
+
+      {/* 5. 部門別ベスト（3D の横並びと表） */}
+      <BestResults
+        bests={metrics.flatMap((metric) => {
+          const e = groupBests[metric]
+          return e
+            ? [
+                {
+                  metric,
+                  label: e.sweep ? `#${e.run}-${e.sweep}` : `#${e.run}`,
+                  foundAt: e.foundAt,
+                  summary: summarize(e.settings),
+                  result: e.result,
+                },
+              ]
+            : []
+        })}
+        current={currentSummary}
+        viewing={viewingMetric}
+        onView={(metric) => show(metric ? `best:${metric}` : null)}
+        onRestore={(metric) => restoreFrom(groupBests[metric])}
+        onContinue={(metric) => continueFrom(groupBests[metric])}
+        onSave={(metric) => {
+          const e = groupBests[metric]
+          if (e) saveResult(e)
+        }}
+        onClear={() => {
+          setBests((all) => {
+            const next = { ...all }
+            delete next[groupKey]
+            return next
+          })
+          if (viewingMetric) setViewing(null)
+        }}
+      >
+        <div className="space-y-2">
+          <label className="flex items-center gap-2 text-sm">
+            <input
+              type="checkbox"
+              checked={showBest3D}
+              onChange={(e) => setShowBest3D(e.target.checked)}
+              className="size-4 accent-primary"
+            />
+            3D で並べて見る
+          </label>
+          {showBest3D && (
+            <BestViews3D
+              entries={metrics.map((metric) => ({
+                metric,
+                entry: groupBests[metric],
+              }))}
+              view={view}
+            />
+          )}
+        </div>
+      </BestResults>
+
+      {search.rows.length > 0 && (
+        <SweepTable
+          rows={search.rows}
+          viewing={sweepIndex}
+          onView={(i) => show(`sweep:${i}`)}
+        />
+      )}
+
+      {/* 6. 詳しく見る */}
+      <section
+        ref={detailsRef}
+        className="scroll-mt-20 space-y-4 rounded-lg border p-4"
+      >
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <h2 className="font-semibold">
+            6. 詳しく見る
+            {current && (
+              <span className="ml-2 text-sm font-normal text-muted-foreground">
+                {current.label}
+              </span>
+            )}
+          </h2>
+          <div className="flex flex-wrap gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              disabled={!current || search.running}
+              title="この結果の設定に戻し、この結果の積む順番を出発点にして、もう一度探します"
+              onClick={() => continueFrom(current)}
+            >
+              <Play />
+              続けて詰める
             </Button>
             <Button
               type="button"
               variant="outline"
               size="sm"
-              onClick={() => generate('append')}
+              disabled={!current}
+              onClick={() => restoreFrom(current)}
             >
-              作って後ろに足す
+              <RotateCcw />
+              設定に戻す
             </Button>
             <Button
               type="button"
-              variant="ghost"
+              variant="outline"
               size="sm"
-              onClick={() =>
-                setRandom({ seed: Math.floor(Math.random() * 1_000_000) })
-              }
+              disabled={!current}
+              onClick={() => current && saveResult(current)}
             >
-              番号を変える
+              <Save />
+              保存
             </Button>
           </div>
-          <NumberField
-            label="番号（同じ番号なら同じ箱を作ります）"
-            help="ランダムな箱を作るときの種です。同じ番号と同じ設定なら、何度作っても同じ箱になります。番号は JSON の書き出しにも入ります。"
-            inline
-            min={0}
-            max={999999}
-            value={settings.random.seed}
-            onChange={(v) => setRandom({ seed: Math.max(0, v || 0) })}
-          />
-          <details>
-            <summary className="cursor-pointer text-sm text-muted-foreground">
-              詳しく
-            </summary>
-            <div className="mt-3 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              <RangeSlider
-                label="箱の種類の数"
-                help="ランダムに作る箱の寸法の種類です。"
-                value={settings.random.types}
-                min={1}
-                max={20}
-                step={1}
-                unit=" 種類"
-                onChange={(v) => setRandom({ types: v })}
-              />
-              <RangeSlider
-                label="全部の個数"
-                help="ランダムに作る箱の個数の合計です。どの種類も 1 個以上になるよう配ります。"
-                value={settings.random.total}
-                min={1}
-                max={MAX_TOTAL}
-                step={1}
-                unit=" 個"
-                onChange={(v) => setRandom({ total: v })}
-              />
-              <RangeSlider
-                label="横倒しを許可する割合"
-                help="作った箱のうち、横倒しを許可する箱の割合のおおよその目安です。"
-                value={settings.random.layDownPercent}
-                min={0}
-                max={100}
-                step={10}
-                unit="%"
-                onChange={(v) => setRandom({ layDownPercent: v })}
-              />
-              <NumberField
-                label="1 辺の長さの最小（mm）"
-                help="作る箱の、1 辺の長さの下限です。"
-                min={5}
-                max={MAX_SIZE}
-                value={settings.random.min}
-                onChange={(v) => setRandom({ min: v })}
-              />
-              <NumberField
-                label="1 辺の長さの最大（mm）"
-                help="作る箱の、1 辺の長さの上限です。床からはみ出さないよう、幅・奥行きは床の大きさまでに抑えます。"
-                min={5}
-                max={MAX_SIZE}
-                value={settings.random.max}
-                onChange={(v) => setRandom({ max: v })}
-              />
-            </div>
-            <p className="mt-2 text-xs text-muted-foreground">
-              床からはみ出さないよう、X・Y
-              は床の幅・奥行きから端のすき間を引いた長さまでにします。
-            </p>
-          </details>
         </div>
-      </section>
-
-      <SweepPanel
-        config={sweepConfig}
-        onConfig={setSweepConfig}
-        comboCount={comboCount}
-        running={sweep.running}
-        active={sweepActive}
-        disabled={!!error}
-        rows={sweep.rows}
-        current={sweep.index}
-        viewing={sweepShown ? sweepIndex : null}
-        onStart={startSweep}
-        onStop={stopSweep}
-        onView={(i) => setViewingSaved(i === null ? null : `sweep:${i}`)}
-      />
-
-      {/* 書き出し・読み込み */}
-      <section className="space-y-3 rounded-lg border p-4">
-        <h2 className="font-semibold">書き出し・読み込み</h2>
-        <div className="flex flex-wrap gap-2">
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            disabled={!result}
-            onClick={() =>
-              result &&
-              download(
-                'box-packing.csv',
-                new Blob([placementsCsv(shownBoxes, result.placements)], {
-                  type: 'text/csv',
-                }),
-              )
-            }
-          >
-            <Download />
-            置き場所（CSV）
-          </Button>
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            onClick={() =>
-              download(
-                'box-packing.json',
-                new Blob(
-                  [exportJson(current?.settings ?? settings, result ?? null)],
-                  {
-                    type: 'application/json',
-                  },
-                ),
-              )
-            }
-          >
-            <FileJson />
-            設定と結果（JSON）
-          </Button>
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            disabled={!result}
-            onClick={async () => {
-              const blob = await captureRef.current?.()
-              if (blob) download('box-packing.png', blob)
-            }}
-          >
-            <ImageDown />
-            3D 表示（PNG）
-          </Button>
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            onClick={() => fileRef.current?.click()}
-          >
-            <Upload />
-            JSON から設定を読み込む
-          </Button>
-          <input
-            ref={fileRef}
-            type="file"
-            accept="application/json,.json"
-            className="hidden"
-            onChange={(e) => {
-              const file = e.target.files?.[0]
-              if (file) void importFile(file)
-              e.target.value = ''
-            }}
-          />
-        </div>
-        <p className="text-xs text-muted-foreground">
-          書き出すのは、いま表示している候補です。計算も書き出しもブラウザの中だけで行い、入力した内容はどこにも送りません。
-        </p>
-      </section>
-
-      {/* 置き場所の一覧 */}
-      {result && result.placements.length > 0 && (
-        <details className="rounded-lg border p-4">
-          <summary className="cursor-pointer font-semibold">
-            置き場所の一覧（{result.placements.length} 個）
-          </summary>
-          <p className="mt-2 text-xs text-muted-foreground">
-            行を選ぶと、3D の中のその箱を目立たせます。x は左から、y
-            は手前から、z は床からの位置です。
+        {!current && (
+          <p className="text-sm text-muted-foreground">
+            「探す」を押すと、ここにいちばん低い結果を表示します。部門別ベストや試した組み合わせの「表示」でも切り替えられます。
           </p>
-          <div className="mt-2 overflow-x-auto">
-            <table className="w-full min-w-[36rem] text-sm">
-              <thead className="text-left text-xs text-muted-foreground">
-                <tr>
-                  <th className="py-1 font-normal">#</th>
-                  <th className="py-1 font-normal">タグ</th>
-                  <th className="py-1 font-normal">位置 x, y, z（mm）</th>
-                  <th className="py-1 font-normal">置いた向きの寸法（mm）</th>
-                  <th className="py-1 font-normal">上を向いている面</th>
-                </tr>
-              </thead>
-              <tbody className="font-mono tabular-nums">
-                {result.placements.map((p, i) => (
-                  <tr
-                    // biome-ignore lint/suspicious/noArrayIndexKey: 置いた順番そのものが識別子
-                    key={i}
-                    tabIndex={0}
-                    aria-selected={selected === i}
-                    onClick={() => setSelected(selected === i ? null : i)}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter' || e.key === ' ') {
-                        e.preventDefault()
-                        setSelected(selected === i ? null : i)
-                      }
-                    }}
-                    className={cn(
-                      'cursor-pointer border-t hover:bg-muted/50',
-                      selected === i && 'bg-amber-100 dark:bg-amber-900/40',
-                    )}
-                  >
-                    <td className="py-1">{i + 1}</td>
-                    <td className="py-1 font-sans">
-                      <span
-                        aria-hidden
-                        className="mr-2 inline-block size-3 rounded-sm align-middle"
-                        style={{ background: `hsl(${hues[p.type]} 60% 62%)` }}
-                      />
-                      {names[p.type]}
-                    </td>
-                    <td className="py-1">
-                      {p.x}, {p.y}, {p.z}
-                    </td>
-                    <td className="py-1">
-                      {p.w} × {p.d} × {p.h}
-                    </td>
-                    <td className="py-1 font-sans">
-                      {p.faces[4]}
-                      {p.laidDown && (
-                        <span className="ml-1 text-xs text-muted-foreground">
-                          （横倒し）
-                        </span>
-                      )}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+        )}
+        <PackingView
+          {...view}
+          floorX={current?.settings.floorX ?? settings.floorX}
+          floorY={current?.settings.floorY ?? settings.floorY}
+          walls={current?.settings.walls ?? settings.walls}
+          height={result?.height ?? 0}
+          placements={placements}
+          names={names}
+          hues={hues}
+          cog={visible === null ? (result?.cog ?? null) : null}
+          selected={selected}
+          onSelect={setSelected}
+          captureRef={captureRef}
+        />
+        {/* 結果がないときも欄は出しておく（出たり消えたりで下の設定がずれないように） */}
+        <div
+          className={cn(
+            'rounded-lg border p-4',
+            !(result && result.placements.length > 1) &&
+              'pointer-events-none opacity-50',
+          )}
+        >
+          <RangeSlider
+            label="積む順に見る"
+            value={visible ?? result?.placements.length ?? 0}
+            min={0}
+            max={result?.placements.length ?? 0}
+            step={1}
+            unit={` / ${result?.placements.length ?? 0} 個`}
+            onChange={(v) =>
+              setVisible(v === result?.placements.length ? null : v)
+            }
+          />
+        </div>
+
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm">
+          <label className="flex items-center gap-2">
+            <input
+              type="checkbox"
+              checked={view.showTags}
+              onChange={(e) =>
+                setView((v) => ({ ...v, showTags: e.target.checked }))
+              }
+              className="size-4 accent-primary"
+            />
+            タグ
+          </label>
+          <HelpTip>
+            箱の上の面と手前の面に、入力したタグ（何の箱か）を表示します。
+          </HelpTip>
+          <label className="flex items-center gap-2">
+            <input
+              type="checkbox"
+              checked={view.showFaceLabels}
+              onChange={(e) =>
+                setView((v) => ({ ...v, showFaceLabels: e.target.checked }))
+              }
+              className="size-4 accent-primary"
+            />
+            向きの文字（上・下・左・右・前・後）
+          </label>
+          <HelpTip>
+            箱の 6
+            つの面に、入力したときの向きでの面の名前を表示します。横倒しにした箱は、上を向いた面に「前」か「左」と出るので、どう倒したかが分かります。
+          </HelpTip>
+          <label className="flex items-center gap-2">
+            <input
+              type="checkbox"
+              checked={view.translucentFloor}
+              onChange={(e) =>
+                setView((v) => ({ ...v, translucentFloor: e.target.checked }))
+              }
+              className="size-4 accent-primary"
+            />
+            床を半透明にする
+          </label>
+          <HelpTip>
+            床を透かして、視点を床の下に回したときに、箱の下の面も見られるようにします。
+          </HelpTip>
+          <label className="flex items-center gap-2">
+            <input
+              type="checkbox"
+              checked={view.wireframe}
+              onChange={(e) =>
+                setView((v) => ({ ...v, wireframe: e.target.checked }))
+              }
+              className="size-4 accent-primary"
+            />
+            ワイヤーフレーム
+          </label>
+          <HelpTip>
+            箱の面を描かず、枠線だけで表示します。奥や内側の箱の置き方を確かめるときに使います。枠線は箱の種類の色です。
+          </HelpTip>
+          <div className="w-44">
+            <RangeSlider
+              label="箱の不透明度"
+              value={Math.round(view.opacity * 100)}
+              min={10}
+              max={100}
+              step={5}
+              unit="%"
+              help="箱をどれだけ透かすかです。下げると、手前の箱越しに奥の箱が見えます。"
+              onChange={(v) => setView((o) => ({ ...o, opacity: v / 100 }))}
+            />
           </div>
-        </details>
-      )}
+          <label className="flex items-center gap-2">
+            <input
+              type="checkbox"
+              checked={view.showGrid}
+              onChange={(e) =>
+                setView((v) => ({ ...v, showGrid: e.target.checked }))
+              }
+              className="size-4 accent-primary"
+            />
+            格子と原点
+          </label>
+          <HelpTip>
+            床に格子を引き、原点（床の左手前の角）に X・Y・Z の矢印を出します。5
+            本ごとに少し濃い線です。重心の位置を読むときの目安に使います。
+          </HelpTip>
+          <span className="text-xs text-muted-foreground">
+            赤い玉と床の十字は全体の重心です。
+            {view.showGrid &&
+              `格子は ${gridStep(
+                current?.settings.floorX ?? settings.floorX,
+                current?.settings.floorY ?? settings.floorY,
+              )} mm 間隔です。`}
+          </span>
+        </div>
+
+        <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
+          <Stat
+            label="全体の高さ"
+            value={result ? result.height.toLocaleString() : '—'}
+            unit="mm"
+          />
+          <Stat
+            label="充填率"
+            value={result ? percent(result.fillRate) : '—'}
+            unit="%"
+            hint="箱の体積 ÷（床 × 高さ）"
+          />
+          <Stat
+            label="1 段目の埋まり"
+            value={result ? percent(result.floorCoverage) : '—'}
+            unit="%"
+            hint="床に直接置いた箱の底面積"
+          />
+          <Stat
+            label="置けた箱"
+            value={result ? result.placements.length : '—'}
+            unit={result ? `/ ${shownTotal} 個` : ''}
+          />
+          <Stat
+            label="重心（x, y, z）"
+            value={
+              result?.cog
+                ? `${Math.round(result.cog.x)}, ${Math.round(result.cog.y)}, ${Math.round(result.cog.z)}`
+                : '—'
+            }
+            unit="mm"
+            className="col-span-2 lg:col-span-1 [&_span.font-mono]:text-lg"
+          />
+        </div>
+
+        {result && result.unplaced.length > 0 && (
+          <div className="rounded-lg border border-destructive/50 bg-destructive/5 p-3 text-sm">
+            <p className="font-medium text-destructive">
+              置けなかった箱があります
+            </p>
+            <ul className="mt-1 list-disc pl-5">
+              {result.unplaced.map((u) => (
+                <li key={`${u.type}-${u.reason}`}>
+                  {names[u.type]} × {u.count}：
+                  {u.reason === 'too-big'
+                    ? 'どの向きでも床からはみ出します'
+                    : '下の支えが足りません（支えの割合を下げるか、横倒しを許可すると置けることがあります）'}
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+
+        {/* 書き出し・読み込み */}
+        <section className="space-y-3 rounded-lg border p-4">
+          <h2 className="font-semibold">書き出し・読み込み</h2>
+          <div className="flex flex-wrap gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              disabled={!result}
+              onClick={() =>
+                result &&
+                download(
+                  'box-packing.csv',
+                  new Blob([placementsCsv(shownBoxes, result.placements)], {
+                    type: 'text/csv',
+                  }),
+                )
+              }
+            >
+              <Download />
+              置き場所（CSV）
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() =>
+                download(
+                  'box-packing.json',
+                  new Blob(
+                    [exportJson(current?.settings ?? settings, result ?? null)],
+                    {
+                      type: 'application/json',
+                    },
+                  ),
+                )
+              }
+            >
+              <FileJson />
+              設定と結果（JSON）
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              disabled={!result}
+              onClick={async () => {
+                const blob = await captureRef.current?.()
+                if (blob) download('box-packing.png', blob)
+              }}
+            >
+              <ImageDown />
+              3D 表示（PNG）
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => fileRef.current?.click()}
+            >
+              <Upload />
+              JSON から設定を読み込む
+            </Button>
+            <input
+              ref={fileRef}
+              type="file"
+              accept="application/json,.json"
+              className="hidden"
+              onChange={(e) => {
+                const file = e.target.files?.[0]
+                if (file) void importFile(file)
+                e.target.value = ''
+              }}
+            />
+          </div>
+          <p className="text-xs text-muted-foreground">
+            書き出すのは、いま表示している候補です。計算も書き出しもブラウザの中だけで行い、入力した内容はどこにも送りません。
+          </p>
+        </section>
+
+        {/* 置き場所の一覧 */}
+        {result && result.placements.length > 0 && (
+          <details className="rounded-lg border p-4">
+            <summary className="cursor-pointer font-semibold">
+              置き場所の一覧（{result.placements.length} 個）
+            </summary>
+            <p className="mt-2 text-xs text-muted-foreground">
+              行を選ぶと、3D の中のその箱を目立たせます。x は左から、y
+              は手前から、z は床からの位置です。
+            </p>
+            <div className="mt-2 overflow-x-auto">
+              <table className="w-full min-w-[36rem] text-sm">
+                <thead className="text-left text-xs text-muted-foreground">
+                  <tr>
+                    <th className="py-1 font-normal">#</th>
+                    <th className="py-1 font-normal">タグ</th>
+                    <th className="py-1 font-normal">位置 x, y, z（mm）</th>
+                    <th className="py-1 font-normal">置いた向きの寸法（mm）</th>
+                    <th className="py-1 font-normal">上を向いている面</th>
+                  </tr>
+                </thead>
+                <tbody className="font-mono tabular-nums">
+                  {result.placements.map((p, i) => (
+                    <tr
+                      // biome-ignore lint/suspicious/noArrayIndexKey: 置いた順番そのものが識別子
+                      key={i}
+                      tabIndex={0}
+                      aria-selected={selected === i}
+                      onClick={() => setSelected(selected === i ? null : i)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                          e.preventDefault()
+                          setSelected(selected === i ? null : i)
+                        }
+                      }}
+                      className={cn(
+                        'cursor-pointer border-t hover:bg-muted/50',
+                        selected === i && 'bg-amber-100 dark:bg-amber-900/40',
+                      )}
+                    >
+                      <td className="py-1">{i + 1}</td>
+                      <td className="py-1 font-sans">
+                        <span
+                          aria-hidden
+                          className="mr-2 inline-block size-3 rounded-sm align-middle"
+                          style={{ background: `hsl(${hues[p.type]} 60% 62%)` }}
+                        />
+                        {names[p.type]}
+                      </td>
+                      <td className="py-1">
+                        {p.x}, {p.y}, {p.z}
+                      </td>
+                      <td className="py-1">
+                        {p.w} × {p.d} × {p.h}
+                      </td>
+                      <td className="py-1 font-sans">
+                        {p.faces[4]}
+                        {p.laidDown && (
+                          <span className="ml-1 text-xs text-muted-foreground">
+                            （横倒し）
+                          </span>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </details>
+        )}
+      </section>
+
+      <SavedResults
+        saved={savedViews}
+        current={currentSummary}
+        viewing={savedShown ? savedShown.id : null}
+        onView={(id) => show(id)}
+        onRestore={(id) => restoreFrom(saved.find((x) => x.id === id))}
+        onDelete={(id) => {
+          setSaved((list) => list.filter((x) => x.id !== id))
+          if (viewing === id) setViewing(null)
+        }}
+        onClear={() => {
+          setSaved([])
+          if (savedShown) setViewing(null)
+        }}
+      />
     </div>
   )
 }
