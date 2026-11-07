@@ -13,7 +13,7 @@ import {
 import { useEffect, useId, useMemo, useRef, useState } from 'react'
 import { toast } from 'sonner'
 
-import { RangeSlider, Stat } from '@/components/playground/parts'
+import { HelpTip, RangeSlider, Stat } from '@/components/playground/parts'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { cn } from '@/lib/utils'
@@ -323,9 +323,12 @@ function NumberField({
   min,
   max,
   inline = false,
+  help,
   onChange,
 }: {
   label: string
+  /** ラベルの横の「？」で出す説明 */
+  help?: React.ReactNode
   value: number
   min: number
   max: number
@@ -341,9 +344,10 @@ function NumberField({
         inline ? 'flex items-center gap-2' : 'space-y-1',
       )}
     >
-      <label htmlFor={id} className="block">
-        {label}
-      </label>
+      <span className="flex items-center gap-1">
+        <label htmlFor={id}>{label}</label>
+        {help && <HelpTip>{help}</HelpTip>}
+      </span>
       <Input
         id={id}
         type="number"
@@ -378,6 +382,8 @@ export function BoxPacking() {
     showTags: true,
     showFaceLabels: true,
     translucentFloor: false,
+    wireframe: false,
+    opacity: 1,
   })
   const [status, setStatus] = useState<RunStatus>('waiting')
   const [progress, setProgress] = useState({ tried: 0, elapsed: 0 })
@@ -572,6 +578,9 @@ export function BoxPacking() {
           />
           タグ
         </label>
+        <HelpTip>
+          箱の上の面と手前の面に、入力したタグ（何の箱か）を表示します。
+        </HelpTip>
         <label className="flex items-center gap-2">
           <input
             type="checkbox"
@@ -583,6 +592,10 @@ export function BoxPacking() {
           />
           向きの文字（上・下・左・右・前・後）
         </label>
+        <HelpTip>
+          箱の 6
+          つの面に、入力したときの向きでの面の名前を表示します。横倒しにした箱は、上を向いた面に「前」や「右」と出るので、どう倒したかが分かります。
+        </HelpTip>
         <label className="flex items-center gap-2">
           <input
             type="checkbox"
@@ -594,6 +607,35 @@ export function BoxPacking() {
           />
           床を半透明にする
         </label>
+        <HelpTip>
+          床を透かして、視点を床の下に回したときに、箱の下の面も見られるようにします。
+        </HelpTip>
+        <label className="flex items-center gap-2">
+          <input
+            type="checkbox"
+            checked={view.wireframe}
+            onChange={(e) =>
+              setView((v) => ({ ...v, wireframe: e.target.checked }))
+            }
+            className="size-4 accent-primary"
+          />
+          ワイヤーフレーム
+        </label>
+        <HelpTip>
+          箱の面を描かず、枠線だけで表示します。奥や内側の箱の置き方を確かめるときに使います。枠線は箱の種類の色です。
+        </HelpTip>
+        <div className="w-44">
+          <RangeSlider
+            label="箱の不透明度"
+            value={Math.round(view.opacity * 100)}
+            min={10}
+            max={100}
+            step={5}
+            unit="%"
+            help="箱をどれだけ透かすかです。下げると、手前の箱越しに奥の箱が見えます。"
+            onChange={(v) => setView((o) => ({ ...o, opacity: v / 100 }))}
+          />
+        </div>
         <span className="text-xs text-muted-foreground">
           赤い玉は全体の重心です。
         </span>
@@ -791,6 +833,7 @@ export function BoxPacking() {
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           <NumberField
             label="床の幅 X（mm）"
+            help="箱を置く床（棚・押し入れ・荷台など）の左右の長さです。"
             min={1}
             max={MAX_SIZE}
             value={settings.floorX}
@@ -798,13 +841,19 @@ export function BoxPacking() {
           />
           <NumberField
             label="床の奥行き Y（mm）"
+            help="箱を置く床の、手前から奥までの長さです。"
             min={1}
             max={MAX_SIZE}
             value={settings.floorY}
             onChange={(v) => set('floorY', v)}
           />
           <fieldset className="space-y-2">
-            <legend className="text-sm">壁（手前には置けません）</legend>
+            <legend className="flex items-center gap-1 text-sm">
+              壁（手前には置けません）
+              <HelpTip>
+                床のどの辺に壁があるかを選びます。壁があると、その壁側から詰め、全体の重心を壁側に少し寄せます。手前は荷物を出し入れする側なので、壁は置けません。
+              </HelpTip>
+            </legend>
             <div className="flex gap-4 pt-1 text-sm">
               {(
                 [
@@ -832,6 +881,7 @@ export function BoxPacking() {
           </fieldset>
           <RangeSlider
             label="箱どうしのすき間"
+            help="横に並べる箱の間にあけるすき間です。段ボールはぴったりくっつけられないので、その分の余裕を取ります。上下に重ねる箱の間にはあけません。"
             value={settings.gap}
             min={0}
             max={50}
@@ -841,6 +891,7 @@ export function BoxPacking() {
           />
           <RangeSlider
             label="箱と床の端・壁とのすき間"
+            help="床の端や壁と、箱の間にあけるすき間です。"
             value={settings.edgeGap}
             min={0}
             max={50}
@@ -850,6 +901,7 @@ export function BoxPacking() {
           />
           <RangeSlider
             label="底面を支える割合"
+            help="上に載せる箱の底面のうち、下の箱で支えられていないといけない割合です。100% なら、はみ出して載せることはしません。下げるほど詰めやすくなりますが、不安定になります。"
             value={settings.supportPercent}
             min={50}
             max={100}
@@ -858,7 +910,13 @@ export function BoxPacking() {
             onChange={(v) => set('supportPercent', v)}
           />
           <fieldset className="space-y-2">
-            <legend className="text-sm">優先すること</legend>
+            <legend className="flex items-center gap-1 text-sm">
+              優先すること
+              <HelpTip>
+                「全体の高さを低く」は、積み上がった高さがいちばん低くなる並べ方を探します。「下の段から隙間なく」は、床に直接置く
+                1 段目をなるべく埋めることを優先します。
+              </HelpTip>
+            </legend>
             <div className="inline-flex rounded-md border p-0.5">
               {(
                 [
@@ -892,6 +950,7 @@ export function BoxPacking() {
           >
             <RangeSlider
               label="重心を壁側に寄せる強さ"
+              help="壁があるとき、全体の重心をどれだけ壁側に寄せるかです。強くするほど、箱のかたまりが壁際に集まり、手前に高い山ができにくくなります。壁がないときは、重心を床の中心に近づけます。"
               value={settings.wallBias}
               min={0}
               max={100}
@@ -912,27 +971,32 @@ export function BoxPacking() {
       <section className="space-y-3 rounded-lg border p-4">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <h2 className="font-semibold">箱（全部で {total} 個）</h2>
-          <label className="flex items-center gap-2 text-sm">
-            <input
-              ref={layDownAllRef}
-              type="checkbox"
-              checked={allLayDown}
-              onChange={(e) =>
-                set(
-                  'boxes',
-                  settings.boxes.map((b) => ({
-                    ...b,
-                    canLayDown: e.target.checked,
-                  })),
-                )
-              }
-              className="size-4 accent-primary"
-            />
-            すべての箱に横倒しを許可
-            {someLayDown && !allLayDown && (
-              <span className="text-xs text-muted-foreground">（混在）</span>
-            )}
-          </label>
+          <span className="flex items-center gap-1">
+            <label className="flex items-center gap-2 text-sm">
+              <input
+                ref={layDownAllRef}
+                type="checkbox"
+                checked={allLayDown}
+                onChange={(e) =>
+                  set(
+                    'boxes',
+                    settings.boxes.map((b) => ({
+                      ...b,
+                      canLayDown: e.target.checked,
+                    })),
+                  )
+                }
+                className="size-4 accent-primary"
+              />
+              すべての箱に横倒しを許可
+              {someLayDown && !allLayDown && (
+                <span className="text-xs text-muted-foreground">（混在）</span>
+              )}
+            </label>
+            <HelpTip>
+              すべての箱の「横倒し」をまとめてオン・オフします。許可は「倒してもよい」という意味で、倒したほうが良く積めるときだけ倒します。逆さまにはしません。
+            </HelpTip>
+          </span>
         </div>
         <p className="text-xs text-muted-foreground">
           X・Y・Z
@@ -942,12 +1006,52 @@ export function BoxPacking() {
           <table className="w-full min-w-[42rem] text-sm">
             <thead className="text-left text-xs text-muted-foreground">
               <tr>
-                <th className="py-1 font-normal">タグ</th>
-                <th className="py-1 font-normal">X 幅（mm）</th>
-                <th className="py-1 font-normal">Y 奥行き（mm）</th>
-                <th className="py-1 font-normal">Z 高さ（mm）</th>
-                <th className="py-1 font-normal">個数</th>
-                <th className="py-1 font-normal">横倒し</th>
+                <th className="py-1 font-normal">
+                  <span className="flex items-center gap-1">
+                    タグ
+                    <HelpTip>
+                      何の箱か分かるための名前です（例：冬服、食器）。3D
+                      の箱の面に表示し、同じタグの箱は同じ色になります。空のときは「箱
+                      1」のように番号で呼びます。
+                    </HelpTip>
+                  </span>
+                </th>
+                <th className="py-1 font-normal">
+                  <span className="flex items-center gap-1">
+                    X 幅（mm）
+                    <HelpTip>そのまま置いたときの、左右の長さです。</HelpTip>
+                  </span>
+                </th>
+                <th className="py-1 font-normal">
+                  <span className="flex items-center gap-1">
+                    Y 奥行き（mm）
+                    <HelpTip>
+                      そのまま置いたときの、手前から奥までの長さです。
+                    </HelpTip>
+                  </span>
+                </th>
+                <th className="py-1 font-normal">
+                  <span className="flex items-center gap-1">
+                    Z 高さ（mm）
+                    <HelpTip>
+                      そのまま置いたときの高さです。横倒しを許可しないときは、この辺がいつも上を向きます。
+                    </HelpTip>
+                  </span>
+                </th>
+                <th className="py-1 font-normal">
+                  <span className="flex items-center gap-1">
+                    個数
+                    <HelpTip>同じ寸法の箱がいくつあるかです。</HelpTip>
+                  </span>
+                </th>
+                <th className="py-1 font-normal">
+                  <span className="flex items-center gap-1">
+                    横倒し
+                    <HelpTip>
+                      オンにすると、この箱を横に倒して置いてもよいことにします。倒したほうが良く積めるときだけ倒します。
+                    </HelpTip>
+                  </span>
+                </th>
                 <th className="py-1">
                   <span className="sr-only">削除</span>
                 </th>
@@ -1091,6 +1195,7 @@ export function BoxPacking() {
           </div>
           <NumberField
             label="番号（同じ番号なら同じ箱を作ります）"
+            help="ランダムな箱を作るときの種です。同じ番号と同じ設定なら、何度作っても同じ箱になります。番号は JSON の書き出しにも入ります。"
             inline
             min={0}
             max={999999}
@@ -1104,6 +1209,7 @@ export function BoxPacking() {
             <div className="mt-3 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
               <RangeSlider
                 label="箱の種類の数"
+                help="ランダムに作る箱の寸法の種類です。"
                 value={settings.random.types}
                 min={1}
                 max={20}
@@ -1113,6 +1219,7 @@ export function BoxPacking() {
               />
               <RangeSlider
                 label="全部の個数"
+                help="ランダムに作る箱の個数の合計です。どの種類も 1 個以上になるよう配ります。"
                 value={settings.random.total}
                 min={1}
                 max={MAX_TOTAL}
@@ -1122,6 +1229,7 @@ export function BoxPacking() {
               />
               <RangeSlider
                 label="横倒しを許可する割合"
+                help="作った箱のうち、横倒しを許可する箱の割合のおおよその目安です。"
                 value={settings.random.layDownPercent}
                 min={0}
                 max={100}
@@ -1131,6 +1239,7 @@ export function BoxPacking() {
               />
               <NumberField
                 label="1 辺の長さの最小（mm）"
+                help="作る箱の、1 辺の長さの下限です。"
                 min={5}
                 max={MAX_SIZE}
                 value={settings.random.min}
@@ -1138,6 +1247,7 @@ export function BoxPacking() {
               />
               <NumberField
                 label="1 辺の長さの最大（mm）"
+                help="作る箱の、1 辺の長さの上限です。床からはみ出さないよう、幅・奥行きは床の大きさまでに抑えます。"
                 min={5}
                 max={MAX_SIZE}
                 value={settings.random.max}

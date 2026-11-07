@@ -1,9 +1,14 @@
-import { Check, Copy, Mic, Square } from 'lucide-react'
+import { Check, CircleHelp, Copy, Mic, Square } from 'lucide-react'
 import type * as React from 'react'
 import { useState } from 'react'
 import { toast } from 'sonner'
 
 import { Button } from '@/components/ui/button'
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from '@/components/ui/tooltip'
 import { cn } from '@/lib/utils'
 
 /** 数値を 1 つ大きく見せるカード */
@@ -34,6 +39,33 @@ export function Stat({
   )
 }
 
+/**
+ * 設定の説明を出す「？」ボタン。カーソルを当てるかフォーカスすると出し、
+ * スマホでもタップで出し入れできるよう、クリックで開閉する
+ */
+export function HelpTip({ children }: { children: React.ReactNode }) {
+  const [open, setOpen] = useState(false)
+  return (
+    <Tooltip open={open} onOpenChange={setOpen}>
+      <TooltipTrigger
+        type="button"
+        aria-label="この設定の説明"
+        // Radix はクリックで閉じるので、それを止めて開閉を切り替える
+        onClick={(e) => {
+          e.preventDefault()
+          setOpen((v) => !v)
+        }}
+        className="inline-flex size-4 shrink-0 items-center justify-center align-middle text-muted-foreground hover:text-foreground"
+      >
+        <CircleHelp className="size-3.5" />
+      </TooltipTrigger>
+      <TooltipContent className="max-w-72 leading-relaxed">
+        {children}
+      </TooltipContent>
+    </Tooltip>
+  )
+}
+
 /** ラベルと今の値を上に出すスライダー */
 export function RangeSlider({
   label,
@@ -43,9 +75,12 @@ export function RangeSlider({
   step,
   unit,
   format,
+  help,
   onChange,
 }: {
   label: string
+  /** ラベルの横の「？」で出す説明 */
+  help?: React.ReactNode
   value: number
   min: number
   max: number
@@ -58,7 +93,10 @@ export function RangeSlider({
   return (
     <label className="space-y-2">
       <span className="flex justify-between text-sm">
-        {label}
+        <span className="flex items-center gap-1">
+          {label}
+          {help && <HelpTip>{help}</HelpTip>}
+        </span>
         <span className="font-mono tabular-nums">
           {format ? format(value) : value}
           {unit}

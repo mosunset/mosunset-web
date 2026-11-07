@@ -12,6 +12,10 @@ export type ViewOptions = {
   showTags: boolean
   showFaceLabels: boolean
   translucentFloor: boolean
+  /** 箱を枠線だけで描く */
+  wireframe: boolean
+  /** 箱の不透明度（0.1〜1） */
+  opacity: number
 }
 
 type Props = ViewOptions & {
@@ -167,17 +171,38 @@ function buildModel(p: Props) {
     const key = `${type}|${label}|${tag}|${fw}x${fh}`
     let m = materials.get(key)
     if (!m) {
+      // 半透明のときは、奥の箱が透けて見えるよう、手前の箱で奥を隠さない（depthWrite を切る）
+      const see = p.opacity < 1
       m =
         label || tag
           ? new THREE.MeshStandardMaterial({
               map: faceTexture(p.hues[type], label, tag, fw, fh, minFontMm),
               roughness: 0.85,
+              transparent: see,
+              opacity: p.opacity,
+              depthWrite: !see,
             })
           : new THREE.MeshStandardMaterial({
-              color: new THREE.Color(boxColor(p.hues[type])),
+              color: new THREE.Color().setHSL(p.hues[type] / 360, 0.6, 0.62),
               roughness: 0.85,
+              transparent: see,
+              opacity: p.opacity,
+              depthWrite: !see,
             })
       materials.set(key, m)
+    }
+    return m
+  }
+
+  // ワイヤーフレームの枠線は、箱の種類の色で描く
+  const wireMaterials = new Map<number, THREE.LineBasicMaterial>()
+  const wireMaterial = (type: number) => {
+    let m = wireMaterials.get(type)
+    if (!m) {
+      m = new THREE.LineBasicMaterial({
+        color: new THREE.Color().setHSL(p.hues[type] / 360, 0.7, 0.4),
+      })
+      wireMaterials.set(type, m)
     }
     return m
   }
@@ -207,8 +232,13 @@ function buildModel(p: Props) {
     mesh.position.set(b.x + b.w / 2, b.y + b.d / 2, b.z + b.h / 2)
     mesh.scale.set(b.w, b.d, b.h)
     mesh.userData.index = index
+    // ワイヤーフレームのときは面を描かない（クリックやホバーで箱を選べるよう、当たり判定には残す）
+    mesh.visible = !p.wireframe
     meshes.push(mesh)
-    const line = new THREE.LineSegments(edges, edgeMaterial)
+    const line = new THREE.LineSegments(
+      edges,
+      p.wireframe ? wireMaterial(b.type) : edgeMaterial,
+    )
     line.position.copy(mesh.position)
     line.scale.copy(mesh.scale)
     group.add(mesh, line)
@@ -465,6 +495,8 @@ export function PackingView(props: Props) {
     showTags,
     showFaceLabels,
     translucentFloor,
+    wireframe,
+    opacity,
   } = props
   // biome-ignore lint/correctness/useExhaustiveDependencies: props は上でばらした値で見張る
   useEffect(() => {
@@ -491,6 +523,8 @@ export function PackingView(props: Props) {
     showTags,
     showFaceLabels,
     translucentFloor,
+    wireframe,
+    opacity,
   ])
 
   // 視点を合わせ直す。3D を触る前は毎回、触ったあとは全体の大きさが大きく変わったときだけ
