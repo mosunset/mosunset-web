@@ -51,8 +51,6 @@ let ctx: GpuContext | null | undefined
 let ctxPromise: Promise<GpuContext | null> | null = null
 /** 今動いている頼みごとの番号（止められたら -1） */
 let current = -1
-/** 組み合わせごとの GPU の部品（作り直しを減らす。増えすぎたら捨てる） */
-const evaluators = new Map<string, GpuEvaluator>()
 
 const getContext = async () => {
   if (ctx !== undefined) return ctx
@@ -73,9 +71,23 @@ worker.onmessage = async (event) => {
   } else if (req.type === 'stop') {
     if (req.token === current) current = -1
   } else {
+    // 前の頼みごとが GPU で計算中の 1 回分を終えるまで待ってから始める
+    // （同じ組み合わせだと作業用の場所を共有するので、同時に動かすと結果が壊れる）
     current = req.token
-    await run(req.token, req.input, req.durationMs)
+    const token = req.token
+    queue = queue.then(() =>
+      token === current ? run(token, req.input, req.durationMs) : skip(token),
+    )
+    await queue
   }
+}
+
+/** 頼みごとを順に 1 つずつ動かすための鎖 */
+let queue: Promise<void> = Promise.resolve()
+
+/** 始める前に別の頼みごとに替わったときは、すぐ終わったことにする */
+async function skip(token: number) {
+  worker.postMessage({ token, kind: 'done', tried: 0, elapsed: 0 })
 }
 
 async function run(token: number, input: PackInput, durationMs: number) {
@@ -87,16 +99,24 @@ async function run(token: number, input: PackInput, durationMs: number) {
     post({ kind: 'done', tried: 0, elapsed: 0 })
     return
   }
-  const key = JSON.stringify({ ...input, seed: 0, startOrder: undefined })
-  let ev = evaluators.get(key)
-  if (!ev) {
-    if (evaluators.size >= 8) {
-      for (const e of evaluators.values()) e.destroy()
-      evaluators.clear()
-    }
-    ev = createGpuEvaluator(c, input)
-    evaluators.set(key, ev)
+  // GPU の作業用の場所は頼みごとごとに作り、終わったら捨てる
+  // （前の頼みごとのものを使い回すと、結果が食い違うことがあった）
+  const ev = createGpuEvaluator(c, input)
+  try {
+    await search(token, input, durationMs, ev, started, post)
+  } finally {
+    ev.destroy()
   }
+}
+
+async function search(
+  token: number,
+  input: PackInput,
+  durationMs: number,
+  ev: GpuEvaluator,
+  started: number,
+  post: (m: WorkerMessage) => void,
+) {
   const { m, types } = ev
   if (m === 0) {
     post({ kind: 'done', tried: 0, elapsed: 0 })
