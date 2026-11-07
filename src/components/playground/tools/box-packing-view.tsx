@@ -64,6 +64,8 @@ type Props = ViewOptions & {
   onSelect: (index: number | null) => void
   /** PNG の書き出し用に、今の表示を画像にする関数を入れる */
   captureRef: React.RefObject<(() => Promise<Blob | null>) | null>
+  /** 小さく並べるときの表示（浮かせるボタンと操作の説明を出さず、高さを低くする） */
+  compact?: boolean
 }
 
 const boxColor = (hue: number) => `hsl(${hue} 60% 62%)`
@@ -746,7 +748,11 @@ export function PackingView(props: Props) {
             ref={containerRef}
             className={cn(
               'w-full touch-none overflow-hidden bg-gradient-to-b from-sky-100 to-sky-50 dark:from-slate-800 dark:to-slate-900',
-              floating ? 'h-full' : 'h-[60svh] min-h-80 rounded-lg border',
+              floating
+                ? 'h-full'
+                : props.compact
+                  ? 'h-64 rounded-lg border'
+                  : 'h-[60svh] min-h-80 rounded-lg border',
             )}
           />
           {hover && hovered && (
@@ -773,7 +779,7 @@ export function PackingView(props: Props) {
             </div>
           )}
           <div className="absolute top-2 right-2 flex gap-2">
-            {!floating && (
+            {!floating && !props.compact && (
               <Button
                 type="button"
                 variant="secondary"
@@ -787,14 +793,16 @@ export function PackingView(props: Props) {
             <Button
               type="button"
               variant="secondary"
-              size="sm"
+              size={props.compact ? 'icon' : 'sm'}
+              aria-label="視点を戻す"
+              title="視点を戻す"
               onClick={resetCamera}
             >
               <RotateCcw />
-              視点を戻す
+              {!props.compact && '視点を戻す'}
             </Button>
           </div>
-          {!floating && (
+          {!floating && !props.compact && (
             <p className="absolute bottom-2 left-2 rounded bg-background/80 px-2 py-1 text-xs text-muted-foreground">
               ドラッグで回転・ホイール（2
               本指）で拡大・右ドラッグで移動・箱をクリックで選択

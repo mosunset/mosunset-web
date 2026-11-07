@@ -29,6 +29,7 @@ import {
   type BoxSpec,
   betterFor,
   type Metric,
+  metricLabels,
   metrics,
   type Objective,
   type PackInput,
@@ -37,6 +38,14 @@ import {
   random,
   type Walls,
 } from './box-packing-solver'
+import {
+  buildCombos,
+  comboChips,
+  defaultSweep,
+  type SweepConfig,
+  SweepPanel,
+  type SweepRow,
+} from './box-packing-sweep'
 import { gridStep, PackingView, type ViewOptions } from './box-packing-view'
 
 // ---- 設定 ----
@@ -340,6 +349,7 @@ const STORAGE = {
   view: 'mosunset:box-packing:view',
   saved: 'mosunset:box-packing:saved',
   bests: 'mosunset:box-packing:bests',
+  sweep: 'mosunset:box-packing:sweep',
 } as const
 
 /** プライベートモードなどで localStorage が使えないときは、保存せずに続ける */
@@ -462,6 +472,8 @@ function groupKeyOf(s: Settings) {
 /** 部門別のいちばん 1 件 */
 type BestEntry = {
   run: number
+  /** 範囲でまとめて試したときの組み合わせの番号（1 から） */
+  sweep?: number
   foundAt: number
   settings: Settings
   result: PackResult
@@ -505,6 +517,7 @@ function loadBests(): Record<string, BestGroup> {
       if (!settings || !isResult(e.result)) continue
       entries[metric] = {
         run: typeof e.run === 'number' ? e.run : 1,
+        sweep: typeof e.sweep === 'number' ? e.sweep : undefined,
         foundAt: typeof e.foundAt === 'number' ? e.foundAt : Date.now(),
         settings,
         result: e.result,
@@ -564,7 +577,13 @@ type Candidate = {
   elapsed: number
 }
 
-type RunStatus = 'waiting' | 'running' | 'stopped' | 'done' | 'invalid'
+type RunStatus =
+  | 'waiting'
+  | 'running'
+  | 'stopped'
+  | 'done'
+  | 'invalid'
+  | 'sweep'
 
 const statusText: Record<RunStatus, string> = {
   waiting: '設定の変更を待っています（最後に触ってから 1 秒で計算し直します）',
@@ -572,10 +591,214 @@ const statusText: Record<RunStatus, string> = {
   stopped: '止めました',
   done: 'しばらく良い結果が出なくなったので止めました',
   invalid: '入力を直すと計算します',
+  sweep: '範囲でまとめて試しています（その間、ふつうの計算は止めています）',
 }
 
 const percent = (v: number) => (v * 100).toFixed(1)
 const seconds = (ms: number) => `${(ms / 1000).toFixed(1)} 秒`
+
+// ---- 計算を動かす ----
+
+/**
+ * 部門別ベストに 1 件足す（その部門で前より良いときだけ）。
+ * 変わらなければ同じオブジェクトを返すので、画面を描き直さずに済む
+ */
+function withBest(
+  all: Record<string, BestGroup>,
+  key: string,
+  metric: Metric,
+  entry: BestEntry,
+): Record<string, BestGroup> {
+  const group = all[key]
+  if (!betterFor(metric, entry.result, group?.entries[metric]?.result))
+    return all
+  const next = {
+    ...all,
+    [key]: {
+      updatedAt: Date.now(),
+      entries: { ...group?.entries, [metric]: entry },
+    },
+  }
+  // 古いまとまりから消して、数を抑える
+  const keys = Object.keys(next).sort(
+    (a, b) => next[b].updatedAt - next[a].updatedAt,
+  )
+  for (const old of keys.slice(MAX_BEST_GROUPS)) delete next[old]
+  return next
+}
+
+/**
+ * 1 つの設定を、Worker を並列に動かして計算する。止める関数を返す。
+ * Worker ごとに乱数の種を変えて、別々の並べ順を探させる
+ */
+function startWorkers(
+  input: Omit<PackInput, 'seed'>,
+  seedBase: number,
+  on: {
+    best?: (result: PackResult, elapsed: number) => void
+    metric: (metric: Metric, result: PackResult) => void
+    progress: (tried: number, elapsed: number) => void
+    /** 全部の Worker が、良い結果が出なくなって止まった */
+    done: () => void
+    error: () => void
+  },
+) {
+  const workers: Worker[] = []
+  const tried = new Array<number>(workerCount).fill(0)
+  let elapsed = 0
+  let finished = 0
+  let stopped = false
+  const stop = () => {
+    stopped = true
+    for (const worker of workers) worker.terminate()
+  }
+  for (let w = 0; w < workerCount; w++) {
+    const worker = new Worker(
+      new URL('./box-packing.worker.ts', import.meta.url),
+      {
+        type: 'module',
+      },
+    )
+    workers.push(worker)
+    worker.onmessage = (event: MessageEvent<WorkerMessage>) => {
+      if (stopped) return
+      const message = event.data
+      tried[w] = message.tried
+      elapsed = Math.max(elapsed, message.elapsed)
+      on.progress(
+        tried.reduce((a, b) => a + b, 0),
+        elapsed,
+      )
+      if (message.kind === 'best') on.best?.(message.result, message.elapsed)
+      else if (message.kind === 'metric')
+        on.metric(message.metric, message.result)
+      else if (message.kind === 'done') {
+        worker.terminate()
+        finished++
+        if (finished === workerCount) on.done()
+      }
+    }
+    worker.onerror = () => {
+      if (stopped) return
+      stop()
+      on.error()
+    }
+    worker.postMessage({ ...input, seed: seedBase + w } satisfies PackInput)
+  }
+  return stop
+}
+
+/** 範囲でまとめて試す設定を、ブラウザから読む（足りない値は初期値で補う） */
+function loadSweep(): SweepConfig {
+  const v = readStorage(STORAGE.sweep) as Partial<SweepConfig> | null
+  if (!v || typeof v !== 'object') return defaultSweep
+  const range = (key: 'gap' | 'edgeGap' | 'supportPercent' | 'wallBias') => {
+    const r = v[key] as Partial<SweepConfig['gap']> | undefined
+    const d = defaultSweep[key]
+    const n = (x: unknown, fallback: number) =>
+      typeof x === 'number' && Number.isFinite(x) ? Math.trunc(x) : fallback
+    return {
+      on: typeof r?.on === 'boolean' ? r.on : d.on,
+      min: n(r?.min, d.min),
+      max: n(r?.max, d.max),
+      step: Math.max(1, n(r?.step, d.step)),
+    }
+  }
+  const int = (x: unknown, fallback: number, lo: number, hi: number) =>
+    typeof x === 'number' && Number.isFinite(x)
+      ? Math.min(hi, Math.max(lo, Math.trunc(x)))
+      : fallback
+  return {
+    gap: range('gap'),
+    edgeGap: range('edgeGap'),
+    supportPercent: range('supportPercent'),
+    wallBias: range('wallBias'),
+    bothObjectives:
+      typeof v.bothObjectives === 'boolean'
+        ? v.bothObjectives
+        : defaultSweep.bothObjectives,
+    bothLayDown:
+      typeof v.bothLayDown === 'boolean'
+        ? v.bothLayDown
+        : defaultSweep.bothLayDown,
+    perComboSec: int(v.perComboSec, defaultSweep.perComboSec, 5, 300),
+    mode: v.mode === 'random' ? 'random' : 'all',
+    randomCount: int(v.randomCount, defaultSweep.randomCount, 1, 500),
+  }
+}
+
+/** 部門別ベストを 3D で横に並べる */
+function BestViews3D({
+  entries,
+  view,
+}: {
+  entries: { metric: Metric; entry: BestEntry | undefined }[]
+  view: ViewOptions
+}) {
+  // 書き出しには使わないが、部品が受け取る形に合わせて用意する
+  const refs = [
+    useRef<(() => Promise<Blob | null>) | null>(null),
+    useRef<(() => Promise<Blob | null>) | null>(null),
+    useRef<(() => Promise<Blob | null>) | null>(null),
+  ]
+  return (
+    <div className="grid gap-3 md:grid-cols-3">
+      {entries.map(({ metric, entry }, i) => (
+        <div key={metric} className="space-y-1">
+          <div className="flex items-baseline justify-between gap-2 text-sm">
+            <span className="font-medium">{metricLabels[metric]}</span>
+            {entry && (
+              <span className="font-mono text-xs text-muted-foreground tabular-nums">
+                {entry.result.height.toLocaleString()} mm・1 段目{' '}
+                {percent(entry.result.floorCoverage)}%
+              </span>
+            )}
+          </div>
+          {entry ? (
+            <BestView3D entry={entry} view={view} captureRef={refs[i]} />
+          ) : (
+            <div className="flex h-64 items-center justify-center rounded-lg border border-dashed text-xs text-muted-foreground">
+              まだ記録がありません
+            </div>
+          )}
+        </div>
+      ))}
+    </div>
+  )
+}
+
+function BestView3D({
+  entry,
+  view,
+  captureRef,
+}: {
+  entry: BestEntry
+  view: ViewOptions
+  captureRef: React.RefObject<(() => Promise<Blob | null>) | null>
+}) {
+  const boxes = entry.settings.boxes
+  const names = useMemo(() => boxes.map((_, i) => nameOf(boxes, i)), [boxes])
+  const hues = useMemo(() => huesOf(boxes), [boxes])
+  return (
+    <PackingView
+      {...view}
+      compact
+      floorX={entry.settings.floorX}
+      floorY={entry.settings.floorY}
+      walls={entry.settings.walls}
+      height={entry.result.height}
+      placements={entry.result.placements}
+      names={names}
+      hues={hues}
+      cog={entry.result.cog}
+      selected={null}
+      onSelect={noop}
+      captureRef={captureRef}
+    />
+  )
+}
+
+const noop = () => {}
 
 // ---- 本体 ----
 
@@ -659,7 +882,17 @@ export function BoxPacking() {
   const [visible, setVisible] = useState<number | null>(null)
   const [selected, setSelected] = useState<number | null>(null)
   const [runToken, setRunToken] = useState(0)
-  const workersRef = useRef<Worker[]>([])
+  const [sweepConfig, setSweepConfig] = useState<SweepConfig>(loadSweep)
+  /** 範囲でまとめて試している状態（combos は試す設定の一覧、rows は進み具合と結果） */
+  const [sweep, setSweep] = useState<{
+    running: boolean
+    index: number
+    combos: Settings[]
+    rows: SweepRow[]
+  }>({ running: false, index: 0, combos: [], rows: [] })
+  const [showBest3D, setShowBest3D] = useState(true)
+  /** 今のふつうの計算を止める関数（「停止」ボタンで使う） */
+  const stopWorkersRef = useRef<(() => void) | null>(null)
   const captureRef = useRef<(() => Promise<Blob | null>) | null>(null)
   const fileRef = useRef<HTMLInputElement>(null)
   const layDownAllRef = useRef<HTMLInputElement>(null)
@@ -680,7 +913,8 @@ export function BoxPacking() {
   const packKey = JSON.stringify(packSettings)
 
   // 設定が変わったら前の計算を止め、最後に触ってから DEBOUNCE_MS たったら計算し直す。
-  // 待っている間は、前の結果を表示したままにする（スライダーを動かしている間に 3D が空にならないように）
+  // 待っている間は、前の結果を表示したままにする（スライダーを動かしている間に 3D が空にならないように）。
+  // 範囲でまとめて試している間は、ふつうの計算はしない
   // biome-ignore lint/correctness/useExhaustiveDependencies: packKey が中身の変化を表す
   useEffect(() => {
     const clear = () => {
@@ -690,6 +924,10 @@ export function BoxPacking() {
       setVisible(null)
       setProgress({ tried: 0, elapsed: 0 })
     }
+    if (sweep.running) {
+      setStatus('sweep')
+      return
+    }
     if (error) {
       clear()
       setStatus('invalid')
@@ -697,101 +935,202 @@ export function BoxPacking() {
     }
     setStatus('waiting')
     const snapshot = settings
-    const workers: Worker[] = []
     let nextCandidateId = 1
     // 全部の Worker を通して、いちばん良い結果だけを候補にする
     let bestScore = Number.POSITIVE_INFINITY
-    const tried = new Array<number>(workerCount).fill(0)
-    let elapsed = 0
-    let finished = 0
+    let stopRun: (() => void) | null = null
     const timer = window.setTimeout(() => {
       clear()
       setStatus('running')
       // 「続けて詰める」の出発点は、この 1 回だけ使う
       const startOrder = startOrderRef.current
       startOrderRef.current = null
-      for (let w = 0; w < workerCount; w++) {
-        const worker = new Worker(
-          new URL('./box-packing.worker.ts', import.meta.url),
-          { type: 'module' },
-        )
-        workers.push(worker)
-        worker.onmessage = (event: MessageEvent<WorkerMessage>) => {
-          const message = event.data
-          tried[w] = message.tried
-          elapsed = Math.max(elapsed, message.elapsed)
-          setProgress({ tried: tried.reduce((a, b) => a + b, 0), elapsed })
-          if (message.kind === 'best') {
-            if (message.result.score >= bestScore - 1e-9) return
-            bestScore = message.result.score
+      const { seed: _seed, ...input } = toInput(snapshot, 0)
+      stopRun = startWorkers(
+        { ...input, startOrder: startOrder ?? undefined },
+        (runToken + 1) * 1000,
+        {
+          best: (found, elapsed) => {
+            if (found.score >= bestScore - 1e-9) return
+            bestScore = found.score
             const candidate: Candidate = {
               id: nextCandidateId++,
               run: runToken + 1,
               settings: snapshot,
-              result: message.result,
-              elapsed: message.elapsed,
+              result: found,
+              elapsed,
             }
             setCandidates((list) => [...list, candidate].slice(-MAX_CANDIDATES))
-          } else if (message.kind === 'metric') {
-            const { metric, result: found } = message
+          },
+          metric: (metric, found) => {
             const key = groupKeyOf(snapshot)
-            setBests((all) => {
-              const group = all[key]
-              if (!betterFor(metric, found, group?.entries[metric]?.result))
-                return all
-              const next = {
-                ...all,
-                [key]: {
-                  updatedAt: Date.now(),
-                  entries: {
-                    ...group?.entries,
-                    [metric]: {
-                      run: runToken + 1,
-                      foundAt: Date.now(),
-                      settings: snapshot,
-                      result: found,
-                    },
-                  },
-                },
-              }
-              // 古いまとまりから消して、数を抑える
-              const keys = Object.keys(next).sort(
-                (a, b) => next[b].updatedAt - next[a].updatedAt,
-              )
-              for (const old of keys.slice(MAX_BEST_GROUPS)) delete next[old]
-              return next
-            })
-          } else if (message.kind === 'done') {
-            worker.terminate()
-            finished++
-            if (finished === workerCount) setStatus('done')
-          }
-        }
-        worker.onerror = () => {
-          for (const x of workers) x.terminate()
-          setStatus('stopped')
-          toast.error('計算に失敗しました')
-        }
-        // Worker ごとに乱数の種を変えて、別々の並べ順を探させる
-        worker.postMessage({
-          ...toInput(snapshot, (runToken + 1) * 1000 + w),
-          startOrder: startOrder ?? undefined,
-        })
-      }
-      workersRef.current = workers
+            setBests((all) =>
+              withBest(all, key, metric, {
+                run: runToken + 1,
+                foundAt: Date.now(),
+                settings: snapshot,
+                result: found,
+              }),
+            )
+          },
+          progress: (tried, elapsed) => setProgress({ tried, elapsed }),
+          done: () => setStatus('done'),
+          error: () => {
+            setStatus('stopped')
+            toast.error('計算に失敗しました')
+          },
+        },
+      )
+      stopWorkersRef.current = stopRun
     }, DEBOUNCE_MS)
     return () => {
       window.clearTimeout(timer)
-      for (const worker of workers) worker.terminate()
-      workersRef.current = []
+      stopRun?.()
+      stopWorkersRef.current = null
     }
-  }, [packKey, error, runToken])
+  }, [packKey, error, runToken, sweep.running])
 
   const stop = () => {
-    for (const worker of workersRef.current) worker.terminate()
-    workersRef.current = []
+    stopWorkersRef.current?.()
+    stopWorkersRef.current = null
     setStatus('stopped')
   }
+
+  // ---- 範囲でまとめて試す ----
+  useEffect(() => {
+    writeStorage(STORAGE.sweep, sweepConfig)
+  }, [sweepConfig])
+
+  const sweepBase = {
+    gap: settings.gap,
+    edgeGap: settings.edgeGap,
+    supportPercent: settings.supportPercent,
+    wallBias: settings.wallBias,
+    objective: settings.objective,
+  }
+  // 数えるときはランダムに混ぜない（全部の数と、ランダムに選ぶ数の小さいほう）
+  const allComboCount = buildCombos(
+    { ...sweepConfig, mode: 'all' },
+    sweepBase,
+  ).length
+  const comboCount =
+    sweepConfig.mode === 'random'
+      ? Math.min(allComboCount, sweepConfig.randomCount)
+      : allComboCount
+
+  const startSweep = () => {
+    const combos = buildCombos(sweepConfig, sweepBase)
+    const variants = combos.map((c) => ({
+      ...settings,
+      gap: c.gap,
+      edgeGap: c.edgeGap,
+      supportPercent: c.supportPercent,
+      wallBias: c.wallBias,
+      objective: c.objective,
+      boxes: c.layDownAll
+        ? settings.boxes.map((b) => ({ ...b, canLayDown: true }))
+        : settings.boxes,
+    }))
+    setViewingSaved(null)
+    setSweep({
+      running: true,
+      index: 0,
+      combos: variants,
+      rows: combos.map((c) => ({
+        chips: comboChips(sweepConfig, c),
+        status: 'wait',
+      })),
+    })
+  }
+
+  const stopSweep = () =>
+    setSweep((s) => ({
+      ...s,
+      running: false,
+      rows: s.rows.map((r) =>
+        r.status === 'run' ? { ...r, status: 'done' } : r,
+      ),
+    }))
+
+  // 組み合わせを 1 つずつ計算する（決めた秒数たつか、良い結果が出なくなったら次へ）
+  // biome-ignore lint/correctness/useExhaustiveDependencies: 試している組み合わせが変わったときだけ動かす
+  useEffect(() => {
+    if (!sweep.running) return
+    const index = sweep.index
+    const snapshot = sweep.combos[index]
+    if (!snapshot) {
+      setSweep((s) => ({ ...s, running: false }))
+      toast.success(
+        '範囲でまとめて試し終えました（結果は部門別ベストに入っています）',
+      )
+      return
+    }
+    const markRow = (patch: (r: SweepRow) => SweepRow) =>
+      setSweep((s) => {
+        if (s.index !== index) return s
+        const rows = [...s.rows]
+        rows[index] = patch(rows[index])
+        return { ...s, rows }
+      })
+    let advanced = false
+    let stopRun: (() => void) | null = null
+    const next = () => {
+      if (advanced) return
+      advanced = true
+      stopRun?.()
+      markRow((r) => ({ ...r, status: 'done' }))
+      setSweep((s) => (s.index === index ? { ...s, index: index + 1 } : s))
+    }
+    // 入力の組み合わせとして成り立たないもの（床が端のすき間より狭いなど）は飛ばす
+    if (validate(snapshot)) {
+      next()
+      return
+    }
+    markRow((r) => ({ ...r, status: 'run' }))
+    setProgress({ tried: 0, elapsed: 0 })
+    const { seed: _seed, ...input } = toInput(snapshot, 0)
+    stopRun = startWorkers(input, (index + 1) * 7919, {
+      metric: (metric, found) => {
+        setBests((all) =>
+          withBest(all, groupKeyOf(snapshot), metric, {
+            run: runToken + 1,
+            sweep: index + 1,
+            foundAt: Date.now(),
+            settings: snapshot,
+            result: found,
+          }),
+        )
+        markRow((r) => {
+          if (metric === 'height' && betterFor('height', found, r.lowest)) {
+            return { ...r, lowest: found }
+          }
+          if (metric === 'floor' && found.floorCoverage > (r.bestFloor ?? -1)) {
+            return { ...r, bestFloor: found.floorCoverage }
+          }
+          if (
+            metric === 'low' &&
+            found.cog &&
+            found.cog.z < (r.bestCogZ ?? Number.POSITIVE_INFINITY)
+          ) {
+            return { ...r, bestCogZ: found.cog.z }
+          }
+          return r
+        })
+      },
+      progress: (tried, elapsed) => setProgress({ tried, elapsed }),
+      done: next,
+      error: () => {
+        toast.error('計算に失敗しました')
+        next()
+      },
+    })
+    const timer = window.setTimeout(next, sweepConfig.perComboSec * 1000)
+    return () => {
+      window.clearTimeout(timer)
+      advanced = true
+      stopRun?.()
+    }
+  }, [sweep.running, sweep.index])
 
   const allLayDown = settings.boxes.every((b) => b.canLayDown)
   const someLayDown = settings.boxes.some((b) => b.canLayDown)
@@ -851,24 +1190,40 @@ export function BoxPacking() {
     ? (viewingSaved.slice(5) as Metric)
     : null
   const bestShown = viewingMetric ? groupBests[viewingMetric] : undefined
-  // 部門別ベスト・保存した結果を表示しているときはそれを、そうでなければ今の計算の候補を見せる
-  const current = bestShown
-    ? {
-        key: `b${viewingMetric}${bestShown.foundAt}`,
-        settings: bestShown.settings,
-        result: bestShown.result,
-      }
-    : savedShown
+  const sweepIndex = viewingSaved?.startsWith('sweep:')
+    ? Number(viewingSaved.slice(6))
+    : null
+  const sweepShown =
+    sweepIndex !== null && sweep.rows[sweepIndex]?.lowest
       ? {
-          key: `s${savedShown.id}`,
-          settings: savedShown.settings,
-          result: savedShown.result,
+          settings: sweep.combos[sweepIndex],
+          result: sweep.rows[sweepIndex].lowest,
         }
-      : candidate && {
-          key: `c${candidate.id}`,
-          settings: candidate.settings,
-          result: candidate.result,
+      : undefined
+  // 部門別ベスト・保存した結果を表示しているときはそれを、そうでなければ今の計算の候補を見せる
+  const current = sweepShown?.result
+    ? {
+        key: `w${sweepIndex}${sweepShown.result.height}`,
+        settings: sweepShown.settings,
+        result: sweepShown.result,
+      }
+    : bestShown
+      ? {
+          key: `b${viewingMetric}${bestShown.foundAt}`,
+          settings: bestShown.settings,
+          result: bestShown.result,
         }
+      : savedShown
+        ? {
+            key: `s${savedShown.id}`,
+            settings: savedShown.settings,
+            result: savedShown.result,
+          }
+        : candidate && {
+            key: `c${candidate.id}`,
+            settings: candidate.settings,
+            result: candidate.result,
+          }
   const result = current?.result
   const shownBoxes = current?.settings.boxes ?? settings.boxes
   const names = useMemo(
@@ -1123,7 +1478,9 @@ export function BoxPacking() {
 
       {/* 計算の状態 */}
       <div className="flex flex-wrap items-center gap-3 rounded-lg border p-3 text-sm">
-        {(status === 'running' || status === 'waiting') && (
+        {(status === 'running' ||
+          status === 'waiting' ||
+          status === 'sweep') && (
           <Loader2 className="size-4 animate-spin text-muted-foreground" />
         )}
         <span>{statusText[status]}</span>
@@ -1134,7 +1491,7 @@ export function BoxPacking() {
           </span>
         )}
         <div className="ml-auto flex gap-2">
-          {status === 'running' ? (
+          {status === 'sweep' ? null : status === 'running' ? (
             <Button type="button" variant="outline" size="sm" onClick={stop}>
               <Square />
               停止
@@ -1320,7 +1677,7 @@ export function BoxPacking() {
             ? [
                 {
                   metric,
-                  run: e.run,
+                  label: e.sweep ? `範囲 ${e.sweep}` : `#${e.run}`,
                   foundAt: e.foundAt,
                   summary: summarize(e.settings),
                   result: e.result,
@@ -1345,6 +1702,41 @@ export function BoxPacking() {
           })
           if (viewingMetric) setViewingSaved(null)
         }}
+      />
+
+      <div className="space-y-2 rounded-lg border p-4">
+        <label className="flex items-center gap-2 text-sm font-semibold">
+          <input
+            type="checkbox"
+            checked={showBest3D}
+            onChange={(e) => setShowBest3D(e.target.checked)}
+            className="size-4 accent-primary"
+          />
+          部門別ベストを 3D で並べて見る
+        </label>
+        {showBest3D && (
+          <BestViews3D
+            entries={metrics.map((metric) => ({
+              metric,
+              entry: groupBests[metric],
+            }))}
+            view={view}
+          />
+        )}
+      </div>
+
+      <SweepPanel
+        config={sweepConfig}
+        onConfig={setSweepConfig}
+        comboCount={comboCount}
+        running={sweep.running}
+        disabled={!!error}
+        rows={sweep.rows}
+        current={sweep.index}
+        viewing={sweepShown ? sweepIndex : null}
+        onStart={startSweep}
+        onStop={stopSweep}
+        onView={(i) => setViewingSaved(i === null ? null : `sweep:${i}`)}
       />
 
       <SavedResults

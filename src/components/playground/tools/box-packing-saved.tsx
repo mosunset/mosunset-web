@@ -232,7 +232,8 @@ function SummaryChips({
 
 export type BestView = {
   metric: Metric
-  run: number
+  /** 見つけた探し方（#1）か、範囲で試した組み合わせ（範囲 3） */
+  label: string
   foundAt: number
   summary: SettingsSummary
   result: PackResult
@@ -323,7 +324,7 @@ export function BestResults({
                   {b ? (
                     <>
                       <td className="py-1.5 font-mono whitespace-nowrap tabular-nums">
-                        #{b.run}
+                        {b.label}
                         <span className="ml-1 text-xs text-muted-foreground">
                           {time(b.foundAt)}
                         </span>
