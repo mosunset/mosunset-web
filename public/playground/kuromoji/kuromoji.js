@@ -8124,10 +8124,19 @@ BrowserDictionaryLoader.prototype.loadArrayBuffer = function (url, callback) {
         }
         var arraybuffer = this.response;
 
-        var gz = new zlib.Zlib.Gunzip(new Uint8Array(arraybuffer));
-        var typed_array = gz.decompress();
-        callback(null, typed_array.buffer);
-        // callback(null, arraybuffer);
+        // mosunset: サーバーが Content-Encoding: gzip で返すと、ブラウザが先に展開してしまう。
+        // 先頭が gzip の目印（1f 8b）のときだけ展開し、失敗したらエラーとして返す（そのままだと読み込み中で止まる）
+        try {
+            var bytes = new Uint8Array(arraybuffer);
+            if (bytes[0] === 0x1f && bytes[1] === 0x8b) {
+                var gz = new zlib.Zlib.Gunzip(bytes);
+                callback(null, gz.decompress().buffer);
+            } else {
+                callback(null, arraybuffer);
+            }
+        } catch (e) {
+            callback(e, null);
+        }
     };
     xhr.onerror = function (err) {
         callback(err, null);
