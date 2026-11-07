@@ -1,10 +1,11 @@
-import { RotateCcw } from 'lucide-react'
+import { Minimize2, PictureInPicture2, RotateCcw } from 'lucide-react'
 import type * as React from 'react'
 import { useEffect, useRef, useState } from 'react'
 import * as THREE from 'three'
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
 
 import { Button } from '@/components/ui/button'
+import { cn } from '@/lib/utils'
 import type { FaceLabel, Placement, Walls } from './box-packing-solver'
 
 export type ViewOptions = {
@@ -256,7 +257,23 @@ function buildModel(p: Props) {
 
 const upName = (b: Placement) => b.faces[4]
 
+/** 斜め手前・上から見下ろす向き */
+const viewDirection = new THREE.Vector3(0.45, -1, 0.6).normalize()
+
+/** 浮かせた 3D 表示の、最初の位置と大きさ（画面の右下） */
+function placeFloating(frame: HTMLElement) {
+  const vw = window.innerWidth
+  const vh = window.innerHeight
+  const width = vw < 640 ? vw - 16 : Math.min(520, vw - 32)
+  const height = Math.round(Math.min(vw < 640 ? 300 : 400, vh * 0.45))
+  frame.style.width = `${width}px`
+  frame.style.height = `${height}px`
+  frame.style.left = `${vw - width - (vw < 640 ? 8 : 16)}px`
+  frame.style.top = `${vh - height - (vw < 640 ? 8 : 16)}px`
+}
+
 export function PackingView(props: Props) {
+  const frameRef = useRef<HTMLDivElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
   const sceneRef = useRef<{
     scene: THREE.Scene
@@ -271,25 +288,37 @@ export function PackingView(props: Props) {
     x: number
     y: number
   } | null>(null)
+  const [floating, setFloating] = useState(false)
   const { floorX, floorY, height, captureRef } = props
   const propsRef = useRef(props)
   propsRef.current = props
+  /** 3D を回したり拡大したりしたら true。それまでは、結果や大きさが変わるたびに全体が収まるよう合わせ直す */
+  const interactedRef = useRef(false)
 
-  const resetCamera = () => {
+  /** 床と積んだ箱の全体が、ちょうど画面に収まる位置にカメラを置く */
+  const fitCamera = () => {
     const s = sceneRef.current
     if (!s) return
-    const span = Math.max(floorX, floorY, height)
-    const target = new THREE.Vector3(floorX / 2, floorY / 2, height / 3)
-    s.camera.position.set(
-      target.x + span * 0.7,
-      target.y - span * 1.5,
-      target.z + span * 0.9,
-    )
-    s.camera.near = span / 200
-    s.camera.far = span * 20
+    const { floorX: X, floorY: Y, height: H } = propsRef.current
+    const center = new THREE.Vector3(X / 2, Y / 2, H / 2)
+    const radius = Math.max(1, 0.5 * Math.hypot(X, Y, H))
+    const vfov = THREE.MathUtils.degToRad(s.camera.fov)
+    const aspect = s.camera.aspect > 0 ? s.camera.aspect : 1
+    const hfov = 2 * Math.atan(Math.tan(vfov / 2) * aspect)
+    const distance = (radius / Math.sin(Math.min(vfov, hfov) / 2)) * 1.02
+    s.camera.position.copy(center).addScaledVector(viewDirection, distance)
+    s.camera.near = distance / 100
+    s.camera.far = distance * 10 + radius * 4
     s.camera.updateProjectionMatrix()
-    s.controls.target.copy(target)
+    s.controls.target.copy(center)
     s.controls.update()
+  }
+  const fitRef = useRef(fitCamera)
+  fitRef.current = fitCamera
+
+  const resetCamera = () => {
+    interactedRef.current = false
+    fitCamera()
   }
 
   // シーンの準備（1 回だけ）
@@ -299,7 +328,7 @@ export function PackingView(props: Props) {
     THREE.Object3D.DEFAULT_UP.set(0, 0, 1)
 
     const scene = new THREE.Scene()
-    const camera = new THREE.PerspectiveCamera(50, 1, 1, 100000)
+    const camera = new THREE.PerspectiveCamera(45, 1, 1, 100000)
     camera.up.set(0, 0, 1)
     // PNG で書き出せるよう、描いた絵を残しておく
     const renderer = new THREE.WebGLRenderer({
@@ -317,13 +346,29 @@ export function PackingView(props: Props) {
 
     const controls = new OrbitControls(camera, renderer.domElement)
     controls.enableDamping = true
+    const onStart = () => {
+      interactedRef.current = true
+    }
+    controls.addEventListener('start', onStart)
+
+    sceneRef.current = {
+      scene,
+      camera,
+      controls,
+      renderer,
+      model: null,
+      meshes: [],
+    }
 
     const resize = () => {
       const w = container.clientWidth
       const h = container.clientHeight
+      // 表示される前（大きさ 0）は、縦横比が壊れるので何もしない
+      if (w === 0 || h === 0) return
       renderer.setSize(w, h)
       camera.aspect = w / h
       camera.updateProjectionMatrix()
+      if (!interactedRef.current) fitRef.current()
     }
     const observer = new ResizeObserver(resize)
     observer.observe(container)
@@ -381,14 +426,6 @@ export function PackingView(props: Props) {
     el.addEventListener('pointerup', onUp)
     el.addEventListener('pointerleave', onLeave)
 
-    sceneRef.current = {
-      scene,
-      camera,
-      controls,
-      renderer,
-      model: null,
-      meshes: [],
-    }
     captureRef.current = () => {
       renderer.render(scene, camera)
       return new Promise<Blob | null>((resolve) =>
@@ -402,6 +439,7 @@ export function PackingView(props: Props) {
       el.removeEventListener('pointerdown', onDown)
       el.removeEventListener('pointerup', onUp)
       el.removeEventListener('pointerleave', onLeave)
+      controls.removeEventListener('start', onStart)
       controls.dispose()
       disposeGroup(scene)
       renderer.dispose()
@@ -450,60 +488,166 @@ export function PackingView(props: Props) {
     translucentFloor,
   ])
 
-  // 全体の大きさ（床の広さと高さのうち大きいほう）が大きく変わったときだけ、視点を合わせ直す。
-  // 計算中に少し高さが変わるたびに視点が動くと、回して見ている途中で邪魔になる
+  // 視点を合わせ直す。3D を触る前は毎回、触ったあとは全体の大きさが大きく変わったときだけ
+  // （回して見ている途中に、少し高さが変わるたびに視点が動くと邪魔になる）
   const framedSpanRef = useRef(0)
-  // biome-ignore lint/correctness/useExhaustiveDependencies: resetCamera は毎回作り直される関数なので外す
+  // biome-ignore lint/correctness/useExhaustiveDependencies: fitCamera は毎回作り直される関数なので外す
   useEffect(() => {
     const span = Math.max(floorX, floorY, height)
     const last = framedSpanRef.current
-    if (last > 0 && span / last < 1.4 && last / span < 1.4) return
-    framedSpanRef.current = span
-    resetCamera()
+    const bigChange = last === 0 || span / last > 1.4 || last / span > 1.4
+    if (!interactedRef.current || bigChange) {
+      framedSpanRef.current = span
+      fitCamera()
+    }
   }, [floorX, floorY, height])
+
+  // 浮かせたとき・戻したときの位置と大きさ（ドラッグや大きさの変更は、ブラウザが直接 style を書き換える）
+  useEffect(() => {
+    const frame = frameRef.current
+    if (!frame) return
+    if (floating) {
+      placeFloating(frame)
+    } else {
+      frame.style.removeProperty('width')
+      frame.style.removeProperty('height')
+      frame.style.removeProperty('left')
+      frame.style.removeProperty('top')
+    }
+  }, [floating])
+
+  /** 浮かせた 3D 表示を、見出しの帯をつかんで動かす */
+  const startDrag = (event: React.PointerEvent<HTMLDivElement>) => {
+    const frame = frameRef.current
+    if (!frame || (event.target as HTMLElement).closest('button')) return
+    event.preventDefault()
+    const startX = event.clientX
+    const startY = event.clientY
+    const left = frame.offsetLeft
+    const top = frame.offsetTop
+    const move = (e: PointerEvent) => {
+      const maxLeft = window.innerWidth - 80
+      const maxTop = window.innerHeight - 40
+      frame.style.left = `${Math.min(maxLeft, Math.max(-frame.offsetWidth + 80, left + e.clientX - startX))}px`
+      frame.style.top = `${Math.min(maxTop, Math.max(0, top + e.clientY - startY))}px`
+    }
+    const up = () => {
+      window.removeEventListener('pointermove', move)
+      window.removeEventListener('pointerup', up)
+    }
+    window.addEventListener('pointermove', move)
+    window.addEventListener('pointerup', up)
+  }
 
   const hovered = hover ? placements[hover.index] : null
 
   return (
-    <div className="relative">
-      <div
-        ref={containerRef}
-        className="h-[60svh] min-h-80 w-full touch-none overflow-hidden rounded-lg border bg-gradient-to-b from-sky-100 to-sky-50 dark:from-slate-800 dark:to-slate-900"
-      />
-      {hover && hovered && (
-        <div
-          className="pointer-events-none absolute z-10 rounded-md border bg-background/95 px-2 py-1 text-xs shadow"
-          style={{
-            left: Math.min(
-              hover.x + 12,
-              (containerRef.current?.clientWidth ?? 0) - 180,
-            ),
-            top: hover.y + 12,
-          }}
-        >
-          <div className="font-medium">
-            {hover.index + 1} 番目：{names[hovered.type]}
-          </div>
-          <div className="font-mono tabular-nums">
-            {hovered.w} × {hovered.d} × {hovered.h} mm
-          </div>
-          <div>上を向いている面：{upName(hovered)}</div>
+    <div>
+      {floating && (
+        <div className="flex h-24 items-center justify-center gap-3 rounded-lg border border-dashed text-sm text-muted-foreground">
+          3D 表示は浮かせています
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => setFloating(false)}
+          >
+            ここに戻す
+          </Button>
         </div>
       )}
-      <Button
-        type="button"
-        variant="secondary"
-        size="sm"
-        className="absolute top-2 right-2"
-        onClick={resetCamera}
+      <div
+        ref={frameRef}
+        className={cn(
+          floating
+            ? 'fixed z-50 flex min-h-48 min-w-64 resize flex-col overflow-hidden rounded-lg border bg-background shadow-2xl'
+            : 'relative',
+        )}
       >
-        <RotateCcw />
-        視点を戻す
-      </Button>
-      <p className="absolute bottom-2 left-2 rounded bg-background/80 px-2 py-1 text-xs text-muted-foreground">
-        ドラッグで回転・ホイール（2
-        本指）で拡大・右ドラッグで移動・箱をクリックで選択
-      </p>
+        {floating && (
+          <div
+            onPointerDown={startDrag}
+            className="flex cursor-move touch-none items-center justify-between gap-2 border-b bg-muted/60 px-3 py-1 text-xs select-none"
+          >
+            <span className="truncate font-medium">
+              3D 表示
+              <span className="font-normal text-muted-foreground">
+                ・ここをドラッグで移動・右下の角で大きさを変更
+              </span>
+            </span>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              className="h-6 px-2"
+              onClick={() => setFloating(false)}
+            >
+              <Minimize2 />
+              戻す
+            </Button>
+          </div>
+        )}
+        <div className={cn('relative', floating && 'min-h-0 flex-1')}>
+          <div
+            ref={containerRef}
+            className={cn(
+              'w-full touch-none overflow-hidden bg-gradient-to-b from-sky-100 to-sky-50 dark:from-slate-800 dark:to-slate-900',
+              floating ? 'h-full' : 'h-[60svh] min-h-80 rounded-lg border',
+            )}
+          />
+          {hover && hovered && (
+            <div
+              className="pointer-events-none absolute z-10 rounded-md border bg-background/95 px-2 py-1 text-xs shadow"
+              style={{
+                left: Math.max(
+                  0,
+                  Math.min(
+                    hover.x + 12,
+                    (containerRef.current?.clientWidth ?? 0) - 180,
+                  ),
+                ),
+                top: hover.y + 12,
+              }}
+            >
+              <div className="font-medium">
+                {hover.index + 1} 番目：{names[hovered.type]}
+              </div>
+              <div className="font-mono tabular-nums">
+                {hovered.w} × {hovered.d} × {hovered.h} mm
+              </div>
+              <div>上を向いている面：{upName(hovered)}</div>
+            </div>
+          )}
+          <div className="absolute top-2 right-2 flex gap-2">
+            {!floating && (
+              <Button
+                type="button"
+                variant="secondary"
+                size="sm"
+                onClick={() => setFloating(true)}
+              >
+                <PictureInPicture2 />
+                浮かせる
+              </Button>
+            )}
+            <Button
+              type="button"
+              variant="secondary"
+              size="sm"
+              onClick={resetCamera}
+            >
+              <RotateCcw />
+              視点を戻す
+            </Button>
+          </div>
+          {!floating && (
+            <p className="absolute bottom-2 left-2 rounded bg-background/80 px-2 py-1 text-xs text-muted-foreground">
+              ドラッグで回転・ホイール（2
+              本指）で拡大・右ドラッグで移動・箱をクリックで選択
+            </p>
+          )}
+        </div>
+      </div>
     </div>
   )
 }
