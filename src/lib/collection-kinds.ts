@@ -8,3 +8,7 @@ export const collectionKinds = [
   'book',
 ] as const
 export type CollectionKind = (typeof collectionKinds)[number]
+
+export function isCollectionKind(value: string): value is CollectionKind {
+  return (collectionKinds as readonly string[]).includes(value)
+}

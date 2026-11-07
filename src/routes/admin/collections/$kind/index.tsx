@@ -19,15 +19,16 @@ import { CSS } from '@dnd-kit/utilities'
 import { createFileRoute, Link, useRouter } from '@tanstack/react-router'
 import { useServerFn } from '@tanstack/react-start'
 import { GripVertical, ImageOff, Plus } from 'lucide-react'
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { toast } from 'sonner'
 
 import { AdminPage } from '@/components/admin/admin-page'
-import { ListFilter, matchesQuery } from '@/components/admin/list-filter'
+import { ListFilter } from '@/components/admin/list-filter'
 import { EmptyState } from '@/components/empty-state'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { listItemsForAdmin, reorderItems } from '@/functions/collections'
+import { useListFilter } from '@/hooks/use-list-filter'
 import {
   type CollectionKind,
   collections,
@@ -51,6 +52,18 @@ const filterOptions = [
   { value: 'hidden', label: '非公開' },
 ] as const
 
+const listFilterOptions = {
+  initialFilter: 'all' as Filter,
+  matchesFilter: (item: Item, filter: Filter) =>
+    filter === 'all' ||
+    (filter === 'published' ? item.published : !item.published),
+  searchText: (item: Item) => [
+    item.title,
+    item.slug,
+    ...Object.values(item.attributes),
+  ],
+}
+
 function AdminCollectionItems() {
   const { kind } = Route.useParams()
   const loaded = Route.useLoaderData()
@@ -59,24 +72,11 @@ function AdminCollectionItems() {
   const reorder = useServerFn(reorderItems)
 
   const [items, setItems] = useState(loaded)
-  const [query, setQuery] = useState('')
-  const [filter, setFilter] = useState<Filter>('all')
   useEffect(() => setItems(loaded), [loaded])
 
-  const visible = useMemo(
-    () =>
-      items.filter(
-        (item) =>
-          (filter === 'all' ||
-            (filter === 'published' ? item.published : !item.published)) &&
-          matchesQuery(
-            query,
-            item.title,
-            item.slug,
-            ...Object.values(item.attributes),
-          ),
-      ),
-    [items, query, filter],
+  const { query, filter, visible, filterProps } = useListFilter(
+    items,
+    listFilterOptions,
   )
   // 絞り込み中は見えていないものとの前後関係がわからないので、並び替えは全件表示のときだけ
   const canReorder = query.trim() === '' && filter === 'all' && items.length > 1
@@ -129,10 +129,7 @@ function AdminCollectionItems() {
         <>
           <div className="mt-6">
             <ListFilter
-              query={query}
-              onQueryChange={setQuery}
-              filter={filter}
-              onFilterChange={setFilter}
+              {...filterProps}
               options={filterOptions}
               placeholder={`${config.label}を検索（名前・${config.fields
                 .map((f) => f.label)

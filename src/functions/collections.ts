@@ -9,16 +9,15 @@ import {
   type CollectionAttributes,
   collections,
 } from '@/lib/collections'
-import { htmlToSummary } from '@/lib/seo'
-import { optionalSlugPattern } from '@/lib/slug'
-import { getDb, schema } from '@/server/db'
+import { getDb, publishedItems, schema } from '@/server/db'
 import { deleteImagesOf, deleteReplacedImage } from '@/server/r2'
 import {
+  htmlToSummary,
   renderRichText,
   richTextDocSchema,
   sanitizeDoc,
 } from '@/server/rich-text'
-import { idInput } from '@/server/validation'
+import { idInput, optionalSlugSchema } from '@/server/validation'
 
 const { collectionItems: items } = schema
 
@@ -93,7 +92,7 @@ export const listPublishedItems = createServerFn({ method: 'GET' })
         acquiredAt: items.acquiredAt,
       })
       .from(items)
-      .where(and(eq(items.kind, data.kind), eq(items.published, true)))
+      .where(and(eq(items.kind, data.kind), publishedItems))
       .orderBy(...listOrder)
     return rows.map(withAttributes)
   })
@@ -107,7 +106,7 @@ export const getPublishedItem = createServerFn({ method: 'GET' })
       where: and(
         eq(items.kind, data.kind),
         eq(items.slug, data.slug),
-        eq(items.published, true),
+        publishedItems,
       ),
     })
     if (!item) throw notFound()
@@ -134,14 +133,7 @@ const itemInputSchema = z.object({
   kind: kindSchema,
   title: z.string().trim().min(1, '名前を入力してください').max(200),
   /** 空なら自動で作る */
-  slug: z
-    .string()
-    .trim()
-    .max(100)
-    .regex(
-      optionalSlugPattern,
-      'URL は半角英小文字・数字・ハイフンで入力してください',
-    ),
+  slug: optionalSlugSchema,
   acquiredAt: z.union([z.literal(''), dateString]),
   sortOrder: z.coerce.number().int().min(-9999).max(9999).default(0),
   published: z.boolean(),

@@ -1,13 +1,13 @@
 import { createFileRoute, Link } from '@tanstack/react-router'
 import { Plus } from 'lucide-react'
-import { useMemo, useState } from 'react'
 
 import { AdminPage } from '@/components/admin/admin-page'
-import { ListFilter, matchesQuery } from '@/components/admin/list-filter'
+import { ListFilter } from '@/components/admin/list-filter'
 import { EmptyState } from '@/components/empty-state'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { listPostsForAdmin } from '@/functions/posts'
+import { useListFilter } from '@/hooks/use-list-filter'
 import { formatDateTime } from '@/lib/format'
 
 export const Route = createFileRoute('/admin/posts/')({
@@ -15,6 +15,7 @@ export const Route = createFileRoute('/admin/posts/')({
   component: AdminPosts,
 })
 
+type Post = Awaited<ReturnType<typeof listPostsForAdmin>>[number]
 type Filter = 'all' | 'published' | 'draft'
 
 const filterOptions = [
@@ -23,20 +24,16 @@ const filterOptions = [
   { value: 'draft', label: '下書き' },
 ] as const
 
+const listFilterOptions = {
+  initialFilter: 'all' as Filter,
+  matchesFilter: (post: Post, filter: Filter) =>
+    filter === 'all' || post.status === filter,
+  searchText: (post: Post) => [post.title, post.slug],
+}
+
 function AdminPosts() {
   const posts = Route.useLoaderData()
-  const [query, setQuery] = useState('')
-  const [filter, setFilter] = useState<Filter>('all')
-
-  const visible = useMemo(
-    () =>
-      posts.filter(
-        (post) =>
-          (filter === 'all' || post.status === filter) &&
-          matchesQuery(query, post.title, post.slug),
-      ),
-    [posts, query, filter],
-  )
+  const { visible, filterProps } = useListFilter(posts, listFilterOptions)
 
   return (
     <AdminPage
@@ -58,10 +55,7 @@ function AdminPosts() {
         <>
           <div className="mt-6">
             <ListFilter
-              query={query}
-              onQueryChange={setQuery}
-              filter={filter}
-              onFilterChange={setFilter}
+              {...filterProps}
               options={filterOptions}
               placeholder="タイトル・URL で検索"
             />

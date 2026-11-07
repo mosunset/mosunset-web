@@ -10,13 +10,7 @@ import { lookupIsbn } from '@/functions/isbn'
 import type { CollectionAttributes } from '@/lib/collections'
 import { errorMessage } from '@/lib/errors'
 
-export type IsbnResult = {
-  isbn: string
-  title: string
-  author: string
-  publisher: string
-  imageKey: string | null
-}
+export type IsbnResult = Awaited<ReturnType<typeof lookupIsbn>>
 
 /** ISBN の検索結果を入れる先（本の入力欄のうち関係するもの） */
 type IsbnTarget = {

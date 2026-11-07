@@ -19,7 +19,14 @@ export const lookupIsbn = createServerFn({ method: 'POST' })
     const isbn = normalizeIsbn(data.isbn)
     if (!isbn) throw new Error('ISBN の形式が正しくありません')
 
-    const info = (await fromOpenBd(isbn)) ?? (await fromGoogleBooks(isbn))
+    // Google Books は書誌と表紙の両方で使うことがあるので、1 回だけ問い合わせる
+    let googleBooks: ReturnType<typeof fromGoogleBooks> | undefined
+    const getGoogleBooks = () => {
+      googleBooks ??= fromGoogleBooks(isbn)
+      return googleBooks
+    }
+
+    const info = (await fromOpenBd(isbn)) ?? (await getGoogleBooks())
     if (!info) throw new Error('この ISBN の本は見つかりませんでした')
 
     let imageKey: string | null = null
@@ -27,7 +34,7 @@ export const lookupIsbn = createServerFn({ method: 'POST' })
       // openBD に表紙がないことが多いので、Google Books の表紙も候補にする
       const googleCover = info.coverUrl
         ? null
-        : await fromGoogleBooks(isbn)
+        : await getGoogleBooks()
             .then((b) => b?.coverUrl ?? null)
             .catch(() => null)
       imageKey = await saveCover([

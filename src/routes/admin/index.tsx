@@ -1,4 +1,4 @@
-import { createFileRoute, Link } from '@tanstack/react-router'
+import { createFileRoute, getRouteApi, Link } from '@tanstack/react-router'
 import { ArrowRight, Inbox, NotebookPen, SquarePen } from 'lucide-react'
 import type * as React from 'react'
 
@@ -15,8 +15,12 @@ export const Route = createFileRoute('/admin/')({
   component: AdminHome,
 })
 
+const adminRoute = getRouteApi('/admin')
+
 function AdminHome() {
   const data = Route.useLoaderData()
+  // 未読の数は左メニューのバッジと同じもの（/admin の loader）を使う
+  const { unreadCount } = adminRoute.useLoaderData()
 
   return (
     <div className="mx-auto w-full max-w-5xl px-4 py-6 sm:px-6 sm:py-8">
@@ -96,9 +100,7 @@ function AdminHome() {
           title={
             <span className="flex items-center gap-2">
               最近のお問い合わせ
-              {data.unreadMessages > 0 && (
-                <Badge>未読 {data.unreadMessages}</Badge>
-              )}
+              {unreadCount > 0 && <Badge>未読 {unreadCount}</Badge>}
             </span>
           }
           action={

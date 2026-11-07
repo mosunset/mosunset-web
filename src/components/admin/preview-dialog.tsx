@@ -12,7 +12,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
-import { previewRichText } from '@/functions/posts'
+import { previewRichText } from '@/functions/rich-text'
 import { errorMessage } from '@/lib/errors'
 import type { RichTextDoc } from '@/lib/tiptap'
 

@@ -1,3 +1,4 @@
+import { validateImageBytes } from '@/server/images'
 import { putImage } from '@/server/r2'
 
 /** ISBN-10 / 13 をハイフンなしの ISBN-13 にする。不正なら null */
@@ -105,7 +106,9 @@ export async function saveCover(
       if (!res.ok || !coverTypes.includes(type)) continue
       const body = await res.arrayBuffer()
       // 1x1 の「画像なし」画像などを避ける
-      if (body.byteLength < 1000 || body.byteLength > 10 * 1024 * 1024) continue
+      if (body.byteLength < 1000) continue
+      // 大きすぎるものや、Content-Type と中身が合わないものは保存しない
+      if (validateImageBytes(body, type)) continue
       return await putImage('collections-book', body, type)
     } catch {
       // 次の候補を試す

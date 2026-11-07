@@ -1,6 +1,10 @@
 import type { CollectionKind } from '@/lib/collection-kinds'
 
-export { type CollectionKind, collectionKinds } from '@/lib/collection-kinds'
+export {
+  type CollectionKind,
+  collectionKinds,
+  isCollectionKind,
+} from '@/lib/collection-kinds'
 
 /** 種類ごとの追加項目の定義。管理画面の入力欄・サーバーの検証・公開ページの表示に使う */
 export type AttributeField =
@@ -157,10 +161,6 @@ export const collections = {
 } as const satisfies Record<CollectionKind, CollectionConfig>
 
 export const collectionList = Object.values(collections)
-
-export function isCollectionKind(value: string): value is CollectionKind {
-  return value in collections
-}
 
 export type CollectionAttributes = Record<string, string>
 

@@ -2,7 +2,7 @@ import { env } from 'cloudflare:workers'
 import { notFound } from '@tanstack/react-router'
 import { createServerFn } from '@tanstack/react-start'
 import { getRequestHeader } from '@tanstack/react-start/server'
-import { count, desc, eq, isNull } from 'drizzle-orm'
+import { and, count, desc, eq, isNull, sql } from 'drizzle-orm'
 import { z } from 'zod'
 
 import { adminMiddleware } from '@/functions/auth'
@@ -88,6 +88,12 @@ export const submitContact = createServerFn({ method: 'POST' })
 // 管理側（すべて adminMiddleware 付き）
 // ---------------------------------------------------------------------------
 
+/**
+ * 一覧で本文から出す文字数。一覧では 1 行に収まらない分を CSS で「…」にするので、
+ * 1 行より十分長ければよい（全文は送らない）
+ */
+const EXCERPT_LENGTH = 300
+
 export const listMessages = createServerFn({ method: 'GET' })
   .middleware([adminMiddleware])
   .handler(async () => {
@@ -97,7 +103,7 @@ export const listMessages = createServerFn({ method: 'GET' })
         name: messages.name,
         email: messages.email,
         subject: messages.subject,
-        body: messages.body,
+        excerpt: sql<string>`substr(${messages.body}, 1, ${EXCERPT_LENGTH})`,
         readAt: messages.readAt,
         createdAt: messages.createdAt,
       })
@@ -115,23 +121,28 @@ export const countUnreadMessages = createServerFn({ method: 'GET' })
     return row?.value ?? 0
   })
 
-/** 1 件取得して既読にする */
+/** 1 件取得する（既読にはしない。開いた画面から markMessageRead を呼ぶ） */
 export const getMessage = createServerFn({ method: 'GET' })
   .middleware([adminMiddleware])
   .validator((data: unknown) => idInput.parse(data))
   .handler(async ({ data }) => {
-    const db = getDb()
-    const message = await db.query.contactMessages.findFirst({
+    const message = await getDb().query.contactMessages.findFirst({
       where: eq(messages.id, data.id),
     })
     if (!message) throw notFound()
-    if (!message.readAt) {
-      await db
-        .update(messages)
-        .set({ readAt: new Date() })
-        .where(eq(messages.id, data.id))
-    }
     return message
+  })
+
+/** 既読にする（すでに既読なら、最初に読んだ日時のまま） */
+export const markMessageRead = createServerFn({ method: 'POST' })
+  .middleware([adminMiddleware])
+  .validator((data: unknown) => idInput.parse(data))
+  .handler(async ({ data }) => {
+    await getDb()
+      .update(messages)
+      .set({ readAt: new Date() })
+      .where(and(eq(messages.id, data.id), isNull(messages.readAt)))
+    return { ok: true }
   })
 
 export const markMessageUnread = createServerFn({ method: 'POST' })

@@ -4,7 +4,7 @@ import { AdminPage } from '@/components/admin/admin-page'
 import { EmptyState } from '@/components/empty-state'
 import { Badge } from '@/components/ui/badge'
 import { listMessages } from '@/functions/contact'
-import { formatDateTime } from '@/lib/format'
+import { formatDateTime, messageTitle } from '@/lib/format'
 import { cn } from '@/lib/utils'
 
 export const Route = createFileRoute('/admin/messages/')({
@@ -46,12 +46,12 @@ function AdminMessages() {
                     <span
                       className={cn('truncate', !m.readAt && 'font-semibold')}
                     >
-                      {m.subject || '（件名なし）'}
+                      {messageTitle(m.subject)}
                     </span>
                     {!m.readAt && <Badge>未読</Badge>}
                   </div>
                   <div className="truncate text-sm text-muted-foreground">
-                    {m.name} &lt;{m.email}&gt; — {m.body}
+                    {m.name} &lt;{m.email}&gt; — {m.excerpt}
                   </div>
                 </div>
                 <time className="shrink-0 text-xs text-muted-foreground">

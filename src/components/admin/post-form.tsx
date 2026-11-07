@@ -18,25 +18,20 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
-import { deletePost, type PostInput, savePost } from '@/functions/posts'
+import {
+  deletePost,
+  type getPostForAdmin,
+  type PostInput,
+  savePost,
+} from '@/functions/posts'
 import { useEditableForm } from '@/hooks/use-editable-form'
 import { useSaveShortcut } from '@/hooks/use-save-shortcut'
-import { slugInputPattern, slugPattern } from '@/lib/slug'
+import { slugHint, slugInputPattern, slugPattern } from '@/lib/slug'
 import { emptyDoc, type RichTextDoc } from '@/lib/tiptap'
 
 type Props = {
   /** 編集時は既存の記事。新規作成時は undefined */
-  post?: {
-    id: string
-    title: string
-    slug: string
-    excerpt: string
-    coverImageKey: string | null
-    status: 'draft' | 'published'
-    content: RichTextDoc
-    publishedAt: Date | null
-    updatedAt: Date
-  }
+  post?: Awaited<ReturnType<typeof getPostForAdmin>>
 }
 
 type Fields = {
@@ -216,7 +211,7 @@ export function PostForm({ post }: Props) {
                 onChange={(e) => set('slug', e.target.value.toLowerCase())}
                 placeholder="my-first-post"
                 pattern={slugInputPattern}
-                title="半角英小文字・数字・ハイフン"
+                title={slugHint}
                 required
               />
               {!fields.slug && (

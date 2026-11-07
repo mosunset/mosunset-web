@@ -3,15 +3,14 @@ import { createServerFn } from '@tanstack/react-start'
 import { and, desc, eq, ne } from 'drizzle-orm'
 import { z } from 'zod'
 import { adminMiddleware } from '@/functions/auth'
-import { slugPattern } from '@/lib/slug'
-import { getDb, schema } from '@/server/db'
+import { getDb, publishedPosts, schema } from '@/server/db'
 import { deleteImagesOf, deleteReplacedImage } from '@/server/r2'
 import {
   renderRichText,
   richTextDocSchema,
   sanitizeDoc,
 } from '@/server/rich-text'
-import { idInput } from '@/server/validation'
+import { idInput, slugSchema } from '@/server/validation'
 
 const { posts } = schema
 
@@ -31,7 +30,7 @@ export const listPublishedPosts = createServerFn({ method: 'GET' }).handler(
         publishedAt: posts.publishedAt,
       })
       .from(posts)
-      .where(eq(posts.status, 'published'))
+      .where(publishedPosts)
       .orderBy(desc(posts.publishedAt))
   },
 )
@@ -41,7 +40,7 @@ export const getPublishedPost = createServerFn({ method: 'GET' })
   .validator((data: unknown) => z.object({ slug: z.string() }).parse(data))
   .handler(async ({ data }) => {
     const post = await getDb().query.posts.findFirst({
-      where: and(eq(posts.slug, data.slug), eq(posts.status, 'published')),
+      where: and(eq(posts.slug, data.slug), publishedPosts),
     })
     if (!post) throw notFound()
 
@@ -63,12 +62,7 @@ export const getPublishedPost = createServerFn({ method: 'GET' })
 const postInputSchema = z.object({
   id: z.string().optional(),
   title: z.string().trim().min(1, 'タイトルを入力してください').max(200),
-  slug: z
-    .string()
-    .trim()
-    .min(1, 'URL を入力してください')
-    .max(100)
-    .regex(slugPattern, 'URL は半角英小文字・数字・ハイフンで入力してください'),
+  slug: slugSchema,
   excerpt: z.string().trim().max(300).default(''),
   coverImageKey: z.string().nullable().default(null),
   status: z.enum(['draft', 'published']),
@@ -176,13 +170,3 @@ export const deletePost = createServerFn({ method: 'POST' })
     await deleteImagesOf(current?.coverImageKey, current?.content)
     return { ok: true }
   })
-
-/** 保存前の内容を公開ページと同じ HTML にする（プレビュー用） */
-export const previewRichText = createServerFn({ method: 'POST' })
-  .middleware([adminMiddleware])
-  .validator((data: unknown) =>
-    z.object({ content: richTextDocSchema }).parse(data),
-  )
-  .handler(({ data }) => ({
-    html: renderRichText(data.content),
-  }))

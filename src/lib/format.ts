@@ -22,3 +22,8 @@ export function formatDay(value: string) {
 export function formatDateTime(date: Date) {
   return dateTimeFormat.format(date)
 }
+
+/** 管理画面で出すお問い合わせの見出し（件名が空のとき用の文言を入れる） */
+export function messageTitle(subject: string) {
+  return subject || '（件名なし）'
+}

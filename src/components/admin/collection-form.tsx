@@ -22,7 +22,11 @@ import { RichTextEditor } from '@/components/editor/rich-text-editor'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { deleteItem, saveItem } from '@/functions/collections'
+import {
+  deleteItem,
+  type getItemForAdmin,
+  saveItem,
+} from '@/functions/collections'
 import { useEditableForm } from '@/hooks/use-editable-form'
 import { useSaveShortcut } from '@/hooks/use-save-shortcut'
 import {
@@ -31,24 +35,13 @@ import {
   collections,
 } from '@/lib/collections'
 import { imageUrl } from '@/lib/images'
-import { slugInputPattern } from '@/lib/slug'
+import { slugHint, slugInputPattern } from '@/lib/slug'
 import { emptyDoc, type RichTextDoc } from '@/lib/tiptap'
 
 type Props = {
   kind: CollectionKind
   /** 編集時は既存のアイテム。新規作成時は undefined */
-  item?: {
-    id: string
-    title: string
-    slug: string
-    acquiredAt: string | null
-    sortOrder: number
-    published: boolean
-    imageKey: string | null
-    attributes: CollectionAttributes
-    description: RichTextDoc | null
-    updatedAt: Date
-  }
+  item?: Awaited<ReturnType<typeof getItemForAdmin>>
 }
 
 type CollectionFields = {
@@ -254,7 +247,7 @@ export function CollectionForm({ kind, item }: Props) {
               onChange={(e) => set('slug', e.target.value.toLowerCase())}
               placeholder="空なら自動"
               pattern={slugInputPattern}
-              title="半角英小文字・数字・ハイフン"
+              title={slugHint}
             />
           </div>
         </div>

@@ -1,11 +1,11 @@
-import { desc, eq } from 'drizzle-orm'
+import { desc } from 'drizzle-orm'
 
 import { collections } from '@/lib/collections'
 import { contactNav, mainNav } from '@/lib/navigation'
 import { playgroundTools } from '@/lib/playground'
 import { absoluteUrl } from '@/lib/seo'
 import { site } from '@/lib/site'
-import { getDb, schema } from '@/server/db'
+import { getDb, publishedItems, publishedPosts, schema } from '@/server/db'
 
 // sitemap.xml・rss.xml・llms.txt の中身を作る。src/routes の server route からだけ呼ぶ
 
@@ -37,7 +37,7 @@ export async function sitemapResponse() {
       updatedAt: schema.posts.updatedAt,
     })
     .from(schema.posts)
-    .where(eq(schema.posts.status, 'published'))
+    .where(publishedPosts)
     .orderBy(desc(schema.posts.publishedAt))
 
   const collectionRows = await getDb()
@@ -47,7 +47,7 @@ export async function sitemapResponse() {
       updatedAt: schema.collectionItems.updatedAt,
     })
     .from(schema.collectionItems)
-    .where(eq(schema.collectionItems.published, true))
+    .where(publishedItems)
 
   const entries: Entry[] = [
     ...staticPaths.map((path) => ({ path })),
@@ -94,7 +94,7 @@ export async function rssResponse() {
       publishedAt: schema.posts.publishedAt,
     })
     .from(schema.posts)
-    .where(eq(schema.posts.status, 'published'))
+    .where(publishedPosts)
     .orderBy(desc(schema.posts.publishedAt))
     .limit(30)
 
@@ -155,7 +155,7 @@ export async function llmsTxtResponse() {
       excerpt: schema.posts.excerpt,
     })
     .from(schema.posts)
-    .where(eq(schema.posts.status, 'published'))
+    .where(publishedPosts)
     .orderBy(desc(schema.posts.publishedAt))
 
   const link = (title: string, path: string, note?: string) =>

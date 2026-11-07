@@ -1,23 +1,24 @@
 import { createFileRoute, useRouter } from '@tanstack/react-router'
 import { useServerFn } from '@tanstack/react-start'
 import { Mail, MailOpen, Reply, Trash2 } from 'lucide-react'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 
 import { Button } from '@/components/ui/button'
 import {
   deleteMessage,
   getMessage,
+  markMessageRead,
   markMessageUnread,
 } from '@/functions/contact'
 import { errorMessage } from '@/lib/errors'
-import { formatDateTime } from '@/lib/format'
+import { formatDateTime, messageTitle } from '@/lib/format'
 import { site } from '@/lib/site'
 
 export const Route = createFileRoute('/admin/messages/$id')({
   loader: ({ params }) => getMessage({ data: { id: params.id } }),
   staticData: {
     breadcrumb: (match) =>
-      match.loaderData ? match.loaderData.subject || '（件名なし）' : undefined,
+      match.loaderData ? messageTitle(match.loaderData.subject) : undefined,
   },
   component: MessageDetail,
 })
@@ -26,9 +27,21 @@ function MessageDetail() {
   const message = Route.useLoaderData()
   const router = useRouter()
   const remove = useServerFn(deleteMessage)
+  const markRead = useServerFn(markMessageRead)
   const markUnread = useServerFn(markMessageUnread)
   const [pending, setPending] = useState(false)
   const [error, setError] = useState<string | null>(null)
+
+  // 開いたら既読にして、左メニューの未読バッジ（/admin の loader）を数え直す。
+  // loader でやるとリンクにカーソルを乗せただけ（先読み）で既読になるので、表示してから行う
+  useEffect(() => {
+    if (message.readAt) return
+    markRead({ data: { id: message.id } })
+      .then(() =>
+        router.invalidate({ filter: (match) => match.routeId === '/admin' }),
+      )
+      .catch((e) => console.error('既読にできませんでした', e))
+  }, [message.id, message.readAt, markRead, router])
 
   const run = async (fn: () => Promise<unknown>) => {
     setPending(true)
@@ -48,9 +61,7 @@ function MessageDetail() {
 
   return (
     <div className="mx-auto w-full max-w-3xl px-4 py-6 sm:px-6 sm:py-8">
-      <h1 className="text-2xl font-bold">
-        {message.subject || '（件名なし）'}
-      </h1>
+      <h1 className="text-2xl font-bold">{messageTitle(message.subject)}</h1>
       <dl className="mt-4 grid grid-cols-[6rem_1fr] gap-y-1 text-sm">
         <dt className="text-muted-foreground">名前</dt>
         <dd>{message.name}</dd>

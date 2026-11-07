@@ -54,26 +54,6 @@ export function normalizePath(pathname: string) {
   return pathname.replace(/(.)\/$/, '$1')
 }
 
-/** 太字やリンクなど、文の途中に入るタグ */
-const INLINE_TAG = /<\/?(?:strong|em|b|i|u|s|a|code|span|mark)\b[^>]*>/g
-
-/** 本文の HTML から、description に使える短いプレーンテキストを作る */
-export function htmlToSummary(html: string, max = 120) {
-  const text = html
-    // 文中のタグは詰め、段落や箇条書きの区切りは空白にする
-    .replace(INLINE_TAG, '')
-    .replace(/<[^>]+>/g, ' ')
-    .replace(/&nbsp;/g, ' ')
-    .replace(/&amp;/g, '&')
-    .replace(/&lt;/g, '<')
-    .replace(/&gt;/g, '>')
-    .replace(/&quot;/g, '"')
-    .replace(/&#39;/g, "'")
-    .replace(/\s+/g, ' ')
-    .trim()
-  return text.length > max ? `${text.slice(0, max - 1)}…` : text
-}
-
 /** SNS のカードに使う画像（サイト共通の画像を上書きする） */
 export function ogImage(path: string, alt: string, large = true) {
   const url = absoluteUrl(path)

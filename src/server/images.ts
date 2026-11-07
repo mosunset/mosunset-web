@@ -1,8 +1,22 @@
+/** R2 に保存する画像の大きさの上限 */
+export const MAX_IMAGE_BYTES = 10 * 1024 * 1024
+
 /**
- * ファイルの先頭のバイトが、申告された画像の形式と合っているか。
- * ブラウザが付ける種類（file.type）は書き換えられるので、中身でも確かめる
+ * 保存する前に画像の中身を確かめる。問題があれば理由を、なければ null を返す。
+ * 申告された種類（file.type や Content-Type）は書き換えられるので、先頭のバイトでも確かめる
  */
-export function matchesSignature(bytes: Uint8Array, type: string) {
+export function validateImageBytes(
+  body: ArrayBuffer,
+  type: string,
+): string | null {
+  if (body.byteLength > MAX_IMAGE_BYTES) return '画像は 10MB までです'
+  const head = new Uint8Array(body, 0, Math.min(16, body.byteLength))
+  if (!matchesSignature(head, type)) return '画像として読み込めないファイルです'
+  return null
+}
+
+/** ファイルの先頭のバイトが、申告された画像の形式と合っているか */
+function matchesSignature(bytes: Uint8Array, type: string) {
   const starts = (sig: number[], offset = 0) =>
     sig.every((b, i) => bytes[offset + i] === b)
   const ascii = (text: string, offset = 0) =>

@@ -1,5 +1,5 @@
 import { createServerFn } from '@tanstack/react-start'
-import { count, desc, eq, isNull } from 'drizzle-orm'
+import { count, desc, eq } from 'drizzle-orm'
 
 import { adminMiddleware } from '@/functions/auth'
 import type { CollectionKind } from '@/lib/collection-kinds'
@@ -7,13 +7,13 @@ import { getDb, schema } from '@/server/db'
 
 const { posts, collectionItems, contactMessages } = schema
 
-/** 管理画面トップの集計 */
+/** 管理画面トップの集計（未読のお問い合わせの数は /admin の loader で取っている） */
 export const getDashboard = createServerFn({ method: 'GET' })
   .middleware([adminMiddleware])
   .handler(async () => {
     const db = getDb()
 
-    const [postCounts, collectionCounts, unread, recentDrafts, recentMessages] =
+    const [postCounts, collectionCounts, recentDrafts, recentMessages] =
       await Promise.all([
         db
           .select({ status: posts.status, value: count() })
@@ -23,10 +23,6 @@ export const getDashboard = createServerFn({ method: 'GET' })
           .select({ kind: collectionItems.kind, value: count() })
           .from(collectionItems)
           .groupBy(collectionItems.kind),
-        db
-          .select({ value: count() })
-          .from(contactMessages)
-          .where(isNull(contactMessages.readAt)),
         db
           .select({
             id: posts.id,
@@ -58,7 +54,6 @@ export const getDashboard = createServerFn({ method: 'GET' })
       collections: Object.fromEntries(
         collectionCounts.map((c) => [c.kind, c.value]),
       ) as Partial<Record<CollectionKind, number>>,
-      unreadMessages: unread[0]?.value ?? 0,
       recentDrafts,
       recentMessages,
     }
