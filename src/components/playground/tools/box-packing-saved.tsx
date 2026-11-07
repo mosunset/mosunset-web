@@ -298,7 +298,7 @@ export function BestResults({
       </div>
       {children}
       <div className="overflow-x-auto rounded-md border">
-        <table className="w-full min-w-[64rem] text-sm [&_td]:px-3 [&_th]:px-3 [&_th]:whitespace-nowrap">
+        <table className="w-full min-w-[70rem] text-sm [&_td]:px-3 [&_th]:px-3 [&_th]:whitespace-nowrap">
           <thead className="text-left text-xs text-muted-foreground">
             <tr>
               <th className="py-1 font-normal">部門</th>
@@ -309,6 +309,7 @@ export function BestResults({
               <th className="py-1 font-normal">高さ</th>
               <th className="py-1 font-normal">1 段目</th>
               <th className="py-1 font-normal">重心の高さ</th>
+              <th className="py-1 font-normal">整い</th>
               <th className="py-1">
                 <span className="sr-only">操作</span>
               </th>
@@ -347,6 +348,9 @@ export function BestResults({
                         {b.result.cog
                           ? `${Math.round(b.result.cog.z)} mm`
                           : '—'}
+                      </td>
+                      <td className="py-1.5 font-mono whitespace-nowrap tabular-nums">
+                        {percent(b.result.tidiness)}%
                       </td>
                       <td className="py-1 text-right whitespace-nowrap">
                         <Button
@@ -393,7 +397,7 @@ export function BestResults({
                     </>
                   ) : (
                     <td
-                      colSpan={6}
+                      colSpan={7}
                       className="py-1.5 text-xs text-muted-foreground"
                     >
                       まだ記録がありません（全部の箱を置けた結果から、自動で記録します）

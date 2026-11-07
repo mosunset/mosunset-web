@@ -21,21 +21,27 @@ const shader = /* wgsl */ `
 struct Params {
   m: u32, k: u32, U: i32, V: i32,
   gap: i32, support: i32, objective: i32, alongUFirst: i32,
+  preferUpright: i32, groupBonus: i32, pad0: i32, pad1: i32,
 }
 struct Best {
-  found: i32, s0: i32, s1: i32, s2: i32, s3: i32, s4: i32, s5: i32,
-  u: i32, v: i32, z: i32, w: i32, d: i32, h: i32,
+  found: i32, s0: i32, s1: i32, s2: i32, s3: i32, s4: i32, s5: i32, s6: i32,
+  u: i32, v: i32, z: i32, w: i32, d: i32, h: i32, laid: i32,
 }
 
 /** 接している面積の上限（調べる前の見積もりに使う） */
 const MAX_CONTACT: i32 = 2147483647;
+/** 置いた箱 1 個ぶんの数（u, v, z, w, d, h, 種類） */
+const PS: u32 = 7u;
 
 @group(0) @binding(0) var<uniform> P: Params;
-@group(0) @binding(1) var<storage, read> orients: array<vec4<i32>>;  // 箱 × 6（w, d, h, 有効なら 1）
+// 前半: 箱 × 6 の置き方（w, d, h, 印）。印 = 1（有効）+ 2（横倒し）+ 4 × 種類の番号
+// 後半: 元の良い並べ順の記録（1 個ごとに 3 つ: (u, v, z, w), (d, h, その時点で置いた数, その時点の高さ), (種類, 横倒し, 0, 0)）
+@group(0) @binding(1) var<storage, read> orients: array<vec4<i32>>;
 @group(0) @binding(2) var<storage, read> orders: array<u32>;         // 並べ順 × 箱（箱の番号）
-@group(0) @binding(3) var<storage, read_write> placed: array<i32>;   // 並べ順 × 箱 × 6（u, v, z, w, d, h）
+@group(0) @binding(3) var<storage, read_write> placed: array<i32>;   // 並べ順 × 箱 × PS
 @group(0) @binding(4) var<storage, read_write> cand: array<i32>;     // 並べ順ごとに u の候補・v の候補・角の点
-@group(0) @binding(5) var<storage, read_write> state: array<i32>;    // 並べ順 × 8（次の箱, 置いた数, u 候補の数, v 候補の数, 点の数, 高さ, 1 段目の面積）
+// 並べ順 × 8（次の箱, 置いた数, u 候補の数, v 候補の数, 点の数, 高さ, 1 段目の面積, 横倒しの数）
+@group(0) @binding(5) var<storage, read_write> state: array<i32>;
 @group(0) @binding(6) var<storage, read_write> fstate: array<f32>;   // 並べ順 × 2（体積 × 重心の高さの和, 体積の和）
 
 fn candSize() -> u32 { return 2u * (P.m + 1u) + 2u * (5u * P.m + 1u); }
@@ -43,18 +49,21 @@ fn usBase(k: u32) -> u32 { return k * candSize(); }
 fn vsBase(k: u32) -> u32 { return usBase(k) + P.m + 1u; }
 fn ptBase(k: u32) -> u32 { return usBase(k) + 2u * (P.m + 1u); }
 
-/** 点数: 全体の高さ → 上面の高さ → 置く高さ →（同じなら）接している面積が大きいほう → 奥・左に近いほう */
-fn makeScore(height: i32, z: i32, h: i32, u: i32, v: i32, contact: i32) -> array<i32, 6> {
+/**
+ * 点数: 全体の高さ → 上面の高さ → 置く高さ →（見た目を重視するなら）そのままの向き →
+ *       接している面積が大きいほう → 奥・左に近いほう
+ */
+fn makeScore(height: i32, z: i32, h: i32, u: i32, v: i32, laid: i32, contact: i32) -> array<i32, 7> {
   var a0 = v;
   var a1 = u;
   if (P.alongUFirst == 1) { a0 = u; a1 = v; }
   let top = z + h;
-  if (P.objective == 0) { return array<i32, 6>(max(height, top), top, z, -contact, a0, a1); }
-  return array<i32, 6>(z, top, -contact, a0, a1, 0);
+  if (P.objective == 0) { return array<i32, 7>(max(height, top), top, z, laid, -contact, a0, a1); }
+  return array<i32, 7>(z, top, laid, -contact, a0, a1, 0);
 }
 
 /** s が今の最良より（同じなら負け）良いか */
-fn better(s: array<i32, 6>, b: ptr<function, Best>) -> bool {
+fn better(s: array<i32, 7>, b: ptr<function, Best>) -> bool {
   if ((*b).found == 0) { return true; }
   if (s[0] != (*b).s0) { return s[0] < (*b).s0; }
   if (s[1] != (*b).s1) { return s[1] < (*b).s1; }
@@ -62,32 +71,37 @@ fn better(s: array<i32, 6>, b: ptr<function, Best>) -> bool {
   if (s[3] != (*b).s3) { return s[3] < (*b).s3; }
   if (s[4] != (*b).s4) { return s[4] < (*b).s4; }
   if (s[5] != (*b).s5) { return s[5] < (*b).s5; }
+  if (s[6] != (*b).s6) { return s[6] < (*b).s6; }
   return false;
 }
 
 /** (u, v) に、この箱を置けるか（置き方ごとに）調べ、今の最良より良ければ入れ替える */
 fn tryAt(k: u32, u: i32, v: i32, item: u32, n: u32, height: i32, b: ptr<function, Best>) {
-  let pb = k * P.m * 6u;
+  let pb = k * P.m * PS;
   for (var o = 0u; o < 6u; o++) {
     let ori = orients[item * 6u + o];
     if (ori.w == 0) { continue; }
     let w = ori.x;
     let d = ori.y;
     let h = ori.z;
+    let isLaid = (ori.w >> 1u) & 1;
+    let itemType = ori.w >> 2u;
+    var laid = 0;
+    if (P.preferUpright == 1 && isLaid == 1) { laid = 1; }
     if (u + w > P.U || v + d > P.V) { continue; }
-    // 床に直接置けたとしても勝てない場所は、調べるまでもない
-    if (!better(makeScore(height, 0, h, u, v, MAX_CONTACT), b)) { continue; }
+    // 床に直接置けて、いちばん接していたとしても勝てない場所は、調べるまでもない
+    if (!better(makeScore(height, 0, h, u, v, laid, MAX_CONTACT), b)) { continue; }
     var z = 0;
     for (var j = 0u; j < n; j++) {
-      let q = pb + j * 6u;
+      let q = pb + j * PS;
       let qu = placed[q]; let qv = placed[q + 1u]; let qz = placed[q + 2u];
       let qw = placed[q + 3u]; let qd = placed[q + 4u]; let qh = placed[q + 5u];
       if (u < qu + qw && qu < u + w && v < qv + qd && qv < v + d && qz + qh > z) { z = qz + qh; }
     }
-    if (!better(makeScore(height, z, h, u, v, MAX_CONTACT), b)) { continue; }
+    if (!better(makeScore(height, z, h, u, v, laid, MAX_CONTACT), b)) { continue; }
     var blocked = false;
     for (var j = 0u; j < n; j++) {
-      let q = pb + j * 6u;
+      let q = pb + j * PS;
       let qu = placed[q]; let qv = placed[q + 1u]; let qz = placed[q + 2u];
       let qw = placed[q + 3u]; let qd = placed[q + 4u]; let qh = placed[q + 5u];
       if (qz >= z + h || qz + qh <= z) { continue; }
@@ -100,7 +114,7 @@ fn tryAt(k: u32, u: i32, v: i32, item: u32, n: u32, height: i32, b: ptr<function
     if (z > 0) {
       var sup = 0;
       for (var j = 0u; j < n; j++) {
-        let q = pb + j * 6u;
+        let q = pb + j * PS;
         let qu = placed[q]; let qv = placed[q + 1u]; let qz = placed[q + 2u];
         let qw = placed[q + 3u]; let qd = placed[q + 4u]; let qh = placed[q + 5u];
         if (qz + qh != z) { continue; }
@@ -113,26 +127,29 @@ fn tryAt(k: u32, u: i32, v: i32, item: u32, n: u32, height: i32, b: ptr<function
         if (sup * 100 < P.support * w * d) { continue; }
       } else if (f32(sup) * 100.0 < f32(P.support) * f32(w) * f32(d)) { continue; }
     }
-    // まわりに接している面積（床の端か、ちょうどすき間の分だけ離れて並ぶ箱と向き合う面積）
+    // まわりに接している面積（床の端か、ちょうどすき間の分だけ離れて並ぶ箱と向き合う面積）。
+    // 見た目を重視するなら、同じ種類の箱どうしの接触は 2 倍に数える
     var contact = 0;
     if (u == 0) { contact += d * h; }
     if (u + w == P.U) { contact += d * h; }
     if (v == 0) { contact += w * h; }
     if (v + d == P.V) { contact += w * h; }
     for (var j = 0u; j < n; j++) {
-      let q = pb + j * 6u;
+      let q = pb + j * PS;
       let qu = placed[q]; let qv = placed[q + 1u]; let qz = placed[q + 2u];
       let qw = placed[q + 3u]; let qd = placed[q + 4u]; let qh = placed[q + 5u];
       let oz = min(z + h, qz + qh) - max(z, qz);
       if (oz <= 0) { continue; }
+      var same = 1;
+      if (P.groupBonus == 1 && placed[q + 6u] == itemType) { same = 2; }
       let ov = min(v + d, qv + qd) - max(v, qv);
-      if (ov > 0 && (qu + qw + P.gap == u || u + w + P.gap == qu)) { contact += ov * oz; }
+      if (ov > 0 && (qu + qw + P.gap == u || u + w + P.gap == qu)) { contact += ov * oz * same; }
       let ou = min(u + w, qu + qw) - max(u, qu);
-      if (ou > 0 && (qv + qd + P.gap == v || v + d + P.gap == qv)) { contact += ou * oz; }
+      if (ou > 0 && (qv + qd + P.gap == v || v + d + P.gap == qv)) { contact += ou * oz * same; }
     }
-    let s = makeScore(height, z, h, u, v, contact);
+    let s = makeScore(height, z, h, u, v, laid, contact);
     if (!better(s, b)) { continue; }
-    (*b) = Best(1, s[0], s[1], s[2], s[3], s[4], s[5], u, v, z, w, d, h);
+    (*b) = Best(1, s[0], s[1], s[2], s[3], s[4], s[5], s[6], u, v, z, w, d, h, isLaid);
   }
 }
 
@@ -170,7 +187,7 @@ fn init(@builtin(global_invocation_id) gid: vec3<u32>) {
   var n0 = 0u;
   var height0 = 0;
   if (s > 0u) {
-    let rec = orients[tb + 2u * (s - 1u) + 1u];
+    let rec = orients[tb + 3u * (s - 1u) + 1u];
     n0 = u32(rec.z);
     height0 = rec.w;
   }
@@ -182,15 +199,17 @@ fn init(@builtin(global_invocation_id) gid: vec3<u32>) {
   var nv = 1u;
   var np = 1u;
   var floorArea = 0;
+  var laidCount = 0;
   var cog = 0.0;
   var vol = 0.0;
   for (var j = 0u; j < n0; j++) {
-    let a = orients[tb + 2u * j];
-    let b = orients[tb + 2u * j + 1u];
+    let a = orients[tb + 3u * j];
+    let b = orients[tb + 3u * j + 1u];
+    let c = orients[tb + 3u * j + 2u];
     let u = a.x; let v = a.y; let z = a.z; let w = a.w; let d = b.x; let h = b.y;
-    let q = k * P.m * 6u + j * 6u;
+    let q = k * P.m * PS + j * PS;
     placed[q] = u; placed[q + 1u] = v; placed[q + 2u] = z;
-    placed[q + 3u] = w; placed[q + 4u] = d; placed[q + 5u] = h;
+    placed[q + 3u] = w; placed[q + 4u] = d; placed[q + 5u] = h; placed[q + 6u] = c.x;
     addSet(usBase(k), &nu, u + w + P.gap);
     addSet(vsBase(k), &nv, v + d + P.gap);
     addPoint(k, &np, u + w + P.gap, v);
@@ -199,6 +218,7 @@ fn init(@builtin(global_invocation_id) gid: vec3<u32>) {
     addPoint(k, &np, u + w + P.gap, 0);
     addPoint(k, &np, 0, v + d + P.gap);
     if (z == 0) { floorArea += w * d; }
+    laidCount += c.y;
     let bv = f32(w) * f32(d) * f32(h);
     cog += bv * (f32(z) + f32(h) / 2.0);
     vol += bv;
@@ -210,7 +230,7 @@ fn init(@builtin(global_invocation_id) gid: vec3<u32>) {
   state[sb + 4u] = i32(np);
   state[sb + 5u] = height0;
   state[sb + 6u] = floorArea;
-  state[sb + 7u] = 0;
+  state[sb + 7u] = laidCount;
   fstate[k * 2u] = cog;
   fstate[k * 2u + 1u] = vol;
 }
@@ -243,9 +263,10 @@ fn step(@builtin(global_invocation_id) gid: vec3<u32>) {
     }
   }
   if (b.found == 1) {
-    let q = k * P.m * 6u + n * 6u;
+    let q = k * P.m * PS + n * PS;
     placed[q] = b.u; placed[q + 1u] = b.v; placed[q + 2u] = b.z;
     placed[q + 3u] = b.w; placed[q + 4u] = b.d; placed[q + 5u] = b.h;
+    placed[q + 6u] = orients[item * 6u].w >> 2u;
     n++;
     addSet(usBase(k), &nu, b.u + b.w + P.gap);
     addSet(vsBase(k), &nv, b.v + b.d + P.gap);
@@ -256,6 +277,7 @@ fn step(@builtin(global_invocation_id) gid: vec3<u32>) {
     addPoint(k, &np, 0, b.v + b.d + P.gap);
     height = max(height, b.z + b.h);
     if (b.z == 0) { state[sb + 6u] = state[sb + 6u] + b.w * b.d; }
+    state[sb + 7u] = state[sb + 7u] + b.laid;
     let vol = f32(b.w) * f32(b.d) * f32(b.h);
     fstate[k * 2u] = fstate[k * 2u] + vol * (f32(b.z) + f32(b.h) / 2.0);
     fstate[k * 2u + 1u] = fstate[k * 2u + 1u] + vol;
@@ -271,6 +293,7 @@ fn step(@builtin(global_invocation_id) gid: vec3<u32>) {
 
 /** 元の良い並べ順の記録（traceOrder の結果） */
 export type GpuBase = {
+  /** 置いた箱ごとに u, v, z, w, d, h, 種類, 横倒し */
   placed: readonly (readonly number[])[]
   placedAfter: readonly number[]
   heightAfter: readonly number[]
@@ -282,6 +305,8 @@ export type GpuMetrics = {
   placed: Int32Array
   floorArea: Int32Array
   cogZ: Float32Array
+  /** 横倒しにした箱の数 */
+  laid: Int32Array
 }
 
 export type GpuContext = {
@@ -372,10 +397,13 @@ export function createGpuEvaluator(ctx: GpuContext, input: PackInput) {
   const m = items.length
   // 前半は箱ごとの置き方（箱 × 6）、後半は元の良い並べ順の記録（1 個ごとに 2 つ:
   // (u, v, z, w), (d, h, その時点で置いた数, その時点の高さ)）。後半は評価のたびに書き換える
-  const orientData = new Int32Array(Math.max(1, m) * (MAX_ORIENTATIONS + 2) * 4)
+  const orientData = new Int32Array(Math.max(1, m) * (MAX_ORIENTATIONS + 3) * 4)
   items.forEach((it, i) => {
     it.orientations.slice(0, MAX_ORIENTATIONS).forEach((o, j) => {
-      orientData.set([o.w, o.d, o.h, 1], (i * MAX_ORIENTATIONS + j) * 4)
+      orientData.set(
+        [o.w, o.d, o.h, 1 + (o.laidDown ? 2 : 0) + 4 * it.type],
+        (i * MAX_ORIENTATIONS + j) * 4,
+      )
     })
   })
   const S = GPUBufferUsage.STORAGE
@@ -385,7 +413,7 @@ export function createGpuEvaluator(ctx: GpuContext, input: PackInput) {
   })
   device.queue.writeBuffer(orientBuf, 0, orientData)
   const paramBuf = device.createBuffer({
-    size: 32,
+    size: 48,
     usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
   })
 
@@ -406,7 +434,7 @@ export function createGpuEvaluator(ctx: GpuContext, input: PackInput) {
       size: k * m * 4,
       usage: S | GPUBufferUsage.COPY_DST,
     })
-    const placedBuf = device.createBuffer({ size: k * m * 6 * 4, usage: S })
+    const placedBuf = device.createBuffer({ size: k * m * 7 * 4, usage: S })
     const candBuf = device.createBuffer({
       size: k * (2 * (m + 1) + 2 * (5 * m + 1)) * 4,
       usage: S,
@@ -443,7 +471,7 @@ export function createGpuEvaluator(ctx: GpuContext, input: PackInput) {
   }
 
   // 一度に評価できる並べ順の数の上限（作業用の場所が、いちばん大きいものでも 256MB に収まるように）
-  const bytesPerOrder = Math.max((2 * (m + 1) + 2 * (5 * m + 1)) * 4, m * 6 * 4)
+  const bytesPerOrder = Math.max((2 * (m + 1) + 2 * (5 * m + 1)) * 4, m * 7 * 4)
   const maxBatch = Math.max(
     64,
     Math.floor(
@@ -471,10 +499,10 @@ export function createGpuEvaluator(ctx: GpuContext, input: PackInput) {
     ): Promise<GpuMetrics> {
       ensure(k)
       // 元の良い並べ順の記録を、orients の後ろに書く
-      const rec = new Int32Array(m * 2 * 4)
+      const rec = new Int32Array(m * 3 * 4)
       for (let j = 0; j < m; j++) {
         const p = base.placed[j]
-        if (p) rec.set([p[0], p[1], p[2], p[3]], j * 8)
+        if (p) rec.set([p[0], p[1], p[2], p[3]], j * 12)
         rec.set(
           [
             p ? p[4] : 0,
@@ -482,8 +510,9 @@ export function createGpuEvaluator(ctx: GpuContext, input: PackInput) {
             base.placedAfter[j] ?? 0,
             base.heightAfter[j] ?? 0,
           ],
-          j * 8 + 4,
+          j * 12 + 4,
         )
+        if (p) rec.set([p[6] ?? 0, p[7] ?? 0, 0, 0], j * 12 + 8)
       }
       device.queue.writeBuffer(orientBuf, m * MAX_ORIENTATIONS * 16, rec)
       // 入れ替えた位置を、state の先頭に入れておく（init が読む）
@@ -508,6 +537,10 @@ export function createGpuEvaluator(ctx: GpuContext, input: PackInput) {
           input.supportPercent,
           input.objective === 'height' ? 0 : 1,
           alongSideFirstOf(input.walls) ? 1 : 0,
+          input.tidy.weight > 0 && input.tidy.upright ? 1 : 0,
+          input.tidy.weight > 0 && input.tidy.group ? 1 : 0,
+          0,
+          0,
         ]),
       )
       device.queue.writeBuffer(orderBuf, 0, orders, 0, k * m)
@@ -548,13 +581,15 @@ export function createGpuEvaluator(ctx: GpuContext, input: PackInput) {
       const placed = new Int32Array(k)
       const floorArea = new Int32Array(k)
       const cogZ = new Float32Array(k)
+      const laid = new Int32Array(k)
       for (let i = 0; i < k; i++) {
         placed[i] = st[i * 8 + 1]
         height[i] = st[i * 8 + 5]
         floorArea[i] = st[i * 8 + 6]
+        laid[i] = st[i * 8 + 7]
         cogZ[i] = fs[i * 2 + 1] > 0 ? fs[i * 2] / fs[i * 2 + 1] : 0
       }
-      return { height, placed, floorArea, cogZ }
+      return { height, placed, floorArea, cogZ, laid }
     },
     destroy() {
       for (const b of bufs) b.destroy()

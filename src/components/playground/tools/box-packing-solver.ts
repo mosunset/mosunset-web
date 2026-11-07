@@ -26,6 +26,18 @@ export type BoxSpec = {
 /** height: 全体の高さを低く / floor: 下の段から隙間なく */
 export type Objective = 'height' | 'floor'
 
+/**
+ * 見た目の整い（人の感覚）。weight（0〜100）が 0 なら使わない。
+ * group: 同じ箱がまとまっている / flat: 上の面が平ら / bigBottom: 大きい箱が下 / upright: 横倒しが少ない
+ */
+export type Tidy = {
+  weight: number
+  group: boolean
+  flat: boolean
+  bigBottom: boolean
+  upright: boolean
+}
+
 export type PackInput = {
   floorX: number
   floorY: number
@@ -40,6 +52,8 @@ export type PackInput = {
   objective: Objective
   /** 壁があるとき、重心をどれだけ壁側に寄せるか（0〜100） */
   wallBias: number
+  /** 見た目の整い（人の感覚）をどれだけ重視するか */
+  tidy: Tidy
   /** 並べ順を入れ替えるときの乱数の種 */
   seed: number
   /**
@@ -83,6 +97,8 @@ export type PackResult = {
   floorCoverage: number
   /** 全体の重心（箱の重さは体積に比例するとみなす） */
   cog: { x: number; y: number; z: number } | null
+  /** 見た目の整い（0〜1。大きいほど整っている。使う見る点の平均） */
+  tidiness: number
   /** 小さいほど良い */
   score: number
 }
@@ -345,6 +361,10 @@ function packInOrder(
   placed.forEach(register)
 
   const found: number[] = []
+  // 見た目を重視するときの置き方: そのままの向きを優先し、同じ箱どうしの接触を 2 倍に数える
+  const tidyOn = input.tidy.weight > 0
+  const preferUpright = tidyOn && input.tidy.upright
+  const groupBonus = tidyOn && input.tidy.group
   for (let index = start; index < order.length; index++) {
     const item = order[index]
     let best: { score: number[]; p: Placed } | null = null
@@ -359,13 +379,15 @@ function packInOrder(
     for (const [u, v] of candidates) {
       for (const o of item.orientations) {
         if (u + o.w > U || v + o.d > V) continue
-        // 点数: 全体の高さ → 上面の高さ → 置く高さ →（同じなら）まわりに接している面積が大きいほう → 奥・左に近いほう
+        // 点数: 全体の高さ → 上面の高さ → 置く高さ →（見た目を重視するなら）そのままの向き →
+        //       まわりに接している面積が大きいほう → 奥・左に近いほう
         // 床に直接置けて、いちばん接していたとしても今の最良に勝てない場所は、調べるまでもない
         const along = anchor.alongSideFirst ? [u, v] : [v, u]
+        const laid = preferUpright && o.laidDown ? 1 : 0
         const scoreAt = (z: number, contact: number) =>
           objective === 'height'
-            ? [Math.max(height, z + o.h), z + o.h, z, -contact, ...along]
-            : [z, z + o.h, -contact, ...along]
+            ? [Math.max(height, z + o.h), z + o.h, z, laid, -contact, ...along]
+            : [z, z + o.h, laid, -contact, ...along, 0]
         if (best && compare(scoreAt(0, MAX_CONTACT), best.score) >= 0) continue
         let near = all
         if (all.length > SMALL) {
@@ -438,12 +460,14 @@ function packInOrder(
           const oz = Math.min(z + o.h, b.z + b.h) - Math.max(z, b.z)
           if (oz <= 0) continue
           const ov = Math.min(v + o.d, b.v + b.d) - Math.max(v, b.v)
+          // 見た目を重視するなら、同じ箱どうしの接触は 2 倍に数える（同じ箱が隣り合いやすくなる）
+          const same = groupBonus && b.type === item.type ? 2 : 1
           if (ov > 0 && (b.u + b.w + gap === u || u + o.w + gap === b.u)) {
-            contact += ov * oz
+            contact += ov * oz * same
           }
           const ou = Math.min(u + o.w, b.u + b.w) - Math.max(u, b.u)
           if (ou > 0 && (b.v + b.d + gap === v || v + o.d + gap === b.v)) {
-            contact += ou * oz
+            contact += ou * oz * same
           }
         }
         const score = scoreAt(z, contact)
@@ -542,6 +566,7 @@ function finish(
   const hasWall = walls.back || walls.left || walls.right
   const cogWeight = hasWall ? 0.15 + 0.35 * (input.wallBias / 100) : 0.3
 
+  const tidy = tidinessOf(placements, input, gapOf(input))
   const score =
     100 * (packed.unplaced.length + tooBig.reduce((s, u) => s + u.count, 0)) +
     (input.objective === 'height'
@@ -549,7 +574,9 @@ function finish(
       : 3 * (1 - floorCoverage) + 0.3 * (height / h0)) +
     cogWeight * cogError +
     0.3 * towerPenalty(placements, input, h0) +
-    0.05 * (cog ? cog.z / h0 : 0)
+    0.05 * (cog ? cog.z / h0 : 0) +
+    // 見た目の整い: 使う見る点ごとの足りなさ（0〜1）の合計に、重視する度合いを掛ける
+    (input.tidy.weight / 100) * TIDY_SCALE * tidy.penalty
 
   const counts = new Map<number, number>()
   for (const type of packed.unplaced)
@@ -569,7 +596,100 @@ function finish(
     fillRate: height > 0 ? boxVolume / (X * Y * height) : 0,
     floorCoverage,
     cog,
+    tidiness: tidy.value,
     score,
+  }
+}
+
+/** 見た目の整いの点数の重み（重視する度合いが 100 のとき、見る点 1 つが全部だめなら高さの h0 の 0.3 倍ぶん） */
+const TIDY_SCALE = 0.3
+
+const gapOf = (input: PackInput) => input.gap
+
+/**
+ * 見た目の整い。見る点ごとに 0〜1（1 が良い）で測り、使う見る点の平均（value）と、足りなさの合計（penalty）を返す
+ * - group: 箱どうしが接している面のうち、同じ種類（タグ）の箱どうしが接している割合
+ * - flat: 箱が置かれている範囲で、上の面の高さのばらつきの小ささ
+ * - bigBottom: 箱が箱の上に載っている面積のうち、下の箱より大きい箱が載っていない割合
+ * - upright: 横倒しにしていない箱の割合
+ */
+function tidinessOf(placements: Placement[], input: PackInput, gap: number) {
+  const n = placements.length
+  if (n === 0) return { value: 1, penalty: 0 }
+  const name = (t: number) => input.boxes[t]?.tag.trim() || `#${t}`
+  let contactAll = 0
+  let contactSame = 0
+  let supportAll = 0
+  let supportBad = 0
+  for (let a = 0; a < n; a++) {
+    const p = placements[a]
+    for (let b = a + 1; b < n; b++) {
+      const q = placements[b]
+      const ox = Math.min(p.x + p.w, q.x + q.w) - Math.max(p.x, q.x)
+      const oy = Math.min(p.y + p.d, q.y + q.d) - Math.max(p.y, q.y)
+      const oz = Math.min(p.z + p.h, q.z + q.h) - Math.max(p.z, q.z)
+      // 横に並んで接している（ちょうどすき間の分だけ離れている）
+      if (oz > 0) {
+        let area = 0
+        if (oy > 0 && (p.x + p.w + gap === q.x || q.x + q.w + gap === p.x))
+          area += oy * oz
+        if (ox > 0 && (p.y + p.d + gap === q.y || q.y + q.d + gap === p.y))
+          area += ox * oz
+        if (area > 0) {
+          contactAll += area
+          if (name(p.type) === name(q.type)) contactSame += area
+        }
+      }
+      // 上下に載っている
+      if (ox > 0 && oy > 0) {
+        const [lower, upper] =
+          p.z + p.h === q.z ? [p, q] : q.z + q.h === p.z ? [q, p] : [null, null]
+        if (lower && upper) {
+          const area = ox * oy
+          supportAll += area
+          if (upper.w * upper.d * upper.h > lower.w * lower.d * lower.h)
+            supportBad += area
+        }
+      }
+    }
+  }
+  // 上の面: 床をマス目に分け、箱が置かれているマスの上面の高さのばらつき
+  const G = 16
+  const { floorX: X, floorY: Y } = input
+  const tops: number[] = []
+  let maxTop = 0
+  for (let i = 0; i < G; i++) {
+    for (let j = 0; j < G; j++) {
+      const px = ((i + 0.5) * X) / G
+      const py = ((j + 0.5) * Y) / G
+      let top = 0
+      for (const p of placements) {
+        if (px >= p.x && px < p.x + p.w && py >= p.y && py < p.y + p.d)
+          top = Math.max(top, p.z + p.h)
+      }
+      if (top > 0) {
+        tops.push(top)
+        maxTop = Math.max(maxTop, top)
+      }
+    }
+  }
+  const mean = tops.reduce((s, t) => s + t, 0) / Math.max(1, tops.length)
+  const std = Math.sqrt(
+    tops.reduce((s, t) => s + (t - mean) ** 2, 0) / Math.max(1, tops.length),
+  )
+  const parts: number[] = []
+  if (input.tidy.group)
+    parts.push(contactAll > 0 ? contactSame / contactAll : 1)
+  if (input.tidy.flat)
+    parts.push(maxTop > 0 ? Math.max(0, 1 - (2 * std) / maxTop) : 1)
+  if (input.tidy.bigBottom)
+    parts.push(supportAll > 0 ? 1 - supportBad / supportAll : 1)
+  if (input.tidy.upright)
+    parts.push(1 - placements.filter((p) => p.laidDown).length / n)
+  if (parts.length === 0) return { value: 1, penalty: 0 }
+  return {
+    value: parts.reduce((s, x) => s + x, 0) / parts.length,
+    penalty: parts.reduce((s, x) => s + (1 - x), 0),
   }
 }
 
@@ -688,7 +808,10 @@ export function traceOrder(input: PackInput, types: number[]) {
   order.push(...rest)
   const t = packInOrder(order, input)
   return {
-    placed: t.placed.map((p) => [p.u, p.v, p.z, p.w, p.d, p.h] as const),
+    placed: t.placed.map(
+      (p) =>
+        [p.u, p.v, p.z, p.w, p.d, p.h, p.type, p.laidDown ? 1 : 0] as const,
+    ),
     placedAfter: t.placedAfter,
     heightAfter: t.heightAfter,
   }
@@ -798,12 +921,13 @@ export function createSearch(
  * 人が見比べて選ぶための部門。
  * 同じ床と箱で全部置けた結果どうしなら、充填率は高さだけで決まるので部門にしない
  */
-export type Metric = 'height' | 'floor' | 'low'
+export type Metric = 'height' | 'floor' | 'low' | 'tidy'
 
 export const metricLabels: Record<Metric, string> = {
   height: 'いちばん低い',
   floor: '1 段目がいちばん埋まっている',
   low: '重心がいちばん低い',
+  tidy: '見た目がいちばん整っている',
 }
 
 export const metrics = Object.keys(metricLabels) as Metric[]
@@ -819,9 +943,11 @@ export function betterFor(metric: Metric, a: PackResult, b?: PackResult) {
   if (!b) return true
   const cogZ = (r: PackResult) => r.cog?.z ?? 0
   const keys: Record<Metric, (r: PackResult) => number[]> = {
-    height: (r) => [r.height, -r.floorCoverage, cogZ(r)],
-    floor: (r) => [-r.floorCoverage, r.height, cogZ(r)],
+    // 高さが同じ結果はたくさんあるので、同じなら見た目が整っているほうを残す
+    height: (r) => [r.height, -r.tidiness, -r.floorCoverage, cogZ(r)],
+    floor: (r) => [-r.floorCoverage, r.height, -r.tidiness, cogZ(r)],
     low: (r) => [cogZ(r), r.height, -r.floorCoverage],
+    tidy: (r) => [-r.tidiness, r.height, cogZ(r)],
   }
   const ka = keys[metric](a)
   const kb = keys[metric](b)

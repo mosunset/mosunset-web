@@ -391,6 +391,21 @@ async function search(
         )
         .slice(0, 3),
     ])
+    // 見た目の整いは GPU では測りきれないので、横倒しが少ないもの（重視するとき）と、ランダムな数通りも混ぜる
+    if (input.tidy.weight > 0) {
+      if (input.tidy.upright) {
+        for (const r of [...pool]
+          .sort(
+            (x, y) =>
+              res.laid[x] - res.laid[y] || res.height[x] - res.height[y],
+          )
+          .slice(0, 3))
+          picks.add(r)
+      }
+      for (let i = 0; i < 3 && pool.length > 0; i++) {
+        picks.add(pool[Math.floor(rand() * pool.length)])
+      }
+    }
     let improved = false
     for (const r of picks) {
       const order = job.orders.subarray(r * m, (r + 1) * m)

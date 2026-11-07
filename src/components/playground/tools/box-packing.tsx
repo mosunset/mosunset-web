@@ -94,6 +94,7 @@ const initial: Settings = {
   supportPercent: 95,
   objective: 'height',
   wallBias: 50,
+  tidy: { weight: 50, group: true, flat: true, bigBottom: true, upright: true },
   boxes: [
     { tag: '冬服', x: 500, y: 400, z: 350, count: 4, canLayDown: false },
     { tag: '本', x: 400, y: 300, z: 250, count: 8, canLayDown: false },
@@ -312,6 +313,18 @@ function parseSettingsObject(value: unknown): Settings | null {
     supportPercent: num(s.supportPercent, initial.supportPercent, 50, 100),
     objective: s.objective === 'floor' ? 'floor' : 'height',
     wallBias: num(s.wallBias, initial.wallBias, 0, 100),
+    tidy: (() => {
+      const t = (s.tidy ?? {}) as Record<string, unknown>
+      const flag = (key: 'group' | 'flat' | 'bigBottom' | 'upright') =>
+        typeof t[key] === 'boolean' ? (t[key] as boolean) : initial.tidy[key]
+      return {
+        weight: num(t.weight, initial.tidy.weight, 0, 100),
+        group: flag('group'),
+        flat: flag('flat'),
+        bigBottom: flag('bigBottom'),
+        upright: flag('upright'),
+      }
+    })(),
     boxes: (s.boxes as Record<string, unknown>[]).slice(0, MAX_ROWS).map((b) =>
       row(
         {
@@ -448,7 +461,7 @@ function loadSaved(): Saved[] {
         savedAt: isNumber(item.savedAt) ? item.savedAt : Date.now(),
         run: isNumber(item.run) ? item.run : 1,
         settings,
-        result: r,
+        result: withTidiness(r),
       })
     } catch {
       // 壊れた 1 件は飛ばす
@@ -489,6 +502,11 @@ type BestGroup = {
 /** 記録しておく、床と箱のまとまりの数（古いものから消す） */
 const MAX_BEST_GROUPS = 10
 
+/** 前の版で保存した結果には見た目の整いがないので、0 で補う */
+function withTidiness(r: PackResult): PackResult {
+  return typeof r.tidiness === 'number' ? r : { ...r, tidiness: 0 }
+}
+
 function isResult(r: unknown): r is PackResult {
   const x = r as PackResult | null
   const isNumber = (v: unknown) => typeof v === 'number' && Number.isFinite(v)
@@ -521,7 +539,7 @@ function loadBests(): Record<string, BestGroup> {
         sweep: typeof e.sweep === 'number' ? e.sweep : undefined,
         foundAt: typeof e.foundAt === 'number' ? e.foundAt : Date.now(),
         settings,
-        result: e.result,
+        result: withTidiness(e.result),
       }
     }
     out[key] = {
@@ -546,6 +564,20 @@ function summarize(s: Settings): SettingsSummary {
     { label: '支え', value: `${s.supportPercent}%` },
     { label: '優先', value: s.objective === 'height' ? '高さ' : '1 段目' },
     { label: '寄せ', value: String(s.wallBias) },
+    {
+      label: '整い',
+      value:
+        s.tidy.weight === 0
+          ? 'なし'
+          : `${s.tidy.weight}（${[
+              s.tidy.group && 'まとまり',
+              s.tidy.flat && '平ら',
+              s.tidy.bigBottom && '大が下',
+              s.tidy.upright && '横倒し少',
+            ]
+              .filter(Boolean)
+              .join('・')}）`,
+    },
     {
       label: '箱',
       value: `${used.length} 種 ${used.reduce((n, b) => n + b.count, 0)} 個`,
@@ -690,13 +722,15 @@ function BestViews3D({
   view: ViewOptions
 }) {
   // 書き出しには使わないが、部品が受け取る形に合わせて用意する
-  const refs = [
-    useRef<(() => Promise<Blob | null>) | null>(null),
-    useRef<(() => Promise<Blob | null>) | null>(null),
-    useRef<(() => Promise<Blob | null>) | null>(null),
-  ]
+  // 部門の数だけ用意する（部門を増やしても足りなくならないように、部門の一覧から作る）
+  const refs = useRef(
+    metrics.map(
+      () =>
+        ({ current: null }) as { current: (() => Promise<Blob | null>) | null },
+    ),
+  ).current
   return (
-    <div className="grid gap-3 md:grid-cols-3">
+    <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
       {entries.map(({ metric, entry }, i) => (
         <div key={metric} className="space-y-1">
           <div className="flex items-baseline justify-between gap-2 text-sm">
@@ -1963,6 +1997,49 @@ export function BoxPacking() {
               範囲でまとめて試すときに、横倒しの許可を「今の設定のまま」と「全部オン」の両方で試します。
             </HelpTip>
           </div>
+          <div className="space-y-2 sm:col-span-2 lg:col-span-3">
+            <div className="max-w-md">
+              <RangeSlider
+                label="見た目の整い（人の感覚）"
+                help="人が見て整っていると感じる積み方を、どれだけ重視するかです。0 なら気にせず、上げるほど、高さを少し譲ってでも整った積み方を選びます。下の 4 つで、何を整いとみなすかを選べます。"
+                value={settings.tidy.weight}
+                min={0}
+                max={100}
+                step={10}
+                format={(v) =>
+                  v === 0 ? 'なし' : v <= 30 ? '弱' : v <= 70 ? '中' : '強'
+                }
+                onChange={(v) => set('tidy', { ...settings.tidy, weight: v })}
+              />
+            </div>
+            <div
+              className={cn(
+                'flex flex-wrap gap-x-5 gap-y-1 text-sm',
+                settings.tidy.weight === 0 && 'opacity-50',
+              )}
+            >
+              {(
+                [
+                  ['group', '同じ箱をまとめる'],
+                  ['flat', '上の面を平らに'],
+                  ['bigBottom', '大きい箱を下に'],
+                  ['upright', '横倒しを減らす'],
+                ] as const
+              ).map(([key, label]) => (
+                <label key={key} className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    checked={settings.tidy[key]}
+                    onChange={(e) =>
+                      set('tidy', { ...settings.tidy, [key]: e.target.checked })
+                    }
+                    className="size-4 accent-primary"
+                  />
+                  {label}
+                </label>
+              ))}
+            </div>
+          </div>
         </div>
       </section>
 
@@ -2231,7 +2308,7 @@ export function BoxPacking() {
           </span>
         </div>
 
-        <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
+        <div className="grid grid-cols-2 gap-3 lg:grid-cols-6">
           <Stat
             label="全体の高さ"
             value={result ? result.height.toLocaleString() : '—'}
@@ -2242,6 +2319,12 @@ export function BoxPacking() {
             value={result ? percent(result.fillRate) : '—'}
             unit="%"
             hint="箱の体積 ÷（床 × 高さ）"
+          />
+          <Stat
+            label="見た目の整い"
+            value={result ? percent(result.tidiness) : '—'}
+            unit="%"
+            hint="まとまり・平ら・大きい箱が下・横倒しの少なさ"
           />
           <Stat
             label="1 段目の埋まり"
