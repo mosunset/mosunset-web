@@ -27,6 +27,9 @@
   // お問い合わせの通知メール。送り先は Email Routing で認証済みのアドレスに限られる
   "send_email": [{ "name": "EMAIL" }],
   "vars": {
+    // Clerk の本番用の公開キー（公開してよい値・clerk.mosunset.com）。開発中は .dev.vars の開発用キーで上書きする。
+    // シークレットキーは `wrangler secret put CLERK_SECRET_KEY`
+    "CLERK_PUBLISHABLE_KEY": "pk_live_Y2xlcmsubW9zdW5zZXQuY29tJA",
     // 通知メールの送信元（mosunset.com で Email Routing を有効にしておく）
     "CONTACT_FROM": "noreply@mosunset.com",
     // Turnstile のサイトキー（公開してよい値・mosunset.com 用）。
