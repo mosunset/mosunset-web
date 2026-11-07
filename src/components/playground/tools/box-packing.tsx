@@ -52,6 +52,8 @@ const MAX_SIZE = 20000
 const MAX_COUNT_PER_ROW = 200
 const MAX_TOTAL = 200
 const MAX_ROWS = 50
+/** 設定を最後に触ってから計算し直すまでの時間（触っている間は計算し直さない） */
+const DEBOUNCE_MS = 1000
 /** 保存しておく候補の数 */
 const MAX_CANDIDATES = 10
 
@@ -322,7 +324,7 @@ type Candidate = {
 type RunStatus = 'waiting' | 'running' | 'stopped' | 'done' | 'invalid'
 
 const statusText: Record<RunStatus, string> = {
-  waiting: '計算の準備中…',
+  waiting: '設定の変更を待っています（最後に触ってから 1 秒で計算し直します）',
   running: '計算中（裏で良い並べ方を探し続けています）',
   stopped: '止めました',
   done: 'しばらく良い結果が出なくなったので止めました',
@@ -431,15 +433,19 @@ export function BoxPacking() {
   const { random: _randomOptions, ...packSettings } = settings
   const packKey = JSON.stringify(packSettings)
 
-  // 設定が変わったら、少し待ってから Worker で計算し直す（前の計算は止める）
+  // 設定が変わったら前の計算を止め、最後に触ってから DEBOUNCE_MS たったら計算し直す。
+  // 待っている間は、前の結果を表示したままにする（スライダーを動かしている間に 3D が空にならないように）
   // biome-ignore lint/correctness/useExhaustiveDependencies: packKey が中身の変化を表す
   useEffect(() => {
-    setCandidates([])
-    setPinned(null)
-    setSelected(null)
-    setVisible(null)
-    setProgress({ tried: 0, elapsed: 0 })
+    const clear = () => {
+      setCandidates([])
+      setPinned(null)
+      setSelected(null)
+      setVisible(null)
+      setProgress({ tried: 0, elapsed: 0 })
+    }
     if (error) {
+      clear()
       setStatus('invalid')
       return
     }
@@ -453,6 +459,7 @@ export function BoxPacking() {
     let elapsed = 0
     let finished = 0
     const timer = window.setTimeout(() => {
+      clear()
       setStatus('running')
       for (let w = 0; w < workerCount; w++) {
         const worker = new Worker(
@@ -490,7 +497,7 @@ export function BoxPacking() {
         worker.postMessage(toInput(snapshot, (runToken + 1) * 1000 + w))
       }
       workersRef.current = workers
-    }, 400)
+    }, DEBOUNCE_MS)
     return () => {
       window.clearTimeout(timer)
       for (const worker of workers) worker.terminate()
