@@ -43,6 +43,7 @@ import {
   planSearch,
   RangeOrValue,
   SearchBar,
+  SLICE_SEC,
   type SweepConfig,
   type SweepRow,
   SweepTable,
@@ -854,11 +855,24 @@ export function BoxPacking() {
     index: number
     combos: Settings[]
     rows: SweepRow[]
-    /** 1 つの組み合わせにかける時間 */
-    perComboMs: number
+    /** 何周目か（0 から） */
+    round: number
+    /** 1 回に 1 つの組み合わせへかける時間と、合計時間、始めた時刻 */
+    sliceMs: number
+    totalMs: number
+    startedAt: number
     /** 「続けて詰める」のときの出発点の並べ順 */
     startOrder?: number[]
-  }>({ running: false, index: 0, combos: [], rows: [], perComboMs: 0 })
+  }>({
+    running: false,
+    index: 0,
+    combos: [],
+    rows: [],
+    round: 0,
+    sliceMs: 0,
+    totalMs: 0,
+    startedAt: 0,
+  })
   const [showBest3D, setShowBest3D] = useState(true)
   const captureRef = useRef<(() => Promise<Blob | null>) | null>(null)
   const fileRef = useRef<HTMLInputElement>(null)
@@ -895,15 +909,15 @@ export function BoxPacking() {
 
   /** 条件の組み合わせを作って探し始める。from を渡すと、その結果 1 つから続けて詰める */
   const startSearch = (from?: { settings: Settings; result: PackResult }) => {
+    const totalMs = sweepConfig.totalSec * 1000
     let combos: Settings[]
     let chips: string[][]
-    let perComboMs: number
     if (from) {
       combos = [from.settings]
       chips = [['続けて詰める']]
-      perComboMs = sweepConfig.totalSec * 1000
     } else {
-      const picked = buildCombos(sweepConfig, sweepBase, plan.count)
+      // 時間内に 1 周しきれないときは、回る順番を混ぜる
+      const picked = buildCombos(sweepConfig, sweepBase, plan.rounds < 1)
       combos = picked.map((c) => ({
         ...settings,
         gap: c.gap,
@@ -916,16 +930,19 @@ export function BoxPacking() {
           : settings.boxes,
       }))
       chips = picked.map((c) => comboChips(sweepConfig, c))
-      perComboMs = plan.perComboSec * 1000
     }
     setSearchNo((n) => n + 1)
     setProgress({ tried: 0, elapsed: 0 })
     setSearch({
       running: true,
       index: 0,
+      round: 0,
       combos,
-      rows: chips.map((c) => ({ chips: c, status: 'wait' })),
-      perComboMs,
+      rows: chips.map((c) => ({ chips: c, status: 'wait', visits: 0 })),
+      // 組み合わせが 1 つだけなら、合計時間いっぱい続けて探す
+      sliceMs: combos.length > 1 ? SLICE_SEC * 1000 : totalMs,
+      totalMs,
+      startedAt: Date.now(),
       startOrder: from?.result.placements.map((p) => p.type),
     })
   }
@@ -939,14 +956,23 @@ export function BoxPacking() {
       ),
     }))
 
-  // 組み合わせを 1 つずつ計算する（決めた時間がたつか、良い結果が出なくなったら次へ）
+  // 組み合わせを順に回る。1 回に SLICE_SEC だけ計算して次へ進み、最後まで行ったら次の周へ。
+  // 2 周目からは、その組み合わせで前に見つけた良い並べ方を出発点にして続きから詰める。
+  // 合計時間がたったら終える
   // biome-ignore lint/correctness/useExhaustiveDependencies: 試している組み合わせが変わったときだけ動かす
   useEffect(() => {
     if (!search.running) return
     const index = search.index
     const snapshot = search.combos[index]
-    if (!snapshot) {
-      setSearch((s) => ({ ...s, running: false }))
+    const left = search.totalMs - (Date.now() - search.startedAt)
+    if (!snapshot || left <= 0) {
+      setSearch((s) => ({
+        ...s,
+        running: false,
+        rows: s.rows.map((r) =>
+          r.status === 'run' ? { ...r, status: 'done' } : r,
+        ),
+      }))
       toast.success('探し終えました（結果は部門別ベストに入っています）')
       return
     }
@@ -959,12 +985,19 @@ export function BoxPacking() {
       })
     let advanced = false
     let stopRun: (() => void) | null = null
+    const round = search.round
     const next = () => {
       if (advanced) return
       advanced = true
       stopRun?.()
-      markRow((r) => ({ ...r, status: 'done' }))
-      setSearch((s) => (s.index === index ? { ...s, index: index + 1 } : s))
+      markRow((r) => ({ ...r, status: 'done', visits: (r.visits ?? 0) + 1 }))
+      setSearch((s) => {
+        if (s.index !== index || s.round !== round) return s
+        // 最後の組み合わせまで行ったら、最初に戻って次の周へ
+        return index + 1 < s.combos.length
+          ? { ...s, index: index + 1 }
+          : { ...s, index: 0, round: round + 1 }
+      })
     }
     // 組み合わせとして成り立たないもの（床が端のすき間より狭いなど）は飛ばす
     if (validate(snapshot)) {
@@ -974,10 +1007,24 @@ export function BoxPacking() {
     markRow((r) => ({ ...r, status: 'run' }))
     setProgress({ tried: 0, elapsed: 0 })
     const { seed: _seed, ...input } = toInput(snapshot, 0)
+    // 出発点: 前の周でこの組み合わせの良かった並べ方。1 周目の最初だけは「続けて詰める」の並べ方
+    const startOrder =
+      search.rows[index]?.bestOrder ??
+      (index === 0 && round === 0 ? search.startOrder : undefined)
     stopRun = startWorkers(
-      { ...input, startOrder: index === 0 ? search.startOrder : undefined },
-      (searchNo * 1000 + index + 1) * 7919,
+      { ...input, startOrder },
+      ((searchNo * 1000 + round) * 997 + index + 1) * 7919,
       {
+        best: (found) =>
+          markRow((r) =>
+            r.bestScore === undefined || found.score < r.bestScore
+              ? {
+                  ...r,
+                  bestScore: found.score,
+                  bestOrder: found.placements.map((p) => p.type),
+                }
+              : r,
+          ),
         metric: (metric, found) => {
           setBests((all) =>
             withBest(all, groupKeyOf(snapshot), metric, {
@@ -1016,18 +1063,16 @@ export function BoxPacking() {
         },
       },
     )
-    const timer = window.setTimeout(next, search.perComboMs)
+    const timer = window.setTimeout(next, Math.min(search.sliceMs, left))
     return () => {
       window.clearTimeout(timer)
       advanced = true
       stopRun?.()
     }
-  }, [search.running, search.index])
+  }, [search.running, search.index, search.round])
 
-  const remainingMs = search.running
-    ? Math.max(0, search.combos.length - search.index - 1) * search.perComboMs +
-      Math.max(0, search.perComboMs - progress.elapsed)
-    : 0
+  const usedMs = search.running ? Date.now() - search.startedAt : 0
+  const remainingMs = search.running ? Math.max(0, search.totalMs - usedMs) : 0
 
   // ---- ブラウザへの保存 ----
   const allLayDown = settings.boxes.every((b) => b.canLayDown)
@@ -1832,7 +1877,9 @@ export function BoxPacking() {
         onTotalSec={(sec) => setSweepConfig((c) => ({ ...c, totalSec: sec }))}
         plan={plan}
         running={search.running}
+        round={search.round}
         index={search.index}
+        doneRatio={search.totalMs ? usedMs / search.totalMs : 0}
         count={search.combos.length}
         remainingMs={remainingMs}
         tried={progress.tried}

@@ -34,8 +34,11 @@ export const defaultSweep: SweepConfig = {
   totalSec: 300,
 }
 
-/** 1 つの組み合わせにかける時間の下限（これより短いと、良い並べ方を探しきれない） */
-export const MIN_COMBO_SEC = 10
+/**
+ * 1 回に 1 つの組み合わせへかける時間。全部の組み合わせをこの時間ずつ順に回り、
+ * 2 周目からは前の周で見つけた良い並べ方の続きから詰める
+ */
+export const SLICE_SEC = 3
 
 /** 1 つの組み合わせ（設定欄の値から変える値） */
 export type SweepCombo = {
@@ -62,13 +65,13 @@ function valuesOf(r: SweepRange, current: number, lo: number, hi: number) {
 const MAX_COMBOS = 2000
 
 /**
- * 組み合わせを作る。limit を渡すと、全部の中からランダムに limit 個選ぶ
- * （同じ組み合わせを 2 回選ばない）
+ * 組み合わせを作る。shuffle なら順番を混ぜる
+ * （時間内に 1 周しきれないとき、止めた時点でも全体からまんべんなく試したことにするため）
  */
 export function buildCombos(
   config: SweepConfig,
   base: Omit<SweepCombo, 'layDownAll'>,
-  limit?: number,
+  shuffle = false,
 ): SweepCombo[] {
   const gaps = valuesOf(config.gap, base.gap, 0, 50)
   const edges = valuesOf(config.edgeGap, base.edgeGap, 0, 50)
@@ -95,31 +98,38 @@ export function buildCombos(
                 layDownAll,
               })
             }
-  if (limit === undefined || limit >= all.length) return all
-  const shuffled = [...all]
-  for (let i = shuffled.length - 1; i > 0; i--) {
+  if (!shuffle) return all
+  for (let i = all.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1))
-    ;[shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]]
+    ;[all[i], all[j]] = [all[j], all[i]]
   }
-  return shuffled.slice(0, Math.max(1, limit))
+  return all
 }
 
 /**
- * 合計時間から、試し方を決める。
- * 全部の組み合わせが時間内に収まれば全部を、収まらなければランダムに選んで試す
+ * 合計時間から、回り方の見込みを出す。
+ * 全部の組み合わせを SLICE_SEC ずつ順に回るので、1 周の時間と、時間内に何周できるかを返す。
+ * 組み合わせが 1 つだけなら、合計時間いっぱい続けて探す
  */
 export function planSearch(
   config: SweepConfig,
   base: Omit<SweepCombo, 'layDownAll'>,
 ) {
   const all = buildCombos(config, base).length
-  const maxCount = Math.max(1, Math.floor(config.totalSec / MIN_COMBO_SEC))
-  const count = Math.min(all, maxCount)
+  if (all <= 1) {
+    return {
+      all,
+      sliceSec: config.totalSec,
+      roundSec: config.totalSec,
+      rounds: 1,
+    }
+  }
+  const roundSec = all * SLICE_SEC
   return {
     all,
-    count,
-    random: count < all,
-    perComboSec: config.totalSec / count,
+    sliceSec: SLICE_SEC,
+    roundSec,
+    rounds: config.totalSec / roundSec,
   }
 }
 
@@ -141,6 +151,11 @@ export function comboChips(config: SweepConfig, c: SweepCombo) {
 export type SweepRow = {
   chips: string[]
   status: 'wait' | 'run' | 'done'
+  /** 何周回ったか */
+  visits?: number
+  /** 「優先すること」の点数でいちばん良かった結果の点数と、その積む順番（次の周の出発点） */
+  bestScore?: number
+  bestOrder?: number[]
   /** 全部の箱を置けた結果のうち、いちばん低いもの（表示用） */
   lowest?: PackResult
   /** 全部の箱を置けた結果のうち、1 段目のいちばん大きい割合と、いちばん低い重心 */
@@ -254,9 +269,11 @@ export function SearchBar({
   onTotalSec,
   plan,
   running,
+  round,
   index,
   count,
   remainingMs,
+  doneRatio,
   tried,
   workers,
   error,
@@ -267,8 +284,12 @@ export function SearchBar({
   onTotalSec: (sec: number) => void
   plan: ReturnType<typeof planSearch>
   running: boolean
+  /** 何周目か（0 から） */
+  round: number
   /** 計算中の組み合わせの番号（0 から） */
   index: number
+  /** 合計時間のうち、使った割合（0〜1） */
+  doneRatio: number
   /** 今回試す組み合わせの数 */
   count: number
   remainingMs: number
@@ -279,21 +300,23 @@ export function SearchBar({
   onStart: () => void
   onStop: () => void
 }) {
+  const minutes = (sec: number) =>
+    sec >= 90 ? `${Math.round(sec / 60)} 分` : `${Math.round(sec)} 秒`
   const planText =
     plan.all === 1
-      ? '条件はすべて 1 つの値なので、1 通りをじっくり探します'
-      : plan.random
-        ? `${plan.all.toLocaleString()} 通りの組み合わせから、ランダムに ${plan.count} 通りを試します（1 通り約 ${Math.round(plan.perComboSec)} 秒）`
-        : `${plan.all} 通りの組み合わせを全部試します（1 通り約 ${Math.round(plan.perComboSec)} 秒）`
+      ? '条件はすべて 1 つの値なので、1 通りを時間いっぱいまでじっくり探します'
+      : plan.rounds >= 1
+        ? `${plan.all} 通りの組み合わせを、1 通り ${plan.sliceSec} 秒ずつ順に回ります（1 周 約 ${minutes(plan.roundSec)}）。時間いっぱいまで約 ${Math.floor(plan.rounds * 10) / 10} 周して、周を重ねるごとに前の良い並べ方の続きから詰めます`
+        : `${plan.all} 通りの組み合わせを、1 通り ${plan.sliceSec} 秒ずつ回ります。1 周に約 ${minutes(plan.roundSec)} かかるので、この時間では約 ${Math.floor(plan.rounds * plan.all)} 通りまでです（回る順番はランダム）。時間を延ばすと、全部を回ってから周を重ねて詰めます`
   return (
     <section className="space-y-3 rounded-lg border-2 border-primary/30 p-4">
       <div className="flex flex-wrap items-center gap-3">
         <h2 className="flex items-center gap-1 font-semibold">
           4. 探す
           <HelpTip>
-            上の条件の組み合わせを、決めた時間の中で順に計算します。全部の組み合わせが時間内に収まれば全部を、収まらなければ範囲の中からランダムに選んで試します（1
-            通りに最低 {MIN_COMBO_SEC}{' '}
-            秒）。結果は下の「部門別ベスト」に自動で入ります。
+            上の条件の全部の組み合わせを、1 通り {SLICE_SEC}{' '}
+            秒ずつ順に回ります。1
+            周したら、それぞれの組み合わせで前の周に見つけた良い並べ方の続きから、もう一度回って詰めます。これを、決めた時間いっぱいまで繰り返します。結果は下の「部門別ベスト」に自動で入ります。
           </HelpTip>
         </h2>
         <label className="ml-auto flex items-center gap-2 text-sm">
@@ -331,13 +354,14 @@ export function SearchBar({
             <div
               className="h-full rounded-full bg-primary transition-[width]"
               style={{
-                width: `${Math.min(100, (index / Math.max(1, count)) * 100)}%`,
+                width: `${Math.min(100, doneRatio * 100)}%`,
               }}
             />
           </div>
           <p className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted-foreground">
             <Loader2 className="size-4 animate-spin" />
             <span>
+              {count > 1 && `${round + 1} 周目・`}
               {Math.min(index + 1, count)} / {count} 通り目
             </span>
             <span>残り約 {clock(remainingMs)}</span>
@@ -395,10 +419,10 @@ export function SweepTable({
   return (
     <section className="space-y-2 rounded-lg border p-4">
       <h2 className="flex items-center gap-1 font-semibold">
-        試した組み合わせ（{rows.filter((r) => r.status === 'done').length} /{' '}
+        試した組み合わせ（{rows.filter((r) => (r.visits ?? 0) > 0).length} /{' '}
         {rows.length}）
         <HelpTip>
-          今回の「探す」で試した条件の組み合わせです。見出しを押すと、その項目で並べ替えます。「表示」で、その組み合わせのいちばん低い結果を下の「詳しく見る」に出します。
+          今回の「探す」で回る条件の組み合わせです。「周」は、その組み合わせを何周回ったかです。見出しを押すと、その項目で並べ替えます。「表示」で、その組み合わせのいちばん低い結果を下の「詳しく見る」に出します。
         </HelpTip>
       </h2>
       <div className="h-64 overflow-auto rounded-md border">
@@ -407,6 +431,7 @@ export function SweepTable({
             <tr>
               {head('order', '#')}
               <th className="py-1 font-normal">変えた条件</th>
+              <th className="py-1 font-normal">周</th>
               {head('height', 'いちばん低い')}
               {head('floor', '1 段目（最大）')}
               {head('cog', '重心の高さ（最小）')}
@@ -447,13 +472,16 @@ export function SweepTable({
                     </div>
                   </td>
                   <td className="py-1 font-mono whitespace-nowrap tabular-nums">
+                    {r.visits ?? 0}
+                  </td>
+                  <td className="py-1 font-mono whitespace-nowrap tabular-nums">
                     {r.lowest
                       ? `${r.lowest.height.toLocaleString()} mm`
-                      : r.status === 'wait'
-                        ? '待ち'
-                        : r.status === 'run'
-                          ? '計算中'
-                          : '全部は置けず'}
+                      : r.status === 'run'
+                        ? '計算中'
+                        : r.visits
+                          ? '全部は置けず'
+                          : 'まだ'}
                   </td>
                   <td className="py-1 font-mono whitespace-nowrap tabular-nums">
                     {r.bestFloor !== undefined
