@@ -101,8 +101,7 @@ const initial: Settings = {
     flat: true,
     bigBottom: true,
     upright: true,
-    compact: true,
-    noTower: true,
+    even: true,
   },
   boxes: [
     { tag: '冬服', x: 500, y: 400, z: 350, count: 4, canLayDown: false },
@@ -325,7 +324,7 @@ function parseSettingsObject(value: unknown): Settings | null {
     tidy: (() => {
       const t = (s.tidy ?? {}) as Record<string, unknown>
       const flag = (
-        key: 'group' | 'flat' | 'bigBottom' | 'upright' | 'compact' | 'noTower',
+        key: 'group' | 'flat' | 'bigBottom' | 'upright' | 'even',
       ) =>
         typeof t[key] === 'boolean' ? (t[key] as boolean) : initial.tidy[key]
       return {
@@ -334,8 +333,7 @@ function parseSettingsObject(value: unknown): Settings | null {
         flat: flag('flat'),
         bigBottom: flag('bigBottom'),
         upright: flag('upright'),
-        compact: flag('compact'),
-        noTower: flag('noTower'),
+        even: flag('even'),
       }
     })(),
     boxes: (s.boxes as Record<string, unknown>[]).slice(0, MAX_ROWS).map((b) =>
@@ -595,8 +593,7 @@ function summarize(s: Settings): SettingsSummary {
               s.tidy.flat && '平ら',
               s.tidy.bigBottom && '大が下',
               s.tidy.upright && '横倒し少',
-              s.tidy.compact && 'すき間少',
-              s.tidy.noTower && '塔なし',
+              s.tidy.even && 'でこぼこ無',
             ]
               .filter(Boolean)
               .join('・')}）`,
@@ -2053,8 +2050,7 @@ export function BoxPacking() {
                   ['flat', '上の面を平らに'],
                   ['bigBottom', '大きい箱を下に'],
                   ['upright', '横倒しを減らす'],
-                  ['compact', 'すき間を少なく'],
-                  ['noTower', '塔を作らない'],
+                  ['even', 'くぼみ・飛び出しを作らない'],
                 ] as const
               ).map(([key, label]) => (
                 <label key={key} className="flex items-center gap-2">

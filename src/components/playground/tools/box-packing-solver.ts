@@ -29,7 +29,7 @@ export type Objective = 'height' | 'floor'
 /**
  * 見た目の整い（人の感覚）。weight（0〜100）が 0 なら使わない。
  * group: 同じ箱がまとまっている / flat: 上の面が平ら / bigBottom: 大きい箱が下 / upright: 横倒しが少ない
- * compact: すき間が少ない / noTower: 塔がない
+ * even: くぼみや飛び出しがない
  */
 export type Tidy = {
   weight: number
@@ -37,8 +37,7 @@ export type Tidy = {
   flat: boolean
   bigBottom: boolean
   upright: boolean
-  compact: boolean
-  noTower: boolean
+  even: boolean
 }
 
 export type PackInput = {
@@ -620,8 +619,7 @@ const gapOf = (input: PackInput) => input.gap
  * - flat: 箱が置かれている範囲（外側を囲んだ四角）で、上の面の高さのばらつきの小ささ。空いたところは高さ 0 として数える
  * - bigBottom: 箱が箱の上に載っている面積のうち、下の箱より大きい箱が載っていない割合
  * - upright: 横倒しにしていない箱の割合
- * - compact: 箱の体積 ÷ 上の面より下の空間の体積（すき間が少ないほど 1 に近い）
- * - noTower: 平均の上面の高さ ÷ いちばん高い上面（ぽつんと高い塔がないほど 1 に近い）
+ * - even: 上から見て、くぼみや飛び出しになっている場所が少ないほど 1 に近い（unevenShare）
  */
 function tidinessOf(placements: Placement[], input: PackInput, gap: number) {
   const n = placements.length
@@ -664,34 +662,42 @@ function tidinessOf(placements: Placement[], input: PackInput, gap: number) {
     }
   }
   // 上から見た高さの地図。箱が置かれている範囲（外側を囲んだ四角）をマス目に分け、
-  // 各マスの中心でいちばん高い上面を調べる。箱のないマスは高さ 0（すき間や空いたところ）
-  const G = 24
+  // 各マスの中心でいちばん高い上面を調べる。箱のないマスは高さ 0（空いたところ）。
+  // 箱は少し広げて塗るので、決めたすき間ほどの細いすき間は埋まって見える
   let minX = Number.POSITIVE_INFINITY
   let minY = Number.POSITIVE_INFINITY
   let maxX = 0
   let maxY = 0
-  let boxVolume = 0
   for (const p of placements) {
     minX = Math.min(minX, p.x)
     minY = Math.min(minY, p.y)
     maxX = Math.max(maxX, p.x + p.w)
     maxY = Math.max(maxY, p.y + p.d)
-    boxVolume += p.w * p.d * p.h
   }
-  const cw = (maxX - minX) / G
-  const ch = (maxY - minY) / G
-  const tops = new Float64Array(G * G)
-  const cells = (from: number, size: number, min: number, step: number) => [
-    Math.max(0, Math.ceil((from - min) / step - 0.5)),
-    Math.min(G - 1, Math.ceil((from + size - min) / step - 0.5) - 1),
+  const cell = Math.max(10, Math.max(maxX - minX, maxY - minY) / 48)
+  const GX = Math.max(1, Math.round((maxX - minX) / cell))
+  const GY = Math.max(1, Math.round((maxY - minY) / cell))
+  const cw = (maxX - minX) / GX
+  const ch = (maxY - minY) / GY
+  const tops = new Float64Array(GX * GY)
+  const spread = gap + 10
+  const cells = (
+    from: number,
+    size: number,
+    min: number,
+    step: number,
+    g: number,
+  ) => [
+    Math.max(0, Math.ceil((from - spread - min) / step - 0.5)),
+    Math.min(g - 1, Math.ceil((from + size + spread - min) / step - 0.5) - 1),
   ]
   for (const p of placements) {
-    const [i0, i1] = cells(p.x, p.w, minX, cw)
-    const [j0, j1] = cells(p.y, p.d, minY, ch)
+    const [i0, i1] = cells(p.x, p.w, minX, cw, GX)
+    const [j0, j1] = cells(p.y, p.d, minY, ch, GY)
     const top = p.z + p.h
-    for (let i = i0; i <= i1; i++) {
-      for (let j = j0; j <= j1; j++) {
-        if (top > tops[i * G + j]) tops[i * G + j] = top
+    for (let j = j0; j <= j1; j++) {
+      for (let i = i0; i <= i1; i++) {
+        if (top > tops[j * GX + i]) tops[j * GX + i] = top
       }
     }
   }
@@ -705,8 +711,6 @@ function tidinessOf(placements: Placement[], input: PackInput, gap: number) {
   let varSum = 0
   for (const t of tops) varSum += (t - mean) ** 2
   const std = Math.sqrt(varSum / tops.length)
-  // 上の面より下の空間の体積（箱の体積との差が、箱の間や下にできたすき間）
-  const underTop = sum * cw * ch
   const parts: number[] = []
   if (input.tidy.group)
     parts.push(contactAll > 0 ? contactSame / contactAll : 1)
@@ -716,16 +720,77 @@ function tidinessOf(placements: Placement[], input: PackInput, gap: number) {
     parts.push(supportAll > 0 ? 1 - supportBad / supportAll : 1)
   if (input.tidy.upright)
     parts.push(1 - placements.filter((p) => p.laidDown).length / n)
-  if (input.tidy.compact)
-    parts.push(underTop > 0 ? Math.min(1, boxVolume / underTop) : 1)
-  // いちばん高いところまで、まわりも同じくらい高いか（平均の高さ ÷ いちばん高い上面）。
-  // ぽつんと高い塔があると、いちばん高い上面だけが上がって小さくなる
-  if (input.tidy.noTower) parts.push(maxTop > 0 ? mean / maxTop : 1)
+  if (input.tidy.even) {
+    parts.push(
+      Math.max(
+        0,
+        1 - EVEN_SCALE * unevenShare(tops, GX, GY, cw, ch, placements),
+      ),
+    )
+  }
   if (parts.length === 0) return { value: 1, penalty: 0 }
   return {
     value: parts.reduce((s, x) => s + x, 0) / parts.length,
     penalty: parts.reduce((s, x) => s + (1 - x), 0),
   }
+}
+
+/** くぼみ・飛び出しで整いをどれだけ下げるか（範囲の 5% がくぼみか飛び出しなら 0.75） */
+const EVEN_SCALE = 5
+
+const median = (xs: number[]) => {
+  const sorted = [...xs].sort((a, b) => a - b)
+  return sorted[Math.floor(sorted.length / 2)] ?? 0
+}
+
+/**
+ * 高さの地図のうち、くぼみか飛び出しになっているマスの割合。横の列と縦の列ごとに調べる。
+ * - くぼみ: 列の両側に、それより段差以上高いところがある（雨が降ったら水がたまる場所）
+ * - 飛び出し: 列の両側の近くに、それより段差以上低いところがある（細い塔）
+ * 段差は置いた箱の高さの中央値の半分（20mm 以上）、近くは置いた箱の長い辺の中央値。
+ * 端の列が低いだけ（奥の壁側が高い段々など）は、片側にしか高いところがないので数えない
+ */
+function unevenShare(
+  tops: Float64Array,
+  GX: number,
+  GY: number,
+  cw: number,
+  ch: number,
+  placements: Placement[],
+) {
+  const step = Math.max(20, median(placements.map((p) => p.h)) / 2)
+  const reach = median(placements.map((p) => Math.max(p.w, p.d)))
+  const bad = new Uint8Array(GX * GY)
+  const leftMax = new Float64Array(Math.max(GX, GY))
+  // 1 本の列を調べる。at(k) は k 番目のマスの番号、size は 1 マスの長さ
+  const line = (len: number, at: (k: number) => number, size: number) => {
+    const R = Math.max(1, Math.round(reach / size))
+    let m = 0
+    for (let k = 0; k < len; k++) {
+      leftMax[k] = m
+      m = Math.max(m, tops[at(k)])
+    }
+    let rightMax = 0
+    for (let k = len - 1; k >= 0; k--) {
+      const t = tops[at(k)]
+      if (Math.min(leftMax[k], rightMax) - t >= step) bad[at(k)] = 1
+      else if (!bad[at(k)]) {
+        let lowL = false
+        let lowR = false
+        for (let d = 1; d <= R && !lowL; d++)
+          if (k - d >= 0 && tops[at(k - d)] <= t - step) lowL = true
+        for (let d = 1; d <= R && !lowR; d++)
+          if (k + d < len && tops[at(k + d)] <= t - step) lowR = true
+        if (lowL && lowR) bad[at(k)] = 1
+      }
+      rightMax = Math.max(rightMax, t)
+    }
+  }
+  for (let j = 0; j < GY; j++) line(GX, (k) => j * GX + k, cw)
+  for (let i = 0; i < GX; i++) line(GY, (k) => k * GX + i, ch)
+  let count = 0
+  for (const b of bad) count += b
+  return count / bad.length
 }
 
 /**
