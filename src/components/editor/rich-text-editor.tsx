@@ -1,4 +1,3 @@
-import { useServerFn } from '@tanstack/react-start'
 import { Placeholder } from '@tiptap/extensions'
 import {
   type Editor,
@@ -18,6 +17,7 @@ import {
   List,
   ListOrdered,
   Loader2,
+  type LucideIcon,
   Minus,
   Quote,
   Redo,
@@ -35,11 +35,11 @@ import {
   slashItems,
 } from '@/components/editor/slash-command'
 import { Separator } from '@/components/ui/separator'
+import { useImageUpload } from '@/hooks/use-image-upload'
 import { errorMessage } from '@/lib/errors'
-import { imageFilesFrom, resizeImage } from '@/lib/image-resize'
+import { IMAGE_ACCEPT, imageFilesFrom } from '@/lib/image-resize'
 import { type RichTextDoc, richTextExtensions } from '@/lib/tiptap'
 import { cn } from '@/lib/utils'
-import { uploadImage } from '@/server/images'
 
 type Props = {
   value: RichTextDoc
@@ -55,7 +55,7 @@ export function RichTextEditor({
   placeholder = '本文を書く…（「/」でメニュー）',
   imageFolder = 'posts',
 }: Props) {
-  const upload = useServerFn(uploadImage)
+  const uploadFile = useImageUpload(imageFolder)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [linkOpen, setLinkOpen] = useState(false)
   const [uploading, setUploading] = useState(0)
@@ -70,11 +70,7 @@ export function RichTextEditor({
     setUploading((n) => n + files.length)
     for (const file of files) {
       try {
-        const resized = await resizeImage(file)
-        const form = new FormData()
-        form.set('file', resized)
-        form.set('folder', imageFolder)
-        const { key } = await upload({ data: form })
+        const key = await uploadFile(file)
         const node = {
           type: 'image',
           attrs: { src: `/images/${key}`, alt: '' },
@@ -183,7 +179,7 @@ export function RichTextEditor({
       <input
         ref={fileInputRef}
         type="file"
-        accept="image/jpeg,image/png,image/webp,image/gif,image/avif"
+        accept={IMAGE_ACCEPT}
         multiple
         className="hidden"
         onChange={(e) => {
@@ -195,6 +191,147 @@ export function RichTextEditor({
   )
 }
 
+/** ツールバーとバブルメニューで使う、カーソル位置の書式の状態 */
+function selectEditorState({ editor: e }: { editor: Editor }) {
+  return {
+    bold: e.isActive('bold'),
+    italic: e.isActive('italic'),
+    strike: e.isActive('strike'),
+    code: e.isActive('code'),
+    h2: e.isActive('heading', { level: 2 }),
+    h3: e.isActive('heading', { level: 3 }),
+    bulletList: e.isActive('bulletList'),
+    orderedList: e.isActive('orderedList'),
+    blockquote: e.isActive('blockquote'),
+    codeBlock: e.isActive('codeBlock'),
+    link: e.isActive('link'),
+    canUndo: e.can().undo(),
+    canRedo: e.can().redo(),
+  }
+}
+
+type FormatState = ReturnType<typeof selectEditorState>
+
+/** 押すと書式を切り替えるボタン */
+type FormatButton = {
+  key: string
+  /** ツールバーでの名前 */
+  label: string
+  /** バブルメニューでの名前（ツールバーと違うときだけ） */
+  menuLabel?: string
+  icon: LucideIcon
+  isActive: (state: FormatState) => boolean
+  run: (editor: Editor) => void
+}
+
+/** 文字の書式（太字など）。リンクはダイアログを開くので別に置く */
+const markButtons: FormatButton[] = [
+  {
+    key: 'bold',
+    label: '太字（Ctrl+B）',
+    menuLabel: '太字',
+    icon: Bold,
+    isActive: (s) => s.bold,
+    run: (e) => e.chain().focus().toggleBold().run(),
+  },
+  {
+    key: 'italic',
+    label: '斜体（Ctrl+I）',
+    menuLabel: '斜体',
+    icon: Italic,
+    isActive: (s) => s.italic,
+    run: (e) => e.chain().focus().toggleItalic().run(),
+  },
+  {
+    key: 'strike',
+    label: '取り消し線',
+    icon: Strikethrough,
+    isActive: (s) => s.strike,
+    run: (e) => e.chain().focus().toggleStrike().run(),
+  },
+  {
+    key: 'code',
+    label: 'インラインコード',
+    menuLabel: 'コード',
+    icon: Code,
+    isActive: (s) => s.code,
+    run: (e) => e.chain().focus().toggleCode().run(),
+  },
+]
+
+const headingButtons: FormatButton[] = [
+  {
+    key: 'h2',
+    label: '見出し 2',
+    icon: Heading2,
+    isActive: (s) => s.h2,
+    run: (e) => e.chain().focus().toggleHeading({ level: 2 }).run(),
+  },
+  {
+    key: 'h3',
+    label: '見出し 3',
+    icon: Heading3,
+    isActive: (s) => s.h3,
+    run: (e) => e.chain().focus().toggleHeading({ level: 3 }).run(),
+  },
+]
+
+/** ツールバーだけに出すブロックの書式 */
+const blockButtons: FormatButton[] = [
+  {
+    key: 'bulletList',
+    label: '箇条書き',
+    icon: List,
+    isActive: (s) => s.bulletList,
+    run: (e) => e.chain().focus().toggleBulletList().run(),
+  },
+  {
+    key: 'orderedList',
+    label: '番号付きリスト',
+    icon: ListOrdered,
+    isActive: (s) => s.orderedList,
+    run: (e) => e.chain().focus().toggleOrderedList().run(),
+  },
+  {
+    key: 'blockquote',
+    label: '引用',
+    icon: Quote,
+    isActive: (s) => s.blockquote,
+    run: (e) => e.chain().focus().toggleBlockquote().run(),
+  },
+  {
+    key: 'codeBlock',
+    label: 'コードブロック',
+    icon: SquareCode,
+    isActive: (s) => s.codeBlock,
+    run: (e) => e.chain().focus().toggleCodeBlock().run(),
+  },
+]
+
+/** 書式ボタンを並べる。inMenu のときはバブルメニュー用の名前を使う */
+function FormatButtons({
+  buttons,
+  editor,
+  state,
+  inMenu = false,
+}: {
+  buttons: FormatButton[]
+  editor: Editor
+  state: FormatState
+  inMenu?: boolean
+}) {
+  return buttons.map(({ key, label, menuLabel, icon: Icon, isActive, run }) => (
+    <ToolButton
+      key={key}
+      label={inMenu ? (menuLabel ?? label) : label}
+      active={isActive(state)}
+      onClick={() => run(editor)}
+    >
+      <Icon />
+    </ToolButton>
+  ))
+}
+
 /** 文字を選んだときに出るツールバー */
 function SelectionMenu({
   editor,
@@ -203,19 +340,7 @@ function SelectionMenu({
   editor: Editor
   onLink: () => void
 }) {
-  const state = useEditorState({
-    editor,
-    selector: ({ editor: e }) => ({
-      bold: e.isActive('bold'),
-      italic: e.isActive('italic'),
-      strike: e.isActive('strike'),
-      code: e.isActive('code'),
-      link: e.isActive('link'),
-      h2: e.isActive('heading', { level: 2 }),
-      h3: e.isActive('heading', { level: 3 }),
-    }),
-  })
-  const chain = () => editor.chain().focus()
+  const state = useEditorState({ editor, selector: selectEditorState })
 
   return (
     <BubbleMenu
@@ -225,52 +350,22 @@ function SelectionMenu({
       }
       className="flex items-center gap-0.5 rounded-lg border bg-popover p-1 shadow-md"
     >
-      <ToolButton
-        label="太字"
-        active={state.bold}
-        onClick={() => chain().toggleBold().run()}
-      >
-        <Bold />
-      </ToolButton>
-      <ToolButton
-        label="斜体"
-        active={state.italic}
-        onClick={() => chain().toggleItalic().run()}
-      >
-        <Italic />
-      </ToolButton>
-      <ToolButton
-        label="取り消し線"
-        active={state.strike}
-        onClick={() => chain().toggleStrike().run()}
-      >
-        <Strikethrough />
-      </ToolButton>
-      <ToolButton
-        label="コード"
-        active={state.code}
-        onClick={() => chain().toggleCode().run()}
-      >
-        <Code />
-      </ToolButton>
+      <FormatButtons
+        buttons={markButtons}
+        editor={editor}
+        state={state}
+        inMenu
+      />
       <ToolButton label="リンク（Ctrl+K）" active={state.link} onClick={onLink}>
         <LinkIcon />
       </ToolButton>
       <Separator orientation="vertical" className="mx-0.5 h-5!" />
-      <ToolButton
-        label="見出し 2"
-        active={state.h2}
-        onClick={() => chain().toggleHeading({ level: 2 }).run()}
-      >
-        <Heading2 />
-      </ToolButton>
-      <ToolButton
-        label="見出し 3"
-        active={state.h3}
-        onClick={() => chain().toggleHeading({ level: 3 }).run()}
-      >
-        <Heading3 />
-      </ToolButton>
+      <FormatButtons
+        buttons={headingButtons}
+        editor={editor}
+        state={state}
+        inMenu
+      />
     </BubbleMenu>
   )
 }
@@ -284,106 +379,22 @@ function Toolbar({
   onLink: () => void
   onImage: () => void
 }) {
-  const state = useEditorState({
-    editor,
-    selector: ({ editor: e }) => ({
-      bold: e.isActive('bold'),
-      italic: e.isActive('italic'),
-      strike: e.isActive('strike'),
-      code: e.isActive('code'),
-      h2: e.isActive('heading', { level: 2 }),
-      h3: e.isActive('heading', { level: 3 }),
-      bulletList: e.isActive('bulletList'),
-      orderedList: e.isActive('orderedList'),
-      blockquote: e.isActive('blockquote'),
-      codeBlock: e.isActive('codeBlock'),
-      link: e.isActive('link'),
-      canUndo: e.can().undo(),
-      canRedo: e.can().redo(),
-    }),
-  })
+  const state = useEditorState({ editor, selector: selectEditorState })
 
   const chain = () => editor.chain().focus()
 
   return (
     // スマホでは横にスクロールできる 1 行にする
     <div className="sticky top-(--header-height) z-10 flex items-center gap-0.5 overflow-x-auto border-b bg-background/95 p-1.5 backdrop-blur [scrollbar-width:none] sm:flex-wrap">
-      <ToolButton
-        label="太字（Ctrl+B）"
-        active={state.bold}
-        onClick={() => chain().toggleBold().run()}
-      >
-        <Bold />
-      </ToolButton>
-      <ToolButton
-        label="斜体（Ctrl+I）"
-        active={state.italic}
-        onClick={() => chain().toggleItalic().run()}
-      >
-        <Italic />
-      </ToolButton>
-      <ToolButton
-        label="取り消し線"
-        active={state.strike}
-        onClick={() => chain().toggleStrike().run()}
-      >
-        <Strikethrough />
-      </ToolButton>
-      <ToolButton
-        label="インラインコード"
-        active={state.code}
-        onClick={() => chain().toggleCode().run()}
-      >
-        <Code />
-      </ToolButton>
+      <FormatButtons buttons={markButtons} editor={editor} state={state} />
       <ToolButton label="リンク（Ctrl+K）" active={state.link} onClick={onLink}>
         <LinkIcon />
       </ToolButton>
 
       <Separator orientation="vertical" className="mx-1 h-5! shrink-0" />
 
-      <ToolButton
-        label="見出し 2"
-        active={state.h2}
-        onClick={() => chain().toggleHeading({ level: 2 }).run()}
-      >
-        <Heading2 />
-      </ToolButton>
-      <ToolButton
-        label="見出し 3"
-        active={state.h3}
-        onClick={() => chain().toggleHeading({ level: 3 }).run()}
-      >
-        <Heading3 />
-      </ToolButton>
-      <ToolButton
-        label="箇条書き"
-        active={state.bulletList}
-        onClick={() => chain().toggleBulletList().run()}
-      >
-        <List />
-      </ToolButton>
-      <ToolButton
-        label="番号付きリスト"
-        active={state.orderedList}
-        onClick={() => chain().toggleOrderedList().run()}
-      >
-        <ListOrdered />
-      </ToolButton>
-      <ToolButton
-        label="引用"
-        active={state.blockquote}
-        onClick={() => chain().toggleBlockquote().run()}
-      >
-        <Quote />
-      </ToolButton>
-      <ToolButton
-        label="コードブロック"
-        active={state.codeBlock}
-        onClick={() => chain().toggleCodeBlock().run()}
-      >
-        <SquareCode />
-      </ToolButton>
+      <FormatButtons buttons={headingButtons} editor={editor} state={state} />
+      <FormatButtons buttons={blockButtons} editor={editor} state={state} />
       <ToolButton
         label="区切り線"
         onClick={() => chain().setHorizontalRule().run()}

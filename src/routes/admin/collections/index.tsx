@@ -1,5 +1,6 @@
 import { createFileRoute, Link } from '@tanstack/react-router'
 
+import { AdminPage } from '@/components/admin/admin-page'
 import { Card, CardHeader, CardTitle } from '@/components/ui/card'
 import { collectionList } from '@/lib/collections'
 import { getNavItem } from '@/lib/navigation'
@@ -10,8 +11,7 @@ export const Route = createFileRoute('/admin/collections/')({
 
 function AdminCollections() {
   return (
-    <div className="mx-auto w-full max-w-5xl px-4 py-6 sm:px-6 sm:py-8">
-      <h1 className="text-2xl font-bold sm:text-3xl">コレクション</h1>
+    <AdminPage title="コレクション">
       <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {collectionList.map((c) => {
           const Icon = getNavItem(c.path).icon
@@ -32,6 +32,6 @@ function AdminCollections() {
           )
         })}
       </div>
-    </div>
+    </AdminPage>
   )
 }

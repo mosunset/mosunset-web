@@ -1,13 +1,12 @@
-import { useServerFn } from '@tanstack/react-start'
 import { Camera, ImagePlus, Loader2, X } from 'lucide-react'
 import { useRef, useState } from 'react'
 
 import { Button } from '@/components/ui/button'
+import { useImageUpload } from '@/hooks/use-image-upload'
 import { errorMessage } from '@/lib/errors'
-import { imageFilesFrom, resizeImage } from '@/lib/image-resize'
+import { IMAGE_ACCEPT, imageFilesFrom } from '@/lib/image-resize'
 import { imageUrl } from '@/lib/images'
 import { cn } from '@/lib/utils'
-import { uploadImage } from '@/server/images'
 
 type Props = {
   value: string | null
@@ -22,7 +21,7 @@ type Props = {
  * 保存ボタンを押すまでアイテムには反映されない。
  */
 export function ImageUpload({ value, onChange, folder }: Props) {
-  const upload = useServerFn(uploadImage)
+  const uploadFile = useImageUpload(folder)
   const inputRef = useRef<HTMLInputElement>(null)
   const cameraRef = useRef<HTMLInputElement>(null)
   const [pending, setPending] = useState(false)
@@ -34,11 +33,7 @@ export function ImageUpload({ value, onChange, folder }: Props) {
     setPending(true)
     setError(null)
     try {
-      const resized = await resizeImage(file)
-      const form = new FormData()
-      form.set('file', resized)
-      form.set('folder', folder)
-      const { key } = await upload({ data: form })
+      const key = await uploadFile(file)
       onChange(key)
     } catch (e) {
       setError(errorMessage(e, 'アップロードできませんでした'))
@@ -127,7 +122,7 @@ export function ImageUpload({ value, onChange, folder }: Props) {
       <input
         ref={inputRef}
         type="file"
-        accept="image/jpeg,image/png,image/webp,image/gif,image/avif"
+        accept={IMAGE_ACCEPT}
         className="hidden"
         onChange={(e) => {
           onFile(e.target.files?.[0])

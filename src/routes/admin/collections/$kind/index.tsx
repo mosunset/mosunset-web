@@ -22,7 +22,9 @@ import { GripVertical, ImageOff, Plus } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 import { toast } from 'sonner'
 
+import { AdminPage } from '@/components/admin/admin-page'
 import { ListFilter, matchesQuery } from '@/components/admin/list-filter'
+import { EmptyState } from '@/components/empty-state'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import {
@@ -108,21 +110,21 @@ function AdminCollectionItems() {
   }
 
   return (
-    <div className="mx-auto w-full max-w-5xl px-4 py-6 sm:px-6 sm:py-8">
-      <div className="flex items-center justify-between gap-4">
-        <h1 className="text-2xl font-bold sm:text-3xl">{config.label}</h1>
+    <AdminPage
+      title={config.label}
+      action={
         <Button asChild>
           <Link to="/admin/collections/$kind/new" params={{ kind }}>
             <Plus />
             追加
           </Link>
         </Button>
-      </div>
-
+      }
+    >
       {items.length === 0 ? (
-        <p className="mt-8 rounded-lg border border-dashed p-8 text-center text-muted-foreground">
+        <EmptyState className="mt-8">
           まだ登録されていません。「追加」から登録しましょう。
-        </p>
+        </EmptyState>
       ) : (
         <>
           <div className="mt-6">
@@ -148,9 +150,9 @@ function AdminCollectionItems() {
           </p>
 
           {visible.length === 0 ? (
-            <p className="mt-4 rounded-lg border border-dashed p-8 text-center text-muted-foreground">
+            <EmptyState className="mt-4">
               条件に合うものがありません。
-            </p>
+            </EmptyState>
           ) : (
             <DndContext
               sensors={sensors}
@@ -177,7 +179,7 @@ function AdminCollectionItems() {
           )}
         </>
       )}
-    </div>
+    </AdminPage>
   )
 }
 

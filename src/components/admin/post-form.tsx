@@ -1,10 +1,16 @@
-import { Link, useRouter } from '@tanstack/react-router'
+import { useRouter } from '@tanstack/react-router'
 import { useServerFn } from '@tanstack/react-start'
-import { ExternalLink, Trash2, Wand2 } from 'lucide-react'
+import { Wand2 } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { flushSync } from 'react-dom'
 import { toast } from 'sonner'
 
+import {
+  DeleteButton,
+  FormError,
+  PublicPageLink,
+  StickyActionBar,
+} from '@/components/admin/form-parts'
 import { ImageUpload } from '@/components/admin/image-upload'
 import { PreviewButton } from '@/components/admin/preview-dialog'
 import {
@@ -293,14 +299,10 @@ export function PostForm({ post }: Props) {
         />
       </div>
 
-      {error && (
-        <p className="rounded-md border border-destructive/50 bg-destructive/10 px-4 py-3 text-sm text-destructive">
-          {error}
-        </p>
-      )}
+      <FormError message={error} />
 
       {/* 下に固定する操作バー。長い記事でもすぐ保存できる */}
-      <div className="sticky bottom-0 z-10 -mx-4 flex flex-wrap items-center gap-2 border-t bg-background/95 px-4 py-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] backdrop-blur sm:-mx-6 sm:px-6">
+      <StickyActionBar>
         {isPublished ? (
           <>
             <Button
@@ -366,32 +368,11 @@ export function PostForm({ post }: Props) {
             }
           />
           {isPublished && post && (
-            <Button asChild variant="ghost" size="sm">
-              <Link
-                to="/blog/$slug"
-                params={{ slug: post.slug }}
-                target="_blank"
-              >
-                <ExternalLink />
-                <span className="hidden sm:inline">公開ページ</span>
-              </Link>
-            </Button>
+            <PublicPageLink to="/blog/$slug" slug={post.slug} />
           )}
-          {post && (
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              className="text-destructive hover:text-destructive"
-              disabled={saving}
-              onClick={onDelete}
-            >
-              <Trash2 />
-              <span className="hidden sm:inline">削除</span>
-            </Button>
-          )}
+          {post && <DeleteButton disabled={saving} onClick={onDelete} />}
         </div>
-      </div>
+      </StickyActionBar>
     </form>
   )
 }

@@ -1,3 +1,7 @@
+/** ファイル選択で受け付ける画像の形式 */
+export const IMAGE_ACCEPT =
+  'image/jpeg,image/png,image/webp,image/gif,image/avif'
+
 /** アップロード前に縮小する長い辺の最大値（px） */
 const MAX_SIZE = 2000
 const QUALITY = 0.85

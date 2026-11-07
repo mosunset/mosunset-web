@@ -2,7 +2,9 @@ import { createFileRoute, Link } from '@tanstack/react-router'
 import { Plus } from 'lucide-react'
 import { useMemo, useState } from 'react'
 
+import { AdminPage } from '@/components/admin/admin-page'
 import { ListFilter, matchesQuery } from '@/components/admin/list-filter'
+import { EmptyState } from '@/components/empty-state'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { formatDateTime } from '@/lib/format'
@@ -37,21 +39,21 @@ function AdminPosts() {
   )
 
   return (
-    <div className="mx-auto w-full max-w-5xl px-4 py-6 sm:px-6 sm:py-8">
-      <div className="flex items-center justify-between gap-4">
-        <h1 className="text-2xl font-bold sm:text-3xl">ブログ記事</h1>
+    <AdminPage
+      title="ブログ記事"
+      action={
         <Button asChild>
           <Link to="/admin/posts/new">
             <Plus />
             新規作成
           </Link>
         </Button>
-      </div>
-
+      }
+    >
       {posts.length === 0 ? (
-        <p className="mt-8 rounded-lg border border-dashed p-8 text-center text-muted-foreground">
+        <EmptyState className="mt-8">
           まだ記事はありません。「新規作成」から書き始めましょう。
-        </p>
+        </EmptyState>
       ) : (
         <>
           <div className="mt-6">
@@ -69,9 +71,9 @@ function AdminPosts() {
           </p>
 
           {visible.length === 0 ? (
-            <p className="mt-4 rounded-lg border border-dashed p-8 text-center text-muted-foreground">
+            <EmptyState className="mt-4">
               条件に合う記事がありません。
-            </p>
+            </EmptyState>
           ) : (
             <ul className="mt-2 divide-y rounded-lg border">
               {visible.map((post) => (
@@ -112,6 +114,6 @@ function AdminPosts() {
           )}
         </>
       )}
-    </div>
+    </AdminPage>
   )
 }

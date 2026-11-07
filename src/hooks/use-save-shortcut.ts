@@ -1,12 +1,11 @@
 import { useEffect, useRef } from 'react'
 
 /** Ctrl+S（Mac は ⌘S）で onSave を呼ぶ。ブラウザの「ページを保存」は止める */
-export function useSaveShortcut(onSave: () => void, enabled = true) {
+export function useSaveShortcut(onSave: () => void) {
   const ref = useRef(onSave)
   ref.current = onSave
 
   useEffect(() => {
-    if (!enabled) return
     const onKeyDown = (e: KeyboardEvent) => {
       if (
         (e.ctrlKey || e.metaKey) &&
@@ -19,5 +18,5 @@ export function useSaveShortcut(onSave: () => void, enabled = true) {
     }
     window.addEventListener('keydown', onKeyDown)
     return () => window.removeEventListener('keydown', onKeyDown)
-  }, [enabled])
+  }, [])
 }

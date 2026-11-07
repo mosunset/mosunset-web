@@ -1,12 +1,22 @@
-import { Link, useRouter } from '@tanstack/react-router'
+import { useRouter } from '@tanstack/react-router'
 import { useServerFn } from '@tanstack/react-start'
-import { ExternalLink, Trash2 } from 'lucide-react'
 import { useCallback, useMemo, useRef, useState } from 'react'
 import { flushSync } from 'react-dom'
 import { toast } from 'sonner'
 
+import { AttributeInput } from '@/components/admin/attribute-input'
+import {
+  DeleteButton,
+  FormError,
+  PublicPageLink,
+  StickyActionBar,
+} from '@/components/admin/form-parts'
 import { ImageUpload } from '@/components/admin/image-upload'
-import { IsbnInput, type IsbnResult } from '@/components/admin/isbn-lookup'
+import {
+  IsbnInput,
+  type IsbnResult,
+  mergeIsbnResult,
+} from '@/components/admin/isbn-lookup'
 import { PreviewButton } from '@/components/admin/preview-dialog'
 import {
   BackupNotice,
@@ -20,7 +30,6 @@ import { Label } from '@/components/ui/label'
 import { useLocalBackup } from '@/hooks/use-local-backup'
 import { useSaveShortcut } from '@/hooks/use-save-shortcut'
 import {
-  type AttributeField,
   type CollectionAttributes,
   type CollectionKind,
   collections,
@@ -48,7 +57,7 @@ type Props = {
   }
 }
 
-export type CollectionFields = {
+type CollectionFields = {
   title: string
   slug: string
   acquiredAt: string
@@ -106,28 +115,7 @@ export function CollectionForm({ kind, item }: Props) {
 
   /** ISBN の検索結果を、空いている項目にだけ入れる */
   const applyIsbnResult = (result: IsbnResult) => {
-    const filled: string[] = []
-    const attributes: CollectionAttributes = {
-      ...fields.attributes,
-      isbn: result.isbn,
-    }
-    const next: CollectionFields = { ...fields, attributes }
-    if (!fields.title.trim() && result.title) {
-      next.title = result.title
-      filled.push('書名')
-    }
-    if (!attributes.author && result.author) {
-      attributes.author = result.author
-      filled.push('著者')
-    }
-    if (!attributes.publisher && result.publisher) {
-      attributes.publisher = result.publisher
-      filled.push('出版社')
-    }
-    if (!fields.imageKey && result.imageKey) {
-      next.imageKey = result.imageKey
-      filled.push('表紙')
-    }
+    const { fields: next, filled } = mergeIsbnResult(fields, result)
     setFields(next)
 
     if (filled.length > 0) {
@@ -321,13 +309,9 @@ export function CollectionForm({ kind, item }: Props) {
         </label>
       </div>
 
-      {error && (
-        <p className="rounded-md border border-destructive/50 bg-destructive/10 px-4 py-3 text-sm text-destructive">
-          {error}
-        </p>
-      )}
+      <FormError message={error} />
 
-      <div className="sticky bottom-0 z-10 -mx-4 flex flex-wrap items-center gap-2 border-t bg-background/95 px-4 py-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] backdrop-blur sm:-mx-6 sm:px-6">
+      <StickyActionBar>
         <Button type="submit" disabled={saving}>
           {item ? '保存する' : '追加する'}
         </Button>
@@ -359,78 +343,11 @@ export function CollectionForm({ kind, item }: Props) {
             }
           />
           {item?.published && (
-            <Button asChild variant="ghost" size="sm">
-              <Link
-                to={config.detailPath}
-                params={{ slug: item.slug }}
-                target="_blank"
-              >
-                <ExternalLink />
-                <span className="hidden sm:inline">公開ページ</span>
-              </Link>
-            </Button>
+            <PublicPageLink to={config.detailPath} slug={item.slug} />
           )}
-          {item && (
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              className="text-destructive hover:text-destructive"
-              disabled={saving}
-              onClick={onDelete}
-            >
-              <Trash2 />
-              <span className="hidden sm:inline">削除</span>
-            </Button>
-          )}
+          {item && <DeleteButton disabled={saving} onClick={onDelete} />}
         </div>
-      </div>
+      </StickyActionBar>
     </form>
-  )
-}
-
-function AttributeInput({
-  field,
-  value,
-  onChange,
-}: {
-  field: AttributeField
-  value: string
-  onChange: (value: string) => void
-}) {
-  const id = `attr-${field.key}`
-
-  if (field.type === 'select') {
-    return (
-      <div className="space-y-2">
-        <Label htmlFor={id}>{field.label}</Label>
-        <select
-          id={id}
-          value={value}
-          onChange={(e) => onChange(e.target.value)}
-          className="h-10 w-full rounded-lg border border-input bg-transparent px-2.5 text-base outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 md:h-8 md:text-sm dark:bg-input/30"
-        >
-          <option value="">—</option>
-          {field.options.map((o) => (
-            <option key={o.value} value={o.value}>
-              {o.label}
-            </option>
-          ))}
-        </select>
-      </div>
-    )
-  }
-
-  return (
-    <div className="space-y-2">
-      <Label htmlFor={id}>{field.label}</Label>
-      <Input
-        id={id}
-        type={field.type === 'text' ? 'text' : field.type}
-        value={value}
-        placeholder={field.type === 'text' ? field.placeholder : undefined}
-        onChange={(e) => onChange(e.target.value)}
-      />
-    </div>
   )
 }

@@ -30,7 +30,7 @@ import {
 
 import { cn } from '@/lib/utils'
 
-export type SlashItem = {
+type SlashItem = {
   title: string
   /** 検索に使う別名（ローマ字・英語など） */
   keywords: string[]

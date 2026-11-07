@@ -3,7 +3,7 @@ import { Search, X } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { cn } from '@/lib/utils'
 
-export type FilterOption<T extends string> = { value: T; label: string }
+type FilterOption<T extends string> = { value: T; label: string }
 
 /** 管理画面の一覧の上に置く、検索欄と絞り込みボタン */
 export function ListFilter<T extends string>({

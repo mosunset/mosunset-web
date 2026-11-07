@@ -1,5 +1,7 @@
 import { createFileRoute, Link } from '@tanstack/react-router'
 
+import { AdminPage } from '@/components/admin/admin-page'
+import { EmptyState } from '@/components/empty-state'
 import { Badge } from '@/components/ui/badge'
 import { formatDateTime } from '@/lib/format'
 import { cn } from '@/lib/utils'
@@ -15,16 +17,13 @@ function AdminMessages() {
   const unread = messages.filter((m) => !m.readAt).length
 
   return (
-    <div className="mx-auto w-full max-w-5xl px-4 py-6 sm:px-6 sm:py-8">
-      <h1 className="text-2xl font-bold sm:text-3xl">お問い合わせ</h1>
+    <AdminPage title="お問い合わせ">
       <p className="mt-2 text-sm text-muted-foreground">
         {messages.length} 件（未読 {unread} 件）
       </p>
 
       {messages.length === 0 ? (
-        <p className="mt-8 rounded-lg border border-dashed p-8 text-center text-muted-foreground">
-          まだ届いていません。
-        </p>
+        <EmptyState className="mt-8">まだ届いていません。</EmptyState>
       ) : (
         <ul className="mt-8 divide-y rounded-lg border">
           {messages.map((m) => (
@@ -63,6 +62,6 @@ function AdminMessages() {
           ))}
         </ul>
       )}
-    </div>
+    </AdminPage>
   )
 }

@@ -1,5 +1,6 @@
 import { createFileRoute, notFound } from '@tanstack/react-router'
 
+import { AdminPage } from '@/components/admin/admin-page'
 import { CollectionForm } from '@/components/admin/collection-form'
 import { collections } from '@/lib/collections'
 import { getItemForAdmin } from '@/server/collections'
@@ -19,11 +20,8 @@ function EditItem() {
   const { kind } = Route.useParams()
   const item = Route.useLoaderData()
   return (
-    <div className="mx-auto w-full max-w-5xl px-4 py-6 sm:px-6 sm:py-8">
-      <h1 className="mb-6 text-2xl font-bold sm:mb-8 sm:text-3xl">
-        {collections[kind].label}を編集
-      </h1>
+    <AdminPage title={<>{collections[kind].label}を編集</>} form>
       <CollectionForm key={item.id} kind={kind} item={item} />
-    </div>
+    </AdminPage>
   )
 }
