@@ -151,7 +151,7 @@ export const playgroundTools = [
     category: '3D・ビジュアル',
     tags: ['箱詰め', '3D', '積み付け', '段ボール', 'Three.js'],
     publishedDate: '2026-11-07',
-    thumbnail: '/playground/box-packing/thumbnail.svg',
+    thumbnail: '/playground/box-packing/thumbnail.webp',
   },
   {
     slug: '3dblock',
