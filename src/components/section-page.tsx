@@ -8,7 +8,7 @@ export function SectionPage({
   children,
 }: {
   item: NavItem
-  children?: React.ReactNode
+  children: React.ReactNode
 }) {
   return (
     <div className="mx-auto w-full max-w-5xl px-6 py-8">
@@ -17,13 +17,7 @@ export function SectionPage({
         <h1 className="text-3xl font-bold">{item.title}</h1>
       </div>
       <p className="mt-2 text-muted-foreground">{item.description}</p>
-      <div className="mt-8">
-        {children ?? (
-          <p className="rounded-lg border border-dashed p-8 text-center text-muted-foreground">
-            準備中です。
-          </p>
-        )}
-      </div>
+      <div className="mt-8">{children}</div>
     </div>
   )
 }

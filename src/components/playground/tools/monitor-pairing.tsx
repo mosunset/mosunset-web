@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
 
+import { RangeSlider } from '@/components/playground/parts'
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
 import { cn } from '@/lib/utils'
@@ -133,7 +134,7 @@ export function MonitorPairing() {
     <div className="space-y-6">
       <fieldset className="grid gap-4 rounded-lg border p-4 sm:grid-cols-2 lg:grid-cols-3">
         <legend className="px-1 text-sm font-medium">条件</legend>
-        <Slider
+        <RangeSlider
           label="高さの差（まで）"
           value={tolerance}
           min={0.1}
@@ -142,7 +143,7 @@ export function MonitorPairing() {
           unit="cm"
           onChange={resetLimit(setTolerance)}
         />
-        <Slider
+        <RangeSlider
           label="PPI（細かさ）の差（まで）"
           value={maxPpiDiff}
           min={0}
@@ -151,7 +152,7 @@ export function MonitorPairing() {
           unit="%"
           onChange={resetLimit(setMaxPpiDiff)}
         />
-        <Slider
+        <RangeSlider
           label="縦の画素数の差（まで）"
           value={maxPxDiff}
           min={0}
@@ -341,45 +342,6 @@ function PairFigure({
         <span>サイド：{label(1)}</span>
       </figcaption>
     </figure>
-  )
-}
-
-function Slider({
-  label,
-  value,
-  min,
-  max,
-  step,
-  unit,
-  onChange,
-}: {
-  label: string
-  value: number
-  min: number
-  max: number
-  step: number
-  unit: string
-  onChange: (v: number) => void
-}) {
-  return (
-    <label className="space-y-2">
-      <span className="flex justify-between text-sm">
-        {label}
-        <span className="font-mono tabular-nums">
-          {value}
-          {unit}
-        </span>
-      </span>
-      <input
-        type="range"
-        value={value}
-        min={min}
-        max={max}
-        step={step}
-        onChange={(e) => onChange(Number(e.target.value))}
-        className="w-full accent-primary"
-      />
-    </label>
   )
 }
 

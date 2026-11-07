@@ -2,18 +2,16 @@ import { createFileRoute, Link } from '@tanstack/react-router'
 import { useState } from 'react'
 
 import { SectionPage } from '@/components/section-page'
-import { formatDate } from '@/lib/format'
+import { formatDay } from '@/lib/format'
 import { getNavItem } from '@/lib/navigation'
 import { playgroundCategories, playgroundTools } from '@/lib/playground'
-import { seo } from '@/lib/seo'
+import { sectionHead } from '@/lib/seo'
 import { cn } from '@/lib/utils'
 
 const item = getNavItem('/playground')
 
 export const Route = createFileRoute('/playground/')({
-  head: () => ({
-    meta: seo({ title: item.title, description: item.description }),
-  }),
+  head: () => sectionHead(item),
   component: PlaygroundIndex,
 })
 
@@ -72,7 +70,7 @@ function PlaygroundIndex() {
                   dateTime={tool.publishedDate}
                   className="mt-auto pt-2 text-xs text-muted-foreground"
                 >
-                  {formatDate(new Date(`${tool.publishedDate}T00:00:00+09:00`))}
+                  {formatDay(tool.publishedDate)}
                 </time>
               </div>
             </Link>

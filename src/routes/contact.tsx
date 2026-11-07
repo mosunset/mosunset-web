@@ -4,7 +4,7 @@ import { ContactForm } from '@/components/contact-form'
 import { SectionPage } from '@/components/section-page'
 import { SocialIcon } from '@/components/social-icons'
 import { getNavItem } from '@/lib/navigation'
-import { seo } from '@/lib/seo'
+import { sectionHead } from '@/lib/seo'
 import { site } from '@/lib/site'
 import { getContactConfig } from '@/server/contact'
 
@@ -12,9 +12,7 @@ const item = getNavItem('/contact')
 
 export const Route = createFileRoute('/contact')({
   staticData: { breadcrumb: item.title },
-  head: () => ({
-    meta: seo({ title: item.title, description: item.description }),
-  }),
+  head: () => sectionHead(item),
   loader: () => getContactConfig(),
   component: Contact,
 })

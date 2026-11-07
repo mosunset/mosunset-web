@@ -1,7 +1,8 @@
-import { createFileRoute, Link } from '@tanstack/react-router'
-import { ArrowLeft } from 'lucide-react'
+import { createFileRoute } from '@tanstack/react-router'
 
+import { BackLinkFooter } from '@/components/back-link-footer'
 import { RichTextContent, ZoomableImage } from '@/components/image-viewer'
+import { NotFoundPage } from '@/components/not-found-page'
 import { formatDate } from '@/lib/format'
 import { imageUrl } from '@/lib/images'
 import {
@@ -42,7 +43,7 @@ export const Route = createFileRoute('/blog/$slug')({
             },
             // 表紙があれば SNS のカードにも使う（サイト共通の画像を上書きする）
             ...(loaderData.coverImageKey
-              ? ogImage(`/images/${loaderData.coverImageKey}`, loaderData.title)
+              ? ogImage(imageUrl(loaderData.coverImageKey), loaderData.title)
               : []),
             jsonLd({
               '@type': 'BlogPosting',
@@ -54,7 +55,7 @@ export const Route = createFileRoute('/blog/$slug')({
               mainEntityOfPage: absoluteUrl(`/blog/${loaderData.slug}`),
               ...(loaderData.coverImageKey
                 ? {
-                    image: absoluteUrl(`/images/${loaderData.coverImageKey}`),
+                    image: absoluteUrl(imageUrl(loaderData.coverImageKey)),
                   }
                 : {}),
               ...(loaderData.publishedAt
@@ -71,15 +72,13 @@ export const Route = createFileRoute('/blog/$slug')({
       : { meta: seo({ title: '記事が見つかりません', noindex: true }) },
   component: BlogPost,
   notFoundComponent: () => (
-    <div className="mx-auto w-full max-w-3xl px-6 py-8">
-      <h1 className="text-3xl font-bold">記事が見つかりません</h1>
-      <p className="mt-4 text-muted-foreground">
-        削除されたか、URL が間違っている可能性があります。
-      </p>
-      <Link to="/blog" className="mt-6 inline-block underline">
-        記事一覧へ
-      </Link>
-    </div>
+    <NotFoundPage
+      width="max-w-3xl"
+      title="記事が見つかりません"
+      message="削除されたか、URL が間違っている可能性があります。"
+      backTo="/blog"
+      backLabel="記事一覧へ"
+    />
   ),
 })
 
@@ -91,7 +90,7 @@ function BlogPost() {
       <header className="border-b pb-6">
         {post.coverImageKey && (
           <ZoomableImage
-            src={imageUrl(post.coverImageKey) ?? ''}
+            src={imageUrl(post.coverImageKey)}
             alt={post.title}
             className="mb-6 rounded-lg border"
             imgClassName="aspect-[1200/630] w-full object-cover"
@@ -125,15 +124,7 @@ function BlogPost() {
 
       <RichTextContent html={post.html} className="mt-8" />
 
-      <footer className="mt-12 border-t pt-6">
-        <Link
-          to="/blog"
-          className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
-        >
-          <ArrowLeft className="size-4" />
-          記事一覧へ
-        </Link>
-      </footer>
+      <BackLinkFooter to="/blog">記事一覧へ</BackLinkFooter>
     </article>
   )
 }

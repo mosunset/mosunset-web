@@ -5,15 +5,13 @@ import { SectionPage } from '@/components/section-page'
 import { formatDate } from '@/lib/format'
 import { imageUrl } from '@/lib/images'
 import { getNavItem } from '@/lib/navigation'
-import { seo } from '@/lib/seo'
+import { sectionHead } from '@/lib/seo'
 import { listPublishedPosts } from '@/server/posts'
 
 const item = getNavItem('/blog')
 
 export const Route = createFileRoute('/blog/')({
-  head: () => ({
-    meta: seo({ title: item.title, description: item.description }),
-  }),
+  head: () => sectionHead(item),
   loader: () => listPublishedPosts(),
   component: BlogIndex,
 })
@@ -54,7 +52,7 @@ function BlogIndex() {
                 </div>
                 {post.coverImageKey && (
                   <img
-                    src={imageUrl(post.coverImageKey) ?? ''}
+                    src={imageUrl(post.coverImageKey)}
                     alt=""
                     loading="lazy"
                     className="aspect-[4/3] w-24 shrink-0 self-start rounded-md border object-cover sm:w-40"

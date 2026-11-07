@@ -1,10 +1,12 @@
-import { ClientOnly, Link } from '@tanstack/react-router'
-import { ArrowLeft, Loader2 } from 'lucide-react'
+import { ClientOnly } from '@tanstack/react-router'
+import { Loader2 } from 'lucide-react'
 import type * as React from 'react'
 
+import { BackLinkFooter } from '@/components/back-link-footer'
 import { Badge } from '@/components/ui/badge'
 import { getPlaygroundTool, type PlaygroundSlug } from '@/lib/playground'
 import { seo } from '@/lib/seo'
+import { cn } from '@/lib/utils'
 
 /** 各ツールのルートで共通の設定（パンくず・title・description） */
 export function toolRouteOptions(slug: PlaygroundSlug) {
@@ -37,7 +39,10 @@ export function ToolPage({
 
   return (
     <div
-      className={`mx-auto w-full px-4 py-6 sm:px-6 sm:py-8 ${wide ? 'max-w-6xl' : 'max-w-4xl'}`}
+      className={cn(
+        'mx-auto w-full px-4 py-6 sm:px-6 sm:py-8',
+        wide ? 'max-w-6xl' : 'max-w-4xl',
+      )}
     >
       <header className="space-y-3">
         <div className="flex flex-wrap items-center gap-2">
@@ -69,15 +74,7 @@ export function ToolPage({
         )}
       </div>
 
-      <footer className="mt-12 border-t pt-6">
-        <Link
-          to="/playground"
-          className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
-        >
-          <ArrowLeft className="size-4" />
-          プレイグラウンドの一覧へ
-        </Link>
-      </footer>
+      <BackLinkFooter to="/playground">プレイグラウンドの一覧へ</BackLinkFooter>
     </div>
   )
 }

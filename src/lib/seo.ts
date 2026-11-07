@@ -37,6 +37,13 @@ export function seo({ title, description, noindex }: SeoOptions = {}) {
   ]
 }
 
+/** 第一階層ページ（ナビゲーションの項目）の head */
+export function sectionHead(item: { title: string; description: string }) {
+  return {
+    meta: seo({ title: item.title, description: item.description }),
+  }
+}
+
 /** サイト内のパスを正規の絶対 URL にする（/about → https://mosunset.com/about） */
 export function absoluteUrl(path: string) {
   return `${site.url}${path}`

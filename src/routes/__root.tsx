@@ -13,10 +13,12 @@ import {
 } from '@tanstack/react-router'
 import { TanStackRouterDevtoolsPanel } from '@tanstack/react-router-devtools'
 
+import { NotFoundPage } from '@/components/not-found-page'
 import { SiteShell } from '@/components/site-shell'
 import { Toaster } from '@/components/ui/sonner'
 import { TooltipProvider } from '@/components/ui/tooltip'
 
+import { resolveBreadcrumbs } from '@/lib/breadcrumbs'
 import {
   absoluteUrl,
   jsonLd,
@@ -31,15 +33,7 @@ import appCss from '../styles.css?url'
 
 /** パンくず（staticData.breadcrumb）を構造化データにする。2 階層目から出す */
 function breadcrumbJsonLd(matches: AnyRouteMatch[]) {
-  const crumbs: { name: string; path: string }[] = []
-  for (const match of matches) {
-    const option = match.staticData?.breadcrumb
-    const name = typeof option === 'function' ? option(match) : option
-    if (!name) continue
-    const path = normalizePath(match.pathname)
-    if (crumbs.at(-1)?.path === path) crumbs.pop()
-    crumbs.push({ name, path })
-  }
+  const crumbs = resolveBreadcrumbs(matches)
   if (crumbs.length <= 1) return []
   return [
     jsonLd({
@@ -47,8 +41,8 @@ function breadcrumbJsonLd(matches: AnyRouteMatch[]) {
       itemListElement: crumbs.map((c, i) => ({
         '@type': 'ListItem',
         position: i + 1,
-        name: c.name,
-        item: absoluteUrl(c.path),
+        name: c.label,
+        item: absoluteUrl(c.pathname),
       })),
     }),
   ]
@@ -135,12 +129,11 @@ export const Route = createRootRoute({
 
 function NotFound() {
   return (
-    <div className="mx-auto w-full max-w-5xl px-6 py-8">
-      <h1 className="text-3xl font-bold">ページが見つかりません</h1>
-      <p className="mt-4 text-muted-foreground">
-        お探しのページは存在しないか、移動した可能性があります。
-      </p>
-    </div>
+    <NotFoundPage
+      width="max-w-5xl"
+      title="ページが見つかりません"
+      message="お探しのページは存在しないか、移動した可能性があります。"
+    />
   )
 }
 

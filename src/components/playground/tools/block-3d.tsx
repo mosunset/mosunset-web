@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from 'react'
 import * as THREE from 'three'
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
 
-import { Stat } from '@/components/playground/parts'
+import { RangeSlider, Stat } from '@/components/playground/parts'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 
@@ -388,7 +388,7 @@ export function Block3D() {
       </div>
 
       <div className="grid gap-4 rounded-lg border p-4 sm:grid-cols-2 lg:grid-cols-3">
-        <Range
+        <RangeSlider
           label="奥行き X の数"
           value={params.countX}
           min={1}
@@ -396,7 +396,7 @@ export function Block3D() {
           step={1}
           onChange={(v) => set('countX', v)}
         />
-        <Range
+        <RangeSlider
           label="スパン Y の数"
           value={params.countY}
           min={1}
@@ -404,7 +404,7 @@ export function Block3D() {
           step={1}
           onChange={(v) => set('countY', v)}
         />
-        <Range
+        <RangeSlider
           label="階数 Z"
           value={params.countZ}
           min={1}
@@ -412,31 +412,34 @@ export function Block3D() {
           step={1}
           onChange={(v) => set('countZ', v)}
         />
-        <Range
+        <RangeSlider
           label="X の長さ"
           value={params.sizeX}
           min={5}
           max={11}
           step={0.1}
           unit="m"
+          format={oneDecimal}
           onChange={(v) => set('sizeX', v)}
         />
-        <Range
+        <RangeSlider
           label="Y の長さ"
           value={params.sizeY}
           min={1}
           max={7}
           step={0.1}
           unit="m"
+          format={oneDecimal}
           onChange={(v) => set('sizeY', v)}
         />
-        <Range
+        <RangeSlider
           label="階の高さ"
           value={params.sizeZ}
           min={2.5}
           max={7}
           step={0.1}
           unit="m"
+          format={oneDecimal}
           onChange={(v) => set('sizeZ', v)}
         />
 
@@ -475,12 +478,13 @@ export function Block3D() {
               />
               枠線だけにする
             </label>
-            <Range
+            <RangeSlider
               label="不透明度"
               value={params.opacity}
               min={0.1}
               max={1}
               step={0.05}
+              format={oneDecimal}
               onChange={(v) => set('opacity', v)}
             />
           </>
@@ -490,41 +494,7 @@ export function Block3D() {
   )
 }
 
-function Range({
-  label,
-  value,
-  min,
-  max,
-  step,
-  unit,
-  onChange,
-}: {
-  label: string
-  value: number
-  min: number
-  max: number
-  step: number
-  unit?: string
-  onChange: (v: number) => void
-}) {
-  return (
-    <label className="space-y-2">
-      <span className="flex justify-between text-sm">
-        {label}
-        <span className="font-mono tabular-nums">
-          {step < 1 ? value.toFixed(1) : value}
-          {unit}
-        </span>
-      </span>
-      <input
-        type="range"
-        value={value}
-        min={min}
-        max={max}
-        step={step}
-        onChange={(e) => onChange(Number(e.target.value))}
-        className="w-full accent-primary"
-      />
-    </label>
-  )
+/** 刻みが 1 未満のスライダーは小数 1 桁で見せる */
+function oneDecimal(value: number) {
+  return value.toFixed(1)
 }

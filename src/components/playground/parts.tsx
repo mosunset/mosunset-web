@@ -34,6 +34,49 @@ export function Stat({
   )
 }
 
+/** ラベルと今の値を上に出すスライダー */
+export function RangeSlider({
+  label,
+  value,
+  min,
+  max,
+  step,
+  unit,
+  format,
+  onChange,
+}: {
+  label: string
+  value: number
+  min: number
+  max: number
+  step: number
+  unit?: string
+  /** 表示する値の形（省略するとそのまま出す） */
+  format?: (value: number) => React.ReactNode
+  onChange: (v: number) => void
+}) {
+  return (
+    <label className="space-y-2">
+      <span className="flex justify-between text-sm">
+        {label}
+        <span className="font-mono tabular-nums">
+          {format ? format(value) : value}
+          {unit}
+        </span>
+      </span>
+      <input
+        type="range"
+        value={value}
+        min={min}
+        max={max}
+        step={step}
+        onChange={(e) => onChange(Number(e.target.value))}
+        className="w-full accent-primary"
+      />
+    </label>
+  )
+}
+
 /** クリックでクリップボードにコピーするボタン */
 export function CopyButton({
   value,

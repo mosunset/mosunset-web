@@ -1,9 +1,11 @@
 import { Link } from '@tanstack/react-router'
-import { ArrowLeft, ExternalLink, ImageOff } from 'lucide-react'
+import { ExternalLink, ImageOff } from 'lucide-react'
 import * as React from 'react'
 
+import { BackLinkFooter } from '@/components/back-link-footer'
 import { EmptyState } from '@/components/empty-state'
 import { RichTextContent, ZoomableImage } from '@/components/image-viewer'
+import { NotFoundPage } from '@/components/not-found-page'
 import {
   type AttributeField,
   type CollectionAttributes,
@@ -12,7 +14,7 @@ import {
   displayAttribute,
   itemSubtitle,
 } from '@/lib/collections'
-import { formatDate } from '@/lib/format'
+import { formatDay } from '@/lib/format'
 import { imageUrl } from '@/lib/images'
 
 type ListItem = {
@@ -21,11 +23,6 @@ type ListItem = {
   imageKey: string | null
   attributes: CollectionAttributes
   acquiredAt: string | null
-}
-
-/** "2026-11-03" を「2026年11月3日」にする */
-function formatDay(value: string) {
-  return formatDate(new Date(`${value}T00:00:00+09:00`))
 }
 
 /** コレクションの一覧（カードのグリッド） */
@@ -231,15 +228,7 @@ export function CollectionDetail({
         </div>
       </div>
 
-      <footer className="mt-12 border-t pt-6">
-        <Link
-          to={config.path}
-          className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
-        >
-          <ArrowLeft className="size-4" />
-          {config.label}の一覧へ
-        </Link>
-      </footer>
+      <BackLinkFooter to={config.path}>{config.label}の一覧へ</BackLinkFooter>
     </article>
   )
 }
@@ -247,14 +236,12 @@ export function CollectionDetail({
 export function CollectionNotFound({ kind }: { kind: CollectionKind }) {
   const config = collections[kind]
   return (
-    <div className="mx-auto w-full max-w-3xl px-6 py-8">
-      <h1 className="text-3xl font-bold">見つかりません</h1>
-      <p className="mt-4 text-muted-foreground">
-        削除されたか、URL が間違っている可能性があります。
-      </p>
-      <Link to={config.path} className="mt-6 inline-block underline">
-        {config.label}の一覧へ
-      </Link>
-    </div>
+    <NotFoundPage
+      width="max-w-3xl"
+      title="見つかりません"
+      message="削除されたか、URL が間違っている可能性があります。"
+      backTo={config.path}
+      backLabel={<>{config.label}の一覧へ</>}
+    />
   )
 }
