@@ -120,8 +120,14 @@ function parity(p: number[]) {
 }
 
 /**
+ * 上に向けてよい面。そのまま置くなら「上」、横倒しは「前」か「左」が上になる向きだけ
+ * （「下」「後」「右」を上にする置き方はしない）
+ */
+const allowedUp: readonly FaceLabel[] = ['上', '前', '左']
+
+/**
  * 箱の置き方の一覧。回転（鏡に映した形にはしない）だけを考え、
- * 逆さま（元の上の面が下を向く）は除く。横倒しは許されたときだけ
+ * 上を向く面が allowedUp に入る向きだけにする。横倒しは許されたときだけ
  */
 export function orientationsOf(box: BoxSpec): Orientation[] {
   const dims = [box.x, box.y, box.z]
@@ -132,20 +138,23 @@ export function orientationsOf(box: BoxSpec): Orientation[] {
       const signs = [s & 1 ? -1 : 1, s & 2 ? -1 : 1, s & 4 ? -1 : 1]
       if (parity(p) * signs[0] * signs[1] * signs[2] !== 1) continue
       // 置いたときの軸 i には、元の軸 p[i] が signs[i] の向きで来る
-      const upright = p[2] === 2 && signs[2] === 1
-      const upsideDown = p[2] === 2 && signs[2] === -1
-      if (upsideDown || (!upright && !box.canLayDown)) continue
-      const w = dims[p[0]]
-      const d = dims[p[1]]
-      const h = dims[p[2]]
-      const key = `${w}x${d}x${h}`
-      if (seen.has(key)) continue
-      seen.add(key)
       const faces: FaceLabel[] = []
       for (let i = 0; i < 3; i++) {
         faces.push(faceName[`${p[i]},${signs[i]}`])
         faces.push(faceName[`${p[i]},${-signs[i]}`])
       }
+      // faces[4] が、置いたときに上（+Z）を向く面
+      const up = faces[4]
+      const upright = up === '上'
+      if (!allowedUp.includes(up) || (!upright && !box.canLayDown)) continue
+      const w = dims[p[0]]
+      const d = dims[p[1]]
+      const h = dims[p[2]]
+      // 同じ寸法でも上を向く面が違えば別の置き方（文字の向きが変わる）だが、
+      // 積み方は寸法だけで決まるので、寸法が同じものは 1 つにまとめる
+      const key = `${w}x${d}x${h}`
+      if (seen.has(key)) continue
+      seen.add(key)
       result.push({ w, d, h, faces, laidDown: !upright })
     }
   }
