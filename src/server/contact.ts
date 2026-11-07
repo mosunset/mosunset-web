@@ -21,10 +21,24 @@ export const getContactConfig = createServerFn({ method: 'GET' }).handler(
   () => ({ turnstileSiteKey: env.TURNSTILE_SITE_KEY }),
 )
 
+/**
+ * 1 行で入力する欄。名前と件名は通知メールの件名・返信先に使うので、
+ * 改行などの制御文字を入れさせない（メールのヘッダーを書き換えられないように）
+ */
+const singleLine = (max: number) =>
+  z
+    .string()
+    .trim()
+    .max(max)
+    .refine(
+      (v) => !/[\u0000-\u001f\u007f]/.test(v),
+      '改行や制御文字は使えません',
+    )
+
 export const contactInputSchema = z.object({
-  name: z.string().trim().min(1, 'お名前を入力してください').max(100),
+  name: singleLine(100).refine((v) => v.length > 0, 'お名前を入力してください'),
   email: z.email('メールアドレスの形式が正しくありません').max(200),
-  subject: z.string().trim().max(200).default(''),
+  subject: singleLine(200).default(''),
   body: z
     .string()
     .trim()
