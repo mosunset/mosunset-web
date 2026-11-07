@@ -73,6 +73,12 @@ export function BoxPackingSpec() {
               <td>横倒しの許可</td>
               <td>オン・オフ</td>
             </tr>
+            <tr>
+              <td>使う</td>
+              <td>
+                オン・オフ。オフにした箱は、リストに残したまま積み上げの計算から外す
+              </td>
+            </tr>
           </tbody>
         </table>
         <ul>
@@ -163,7 +169,7 @@ export function BoxPackingSpec() {
             <tr>
               <td>底面を支える割合</td>
               <td>50〜100%</td>
-              <td>90%</td>
+              <td>95%</td>
             </tr>
             <tr>
               <td>優先すること（トグル）</td>

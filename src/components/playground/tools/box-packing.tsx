@@ -31,7 +31,8 @@ import { PackingView, type ViewOptions } from './box-packing-view'
 
 // ---- 設定 ----
 
-type BoxRow = BoxSpec & { id: number }
+/** enabled: 積み上げに使うか（使わない箱は、リストに残したまま計算から外す） */
+type BoxRow = BoxSpec & { id: number; enabled: boolean }
 
 type RandomOptions = {
   types: number
@@ -55,7 +56,13 @@ const MAX_ROWS = 50
 const MAX_CANDIDATES = 10
 
 let nextId = 1
-const row = (box: BoxSpec): BoxRow => ({ ...box, id: nextId++ })
+const row = (box: BoxSpec, enabled = true): BoxRow => ({
+  ...box,
+  enabled,
+  id: nextId++,
+})
+/** 計算に使う個数（使わない箱は 0 個） */
+const usedCount = (b: BoxRow) => (b.enabled ? b.count : 0)
 
 const initial: Settings = {
   floorX: 1100,
@@ -63,7 +70,7 @@ const initial: Settings = {
   walls: { back: false, left: false, right: false },
   gap: 5,
   edgeGap: 5,
-  supportPercent: 90,
+  supportPercent: 95,
   objective: 'height',
   wallBias: 50,
   boxes: [
@@ -72,7 +79,7 @@ const initial: Settings = {
     { tag: '食器', x: 330, y: 250, z: 200, count: 10, canLayDown: false },
     { tag: '細長いもの', x: 600, y: 200, z: 150, count: 4, canLayDown: true },
     { tag: '小物', x: 250, y: 200, z: 150, count: 4, canLayDown: false },
-  ].map(row),
+  ].map((box) => row(box)),
   random: {
     types: 5,
     total: 30,
@@ -106,8 +113,8 @@ function validate(s: Settings): string | null {
       return `「${label}」の個数は 0〜${MAX_COUNT_PER_ROW} 個で入れてください。`
     }
   }
-  const total = s.boxes.reduce((sum, b) => sum + b.count, 0)
-  if (total === 0) return '箱を 1 個以上入れてください。'
+  const total = s.boxes.reduce((sum, b) => sum + usedCount(b), 0)
+  if (total === 0) return '積み上げに使う箱を 1 個以上入れてください。'
   if (total > MAX_TOTAL)
     return `箱は全部で ${MAX_TOTAL} 個までです（今は ${total} 個）。`
   return null
@@ -115,7 +122,14 @@ function validate(s: Settings): string | null {
 
 function toInput(s: Settings, seed: number): PackInput {
   const { random: _random, boxes, ...rest } = s
-  return { ...rest, boxes: boxes.map(({ id: _id, ...box }) => box), seed }
+  return {
+    ...rest,
+    boxes: boxes.map(({ id: _id, enabled: _enabled, ...box }) => ({
+      ...box,
+      count: usedCount({ ...box, id: _id, enabled: _enabled }),
+    })),
+    seed,
+  }
 }
 
 /** タグが空の箱は「箱 1」のように番号で呼ぶ */
@@ -205,7 +219,8 @@ function placementsCsv(boxes: BoxSpec[], placements: Placement[]) {
 }
 
 function exportJson(settings: Settings, result: PackResult | null) {
-  const { boxes, ...rest } = toInput(settings, 0)
+  const { boxes: _used, ...rest } = toInput(settings, 0)
+  const boxes = settings.boxes.map(({ id: _id, ...box }) => box)
   return JSON.stringify(
     {
       tool: 'box-packing',
@@ -266,14 +281,17 @@ function parseSettings(text: string): Settings | null {
     objective: s.objective === 'floor' ? 'floor' : 'height',
     wallBias: num(s.wallBias, initial.wallBias, 0, 100),
     boxes: (s.boxes as Record<string, unknown>[]).slice(0, MAX_ROWS).map((b) =>
-      row({
-        tag: typeof b?.tag === 'string' ? b.tag.slice(0, 40) : '',
-        x: num(b?.x, 1, 1, MAX_SIZE),
-        y: num(b?.y, 1, 1, MAX_SIZE),
-        z: num(b?.z, 1, 1, MAX_SIZE),
-        count: num(b?.count, 0, 0, MAX_COUNT_PER_ROW),
-        canLayDown: b?.canLayDown === true,
-      }),
+      row(
+        {
+          tag: typeof b?.tag === 'string' ? b.tag.slice(0, 40) : '',
+          x: num(b?.x, 1, 1, MAX_SIZE),
+          y: num(b?.y, 1, 1, MAX_SIZE),
+          z: num(b?.z, 1, 1, MAX_SIZE),
+          count: num(b?.count, 0, 0, MAX_COUNT_PER_ROW),
+          canLayDown: b?.canLayDown === true,
+        },
+        b?.enabled !== false,
+      ),
     ),
     random: {
       types: num(r.types, initial.random.types, 1, MAX_ROWS),
@@ -400,7 +418,7 @@ export function BoxPacking() {
 
   const set = <K extends keyof Settings>(key: K, value: Settings[K]) =>
     setSettings((s) => ({ ...s, [key]: value }))
-  const setBox = (id: number, patch: Partial<BoxSpec>) =>
+  const setBox = (id: number, patch: Partial<Omit<BoxRow, 'id'>>) =>
     setSettings((s) => ({
       ...s,
       boxes: s.boxes.map((b) => (b.id === id ? { ...b, ...patch } : b)),
@@ -511,8 +529,8 @@ export function BoxPacking() {
         : [],
     [result, visible],
   )
-  const total = settings.boxes.reduce((sum, b) => sum + b.count, 0)
-  const shownTotal = shownBoxes.reduce((sum, b) => sum + b.count, 0)
+  const total = settings.boxes.reduce((sum, b) => sum + usedCount(b), 0)
+  const shownTotal = shownBoxes.reduce((sum, b) => sum + usedCount(b), 0)
 
   // 表示する結果が変わったら、積む順のスライダーと選んだ箱を戻す
   // biome-ignore lint/correctness/useExhaustiveDependencies: current の id が変わったときだけ
@@ -522,7 +540,7 @@ export function BoxPacking() {
   }, [current?.id])
 
   const generate = (mode: 'replace' | 'append') => {
-    const boxes = randomBoxes(settings.random, settings).map(row)
+    const boxes = randomBoxes(settings.random, settings).map((box) => row(box))
     if (mode === 'replace') {
       if (
         !window.confirm(
@@ -1003,9 +1021,17 @@ export function BoxPacking() {
           は、そのまま置いたときの幅・奥行き・高さです。横倒しの許可をオンにすると、倒したほうが良いときだけ倒します。
         </p>
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[42rem] text-sm">
+          <table className="w-full min-w-[44rem] text-sm">
             <thead className="text-left text-xs text-muted-foreground">
               <tr>
+                <th className="py-1 pr-2 font-normal">
+                  <span className="flex items-center gap-1">
+                    使う
+                    <HelpTip>
+                      オフにした箱は、リストに残したまま積み上げの計算から外します。入れる箱を選び直すときに使います。
+                    </HelpTip>
+                  </span>
+                </th>
                 <th className="py-1 font-normal">
                   <span className="flex items-center gap-1">
                     タグ
@@ -1059,7 +1085,24 @@ export function BoxPacking() {
             </thead>
             <tbody>
               {settings.boxes.map((b, i) => (
-                <tr key={b.id} className="border-t">
+                <tr
+                  key={b.id}
+                  className={cn(
+                    'border-t',
+                    !b.enabled && '[&_td:not(:first-child)]:opacity-40',
+                  )}
+                >
+                  <td className="py-1.5 pr-2 text-center">
+                    <input
+                      type="checkbox"
+                      aria-label="積み上げに使う"
+                      checked={b.enabled}
+                      onChange={(e) =>
+                        setBox(b.id, { enabled: e.target.checked })
+                      }
+                      className="size-4 accent-primary"
+                    />
+                  </td>
                   <td className="py-1.5 pr-2">
                     <div className="flex items-center gap-2">
                       <span
