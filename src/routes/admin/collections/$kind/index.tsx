@@ -27,6 +27,7 @@ import { ListFilter, matchesQuery } from '@/components/admin/list-filter'
 import { EmptyState } from '@/components/empty-state'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { listItemsForAdmin, reorderItems } from '@/functions/collections'
 import {
   type CollectionKind,
   collections,
@@ -35,7 +36,6 @@ import {
 import { errorMessage } from '@/lib/errors'
 import { imageUrl } from '@/lib/images'
 import { cn } from '@/lib/utils'
-import { listItemsForAdmin, reorderItems } from '@/server/collections'
 
 export const Route = createFileRoute('/admin/collections/$kind/')({
   loader: ({ params }) => listItemsForAdmin({ data: { kind: params.kind } }),

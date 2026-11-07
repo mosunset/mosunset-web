@@ -3,7 +3,7 @@ import { getGlobalStartContext } from '@tanstack/react-start'
 import { routeTree } from './routeTree.gen'
 
 /**
- * CSP の nonce。サーバーではリクエストごとに src/server/security-headers.ts が作ったもの、
+ * CSP の nonce。サーバーではリクエストごとに src/start.ts のミドルウェアが作ったもの、
  * ブラウザではページの <meta property="csp-nonce">（src/routes/__root.tsx）に入っているものを使う
  */
 function getCspNonce() {

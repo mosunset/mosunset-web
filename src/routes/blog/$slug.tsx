@@ -3,6 +3,7 @@ import { createFileRoute } from '@tanstack/react-router'
 import { BackLinkFooter } from '@/components/back-link-footer'
 import { RichTextContent, ZoomableImage } from '@/components/image-viewer'
 import { NotFoundPage } from '@/components/not-found-page'
+import { getPublishedPost } from '@/functions/posts'
 import { formatDate } from '@/lib/format'
 import { imagePath } from '@/lib/images'
 import {
@@ -13,7 +14,6 @@ import {
   seo,
   websiteId,
 } from '@/lib/seo'
-import { getPublishedPost } from '@/server/posts'
 
 export const Route = createFileRoute('/blog/$slug')({
   loader: ({ params }) => getPublishedPost({ data: { slug: params.slug } }),

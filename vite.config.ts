@@ -41,7 +41,13 @@ const config = defineConfig({
     devtools(),
     cloudflare({ viteEnvironment: { name: 'ssr' } }),
     tailwindcss(),
-    tanstackStart(),
+    tanstackStart({
+      // src/server はサーバーだけの中身（DB・R2・秘密の値など）。ブラウザ用のバンドルから import されたらビルドを失敗させる。
+      // files を指定すると既定の一覧が置き換わるので、既定の '**/*.server.*' も自分で書く
+      importProtection: {
+        client: { files: ['**/*.server.*', '**/src/server/**'] },
+      },
+    }),
     viteReact(),
   ],
 })

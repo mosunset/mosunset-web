@@ -2,9 +2,8 @@ import { notFound } from '@tanstack/react-router'
 import { createServerFn } from '@tanstack/react-start'
 import { and, desc, eq, ne } from 'drizzle-orm'
 import { z } from 'zod'
-
+import { adminMiddleware } from '@/functions/auth'
 import { slugPattern } from '@/lib/slug'
-import { adminMiddleware } from '@/server/auth'
 import { getDb, schema } from '@/server/db'
 import { deleteImagesOf, deleteReplacedImage } from '@/server/r2'
 import {

@@ -1,6 +1,6 @@
-import type { CollectionKind } from '@/server/db/schema'
+import type { CollectionKind } from '@/lib/collection-kinds'
 
-export type { CollectionKind }
+export { type CollectionKind, collectionKinds } from '@/lib/collection-kinds'
 
 /** 種類ごとの追加項目の定義。管理画面の入力欄・サーバーの検証・公開ページの表示に使う */
 export type AttributeField =

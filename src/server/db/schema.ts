@@ -9,6 +9,9 @@ import {
 
 import type { RichTextDoc } from '@/lib/tiptap'
 
+// drizzle-kit からも読み込まれるので、値の import は相対パスにしておく
+import { collectionKinds } from '../../lib/collection-kinds'
+
 const id = () =>
   text('id')
     .primaryKey()
@@ -42,14 +45,6 @@ export const posts = sqliteTable(
   },
   (t) => [index('posts_status_published_at_idx').on(t.status, t.publishedAt)],
 )
-
-export const collectionKinds = [
-  'instrument',
-  'certification',
-  'toy',
-  'book',
-] as const
-export type CollectionKind = (typeof collectionKinds)[number]
 
 /**
  * 楽器・資格・おもちゃ・本のコレクション。

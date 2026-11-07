@@ -6,11 +6,11 @@ import {
   CollectionNotFound,
 } from '@/components/collection-view'
 import { SectionPage } from '@/components/section-page'
+import { getPublishedItem, listPublishedItems } from '@/functions/collections'
 import { collectionDetailHead } from '@/lib/collection-seo'
 import { type CollectionKind, collections } from '@/lib/collections'
 import { getNavItem } from '@/lib/navigation'
 import { sectionHead } from '@/lib/seo'
-import { getPublishedItem, listPublishedItems } from '@/server/collections'
 
 /**
  * コレクションの一覧ページ（/books/ など）の設定。

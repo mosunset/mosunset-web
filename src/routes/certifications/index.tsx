@@ -1,6 +1,6 @@
 import { createFileRoute } from '@tanstack/react-router'
 
-import { collectionIndexRoute } from '@/lib/collection-routes'
+import { collectionIndexRoute } from '@/components/collection-routes'
 
 export const Route = createFileRoute('/certifications/')(
   collectionIndexRoute('certification'),

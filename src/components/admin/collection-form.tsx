@@ -22,6 +22,7 @@ import { RichTextEditor } from '@/components/editor/rich-text-editor'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { deleteItem, saveItem } from '@/functions/collections'
 import { useEditableForm } from '@/hooks/use-editable-form'
 import { useSaveShortcut } from '@/hooks/use-save-shortcut'
 import {
@@ -32,7 +33,6 @@ import {
 import { imageUrl } from '@/lib/images'
 import { slugInputPattern } from '@/lib/slug'
 import { emptyDoc, type RichTextDoc } from '@/lib/tiptap'
-import { deleteItem, saveItem } from '@/server/collections'
 
 type Props = {
   kind: CollectionKind

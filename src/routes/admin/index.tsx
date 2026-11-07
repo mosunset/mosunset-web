@@ -4,11 +4,11 @@ import type * as React from 'react'
 
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { getDashboard } from '@/functions/dashboard'
 import { collectionList } from '@/lib/collections'
 import { formatDateTime } from '@/lib/format'
 import { getNavItem } from '@/lib/navigation'
 import { cn } from '@/lib/utils'
-import { getDashboard } from '@/server/dashboard'
 
 export const Route = createFileRoute('/admin/')({
   loader: () => getDashboard(),

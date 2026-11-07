@@ -1,9 +1,9 @@
 import { createFileRoute, Outlet, redirect } from '@tanstack/react-router'
 
 import { AdminShell } from '@/components/admin/admin-shell'
+import { getAdminStatus } from '@/functions/auth'
+import { countUnreadMessages } from '@/functions/contact'
 import { seo } from '@/lib/seo'
-import { getAdminStatus } from '@/server/auth'
-import { countUnreadMessages } from '@/server/contact'
 
 export const Route = createFileRoute('/admin')({
   staticData: { breadcrumb: '管理' },

@@ -18,11 +18,11 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
+import { deletePost, type PostInput, savePost } from '@/functions/posts'
 import { useEditableForm } from '@/hooks/use-editable-form'
 import { useSaveShortcut } from '@/hooks/use-save-shortcut'
 import { slugInputPattern, slugPattern } from '@/lib/slug'
 import { emptyDoc, type RichTextDoc } from '@/lib/tiptap'
-import { deletePost, type PostInput, savePost } from '@/server/posts'
 
 type Props = {
   /** 編集時は既存の記事。新規作成時は undefined */

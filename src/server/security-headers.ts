@@ -1,5 +1,3 @@
-import { createMiddleware } from '@tanstack/react-start'
-
 /** すべてのページ・API に付ける */
 const commonHeaders: Record<string, string> = {
   // 中身の種類をブラウザに推測させない
@@ -92,20 +90,20 @@ function isPrivatePath(pathname: string) {
 }
 
 /** 推測できない nonce（16 バイトの乱数を base64 にしたもの） */
-function createNonce() {
+export function createNonce() {
   const bytes = crypto.getRandomValues(new Uint8Array(16))
   return btoa(String.fromCharCode(...bytes))
 }
 
 /**
- * レスポンスにセキュリティ関連のヘッダーを付ける。
- * nonce は context.cspNonce としてルーター（src/router.tsx）に渡し、ページに出すスクリプトに付けてもらう
+ * レスポンスにセキュリティ関連のヘッダーを付ける（src/start.ts のリクエストのミドルウェアから呼ぶ）。
+ * nonce はリクエストごとに createNonce で作り、ページに出すスクリプトにも同じものを付ける
  */
-export const securityHeadersMiddleware = createMiddleware({
-  type: 'request',
-}).server(async ({ request, next }) => {
-  const nonce = createNonce()
-  const result = await next({ context: { cspNonce: nonce } })
+export function withSecurityHeaders(
+  request: Request,
+  original: Response,
+  nonce: string,
+) {
   const url = new URL(request.url)
   const local = isLocal(url)
 
@@ -124,7 +122,7 @@ export const securityHeadersMiddleware = createMiddleware({
     headers['Cache-Control'] = 'no-store'
   }
 
-  let response = result.response
+  let response = original
   try {
     for (const [name, value] of Object.entries(headers)) {
       // 画像の配信などで、ルート側が先に付けたものはそちらを優先する
@@ -137,5 +135,5 @@ export const securityHeadersMiddleware = createMiddleware({
       if (!response.headers.has(name)) response.headers.set(name, value)
     }
   }
-  return { ...result, response }
-})
+  return response
+}

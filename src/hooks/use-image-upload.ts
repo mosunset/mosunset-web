@@ -1,7 +1,6 @@
 import { useServerFn } from '@tanstack/react-start'
-
+import { uploadImage } from '@/functions/images'
 import { resizeImage } from '@/lib/image-resize'
-import { uploadImage } from '@/server/images'
 
 /**
  * 画像を縮小してから R2 の folder にアップロードし、保存先のキーを返す関数を作る。

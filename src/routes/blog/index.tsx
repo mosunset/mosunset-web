@@ -2,11 +2,11 @@ import { createFileRoute, Link } from '@tanstack/react-router'
 
 import { EmptyState } from '@/components/empty-state'
 import { SectionPage } from '@/components/section-page'
+import { listPublishedPosts } from '@/functions/posts'
 import { formatDate } from '@/lib/format'
 import { imagePath } from '@/lib/images'
 import { getNavItem } from '@/lib/navigation'
 import { sectionHead } from '@/lib/seo'
-import { listPublishedPosts } from '@/server/posts'
 
 const item = getNavItem('/blog')
 

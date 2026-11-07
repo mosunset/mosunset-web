@@ -7,8 +7,8 @@ import { ListFilter, matchesQuery } from '@/components/admin/list-filter'
 import { EmptyState } from '@/components/empty-state'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { listPostsForAdmin } from '@/functions/posts'
 import { formatDateTime } from '@/lib/format'
-import { listPostsForAdmin } from '@/server/posts'
 
 export const Route = createFileRoute('/admin/posts/')({
   loader: () => listPostsForAdmin(),

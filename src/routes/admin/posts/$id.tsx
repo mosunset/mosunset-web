@@ -2,7 +2,7 @@ import { createFileRoute } from '@tanstack/react-router'
 
 import { AdminPage } from '@/components/admin/admin-page'
 import { PostForm } from '@/components/admin/post-form'
-import { getPostForAdmin } from '@/server/posts'
+import { getPostForAdmin } from '@/functions/posts'
 
 export const Route = createFileRoute('/admin/posts/$id')({
   loader: ({ params }) => getPostForAdmin({ data: { id: params.id } }),

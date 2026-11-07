@@ -2,7 +2,8 @@ import { notFound } from '@tanstack/react-router'
 import { createServerFn } from '@tanstack/react-start'
 import { and, asc, desc, eq, ne } from 'drizzle-orm'
 import { z } from 'zod'
-
+import { adminMiddleware } from '@/functions/auth'
+import { collectionKinds } from '@/lib/collection-kinds'
 import {
   type AttributeField,
   type CollectionAttributes,
@@ -10,9 +11,7 @@ import {
 } from '@/lib/collections'
 import { htmlToSummary } from '@/lib/seo'
 import { optionalSlugPattern } from '@/lib/slug'
-import { adminMiddleware } from '@/server/auth'
 import { getDb, schema } from '@/server/db'
-import { collectionKinds } from '@/server/db/schema'
 import { deleteImagesOf, deleteReplacedImage } from '@/server/r2'
 import {
   renderRichText,

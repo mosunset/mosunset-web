@@ -5,7 +5,7 @@ import { getRequestHeader } from '@tanstack/react-start/server'
 import { count, desc, eq, isNull } from 'drizzle-orm'
 import { z } from 'zod'
 
-import { adminMiddleware } from '@/server/auth'
+import { adminMiddleware } from '@/functions/auth'
 import { getDb, schema } from '@/server/db'
 import { notifyContactMessage } from '@/server/notify'
 import { verifyTurnstile } from '@/server/turnstile'

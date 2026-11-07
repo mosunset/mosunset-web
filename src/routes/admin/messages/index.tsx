@@ -3,9 +3,9 @@ import { createFileRoute, Link } from '@tanstack/react-router'
 import { AdminPage } from '@/components/admin/admin-page'
 import { EmptyState } from '@/components/empty-state'
 import { Badge } from '@/components/ui/badge'
+import { listMessages } from '@/functions/contact'
 import { formatDateTime } from '@/lib/format'
 import { cn } from '@/lib/utils'
-import { listMessages } from '@/server/contact'
 
 export const Route = createFileRoute('/admin/messages/')({
   loader: () => listMessages(),

@@ -4,10 +4,14 @@ import { Mail, MailOpen, Reply, Trash2 } from 'lucide-react'
 import { useState } from 'react'
 
 import { Button } from '@/components/ui/button'
+import {
+  deleteMessage,
+  getMessage,
+  markMessageUnread,
+} from '@/functions/contact'
 import { errorMessage } from '@/lib/errors'
 import { formatDateTime } from '@/lib/format'
 import { site } from '@/lib/site'
-import { deleteMessage, getMessage, markMessageUnread } from '@/server/contact'
 
 export const Route = createFileRoute('/admin/messages/$id')({
   loader: ({ params }) => getMessage({ data: { id: params.id } }),

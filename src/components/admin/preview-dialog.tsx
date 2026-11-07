@@ -12,9 +12,9 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
+import { previewRichText } from '@/functions/posts'
 import { errorMessage } from '@/lib/errors'
 import type { RichTextDoc } from '@/lib/tiptap'
-import { previewRichText } from '@/server/posts'
 
 /** 保存前の内容を、公開ページと同じ見た目で確認する */
 export function PreviewButton({

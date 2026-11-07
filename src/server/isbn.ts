@@ -1,11 +1,7 @@
-import { createServerFn } from '@tanstack/react-start'
-import { z } from 'zod'
-
-import { adminMiddleware } from '@/server/auth'
 import { putImage } from '@/server/r2'
 
 /** ISBN-10 / 13 をハイフンなしの ISBN-13 にする。不正なら null */
-function normalizeIsbn(input: string): string | null {
+export function normalizeIsbn(input: string): string | null {
   const raw = input.replace(/[^0-9Xx]/g, '').toUpperCase()
 
   if (raw.length === 10) {
@@ -40,7 +36,7 @@ type BookInfo = {
   coverUrl: string | null
 }
 
-async function fromOpenBd(isbn: string): Promise<BookInfo | null> {
+export async function fromOpenBd(isbn: string): Promise<BookInfo | null> {
   const res = await fetch(`https://api.openbd.jp/v1/get?isbn=${isbn}`)
   if (!res.ok) return null
   const [book] = (await res.json()) as (null | {
@@ -67,7 +63,7 @@ async function fromOpenBd(isbn: string): Promise<BookInfo | null> {
   }
 }
 
-async function fromGoogleBooks(isbn: string): Promise<BookInfo | null> {
+export async function fromGoogleBooks(isbn: string): Promise<BookInfo | null> {
   const res = await fetch(
     `https://www.googleapis.com/books/v1/volumes?q=isbn:${isbn}`,
   )
@@ -98,7 +94,9 @@ async function fromGoogleBooks(isbn: string): Promise<BookInfo | null> {
 const coverTypes = ['image/jpeg', 'image/png', 'image/webp']
 
 /** 表紙を取得して R2 に保存する。取れなければ null */
-async function saveCover(urls: (string | null)[]): Promise<string | null> {
+export async function saveCover(
+  urls: (string | null)[],
+): Promise<string | null> {
   for (const url of urls) {
     if (!url) continue
     try {
@@ -115,35 +113,3 @@ async function saveCover(urls: (string | null)[]): Promise<string | null> {
   }
   return null
 }
-
-/** ISBN から書名・著者・出版社・表紙を調べる（管理者のみ） */
-export const lookupIsbn = createServerFn({ method: 'POST' })
-  .middleware([adminMiddleware])
-  .validator((data: unknown) =>
-    z.object({ isbn: z.string(), withCover: z.boolean() }).parse(data),
-  )
-  .handler(async ({ data }) => {
-    const isbn = normalizeIsbn(data.isbn)
-    if (!isbn) throw new Error('ISBN の形式が正しくありません')
-
-    const info = (await fromOpenBd(isbn)) ?? (await fromGoogleBooks(isbn))
-    if (!info) throw new Error('この ISBN の本は見つかりませんでした')
-
-    let imageKey: string | null = null
-    if (data.withCover) {
-      // openBD に表紙がないことが多いので、Google Books の表紙も候補にする
-      const googleCover = info.coverUrl
-        ? null
-        : await fromGoogleBooks(isbn)
-            .then((b) => b?.coverUrl ?? null)
-            .catch(() => null)
-      imageKey = await saveCover([
-        info.coverUrl,
-        googleCover,
-        // 国立国会図書館のサムネイル
-        `https://ndlsearch.ndl.go.jp/thumbnail/${isbn}.jpg`,
-      ])
-    }
-
-    return { ...info, imageKey }
-  })

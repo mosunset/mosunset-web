@@ -3,10 +3,10 @@ import { createFileRoute } from '@tanstack/react-router'
 import { ContactForm } from '@/components/contact-form'
 import { SectionPage } from '@/components/section-page'
 import { SocialIcon } from '@/components/social-icons'
+import { getContactConfig } from '@/functions/contact'
 import { getNavItem } from '@/lib/navigation'
 import { sectionHead } from '@/lib/seo'
 import { site } from '@/lib/site'
-import { getContactConfig } from '@/server/contact'
 
 const item = getNavItem('/contact')
 
