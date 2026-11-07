@@ -40,6 +40,7 @@ import {
   buildCombos,
   comboChips,
   defaultSweep,
+  MAX_SEARCH_MS,
   planSearch,
   RangeOrValue,
   SearchBar,
@@ -597,64 +598,46 @@ function withBest(
   return next
 }
 
-/**
- * 1 つの設定を、Worker を並列に動かして計算する。止める関数を返す。
- * Worker ごとに乱数の種を変えて、別々の並べ順を探させる
- */
-function startWorkers(
-  input: Omit<PackInput, 'seed'>,
-  seedBase: number,
+/** Worker を 1 つ動かして、1 つの組み合わせを計算する。止める関数を返す */
+function runWorker(
+  input: PackInput,
   on: {
-    best?: (result: PackResult, elapsed: number) => void
+    best: (result: PackResult) => void
     metric: (metric: Metric, result: PackResult) => void
-    progress: (tried: number, elapsed: number) => void
-    /** 全部の Worker が、良い結果が出なくなって止まった */
+    progress: (tried: number) => void
+    /** 良い結果が出なくなって止まった、または失敗した */
     done: () => void
-    error: () => void
   },
 ) {
-  const workers: Worker[] = []
-  const tried = new Array<number>(workerCount).fill(0)
-  let elapsed = 0
-  let finished = 0
+  const worker = new Worker(
+    new URL('./box-packing.worker.ts', import.meta.url),
+    {
+      type: 'module',
+    },
+  )
   let stopped = false
   const stop = () => {
     stopped = true
-    for (const worker of workers) worker.terminate()
+    worker.terminate()
   }
-  for (let w = 0; w < workerCount; w++) {
-    const worker = new Worker(
-      new URL('./box-packing.worker.ts', import.meta.url),
-      {
-        type: 'module',
-      },
-    )
-    workers.push(worker)
-    worker.onmessage = (event: MessageEvent<WorkerMessage>) => {
-      if (stopped) return
-      const message = event.data
-      tried[w] = message.tried
-      elapsed = Math.max(elapsed, message.elapsed)
-      on.progress(
-        tried.reduce((a, b) => a + b, 0),
-        elapsed,
-      )
-      if (message.kind === 'best') on.best?.(message.result, message.elapsed)
-      else if (message.kind === 'metric')
-        on.metric(message.metric, message.result)
-      else if (message.kind === 'done') {
-        worker.terminate()
-        finished++
-        if (finished === workerCount) on.done()
-      }
-    }
-    worker.onerror = () => {
-      if (stopped) return
+  worker.onmessage = (event: MessageEvent<WorkerMessage>) => {
+    if (stopped) return
+    const message = event.data
+    on.progress(message.tried)
+    if (message.kind === 'best') on.best(message.result)
+    else if (message.kind === 'metric')
+      on.metric(message.metric, message.result)
+    else if (message.kind === 'done') {
       stop()
-      on.error()
+      on.done()
     }
-    worker.postMessage({ ...input, seed: seedBase + w } satisfies PackInput)
   }
+  worker.onerror = () => {
+    if (stopped) return
+    stop()
+    on.done()
+  }
+  worker.postMessage(input)
   return stop
 }
 
@@ -674,10 +657,6 @@ function loadSweep(): SweepConfig {
       step: Math.max(1, n(r?.step, d.step)),
     }
   }
-  const int = (x: unknown, fallback: number, lo: number, hi: number) =>
-    typeof x === 'number' && Number.isFinite(x)
-      ? Math.min(hi, Math.max(lo, Math.trunc(x)))
-      : fallback
   return {
     gap: range('gap'),
     edgeGap: range('edgeGap'),
@@ -691,7 +670,6 @@ function loadSweep(): SweepConfig {
       typeof v.bothLayDown === 'boolean'
         ? v.bothLayDown
         : defaultSweep.bothLayDown,
-    totalSec: int(v.totalSec, defaultSweep.totalSec, 60, 3600),
   }
 }
 
@@ -852,27 +830,15 @@ export function BoxPacking() {
   /** 探している状態（combos は試す設定の一覧、rows は進み具合と結果） */
   const [search, setSearch] = useState<{
     running: boolean
-    index: number
     combos: Settings[]
     rows: SweepRow[]
-    /** 何周目か（0 から） */
-    round: number
-    /** 1 回に 1 つの組み合わせへかける時間と、合計時間、始めた時刻 */
-    sliceMs: number
-    totalMs: number
+    /** 始めた時刻（探すたびに変わるので、前の探索からの遅れた知らせを見分けるのにも使う） */
     startedAt: number
     /** 「続けて詰める」のときの出発点の並べ順 */
     startOrder?: number[]
-  }>({
-    running: false,
-    index: 0,
-    combos: [],
-    rows: [],
-    round: 0,
-    sliceMs: 0,
-    totalMs: 0,
-    startedAt: 0,
-  })
+  }>({ running: false, combos: [], rows: [], startedAt: 0 })
+  /** 経過時間の表示を進めるための時計 */
+  const [now, setNow] = useState(() => Date.now())
   const [showBest3D, setShowBest3D] = useState(true)
   const captureRef = useRef<(() => Promise<Blob | null>) | null>(null)
   const fileRef = useRef<HTMLInputElement>(null)
@@ -905,19 +871,17 @@ export function BoxPacking() {
     wallBias: settings.wallBias,
     objective: settings.objective,
   }
-  const plan = planSearch(sweepConfig, sweepBase)
+  const plan = planSearch(sweepConfig, sweepBase, workerCount)
 
   /** 条件の組み合わせを作って探し始める。from を渡すと、その結果 1 つから続けて詰める */
   const startSearch = (from?: { settings: Settings; result: PackResult }) => {
-    const totalMs = sweepConfig.totalSec * 1000
     let combos: Settings[]
     let chips: string[][]
     if (from) {
       combos = [from.settings]
       chips = [['続けて詰める']]
     } else {
-      // 時間内に 1 周しきれないときは、回る順番を混ぜる
-      const picked = buildCombos(sweepConfig, sweepBase, plan.rounds < 1)
+      const picked = buildCombos(sweepConfig, sweepBase)
       combos = picked.map((c) => ({
         ...settings,
         gap: c.gap,
@@ -933,15 +897,11 @@ export function BoxPacking() {
     }
     setSearchNo((n) => n + 1)
     setProgress({ tried: 0, elapsed: 0 })
+    setNow(Date.now())
     setSearch({
       running: true,
-      index: 0,
-      round: 0,
       combos,
-      rows: chips.map((c) => ({ chips: c, status: 'wait', visits: 0 })),
-      // 組み合わせが 1 つだけなら、合計時間いっぱい続けて探す
-      sliceMs: combos.length > 1 ? SLICE_SEC * 1000 : totalMs,
-      totalMs,
+      rows: chips.map((c) => ({ chips: c, visits: 0, active: 0 })),
       startedAt: Date.now(),
       startOrder: from?.result.placements.map((p) => p.type),
     })
@@ -951,128 +911,183 @@ export function BoxPacking() {
     setSearch((s) => ({
       ...s,
       running: false,
-      rows: s.rows.map((r) =>
-        r.status === 'run' ? { ...r, status: 'done' } : r,
-      ),
+      rows: s.rows.map((r) => ({ ...r, active: 0 })),
     }))
 
-  // 組み合わせを順に回る。1 回に SLICE_SEC だけ計算して次へ進み、最後まで行ったら次の周へ。
-  // 2 周目からは、その組み合わせで前に見つけた良い並べ方を出発点にして続きから詰める。
-  // 合計時間がたったら終える
-  // biome-ignore lint/correctness/useExhaustiveDependencies: 試している組み合わせが変わったときだけ動かす
+  // Worker ごとに別の組み合わせを SLICE_SEC だけ計算し、終わったら次の組み合わせをランダムに選び直す
+  // （計算した回数が少ないものを優先）。同じ組み合わせにまた当たったら、前に見つけた良い並べ方の続きから詰める。
+  // 止めるまで続け、MAX_SEARCH_MS たったら自動で止める
+  // biome-ignore lint/correctness/useExhaustiveDependencies: 探し始めたとき（startedAt が変わったとき）だけ動かす
   useEffect(() => {
     if (!search.running) return
-    const index = search.index
-    const snapshot = search.combos[index]
-    const left = search.totalMs - (Date.now() - search.startedAt)
-    if (!snapshot || left <= 0) {
-      setSearch((s) => ({
-        ...s,
-        running: false,
-        rows: s.rows.map((r) =>
-          r.status === 'run' ? { ...r, status: 'done' } : r,
-        ),
-      }))
-      toast.success('探し終えました（結果は部門別ベストに入っています）')
-      return
-    }
-    const markRow = (patch: (r: SweepRow) => SweepRow) =>
+    const startedAt = search.startedAt
+    const combos = search.combos
+    const n = combos.length
+    const runNo = searchNo
+    const visits = new Array<number>(n).fill(0)
+    const active = new Array<number>(n).fill(0)
+    const bestScore = new Array<number | undefined>(n).fill(undefined)
+    const bestOrder = new Array<number[] | undefined>(n).fill(undefined)
+    if (search.startOrder) bestOrder[0] = search.startOrder
+    // 組み合わせとして成り立たないもの（床が端のすき間より狭いなど）は選ばない
+    const usable = combos
+      .map((c, i) => (validate(c) ? -1 : i))
+      .filter((i) => i >= 0)
+    const stops = new Array<(() => void) | null>(workerCount).fill(null)
+    const slotTried = new Array<number>(workerCount).fill(0)
+    let finishedTried = 0
+    let lastProgress = 0
+    let ended = false
+
+    const patchRow = (i: number, patch: (r: SweepRow) => SweepRow) =>
       setSearch((s) => {
-        if (s.index !== index) return s
+        if (s.startedAt !== startedAt) return s
         const rows = [...s.rows]
-        rows[index] = patch(rows[index])
+        rows[i] = patch(rows[i])
         return { ...s, rows }
       })
-    let advanced = false
-    let stopRun: (() => void) | null = null
-    const round = search.round
-    const next = () => {
-      if (advanced) return
-      advanced = true
-      stopRun?.()
-      markRow((r) => ({ ...r, status: 'done', visits: (r.visits ?? 0) + 1 }))
-      setSearch((s) => {
-        if (s.index !== index || s.round !== round) return s
-        // 最後の組み合わせまで行ったら、最初に戻って次の周へ
-        return index + 1 < s.combos.length
-          ? { ...s, index: index + 1 }
-          : { ...s, index: 0, round: round + 1 }
-      })
+
+    /** 次に計算する組み合わせ（計算中を含めた回数がいちばん少ないものから、ランダムに 1 つ） */
+    const pick = () => {
+      let min = Number.POSITIVE_INFINITY
+      let choices: number[] = []
+      for (const i of usable) {
+        const load = visits[i] + active[i]
+        if (load < min) {
+          min = load
+          choices = [i]
+        } else if (load === min) choices.push(i)
+      }
+      return choices.length > 0
+        ? choices[Math.floor(Math.random() * choices.length)]
+        : -1
     }
-    // 組み合わせとして成り立たないもの（床が端のすき間より狭いなど）は飛ばす
-    if (validate(snapshot)) {
-      next()
+
+    const launch = (slot: number) => {
+      if (ended) return
+      const i = pick()
+      if (i < 0) return
+      active[i]++
+      patchRow(i, (r) => ({ ...r, active: active[i] }))
+      const { seed: _seed, ...input } = toInput(combos[i], 0)
+      let finished = false
+      let timer = 0
+      const finish = () => {
+        if (finished) return
+        finished = true
+        window.clearTimeout(timer)
+        stops[slot]?.()
+        stops[slot] = null
+        finishedTried += slotTried[slot]
+        slotTried[slot] = 0
+        active[i]--
+        visits[i]++
+        patchRow(i, (r) => ({ ...r, active: active[i], visits: visits[i] }))
+        launch(slot)
+      }
+      stops[slot] = runWorker(
+        {
+          ...input,
+          seed: Math.floor(Math.random() * 1_000_000_000),
+          startOrder: bestOrder[i],
+        },
+        {
+          best: (found) => {
+            const prev = bestScore[i]
+            if (prev === undefined || found.score < prev) {
+              bestScore[i] = found.score
+              bestOrder[i] = found.placements.map((p) => p.type)
+            }
+          },
+          metric: (metric, found) => {
+            setBests((all) =>
+              withBest(all, groupKeyOf(combos[i]), metric, {
+                run: runNo,
+                sweep: n > 1 ? i + 1 : undefined,
+                foundAt: Date.now(),
+                settings: combos[i],
+                result: found,
+              }),
+            )
+            patchRow(i, (r) => {
+              if (metric === 'height' && betterFor('height', found, r.lowest)) {
+                return { ...r, lowest: found }
+              }
+              if (
+                metric === 'floor' &&
+                found.floorCoverage > (r.bestFloor ?? -1)
+              ) {
+                return { ...r, bestFloor: found.floorCoverage }
+              }
+              if (
+                metric === 'low' &&
+                found.cog &&
+                found.cog.z < (r.bestCogZ ?? Number.POSITIVE_INFINITY)
+              ) {
+                return { ...r, bestCogZ: found.cog.z }
+              }
+              return r
+            })
+          },
+          progress: (tried) => {
+            slotTried[slot] = tried
+            const t = Date.now()
+            if (t - lastProgress < 300) return
+            lastProgress = t
+            setProgress({
+              tried: finishedTried + slotTried.reduce((x, y) => x + y, 0),
+              elapsed: t - startedAt,
+            })
+          },
+          done: finish,
+        },
+      )
+      // 組み合わせが 1 つだけなら区切らずに探し続ける（良い結果が出なくなったら、良い並べ方から再開）
+      timer = window.setTimeout(
+        finish,
+        n > 1 ? SLICE_SEC * 1000 : MAX_SEARCH_MS,
+      )
+    }
+
+    if (usable.length === 0) {
+      setSearch((s) => ({ ...s, running: false }))
+      toast.error(
+        '試せる組み合わせがありません（床が、端のすき間より狭くなっていないか確かめてください）',
+      )
       return
     }
-    markRow((r) => ({ ...r, status: 'run' }))
-    setProgress({ tried: 0, elapsed: 0 })
-    const { seed: _seed, ...input } = toInput(snapshot, 0)
-    // 出発点: 前の周でこの組み合わせの良かった並べ方。1 周目の最初だけは「続けて詰める」の並べ方
-    const startOrder =
-      search.rows[index]?.bestOrder ??
-      (index === 0 && round === 0 ? search.startOrder : undefined)
-    stopRun = startWorkers(
-      { ...input, startOrder },
-      ((searchNo * 1000 + round) * 997 + index + 1) * 7919,
-      {
-        best: (found) =>
-          markRow((r) =>
-            r.bestScore === undefined || found.score < r.bestScore
-              ? {
-                  ...r,
-                  bestScore: found.score,
-                  bestOrder: found.placements.map((p) => p.type),
-                }
-              : r,
-          ),
-        metric: (metric, found) => {
-          setBests((all) =>
-            withBest(all, groupKeyOf(snapshot), metric, {
-              run: searchNo,
-              sweep: search.combos.length > 1 ? index + 1 : undefined,
-              foundAt: Date.now(),
-              settings: snapshot,
-              result: found,
-            }),
-          )
-          markRow((r) => {
-            if (metric === 'height' && betterFor('height', found, r.lowest)) {
-              return { ...r, lowest: found }
+    for (let slot = 0; slot < workerCount; slot++) launch(slot)
+    // 止めなかったときは 1 時間で止める
+    const limit = window.setTimeout(() => {
+      setSearch((s) =>
+        s.startedAt === startedAt
+          ? {
+              ...s,
+              running: false,
+              rows: s.rows.map((r) => ({ ...r, active: 0 })),
             }
-            if (
-              metric === 'floor' &&
-              found.floorCoverage > (r.bestFloor ?? -1)
-            ) {
-              return { ...r, bestFloor: found.floorCoverage }
-            }
-            if (
-              metric === 'low' &&
-              found.cog &&
-              found.cog.z < (r.bestCogZ ?? Number.POSITIVE_INFINITY)
-            ) {
-              return { ...r, bestCogZ: found.cog.z }
-            }
-            return r
-          })
-        },
-        progress: (tried, elapsed) => setProgress({ tried, elapsed }),
-        done: next,
-        error: () => {
-          toast.error('計算に失敗しました')
-          next()
-        },
-      },
-    )
-    const timer = window.setTimeout(next, Math.min(search.sliceMs, left))
+          : s,
+      )
+      toast.success(
+        '1 時間たったので、探すのを止めました（結果は部門別ベストに入っています）',
+      )
+    }, MAX_SEARCH_MS)
+    // 経過時間の表示を進める
+    const clock = window.setInterval(() => setNow(Date.now()), 1000)
     return () => {
-      window.clearTimeout(timer)
-      advanced = true
-      stopRun?.()
+      ended = true
+      window.clearTimeout(limit)
+      window.clearInterval(clock)
+      for (const stop of stops) stop?.()
     }
-  }, [search.running, search.index, search.round])
+  }, [search.running, search.startedAt])
 
-  const usedMs = search.running ? Date.now() - search.startedAt : 0
-  const remainingMs = search.running ? Math.max(0, search.totalMs - usedMs) : 0
+  const elapsedMs = search.running ? Math.max(0, now - search.startedAt) : 0
+  const avgVisits =
+    search.rows.length > 0
+      ? search.rows.reduce((sum, r) => sum + r.visits, 0) / search.rows.length
+      : 0
+  const activeCount = search.rows.filter((r) => r.active > 0).length
 
   // ---- ブラウザへの保存 ----
   const allLayDown = settings.boxes.every((b) => b.canLayDown)
@@ -1873,15 +1888,12 @@ export function BoxPacking() {
 
       {/* 4. 探す */}
       <SearchBar
-        totalSec={sweepConfig.totalSec}
-        onTotalSec={(sec) => setSweepConfig((c) => ({ ...c, totalSec: sec }))}
         plan={plan}
         running={search.running}
-        round={search.round}
-        index={search.index}
-        doneRatio={search.totalMs ? usedMs / search.totalMs : 0}
+        elapsedMs={elapsedMs}
+        avgVisits={avgVisits}
+        activeCount={activeCount}
         count={search.combos.length}
-        remainingMs={remainingMs}
         tried={progress.tried}
         workers={workerCount}
         error={error}

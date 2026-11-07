@@ -19,8 +19,6 @@ export type SweepConfig = {
   bothObjectives: boolean
   /** 横倒しの許可を「今のまま」と「全部オン」の両方で試す */
   bothLayDown: boolean
-  /** 「探す」にかける時間の合計（秒） */
-  totalSec: number
 }
 
 /** 最初の条件。だいたいの範囲から始め、決めたい項目だけ「1 つの値」にする */
@@ -31,14 +29,16 @@ export const defaultSweep: SweepConfig = {
   wallBias: { on: false, min: 0, max: 100, step: 50 },
   bothObjectives: true,
   bothLayDown: true,
-  totalSec: 300,
 }
 
 /**
- * 1 回に 1 つの組み合わせへかける時間。全部の組み合わせをこの時間ずつ順に回り、
- * 2 周目からは前の周で見つけた良い並べ方の続きから詰める
+ * 1 回に 1 つの組み合わせへかける時間。Worker ごとに別の組み合わせをこの時間だけ計算し、
+ * 終わったら次の組み合わせをランダムに選び直す（計算した回数が少ないものを優先）
  */
-export const SLICE_SEC = 3
+export const SLICE_SEC = 2
+
+/** 止めなかったときに、自動で止めるまでの時間 */
+export const MAX_SEARCH_MS = 60 * 60 * 1000
 
 /** 1 つの組み合わせ（設定欄の値から変える値） */
 export type SweepCombo = {
@@ -64,14 +64,10 @@ function valuesOf(r: SweepRange, current: number, lo: number, hi: number) {
 /** これより多い組み合わせは作らない */
 const MAX_COMBOS = 2000
 
-/**
- * 組み合わせを作る。shuffle なら順番を混ぜる
- * （時間内に 1 周しきれないとき、止めた時点でも全体からまんべんなく試したことにするため）
- */
+/** 条件の組み合わせを全部作る */
 export function buildCombos(
   config: SweepConfig,
   base: Omit<SweepCombo, 'layDownAll'>,
-  shuffle = false,
 ): SweepCombo[] {
   const gaps = valuesOf(config.gap, base.gap, 0, 50)
   const edges = valuesOf(config.edgeGap, base.edgeGap, 0, 50)
@@ -98,39 +94,19 @@ export function buildCombos(
                 layDownAll,
               })
             }
-  if (!shuffle) return all
-  for (let i = all.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1))
-    ;[all[i], all[j]] = [all[j], all[i]]
-  }
   return all
 }
 
 /**
- * 合計時間から、回り方の見込みを出す。
- * 全部の組み合わせを SLICE_SEC ずつ順に回るので、1 周の時間と、時間内に何周できるかを返す。
- * 組み合わせが 1 つだけなら、合計時間いっぱい続けて探す
+ * 探し方の見込み。workers 並列で回るとき、全部の組み合わせに 1 回ずつ当たるまでの時間を返す
  */
 export function planSearch(
   config: SweepConfig,
   base: Omit<SweepCombo, 'layDownAll'>,
+  workers: number,
 ) {
   const all = buildCombos(config, base).length
-  if (all <= 1) {
-    return {
-      all,
-      sliceSec: config.totalSec,
-      roundSec: config.totalSec,
-      rounds: 1,
-    }
-  }
-  const roundSec = all * SLICE_SEC
-  return {
-    all,
-    sliceSec: SLICE_SEC,
-    roundSec,
-    rounds: config.totalSec / roundSec,
-  }
+  return { all, roundSec: Math.ceil(all / Math.max(1, workers)) * SLICE_SEC }
 }
 
 /** 組み合わせのうち、範囲で変えている値だけを札にする */
@@ -150,12 +126,10 @@ export function comboChips(config: SweepConfig, c: SweepCombo) {
 /** 試した組み合わせ 1 つの結果 */
 export type SweepRow = {
   chips: string[]
-  status: 'wait' | 'run' | 'done'
-  /** 何周回ったか */
-  visits?: number
-  /** 「優先すること」の点数でいちばん良かった結果の点数と、その積む順番（次の周の出発点） */
-  bestScore?: number
-  bestOrder?: number[]
+  /** 何回計算したか */
+  visits: number
+  /** 今、何個の Worker がこの組み合わせを計算しているか */
+  active: number
   /** 全部の箱を置けた結果のうち、いちばん低いもの（表示用） */
   lowest?: PackResult
   /** 全部の箱を置けた結果のうち、1 段目のいちばん大きい割合と、いちばん低い重心 */
@@ -263,36 +237,30 @@ export function RangeOrValue({
   )
 }
 
-/** 「探す」の欄。かける時間の合計と、試し方の見込み、進み具合を出す */
+/** 「探す」の欄。止めるまで探し続け、進み具合（経過時間・回数）を出す */
 export function SearchBar({
-  totalSec,
-  onTotalSec,
   plan,
   running,
-  round,
-  index,
+  elapsedMs,
+  avgVisits,
+  activeCount,
   count,
-  remainingMs,
-  doneRatio,
   tried,
   workers,
   error,
   onStart,
   onStop,
 }: {
-  totalSec: number
-  onTotalSec: (sec: number) => void
   plan: ReturnType<typeof planSearch>
   running: boolean
-  /** 何周目か（0 から） */
-  round: number
-  /** 計算中の組み合わせの番号（0 から） */
-  index: number
-  /** 合計時間のうち、使った割合（0〜1） */
-  doneRatio: number
-  /** 今回試す組み合わせの数 */
+  /** 探し始めてからの時間 */
+  elapsedMs: number
+  /** 組み合わせ 1 つあたりの平均の計算回数 */
+  avgVisits: number
+  /** 今計算している組み合わせの数 */
+  activeCount: number
+  /** 今回の組み合わせの数 */
   count: number
-  remainingMs: number
   tried: number
   workers: number
   /** 入力の誤り（あれば探せない） */
@@ -301,46 +269,38 @@ export function SearchBar({
   onStop: () => void
 }) {
   const minutes = (sec: number) =>
-    sec >= 90 ? `${Math.round(sec / 60)} 分` : `${Math.round(sec)} 秒`
+    sec >= 90 ? `約 ${Math.round(sec / 60)} 分` : `約 ${Math.round(sec)} 秒`
   const planText =
     plan.all === 1
-      ? '条件はすべて 1 つの値なので、1 通りを時間いっぱいまでじっくり探します'
-      : plan.rounds >= 1
-        ? `${plan.all} 通りの組み合わせを、1 通り ${plan.sliceSec} 秒ずつ順に回ります（1 周 約 ${minutes(plan.roundSec)}）。時間いっぱいまで約 ${Math.floor(plan.rounds * 10) / 10} 周して、周を重ねるごとに前の良い並べ方の続きから詰めます`
-        : `${plan.all} 通りの組み合わせを、1 通り ${plan.sliceSec} 秒ずつ回ります。1 周に約 ${minutes(plan.roundSec)} かかるので、この時間では約 ${Math.floor(plan.rounds * plan.all)} 通りまでです（回る順番はランダム）。時間を延ばすと、全部を回ってから周を重ねて詰めます`
+      ? `条件はすべて 1 つの値なので、その 1 通りを ${workers} 並列で探し続けます。「止める」を押すまで続け、1 時間たったら自動で止めます`
+      : `${plan.all} 通りの組み合わせを、${workers} 並列でランダムに少しずつ（1 回 ${SLICE_SEC} 秒）探し続けます。全部に 1 回ずつ当たるまで ${minutes(plan.roundSec)}で、そのあとも前の良い並べ方の続きから詰めていきます。「止める」を押すまで続け、1 時間たったら自動で止めます`
   return (
     <section className="space-y-3 rounded-lg border-2 border-primary/30 p-4">
       <div className="flex flex-wrap items-center gap-3">
         <h2 className="flex items-center gap-1 font-semibold">
           4. 探す
           <HelpTip>
-            上の条件の全部の組み合わせを、1 通り {SLICE_SEC}{' '}
-            秒ずつ順に回ります。1
-            周したら、それぞれの組み合わせで前の周に見つけた良い並べ方の続きから、もう一度回って詰めます。これを、決めた時間いっぱいまで繰り返します。結果は下の「部門別ベスト」に自動で入ります。
+            並列で動く計算係（Worker）が、それぞれ別の組み合わせを {SLICE_SEC}{' '}
+            秒ずつ受け持ち、終わったら次の組み合わせをランダムに選び直します（計算した回数が少ないものを優先）。同じ組み合わせにまた当たったときは、前に見つけた良い並べ方の続きから詰めるので、全部の組み合わせが同時に少しずつ良くなっていきます。結果は下の「部門別ベスト」に自動で入ります。
           </HelpTip>
         </h2>
-        <label className="ml-auto flex items-center gap-2 text-sm">
-          かける時間
-          <select
-            value={totalSec}
-            disabled={running}
-            onChange={(e) => onTotalSec(Number(e.target.value))}
-            className="h-8 rounded-md border bg-background px-2"
-          >
-            {[60, 180, 300, 600, 900, 1800, 3600].map((s) => (
-              <option key={s} value={s}>
-                {s / 60} 分
-              </option>
-            ))}
-          </select>
-        </label>
         {running ? (
-          <Button type="button" variant="outline" onClick={onStop}>
+          <Button
+            type="button"
+            variant="outline"
+            className="ml-auto"
+            onClick={onStop}
+          >
             <Square />
             止める
           </Button>
         ) : (
-          <Button type="button" disabled={!!error} onClick={onStart}>
+          <Button
+            type="button"
+            className="ml-auto"
+            disabled={!!error}
+            onClick={onStart}
+          >
             <Search />
             探す
           </Button>
@@ -349,27 +309,19 @@ export function SearchBar({
       {error ? (
         <p className="text-sm text-destructive">{error}</p>
       ) : running ? (
-        <div className="space-y-1.5">
-          <div className="h-2 overflow-hidden rounded-full bg-muted">
-            <div
-              className="h-full rounded-full bg-primary transition-[width]"
-              style={{
-                width: `${Math.min(100, doneRatio * 100)}%`,
-              }}
-            />
-          </div>
-          <p className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted-foreground">
-            <Loader2 className="size-4 animate-spin" />
+        <p className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted-foreground">
+          <Loader2 className="size-4 animate-spin" />
+          <span>経過 {clock(elapsedMs)}</span>
+          {count > 1 && (
             <span>
-              {count > 1 && `${round + 1} 周目・`}
-              {Math.min(index + 1, count)} / {count} 通り目
+              {count} 通りを並行して探索中（今 {activeCount} 通りを計算中・1
+              通りあたり平均 {avgVisits.toFixed(1)} 回）
             </span>
-            <span>残り約 {clock(remainingMs)}</span>
-            <span className="font-mono text-xs tabular-nums">
-              {tried.toLocaleString()} 通りの並べ方を試行中・{workers} 並列
-            </span>
-          </p>
-        </div>
+          )}
+          <span className="font-mono text-xs tabular-nums">
+            {tried.toLocaleString()} 通りの並べ方を試行中・{workers} 並列
+          </span>
+        </p>
       ) : (
         <p className="text-sm text-muted-foreground">{planText}</p>
       )}
@@ -419,10 +371,10 @@ export function SweepTable({
   return (
     <section className="space-y-2 rounded-lg border p-4">
       <h2 className="flex items-center gap-1 font-semibold">
-        試した組み合わせ（{rows.filter((r) => (r.visits ?? 0) > 0).length} /{' '}
+        試した組み合わせ（{rows.filter((r) => r.visits > 0).length} /{' '}
         {rows.length}）
         <HelpTip>
-          今回の「探す」で回る条件の組み合わせです。「周」は、その組み合わせを何周回ったかです。見出しを押すと、その項目で並べ替えます。「表示」で、その組み合わせのいちばん低い結果を下の「詳しく見る」に出します。
+          今回の「探す」で試している条件の組み合わせです。「回数」は、その組み合わせを何回計算したかで、水色の行は今計算している組み合わせです。見出しを押すと、その項目で並べ替えます。「表示」で、その組み合わせのいちばん低い結果を下の「詳しく見る」に出します。
         </HelpTip>
       </h2>
       <div className="h-64 overflow-auto rounded-md border">
@@ -431,7 +383,7 @@ export function SweepTable({
             <tr>
               {head('order', '#')}
               <th className="py-1 font-normal">変えた条件</th>
-              <th className="py-1 font-normal">周</th>
+              <th className="py-1 font-normal">回数</th>
               {head('height', 'いちばん低い')}
               {head('floor', '1 段目（最大）')}
               {head('cog', '重心の高さ（最小）')}
@@ -448,7 +400,7 @@ export function SweepTable({
                   key={i}
                   className={cn(
                     'border-t',
-                    r.status === 'run' && 'bg-sky-50 dark:bg-sky-950/40',
+                    r.active > 0 && 'bg-sky-50 dark:bg-sky-950/40',
                     active && 'bg-muted/60',
                   )}
                 >
@@ -472,14 +424,14 @@ export function SweepTable({
                     </div>
                   </td>
                   <td className="py-1 font-mono whitespace-nowrap tabular-nums">
-                    {r.visits ?? 0}
+                    {r.visits}
                   </td>
                   <td className="py-1 font-mono whitespace-nowrap tabular-nums">
                     {r.lowest
                       ? `${r.lowest.height.toLocaleString()} mm`
-                      : r.status === 'run'
+                      : r.active > 0
                         ? '計算中'
-                        : r.visits
+                        : r.visits > 0
                           ? '全部は置けず'
                           : 'まだ'}
                   </td>
