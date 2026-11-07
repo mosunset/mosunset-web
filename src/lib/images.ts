@@ -11,12 +11,12 @@ export const imageExtensions: Record<string, string> = {
   'image/avif': 'avif',
 }
 
-/**
- * R2 の画像キーから配信用の URL を作る。
- * キーが空でないと分かっている（truthy で絞り込んだ）文字列なら string を返す型にしてある
- */
-export function imageUrl(key: string): string
-export function imageUrl(key: string | null | undefined): string | null
+/** R2 の画像キーから配信用の URL を作る。キーが空でないと分かっている（truthy で絞り込んだ）ときに使う */
+export function imagePath(key: string) {
+  return `/images/${key}`
+}
+
+/** R2 の画像キーから配信用の URL を作る。キーがない（空文字を含む）ときは null */
 export function imageUrl(key: string | null | undefined) {
-  return key ? `/images/${key}` : null
+  return key ? imagePath(key) : null
 }

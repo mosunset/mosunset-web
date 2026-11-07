@@ -15,7 +15,11 @@ import { MarkdownManager } from '@tiptap/markdown'
 import { getPlatformProxy } from 'wrangler'
 import { parse as parseYaml } from 'yaml'
 
-import { collectImageKeys, type RichTextDoc, richTextExtensions } from '../src/lib/tiptap.ts'
+import {
+  collectImageKeys,
+  type RichTextDoc,
+  richTextExtensions,
+} from '../src/lib/tiptap.ts'
 
 /** 旧サイトの main の最後のコミット */
 const OLD_SITE_REV = process.env.OLD_SITE_REV ?? '0fa6d60'
@@ -25,7 +29,10 @@ const OLD_SITE_REV = process.env.OLD_SITE_REV ?? '0fa6d60'
 // ---------------------------------------------------------------------------
 
 const git = (...args: string[]) =>
-  execFileSync('git', args, { maxBuffer: 1 << 28, stdio: ['ignore', 'pipe', 'ignore'] })
+  execFileSync('git', args, {
+    maxBuffer: 1 << 28,
+    stdio: ['ignore', 'pipe', 'ignore'],
+  })
 
 function listFiles(dir: string) {
   return git('ls-tree', '-r', '--name-only', OLD_SITE_REV, dir)
@@ -50,7 +57,9 @@ function readBlob(path: string): Buffer | null {
 type Frontmatter = Record<string, unknown>
 
 function splitFrontmatter(source: string): { data: Frontmatter; body: string } {
-  const m = source.replace(/^﻿/, '').match(/^---\r?\n([\s\S]*?)\r?\n---\r?\n?([\s\S]*)$/)
+  const m = source
+    .replace(/^﻿/, '')
+    .match(/^---\r?\n([\s\S]*?)\r?\n---\r?\n?([\s\S]*)$/)
   if (!m) return { data: {}, body: source }
   return { data: (parseYaml(m[1]) ?? {}) as Frontmatter, body: m[2].trim() }
 }
@@ -77,7 +86,8 @@ function loadEntry(kind: string, path: string) {
   }
 }
 
-const str = (v: unknown) => (v === undefined || v === null ? '' : String(v).trim())
+const str = (v: unknown) =>
+  v === undefined || v === null ? '' : String(v).trim()
 
 /** YAML の日付（文字列でも Date でも）を YYYY-MM-DD にする */
 function toDay(v: unknown): string {
@@ -92,7 +102,8 @@ function dayToMs(day: string) {
 }
 
 /** 公開されていたか（下書き・限定公開は非公開として取り込む） */
-const isPublic = (d: Frontmatter) => d.draft !== true && str(d.visibility || 'public') === 'public'
+const isPublic = (d: Frontmatter) =>
+  d.draft !== true && str(d.visibility || 'public') === 'public'
 
 /** 旧サイトの画像パスを Git の中のパスにする */
 function resolveAssetPath(src: string): string | null {
@@ -100,7 +111,8 @@ function resolveAssetPath(src: string): string | null {
   try {
     src = decodeURIComponent(src)
   } catch {}
-  if (src.startsWith('@assets/')) return `src/assets/${src.slice('@assets/'.length)}`
+  if (src.startsWith('@assets/'))
+    return `src/assets/${src.slice('@assets/'.length)}`
   if (src.startsWith('/')) return `public${src}`
   return null
 }
@@ -126,14 +138,22 @@ let edited = 0
 const missing: string[] = []
 
 /** 旧サイトの画像を R2 に入れて、新しいキーを返す */
-async function importImage(src: string | undefined, folder: string): Promise<string | null> {
+async function importImage(
+  src: string | undefined,
+  folder: string,
+): Promise<string | null> {
   if (!src) return null
   const path = resolveAssetPath(str(src))
   const ext = path?.split('.').pop()?.toLowerCase() ?? ''
   const type = contentTypes[ext]
   // 番号などを隠した版を content/migration/images/ に置いてあれば、そちらを使う
   const edited = path ? `content/migration/images/${path}` : ''
-  const blob = path && type ? (existsSync(edited) ? readFileSync(edited) : readBlob(path)) : null
+  const blob =
+    path && type
+      ? existsSync(edited)
+        ? readFileSync(edited)
+        : readBlob(path)
+      : null
   if (!blob) {
     missing.push(str(src))
     return null
@@ -155,7 +175,10 @@ function walk(node: RichTextDoc, fn: (n: RichTextDoc) => void) {
   for (const child of node.content ?? []) walk(child, fn)
 }
 
-async function markdownToDoc(source: string, imageFolder: string): Promise<RichTextDoc | null> {
+async function markdownToDoc(
+  source: string,
+  imageFolder: string,
+): Promise<RichTextDoc | null> {
   // Markdoc の独自タグ（{% ... %}）は新しいエディタにないので行ごと外す
   const body = source.replace(/^\s*\{%.*%\}\s*$/gm, '').trim()
   if (!body) return null
@@ -196,7 +219,10 @@ function paragraph(text: string): RichTextDoc {
 }
 
 /** 文章の先頭に段落を足す */
-function prependParagraph(doc: RichTextDoc | null, text: string): RichTextDoc | null {
+function prependParagraph(
+  doc: RichTextDoc | null,
+  text: string,
+): RichTextDoc | null {
   if (!text) return doc
   return { type: 'doc', content: [paragraph(text), ...(doc?.content ?? [])] }
 }
@@ -211,19 +237,34 @@ async function deletePostBySlug(slug: string) {
     .bind(slug)
     .first<{ id: string; content: string; cover_image_key: string | null }>()
   if (!row) return
-  const keys = [row.cover_image_key, ...collectImageKeys(JSON.parse(row.content))]
+  const keys = [
+    row.cover_image_key,
+    ...collectImageKeys(JSON.parse(row.content)),
+  ]
   await db.prepare('DELETE FROM posts WHERE id = ?').bind(row.id).run()
   await deleteKeys(keys)
 }
 
 async function deleteItemBySlug(kind: string, slug: string) {
   const row = await db
-    .prepare('SELECT id, description, image_key FROM collection_items WHERE kind = ? AND slug = ?')
+    .prepare(
+      'SELECT id, description, image_key FROM collection_items WHERE kind = ? AND slug = ?',
+    )
     .bind(kind, slug)
-    .first<{ id: string; description: string | null; image_key: string | null }>()
+    .first<{
+      id: string
+      description: string | null
+      image_key: string | null
+    }>()
   if (!row) return
-  const keys = [row.image_key, ...collectImageKeys(row.description ? JSON.parse(row.description) : null)]
-  await db.prepare('DELETE FROM collection_items WHERE id = ?').bind(row.id).run()
+  const keys = [
+    row.image_key,
+    ...collectImageKeys(row.description ? JSON.parse(row.description) : null),
+  ]
+  await db
+    .prepare('DELETE FROM collection_items WHERE id = ?')
+    .bind(row.id)
+    .run()
   await deleteKeys(keys)
 }
 
@@ -242,7 +283,9 @@ async function insertItem(item: {
   acquiredAt: string
   published: boolean
 }) {
-  const attributes = Object.fromEntries(Object.entries(item.attributes).filter(([, v]) => v))
+  const attributes = Object.fromEntries(
+    Object.entries(item.attributes).filter(([, v]) => v),
+  )
   const now = Date.now()
   await db
     .prepare(
@@ -266,7 +309,11 @@ async function insertItem(item: {
     .run()
 }
 
-const slugOf = (path: string) => path.split('/').pop()?.replace(/\.mdoc$/, '') ?? ''
+const slugOf = (path: string) =>
+  path
+    .split('/')
+    .pop()
+    ?.replace(/\.mdoc$/, '') ?? ''
 const summary: Record<string, { published: number; hidden: number }> = {}
 const count = (label: string, published: boolean) => {
   summary[label] ??= { published: 0, hidden: 0 }
@@ -292,7 +339,10 @@ for (const path of listFiles('src/content/blog')) {
   const published = isPublic(data)
   const publishedDay = toDay(data.publishedDate)
   const updatedDay = toDay(data.updatedDate) || publishedDay
-  const content = (await markdownToDoc(body, 'posts')) ?? { type: 'doc', content: [{ type: 'paragraph' }] }
+  const content = (await markdownToDoc(body, 'posts')) ?? {
+    type: 'doc',
+    content: [{ type: 'paragraph' }],
+  }
   const cover = await importImage(str(data.thumbnail), 'posts')
   const now = Date.now()
 
@@ -322,7 +372,11 @@ for (const path of listFiles('src/content/blog')) {
 // 本
 // ---------------------------------------------------------------------------
 
-const readingStatus: Record<string, string> = { 未読: 'unread', 読書中: 'reading', 読了: 'read' }
+const readingStatus: Record<string, string> = {
+  未読: 'unread',
+  読書中: 'reading',
+  読了: 'read',
+}
 
 for (const path of listFiles('src/content/books')) {
   const slug = slugOf(path)
@@ -333,11 +387,19 @@ for (const path of listFiles('src/content/books')) {
     kind: 'book',
     slug,
     title: str(data.title),
-    description: prependParagraph(await markdownToDoc(body, 'collections-book'), str(data.description)),
+    description: prependParagraph(
+      await markdownToDoc(body, 'collections-book'),
+      str(data.description),
+    ),
     imageKey: await importImage(str(data.thumbnail), 'collections-book'),
     attributes: {
       // 「石川　達也/児島　悠史」→「石川 達也、児島 悠史」
-      author: str(data.author).replace(/　/g, ' ').split('/').map((s) => s.trim()).filter(Boolean).join('、'),
+      author: str(data.author)
+        .replace(/　/g, ' ')
+        .split('/')
+        .map((s) => s.trim())
+        .filter(Boolean)
+        .join('、'),
       publisher: str(data.publisher),
       isbn: str(data.isbn) || slug,
       publishedDate: toDay(data.publishedDate),
@@ -362,7 +424,12 @@ const certificationStatus: Record<string, string> = {
 }
 
 for (const path of listFiles('src/content/qualifications')) {
-  const { data, body, overridden, attributes: overrideAttributes } = loadEntry('certifications', path)
+  const {
+    data,
+    body,
+    overridden,
+    attributes: overrideAttributes,
+  } = loadEntry('certifications', path)
   if (overridden) edited++
   // URL を変えたときは、前回取り込んだ古い URL のものも消す
   const slug = str(data.slug) || slugOf(path)
@@ -374,7 +441,10 @@ for (const path of listFiles('src/content/qualifications')) {
     slug,
     title: str(data.title) || str(data.name),
     description: await markdownToDoc(body, 'collections-certification'),
-    imageKey: await importImage(str(data.thumbnail), 'collections-certification'),
+    imageKey: await importImage(
+      str(data.thumbnail),
+      'collections-certification',
+    ),
     attributes: {
       status: certificationStatus[str(data.status)] ?? '',
       issuer: str(data.organization),
@@ -394,10 +464,18 @@ for (const path of listFiles('src/content/qualifications')) {
 // 楽器
 // ---------------------------------------------------------------------------
 
-const instrumentStatus: Record<string, string> = { 使用中: 'using', 保管中: 'stored' }
+const instrumentStatus: Record<string, string> = {
+  使用中: 'using',
+  保管中: 'stored',
+}
 
 for (const path of listFiles('src/content/instruments')) {
-  const { data, body, overridden, attributes: overrideAttributes } = loadEntry('instruments', path)
+  const {
+    data,
+    body,
+    overridden,
+    attributes: overrideAttributes,
+  } = loadEntry('instruments', path)
   if (overridden) edited++
   const slug = str(data.slug) || slugOf(path)
   await deleteItemBySlug('instrument', slugOf(path))
@@ -410,10 +488,14 @@ for (const path of listFiles('src/content/instruments')) {
   const extra: RichTextDoc[] = []
   for (const src of (data.images as string[] | undefined) ?? []) {
     const key = await importImage(src, 'collections-instrument')
-    if (key) extra.push({ type: 'image', attrs: { src: `/images/${key}`, alt: '' } })
+    if (key)
+      extra.push({ type: 'image', attrs: { src: `/images/${key}`, alt: '' } })
   }
   if (extra.length > 0) {
-    description = { type: 'doc', content: [...(description?.content ?? []), ...extra] }
+    description = {
+      type: 'doc',
+      content: [...(description?.content ?? []), ...extra],
+    }
   }
 
   await insertItem({

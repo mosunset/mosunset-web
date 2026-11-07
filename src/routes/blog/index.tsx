@@ -3,7 +3,7 @@ import { createFileRoute, Link } from '@tanstack/react-router'
 import { EmptyState } from '@/components/empty-state'
 import { SectionPage } from '@/components/section-page'
 import { formatDate } from '@/lib/format'
-import { imageUrl } from '@/lib/images'
+import { imagePath } from '@/lib/images'
 import { getNavItem } from '@/lib/navigation'
 import { sectionHead } from '@/lib/seo'
 import { listPublishedPosts } from '@/server/posts'
@@ -52,7 +52,7 @@ function BlogIndex() {
                 </div>
                 {post.coverImageKey && (
                   <img
-                    src={imageUrl(post.coverImageKey)}
+                    src={imagePath(post.coverImageKey)}
                     alt=""
                     loading="lazy"
                     className="aspect-[4/3] w-24 shrink-0 self-start rounded-md border object-cover sm:w-40"

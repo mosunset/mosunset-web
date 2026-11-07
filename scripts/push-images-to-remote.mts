@@ -5,13 +5,27 @@
  * 使い方: node scripts/push-images-to-remote.mts
  */
 import { execFileSync } from 'node:child_process'
-import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { createRequire } from 'node:module'
 import { tmpdir } from 'node:os'
-import { join } from 'node:path'
+import { dirname, join } from 'node:path'
 
 import { getPlatformProxy } from 'wrangler'
 
 const BUCKET = 'mosunset-web-images'
+
+// wrangler の CLI（JS ファイル）を node で直接動かす。
+// npx は Windows だとシェル経由でしか起動できず、引数をシェルに渡すと Node が警告（DEP0190）を出すため
+const require = createRequire(import.meta.url)
+const wranglerPackageJson = require.resolve('wrangler/package.json')
+const wranglerBin = join(
+  dirname(wranglerPackageJson),
+  (
+    JSON.parse(readFileSync(wranglerPackageJson, 'utf8')) as {
+      bin: { wrangler: string }
+    }
+  ).bin.wrangler,
+)
 
 const platform = await getPlatformProxy<Env>()
 const { DB: db, IMAGES: bucket } = platform.env
@@ -26,7 +40,9 @@ const rows = await db
   .all<{ k: string | null; body: string | null }>()
 for (const row of rows.results) {
   if (row.k) keys.add(row.k)
-  for (const m of row.body?.matchAll(/\/images\/([a-z0-9-]+\/[0-9a-f-]{36}\.[a-z]+)/g) ?? []) {
+  for (const m of row.body?.matchAll(
+    /\/images\/([a-z0-9-]+\/[0-9a-f-]{36}\.[a-z]+)/g,
+  ) ?? []) {
     keys.add(m[1])
   }
 }
@@ -44,14 +60,20 @@ try {
     const file = join(dir, key.replace(/\//g, '_'))
     writeFileSync(file, Buffer.from(await object.arrayBuffer()))
     execFileSync(
-      'npx',
+      process.execPath,
       [
-        'wrangler', 'r2', 'object', 'put', `${BUCKET}/${key}`,
-        '--file', file,
-        '--content-type', object.httpMetadata?.contentType ?? 'application/octet-stream',
+        wranglerBin,
+        'r2',
+        'object',
+        'put',
+        `${BUCKET}/${key}`,
+        '--file',
+        file,
+        '--content-type',
+        object.httpMetadata?.contentType ?? 'application/octet-stream',
         '--remote',
       ],
-      { stdio: 'ignore', shell: process.platform === 'win32' },
+      { stdio: 'ignore' },
     )
     done++
     process.stdout.write(`\r${done} / ${keys.size}`)

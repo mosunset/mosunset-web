@@ -4,7 +4,7 @@ import { BackLinkFooter } from '@/components/back-link-footer'
 import { RichTextContent, ZoomableImage } from '@/components/image-viewer'
 import { NotFoundPage } from '@/components/not-found-page'
 import { formatDate } from '@/lib/format'
-import { imageUrl } from '@/lib/images'
+import { imagePath } from '@/lib/images'
 import {
   absoluteUrl,
   jsonLd,
@@ -43,7 +43,7 @@ export const Route = createFileRoute('/blog/$slug')({
             },
             // 表紙があれば SNS のカードにも使う（サイト共通の画像を上書きする）
             ...(loaderData.coverImageKey
-              ? ogImage(imageUrl(loaderData.coverImageKey), loaderData.title)
+              ? ogImage(imagePath(loaderData.coverImageKey), loaderData.title)
               : []),
             jsonLd({
               '@type': 'BlogPosting',
@@ -55,7 +55,7 @@ export const Route = createFileRoute('/blog/$slug')({
               mainEntityOfPage: absoluteUrl(`/blog/${loaderData.slug}`),
               ...(loaderData.coverImageKey
                 ? {
-                    image: absoluteUrl(imageUrl(loaderData.coverImageKey)),
+                    image: absoluteUrl(imagePath(loaderData.coverImageKey)),
                   }
                 : {}),
               ...(loaderData.publishedAt
@@ -90,7 +90,7 @@ function BlogPost() {
       <header className="border-b pb-6">
         {post.coverImageKey && (
           <ZoomableImage
-            src={imageUrl(post.coverImageKey)}
+            src={imagePath(post.coverImageKey)}
             alt={post.title}
             className="mb-6 rounded-lg border"
             imgClassName="aspect-[1200/630] w-full object-cover"
