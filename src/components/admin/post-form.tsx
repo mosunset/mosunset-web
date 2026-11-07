@@ -20,6 +20,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { useLocalBackup } from '@/hooks/use-local-backup'
 import { useSaveShortcut } from '@/hooks/use-save-shortcut'
 import { errorMessage } from '@/lib/errors'
+import { slugInputPattern, slugPattern } from '@/lib/slug'
 import { emptyDoc, type RichTextDoc } from '@/lib/tiptap'
 import { deletePost, type PostInput, savePost } from '@/server/posts'
 
@@ -48,7 +49,6 @@ type Fields = {
 
 /** 下書きを自動保存するまでの待ち時間 */
 const AUTOSAVE_DELAY = 3000
-const slugPattern = /^[a-z0-9]+(?:-[a-z0-9]+)*$/
 
 export function PostForm({ post }: Props) {
   const router = useRouter()
@@ -253,7 +253,7 @@ export function PostForm({ post }: Props) {
                 value={fields.slug}
                 onChange={(e) => set('slug', e.target.value.toLowerCase())}
                 placeholder="my-first-post"
-                pattern="[a-z0-9]+(-[a-z0-9]+)*"
+                pattern={slugInputPattern}
                 title="半角英小文字・数字・ハイフン"
                 required
               />

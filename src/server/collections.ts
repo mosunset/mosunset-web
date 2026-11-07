@@ -9,14 +9,26 @@ import {
   collections,
 } from '@/lib/collections'
 import { htmlToSummary } from '@/lib/seo'
-import { collectImageKeys, type RichTextDoc } from '@/lib/tiptap'
+import { optionalSlugPattern } from '@/lib/slug'
 import { adminMiddleware } from '@/server/auth'
 import { getDb, schema } from '@/server/db'
 import { collectionKinds } from '@/server/db/schema'
-import { deleteImage, deleteImages } from '@/server/r2'
-import { renderRichText, sanitizeDoc } from '@/server/rich-text'
+import { deleteImagesOf, deleteReplacedImage } from '@/server/r2'
+import {
+  renderRichText,
+  richTextDocSchema,
+  sanitizeDoc,
+} from '@/server/rich-text'
+import { idInput } from '@/server/validation'
 
 const { collectionItems: items } = schema
+
+/** 一覧の並び順（手で決めた順 → 入手日の新しい順 → 登録の新しい順） */
+const listOrder = [
+  asc(items.sortOrder),
+  desc(items.acquiredAt),
+  desc(items.createdAt),
+]
 
 const kindSchema = z.enum(collectionKinds)
 const dateString = z
@@ -61,6 +73,11 @@ function toAttributes(value: unknown): CollectionAttributes {
     : {}
 }
 
+/** 取り出した行の attributes を表示用の形にそろえる */
+function withAttributes<T extends { attributes: unknown }>(row: T) {
+  return { ...row, attributes: toAttributes(row.attributes) }
+}
+
 // ---------------------------------------------------------------------------
 // 公開側
 // ---------------------------------------------------------------------------
@@ -78,15 +95,8 @@ export const listPublishedItems = createServerFn({ method: 'GET' })
       })
       .from(items)
       .where(and(eq(items.kind, data.kind), eq(items.published, true)))
-      .orderBy(
-        asc(items.sortOrder),
-        desc(items.acquiredAt),
-        desc(items.createdAt),
-      )
-    return rows.map((row) => ({
-      ...row,
-      attributes: toAttributes(row.attributes),
-    }))
+      .orderBy(...listOrder)
+    return rows.map(withAttributes)
   })
 
 export const getPublishedItem = createServerFn({ method: 'GET' })
@@ -102,9 +112,7 @@ export const getPublishedItem = createServerFn({ method: 'GET' })
       ),
     })
     if (!item) throw notFound()
-    const html = item.description
-      ? renderRichText(item.description as RichTextDoc)
-      : ''
+    const html = item.description ? renderRichText(item.description) : ''
     return {
       slug: item.slug,
       title: item.title,
@@ -122,7 +130,7 @@ export const getPublishedItem = createServerFn({ method: 'GET' })
 // 管理側（すべて adminMiddleware 付き）
 // ---------------------------------------------------------------------------
 
-export const itemInputSchema = z.object({
+const itemInputSchema = z.object({
   id: z.string().optional(),
   kind: kindSchema,
   title: z.string().trim().min(1, '名前を入力してください').max(200),
@@ -132,7 +140,7 @@ export const itemInputSchema = z.object({
     .trim()
     .max(100)
     .regex(
-      /^([a-z0-9]+(-[a-z0-9]+)*)?$/,
+      optionalSlugPattern,
       'URL は半角英小文字・数字・ハイフンで入力してください',
     ),
   acquiredAt: z.union([z.literal(''), dateString]),
@@ -140,13 +148,8 @@ export const itemInputSchema = z.object({
   published: z.boolean(),
   imageKey: z.string().nullable(),
   attributes: z.record(z.string(), z.unknown()).default({}),
-  description: z
-    .object({ type: z.literal('doc') })
-    .passthrough()
-    .nullable(),
+  description: richTextDocSchema.nullable(),
 })
-
-export type ItemInput = z.input<typeof itemInputSchema>
 
 export const listItemsForAdmin = createServerFn({ method: 'GET' })
   .middleware([adminMiddleware])
@@ -166,29 +169,21 @@ export const listItemsForAdmin = createServerFn({ method: 'GET' })
       })
       .from(items)
       .where(eq(items.kind, data.kind))
-      .orderBy(
-        asc(items.sortOrder),
-        desc(items.acquiredAt),
-        desc(items.createdAt),
-      )
-    return rows.map((row) => ({
-      ...row,
-      attributes: toAttributes(row.attributes),
-    }))
+      .orderBy(...listOrder)
+    return rows.map(withAttributes)
   })
 
 export const getItemForAdmin = createServerFn({ method: 'GET' })
   .middleware([adminMiddleware])
-  .validator((data: unknown) => z.object({ id: z.string() }).parse(data))
+  .validator((data: unknown) => idInput.parse(data))
   .handler(async ({ data }) => {
     const item = await getDb().query.collectionItems.findFirst({
       where: eq(items.id, data.id),
     })
     if (!item) throw notFound()
     return {
-      ...item,
-      attributes: toAttributes(item.attributes),
-      description: (item.description as RichTextDoc | null) ?? null,
+      ...withAttributes(item),
+      description: item.description ?? null,
     }
   })
 
@@ -223,9 +218,7 @@ export const saveItem = createServerFn({ method: 'POST' })
       published: data.published,
       imageKey: data.imageKey,
       attributes: parseAttributes(data.kind, data.attributes),
-      description: data.description
-        ? sanitizeDoc(data.description as RichTextDoc)
-        : null,
+      description: data.description ? sanitizeDoc(data.description) : null,
     }
 
     if (!data.id) {
@@ -241,15 +234,13 @@ export const saveItem = createServerFn({ method: 'POST' })
 
     await db.update(items).set(values).where(eq(items.id, id))
     // 画像を差し替えた・外したときは古い画像を消す
-    if (current.imageKey && current.imageKey !== data.imageKey) {
-      await deleteImage(current.imageKey)
-    }
+    await deleteReplacedImage(current.imageKey, data.imageKey)
     return { id }
   })
 
 export const deleteItem = createServerFn({ method: 'POST' })
   .middleware([adminMiddleware])
-  .validator((data: unknown) => z.object({ id: z.string() }).parse(data))
+  .validator((data: unknown) => idInput.parse(data))
   .handler(async ({ data }) => {
     const db = getDb()
     const current = await db.query.collectionItems.findFirst({
@@ -258,10 +249,7 @@ export const deleteItem = createServerFn({ method: 'POST' })
     })
     await db.delete(items).where(eq(items.id, data.id))
     // 写真と、説明文に入れていた画像も消す
-    await deleteImages([
-      current?.imageKey,
-      ...collectImageKeys(current?.description as RichTextDoc | null),
-    ])
+    await deleteImagesOf(current?.imageKey, current?.description)
     return { ok: true }
   })
 

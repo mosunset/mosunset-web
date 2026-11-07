@@ -11,7 +11,7 @@ type SeoOptions = {
 }
 
 /** 「ページ名 | サイト名」の形にする */
-export function formatTitle(title?: string) {
+function formatTitle(title?: string) {
   return title ? `${title} | ${site.name}` : site.name
 }
 

@@ -182,8 +182,3 @@ export function itemSubtitle(
     .filter(Boolean)
     .join(' / ')
 }
-
-/** R2 の画像キーから配信用の URL を作る */
-export function imageUrl(key: string | null | undefined) {
-  return key ? `/images/${key}` : null
-}

@@ -28,10 +28,10 @@ import { Button } from '@/components/ui/button'
 import {
   type CollectionKind,
   collections,
-  imageUrl,
   itemSubtitle,
 } from '@/lib/collections'
 import { errorMessage } from '@/lib/errors'
+import { imageUrl } from '@/lib/images'
 import { cn } from '@/lib/utils'
 import { listItemsForAdmin, reorderItems } from '@/server/collections'
 

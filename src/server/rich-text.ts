@@ -1,10 +1,15 @@
 import { renderToHTMLString } from '@tiptap/static-renderer'
+import { z } from 'zod'
 
+import { IMAGE_KEY_PATTERN } from '@/lib/images'
 import {
   allowedLinkProtocols,
   type RichTextDoc,
   richTextExtensions,
 } from '@/lib/tiptap'
+
+/** 送られてきた Tiptap の JSON。中身の細かい形は sanitizeDoc で整える */
+export const richTextDocSchema = z.looseObject({ type: z.literal('doc') })
 
 function isAllowedHref(href: unknown) {
   if (typeof href !== 'string') return false
@@ -22,7 +27,8 @@ function isAllowedHref(href: unknown) {
 function isAllowedImageSrc(src: unknown) {
   if (typeof src !== 'string') return false
   if (
-    /^\/images\/[a-z0-9-]+\/[0-9a-f-]{36}\.(jpg|png|webp|gif|avif)$/.test(src)
+    src.startsWith('/images/') &&
+    IMAGE_KEY_PATTERN.test(src.slice('/images/'.length))
   ) {
     return true
   }

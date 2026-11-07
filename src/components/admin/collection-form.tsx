@@ -24,9 +24,10 @@ import {
   type CollectionAttributes,
   type CollectionKind,
   collections,
-  imageUrl,
 } from '@/lib/collections'
 import { errorMessage } from '@/lib/errors'
+import { imageUrl } from '@/lib/images'
+import { slugInputPattern } from '@/lib/slug'
 import { emptyDoc, type RichTextDoc } from '@/lib/tiptap'
 import { deleteItem, saveItem } from '@/server/collections'
 
@@ -304,7 +305,7 @@ export function CollectionForm({ kind, item }: Props) {
               value={fields.slug}
               onChange={(e) => set('slug', e.target.value.toLowerCase())}
               placeholder="空なら自動"
-              pattern="[a-z0-9]+(-[a-z0-9]+)*"
+              pattern={slugInputPattern}
               title="半角英小文字・数字・ハイフン"
             />
           </div>

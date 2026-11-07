@@ -1,17 +1,10 @@
-import { env } from 'cloudflare:workers'
 import { createServerFn } from '@tanstack/react-start'
 
+import { imageExtensions } from '@/lib/images'
 import { adminMiddleware } from '@/server/auth'
+import { putImage } from '@/server/r2'
 
 const MAX_BYTES = 10 * 1024 * 1024
-
-const allowedTypes: Record<string, string> = {
-  'image/jpeg': 'jpg',
-  'image/png': 'png',
-  'image/webp': 'webp',
-  'image/gif': 'gif',
-  'image/avif': 'avif',
-}
 
 /**
  * ファイルの先頭のバイトが、申告された画像の形式と合っているか。
@@ -50,7 +43,7 @@ export const uploadImage = createServerFn({ method: 'POST' })
     const file = data.get('file')
     const folder = String(data.get('folder') ?? 'uploads')
     if (!(file instanceof File)) throw new Error('ファイルを選んでください')
-    if (!allowedTypes[file.type]) {
+    if (!imageExtensions[file.type]) {
       throw new Error('JPEG / PNG / WebP / GIF / AVIF の画像を選んでください')
     }
     if (file.size > MAX_BYTES) throw new Error('画像は 10MB までです')
@@ -67,9 +60,6 @@ export const uploadImage = createServerFn({ method: 'POST' })
     ) {
       throw new Error('画像として読み込めないファイルです')
     }
-    const key = `${data.folder}/${crypto.randomUUID()}.${allowedTypes[data.file.type]}`
-    await env.IMAGES.put(key, body, {
-      httpMetadata: { contentType: data.file.type },
-    })
+    const key = await putImage(data.folder, body, data.file.type)
     return { key }
   })

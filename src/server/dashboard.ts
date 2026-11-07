@@ -3,6 +3,7 @@ import { count, desc, eq, isNull } from 'drizzle-orm'
 
 import { adminMiddleware } from '@/server/auth'
 import { getDb, schema } from '@/server/db'
+import type { CollectionKind } from '@/server/db/schema'
 
 const { posts, collectionItems, contactMessages } = schema
 
@@ -56,9 +57,7 @@ export const getDashboard = createServerFn({ method: 'GET' })
       },
       collections: Object.fromEntries(
         collectionCounts.map((c) => [c.kind, c.value]),
-      ) as Partial<
-        Record<(typeof collectionItems.kind.enumValues)[number], number>
-      >,
+      ) as Partial<Record<CollectionKind, number>>,
       unreadMessages: unread[0]?.value ?? 0,
       recentDrafts,
       recentMessages,

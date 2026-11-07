@@ -9,7 +9,7 @@ export function getAdminUserIds() {
     .filter(Boolean)
 }
 
-export type AdminStatus =
+type AdminStatus =
   | { status: 'signed-out' }
   | { status: 'forbidden'; userId: string }
   | { status: 'admin'; userId: string }

@@ -1,13 +1,15 @@
 import { env } from 'cloudflare:workers'
 import { createFileRoute } from '@tanstack/react-router'
 
+import { IMAGE_KEY_PATTERN } from '@/lib/images'
+
 // R2 に保存した画像を配信する。キーは推測しにくい UUID で、中身は変わらないので長くキャッシュする
 export const Route = createFileRoute('/images/$')({
   server: {
     handlers: {
       GET: async ({ params }) => {
         const key = params._splat ?? ''
-        if (!/^[a-z0-9-]+\/[0-9a-f-]{36}\.(jpg|png|webp|gif|avif)$/.test(key)) {
+        if (!IMAGE_KEY_PATTERN.test(key)) {
           return new Response('Not Found', { status: 404 })
         }
 

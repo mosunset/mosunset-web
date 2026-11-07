@@ -2,8 +2,8 @@ import { createFileRoute, Link } from '@tanstack/react-router'
 import { ArrowLeft } from 'lucide-react'
 
 import { RichTextContent, ZoomableImage } from '@/components/image-viewer'
-import { imageUrl } from '@/lib/collections'
 import { formatDate } from '@/lib/format'
+import { imageUrl } from '@/lib/images'
 import {
   absoluteUrl,
   jsonLd,

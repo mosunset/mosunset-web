@@ -9,6 +9,7 @@ import { adminMiddleware } from '@/server/auth'
 import { getDb, schema } from '@/server/db'
 import { notifyContactMessage } from '@/server/notify'
 import { verifyTurnstile } from '@/server/turnstile'
+import { idInput } from '@/server/validation'
 
 const { contactMessages: messages } = schema
 
@@ -31,6 +32,7 @@ const singleLine = (max: number) =>
     .trim()
     .max(max)
     .refine(
+      // biome-ignore lint/suspicious/noControlCharactersInRegex: 制御文字をわざと弾くための正規表現
       (v) => !/[\u0000-\u001f\u007f]/.test(v),
       '改行や制御文字は使えません',
     )
@@ -118,7 +120,7 @@ export const countUnreadMessages = createServerFn({ method: 'GET' })
 /** 1 件取得して既読にする */
 export const getMessage = createServerFn({ method: 'GET' })
   .middleware([adminMiddleware])
-  .validator((data: unknown) => z.object({ id: z.string() }).parse(data))
+  .validator((data: unknown) => idInput.parse(data))
   .handler(async ({ data }) => {
     const db = getDb()
     const message = await db.query.contactMessages.findFirst({
@@ -136,7 +138,7 @@ export const getMessage = createServerFn({ method: 'GET' })
 
 export const markMessageUnread = createServerFn({ method: 'POST' })
   .middleware([adminMiddleware])
-  .validator((data: unknown) => z.object({ id: z.string() }).parse(data))
+  .validator((data: unknown) => idInput.parse(data))
   .handler(async ({ data }) => {
     await getDb()
       .update(messages)
@@ -147,7 +149,7 @@ export const markMessageUnread = createServerFn({ method: 'POST' })
 
 export const deleteMessage = createServerFn({ method: 'POST' })
   .middleware([adminMiddleware])
-  .validator((data: unknown) => z.object({ id: z.string() }).parse(data))
+  .validator((data: unknown) => idInput.parse(data))
   .handler(async ({ data }) => {
     await getDb().delete(messages).where(eq(messages.id, data.id))
     return { ok: true }

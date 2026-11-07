@@ -2,18 +2,18 @@ import { Link } from '@tanstack/react-router'
 import { ArrowLeft, ExternalLink, ImageOff } from 'lucide-react'
 import * as React from 'react'
 
+import { EmptyState } from '@/components/empty-state'
 import { RichTextContent, ZoomableImage } from '@/components/image-viewer'
-
 import {
   type AttributeField,
   type CollectionAttributes,
   type CollectionKind,
   collections,
   displayAttribute,
-  imageUrl,
   itemSubtitle,
 } from '@/lib/collections'
 import { formatDate } from '@/lib/format'
+import { imageUrl } from '@/lib/images'
 
 type ListItem = {
   slug: string
@@ -69,11 +69,7 @@ export function CollectionGrid({
       : items
 
   if (items.length === 0) {
-    return (
-      <p className="rounded-lg border border-dashed p-8 text-center text-muted-foreground">
-        まだ登録されていません。
-      </p>
-    )
+    return <EmptyState>まだ登録されていません。</EmptyState>
   }
 
   return (

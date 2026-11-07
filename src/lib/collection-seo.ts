@@ -2,9 +2,9 @@ import {
   type CollectionAttributes,
   type CollectionKind,
   collections,
-  imageUrl,
   itemSubtitle,
 } from '@/lib/collections'
+import { imageUrl } from '@/lib/images'
 import { absoluteUrl, jsonLd, ogImage, personId, seo } from '@/lib/seo'
 
 type DetailForSeo = {

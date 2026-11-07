@@ -1,11 +1,11 @@
-import { env } from 'cloudflare:workers'
 import { createServerFn } from '@tanstack/react-start'
 import { z } from 'zod'
 
 import { adminMiddleware } from '@/server/auth'
+import { putImage } from '@/server/r2'
 
 /** ISBN-10 / 13 をハイフンなしの ISBN-13 にする。不正なら null */
-export function normalizeIsbn(input: string): string | null {
+function normalizeIsbn(input: string): string | null {
   const raw = input.replace(/[^0-9Xx]/g, '').toUpperCase()
 
   if (raw.length === 10) {
@@ -94,11 +94,8 @@ async function fromGoogleBooks(isbn: string): Promise<BookInfo | null> {
   }
 }
 
-const imageTypes: Record<string, string> = {
-  'image/jpeg': 'jpg',
-  'image/png': 'png',
-  'image/webp': 'webp',
-}
+/** 表紙として保存する画像の種類 */
+const coverTypes = ['image/jpeg', 'image/png', 'image/webp']
 
 /** 表紙を取得して R2 に保存する。取れなければ null */
 async function saveCover(urls: (string | null)[]): Promise<string | null> {
@@ -107,13 +104,11 @@ async function saveCover(urls: (string | null)[]): Promise<string | null> {
     try {
       const res = await fetch(url)
       const type = res.headers.get('content-type')?.split(';')[0] ?? ''
-      if (!res.ok || !imageTypes[type]) continue
+      if (!res.ok || !coverTypes.includes(type)) continue
       const body = await res.arrayBuffer()
       // 1x1 の「画像なし」画像などを避ける
       if (body.byteLength < 1000 || body.byteLength > 10 * 1024 * 1024) continue
-      const key = `collections-book/${crypto.randomUUID()}.${imageTypes[type]}`
-      await env.IMAGES.put(key, body, { httpMetadata: { contentType: type } })
-      return key
+      return await putImage('collections-book', body, type)
     } catch {
       // 次の候補を試す
     }

@@ -3,9 +3,9 @@ import { Camera, ImagePlus, Loader2, X } from 'lucide-react'
 import { useRef, useState } from 'react'
 
 import { Button } from '@/components/ui/button'
-import { imageUrl } from '@/lib/collections'
 import { errorMessage } from '@/lib/errors'
 import { imageFilesFrom, resizeImage } from '@/lib/image-resize'
+import { imageUrl } from '@/lib/images'
 import { cn } from '@/lib/utils'
 import { uploadImage } from '@/server/images'
 

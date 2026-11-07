@@ -1,8 +1,9 @@
 import { createFileRoute, Link } from '@tanstack/react-router'
 
+import { EmptyState } from '@/components/empty-state'
 import { SectionPage } from '@/components/section-page'
-import { imageUrl } from '@/lib/collections'
 import { formatDate } from '@/lib/format'
+import { imageUrl } from '@/lib/images'
 import { getNavItem } from '@/lib/navigation'
 import { seo } from '@/lib/seo'
 import { listPublishedPosts } from '@/server/posts'
@@ -23,9 +24,7 @@ function BlogIndex() {
   return (
     <SectionPage item={item}>
       {posts.length === 0 ? (
-        <p className="rounded-lg border border-dashed p-8 text-center text-muted-foreground">
-          まだ記事はありません。
-        </p>
+        <EmptyState>まだ記事はありません。</EmptyState>
       ) : (
         <ul className="divide-y">
           {posts.map((post) => (

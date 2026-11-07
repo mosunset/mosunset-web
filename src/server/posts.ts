@@ -3,11 +3,16 @@ import { createServerFn } from '@tanstack/react-start'
 import { and, desc, eq, ne } from 'drizzle-orm'
 import { z } from 'zod'
 
-import { collectImageKeys, type RichTextDoc } from '@/lib/tiptap'
+import { slugPattern } from '@/lib/slug'
 import { adminMiddleware } from '@/server/auth'
 import { getDb, schema } from '@/server/db'
-import { deleteImages } from '@/server/r2'
-import { renderRichText, sanitizeDoc } from '@/server/rich-text'
+import { deleteImagesOf, deleteReplacedImage } from '@/server/r2'
+import {
+  renderRichText,
+  richTextDocSchema,
+  sanitizeDoc,
+} from '@/server/rich-text'
+import { idInput } from '@/server/validation'
 
 const { posts } = schema
 
@@ -48,7 +53,7 @@ export const getPublishedPost = createServerFn({ method: 'GET' })
       coverImageKey: post.coverImageKey,
       publishedAt: post.publishedAt,
       updatedAt: post.updatedAt,
-      html: renderRichText(post.content as RichTextDoc),
+      html: renderRichText(post.content),
     }
   })
 
@@ -56,9 +61,7 @@ export const getPublishedPost = createServerFn({ method: 'GET' })
 // 管理側（すべて adminMiddleware 付き）
 // ---------------------------------------------------------------------------
 
-export const slugPattern = /^[a-z0-9]+(?:-[a-z0-9]+)*$/
-
-export const postInputSchema = z.object({
+const postInputSchema = z.object({
   id: z.string().optional(),
   title: z.string().trim().min(1, 'タイトルを入力してください').max(200),
   slug: z
@@ -70,7 +73,7 @@ export const postInputSchema = z.object({
   excerpt: z.string().trim().max(300).default(''),
   coverImageKey: z.string().nullable().default(null),
   status: z.enum(['draft', 'published']),
-  content: z.object({ type: z.literal('doc') }).passthrough(),
+  content: richTextDocSchema,
 })
 
 export type PostInput = z.input<typeof postInputSchema>
@@ -93,13 +96,13 @@ export const listPostsForAdmin = createServerFn({ method: 'GET' })
 
 export const getPostForAdmin = createServerFn({ method: 'GET' })
   .middleware([adminMiddleware])
-  .validator((data: unknown) => z.object({ id: z.string() }).parse(data))
+  .validator((data: unknown) => idInput.parse(data))
   .handler(async ({ data }) => {
     const post = await getDb().query.posts.findFirst({
       where: eq(posts.id, data.id),
     })
     if (!post) throw notFound()
-    return { ...post, content: post.content as RichTextDoc }
+    return post
   })
 
 export const savePost = createServerFn({ method: 'POST' })
@@ -124,7 +127,7 @@ export const savePost = createServerFn({ method: 'POST' })
       excerpt: data.excerpt,
       coverImageKey: data.coverImageKey,
       status: data.status,
-      content: sanitizeDoc(data.content as RichTextDoc),
+      content: sanitizeDoc(data.content),
     }
 
     if (!data.id) {
@@ -156,15 +159,13 @@ export const savePost = createServerFn({ method: 'POST' })
       })
       .where(eq(posts.id, data.id))
     // 表紙を差し替えた・外したときは古い画像を消す
-    if (current.coverImageKey && current.coverImageKey !== data.coverImageKey) {
-      await deleteImages([current.coverImageKey])
-    }
+    await deleteReplacedImage(current.coverImageKey, data.coverImageKey)
     return { id: data.id }
   })
 
 export const deletePost = createServerFn({ method: 'POST' })
   .middleware([adminMiddleware])
-  .validator((data: unknown) => z.object({ id: z.string() }).parse(data))
+  .validator((data: unknown) => idInput.parse(data))
   .handler(async ({ data }) => {
     const db = getDb()
     const current = await db.query.posts.findFirst({
@@ -173,10 +174,7 @@ export const deletePost = createServerFn({ method: 'POST' })
     })
     await db.delete(posts).where(eq(posts.id, data.id))
     // 本文に入れていた画像も消す
-    await deleteImages([
-      current?.coverImageKey,
-      ...collectImageKeys(current?.content as RichTextDoc | undefined),
-    ])
+    await deleteImagesOf(current?.coverImageKey, current?.content)
     return { ok: true }
   })
 
@@ -184,10 +182,8 @@ export const deletePost = createServerFn({ method: 'POST' })
 export const previewRichText = createServerFn({ method: 'POST' })
   .middleware([adminMiddleware])
   .validator((data: unknown) =>
-    z
-      .object({ content: z.object({ type: z.literal('doc') }).passthrough() })
-      .parse(data),
+    z.object({ content: richTextDocSchema }).parse(data),
   )
   .handler(({ data }) => ({
-    html: renderRichText(data.content as RichTextDoc),
+    html: renderRichText(data.content),
   }))

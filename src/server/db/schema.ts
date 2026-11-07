@@ -7,6 +7,8 @@ import {
   uniqueIndex,
 } from 'drizzle-orm/sqlite-core'
 
+import type { RichTextDoc } from '@/lib/tiptap'
+
 const id = () =>
   text('id')
     .primaryKey()
@@ -30,7 +32,7 @@ export const posts = sqliteTable(
     slug: text('slug').notNull().unique(),
     title: text('title').notNull(),
     excerpt: text('excerpt').notNull().default(''),
-    content: text('content', { mode: 'json' }).notNull(),
+    content: text('content', { mode: 'json' }).$type<RichTextDoc>().notNull(),
     coverImageKey: text('cover_image_key'),
     status: text('status', { enum: ['draft', 'published'] })
       .notNull()
@@ -60,7 +62,7 @@ export const collectionItems = sqliteTable(
     kind: text('kind', { enum: collectionKinds }).notNull(),
     slug: text('slug').notNull(),
     title: text('title').notNull(),
-    description: text('description', { mode: 'json' }),
+    description: text('description', { mode: 'json' }).$type<RichTextDoc>(),
     imageKey: text('image_key'),
     attributes: text('attributes', { mode: 'json' })
       .$type<Record<string, unknown>>()
