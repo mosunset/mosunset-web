@@ -20,9 +20,16 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { cn } from '@/lib/utils'
 import type { WorkerMessage } from './box-packing.worker'
-import { SavedResults, type SettingsSummary } from './box-packing-saved'
+import {
+  BestResults,
+  SavedResults,
+  type SettingsSummary,
+} from './box-packing-saved'
 import {
   type BoxSpec,
+  betterFor,
+  type Metric,
+  metrics,
   type Objective,
   type PackInput,
   type PackResult,
@@ -332,6 +339,7 @@ const STORAGE = {
   settings: 'mosunset:box-packing:settings',
   view: 'mosunset:box-packing:view',
   saved: 'mosunset:box-packing:saved',
+  bests: 'mosunset:box-packing:bests',
 } as const
 
 /** プライベートモードなどで localStorage が使えないときは、保存せずに続ける */
@@ -433,6 +441,78 @@ function loadSaved(): Saved[] {
       })
     } catch {
       // 壊れた 1 件は飛ばす
+    }
+  }
+  return out
+}
+
+/**
+ * 床の X・Y と箱（寸法・個数・使うかどうか）のまとまりを表す文字列。
+ * これが同じ結果どうしを、ほかの設定が違っても比べる。
+ * タグは名札なので入れない。幅と奥行きは床の上で 90° 回せるので、入れ替わっても同じ箱とみなす
+ */
+function groupKeyOf(s: Settings) {
+  const boxes = s.boxes
+    .filter((b) => b.enabled && b.count > 0)
+    .map((b) => `${Math.min(b.x, b.y)}x${Math.max(b.x, b.y)}x${b.z}*${b.count}`)
+    .sort()
+  return `${s.floorX}x${s.floorY}|${boxes.join(',')}`
+}
+
+/** 部門別のいちばん 1 件 */
+type BestEntry = {
+  run: number
+  foundAt: number
+  settings: Settings
+  result: PackResult
+}
+
+/** 床と箱のまとまりごとの、部門別のいちばん */
+type BestGroup = {
+  updatedAt: number
+  entries: Partial<Record<Metric, BestEntry>>
+}
+
+/** 記録しておく、床と箱のまとまりの数（古いものから消す） */
+const MAX_BEST_GROUPS = 10
+
+function isResult(r: unknown): r is PackResult {
+  const x = r as PackResult | null
+  const isNumber = (v: unknown) => typeof v === 'number' && Number.isFinite(v)
+  return (
+    !!x &&
+    Array.isArray(x.placements) &&
+    Array.isArray(x.unplaced) &&
+    [x.height, x.fillRate, x.floorCoverage].every(isNumber)
+  )
+}
+
+function loadBests(): Record<string, BestGroup> {
+  const data = readStorage(STORAGE.bests) as Record<string, unknown> | null
+  if (!data || typeof data !== 'object') return {}
+  const out: Record<string, BestGroup> = {}
+  for (const [key, value] of Object.entries(data)) {
+    const g = value as {
+      updatedAt?: unknown
+      entries?: Record<string, unknown>
+    }
+    if (!g || typeof g !== 'object' || !g.entries) continue
+    const entries: Partial<Record<Metric, BestEntry>> = {}
+    for (const metric of metrics) {
+      const e = g.entries[metric] as Record<string, unknown> | undefined
+      if (!e) continue
+      const settings = parseSettingsObject(e.settings)
+      if (!settings || !isResult(e.result)) continue
+      entries[metric] = {
+        run: typeof e.run === 'number' ? e.run : 1,
+        foundAt: typeof e.foundAt === 'number' ? e.foundAt : Date.now(),
+        settings,
+        result: e.result,
+      }
+    }
+    out[key] = {
+      updatedAt: typeof g.updatedAt === 'number' ? g.updatedAt : 0,
+      entries,
     }
   }
   return out
@@ -566,6 +646,9 @@ export function BoxPacking() {
   )
   const [view, setView] = useState<ViewOptions>(loadView)
   const [saved, setSaved] = useState<Saved[]>(loadSaved)
+  const [bests, setBests] = useState<Record<string, BestGroup>>(loadBests)
+  /** 次の計算の出発点にする並べ順（「続けて詰める」で入れる） */
+  const startOrderRef = useRef<number[] | null>(null)
   /** 表示している保存した結果（null なら今の計算の結果） */
   const [viewingSaved, setViewingSaved] = useState<string | null>(null)
   const [status, setStatus] = useState<RunStatus>('waiting')
@@ -624,6 +707,9 @@ export function BoxPacking() {
     const timer = window.setTimeout(() => {
       clear()
       setStatus('running')
+      // 「続けて詰める」の出発点は、この 1 回だけ使う
+      const startOrder = startOrderRef.current
+      startOrderRef.current = null
       for (let w = 0; w < workerCount; w++) {
         const worker = new Worker(
           new URL('./box-packing.worker.ts', import.meta.url),
@@ -646,6 +732,35 @@ export function BoxPacking() {
               elapsed: message.elapsed,
             }
             setCandidates((list) => [...list, candidate].slice(-MAX_CANDIDATES))
+          } else if (message.kind === 'metric') {
+            const { metric, result: found } = message
+            const key = groupKeyOf(snapshot)
+            setBests((all) => {
+              const group = all[key]
+              if (!betterFor(metric, found, group?.entries[metric]?.result))
+                return all
+              const next = {
+                ...all,
+                [key]: {
+                  updatedAt: Date.now(),
+                  entries: {
+                    ...group?.entries,
+                    [metric]: {
+                      run: runToken + 1,
+                      foundAt: Date.now(),
+                      settings: snapshot,
+                      result: found,
+                    },
+                  },
+                },
+              }
+              // 古いまとまりから消して、数を抑える
+              const keys = Object.keys(next).sort(
+                (a, b) => next[b].updatedAt - next[a].updatedAt,
+              )
+              for (const old of keys.slice(MAX_BEST_GROUPS)) delete next[old]
+              return next
+            })
           } else if (message.kind === 'done') {
             worker.terminate()
             finished++
@@ -658,7 +773,10 @@ export function BoxPacking() {
           toast.error('計算に失敗しました')
         }
         // Worker ごとに乱数の種を変えて、別々の並べ順を探させる
-        worker.postMessage(toInput(snapshot, (runToken + 1) * 1000 + w))
+        worker.postMessage({
+          ...toInput(snapshot, (runToken + 1) * 1000 + w),
+          startOrder: startOrder ?? undefined,
+        })
       }
       workersRef.current = workers
     }, DEBOUNCE_MS)
@@ -702,21 +820,55 @@ export function BoxPacking() {
     }
   }, [saved])
 
+  // 部門別ベストは計算中に何度も更新されるので、最後の更新から少し待ってまとめて書き込む
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      const plain = Object.fromEntries(
+        Object.entries(bests).map(([key, g]) => [
+          key,
+          {
+            updatedAt: g.updatedAt,
+            entries: Object.fromEntries(
+              Object.entries(g.entries).map(([metric, e]) => [
+                metric,
+                e && { ...e, settings: serializeSettings(e.settings) },
+              ]),
+            ),
+          },
+        ]),
+      )
+      writeStorage(STORAGE.bests, plain)
+    }, 1000)
+    return () => window.clearTimeout(timer)
+  }, [bests])
+
   const latest = candidates.at(-1)
   const candidate = candidates.find((c) => c.id === pinned) ?? latest
   const savedShown = saved.find((x) => x.id === viewingSaved)
-  // 保存した結果を表示しているときはそれを、そうでなければ今の計算の候補を見せる
-  const current = savedShown
+  const groupKey = groupKeyOf(settings)
+  const groupBests = bests[groupKey]?.entries ?? {}
+  const viewingMetric = viewingSaved?.startsWith('best:')
+    ? (viewingSaved.slice(5) as Metric)
+    : null
+  const bestShown = viewingMetric ? groupBests[viewingMetric] : undefined
+  // 部門別ベスト・保存した結果を表示しているときはそれを、そうでなければ今の計算の候補を見せる
+  const current = bestShown
     ? {
-        key: `s${savedShown.id}`,
-        settings: savedShown.settings,
-        result: savedShown.result,
+        key: `b${viewingMetric}${bestShown.foundAt}`,
+        settings: bestShown.settings,
+        result: bestShown.result,
       }
-    : candidate && {
-        key: `c${candidate.id}`,
-        settings: candidate.settings,
-        result: candidate.result,
-      }
+    : savedShown
+      ? {
+          key: `s${savedShown.id}`,
+          settings: savedShown.settings,
+          result: savedShown.result,
+        }
+      : candidate && {
+          key: `c${candidate.id}`,
+          settings: candidate.settings,
+          result: candidate.result,
+        }
   const result = current?.result
   const shownBoxes = current?.settings.boxes ?? settings.boxes
   const names = useMemo(
@@ -742,8 +894,8 @@ export function BoxPacking() {
     setSelected(null)
   }, [current?.key])
 
-  /** 候補を「保存した結果」に足す（いっぱいなら古いものから消す） */
-  const saveCandidate = (c: Candidate) => {
+  /** 結果を「保存した結果」に足す（いっぱいなら古いものから消す） */
+  const saveCandidate = (c: Pick<Candidate, 'run' | 'settings' | 'result'>) => {
     const entry: Saved = {
       id: `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`,
       savedAt: Date.now(),
@@ -753,6 +905,40 @@ export function BoxPacking() {
     }
     setSaved((list) => [...list, entry].slice(-MAX_SAVED))
     toast.success('保存しました（下の「保存した結果」で比べられます）')
+  }
+
+  /** 結果の設定を設定欄に戻す（箱の行は作り直して、今の行と番号が重ならないようにする） */
+  const applySettings = (from: Settings) =>
+    setSettings({
+      ...from,
+      boxes: from.boxes.map(({ id: _id, enabled, ...box }) =>
+        row(box, enabled),
+      ),
+    })
+
+  const restoreBest = (metric: Metric) => {
+    const entry = groupBests[metric]
+    if (!entry) return
+    if (
+      !window.confirm(
+        '今の設定を、この結果の設定に置き換えます。よろしいですか？',
+      )
+    )
+      return
+    applySettings(entry.settings)
+    setViewingSaved(null)
+    toast.success('設定を戻しました')
+  }
+
+  /** その結果の設定に戻し、その結果の積む順番を出発点にして計算し直す */
+  const continueBest = (metric: Metric) => {
+    const entry = groupBests[metric]
+    if (!entry) return
+    startOrderRef.current = entry.result.placements.map((p) => p.type)
+    applySettings(entry.settings)
+    setViewingSaved(null)
+    setRunToken((t) => t + 1)
+    toast.success('この結果から続けて詰めます')
   }
 
   const restoreSaved = (id: string) => {
@@ -1126,6 +1312,40 @@ export function BoxPacking() {
           </table>
         </div>
       </section>
+
+      <BestResults
+        bests={metrics.flatMap((metric) => {
+          const e = groupBests[metric]
+          return e
+            ? [
+                {
+                  metric,
+                  run: e.run,
+                  foundAt: e.foundAt,
+                  summary: summarize(e.settings),
+                  result: e.result,
+                },
+              ]
+            : []
+        })}
+        current={currentSummary}
+        viewing={bestShown ? viewingMetric : null}
+        onView={(metric) => setViewingSaved(metric ? `best:${metric}` : null)}
+        onRestore={restoreBest}
+        onContinue={continueBest}
+        onSave={(metric) => {
+          const e = groupBests[metric]
+          if (e) saveCandidate(e)
+        }}
+        onClear={() => {
+          setBests((all) => {
+            const next = { ...all }
+            delete next[groupKey]
+            return next
+          })
+          if (viewingMetric) setViewingSaved(null)
+        }}
+      />
 
       <SavedResults
         saved={savedViews}

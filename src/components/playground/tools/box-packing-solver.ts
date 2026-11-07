@@ -42,6 +42,11 @@ export type PackInput = {
   wallBias: number
   /** 並べ順を入れ替えるときの乱数の種 */
   seed: number
+  /**
+   * 出発点にする並べ順（箱の種類の番号の列）。前に良かった結果から続けて詰めるときに渡す。
+   * 箱の数が合わない分は、ふつうの並べ順で補う
+   */
+  startOrder?: number[]
 }
 
 /** 箱の面の名前（入力したときの向きが基準。Z が上、Y が奥） */
@@ -599,7 +604,11 @@ export function random(seed: number) {
  * 探索を 1 歩ずつ進める。step() は、より良い結果が見つかったら true を返す。
  * まず「大きい箱から」などのよく効く並べ順を試し、そのあとは今いちばん良い並べ順を少しずつ入れ替える
  */
-export function createSearch(input: PackInput) {
+export function createSearch(
+  input: PackInput,
+  /** 評価したすべての結果を受け取る（部門別のいちばんを見張るため） */
+  onResult?: (result: PackResult) => void,
+) {
   const items: Item[] = []
   const tooBig: Unplaced[] = []
   input.boxes.forEach((box, type) => {
@@ -626,9 +635,21 @@ export function createSearch(input: PackInput) {
     (a: Item, b: Item) => tall(a) - tall(b) || area(b) - area(a),
   ].map((sort) => [...items].sort((a, b) => sort(a, b) || a.type - b.type))
 
+  // 出発点の並べ順があれば、それをいちばん先に試す（そこから少しずつ入れ替えて詰めていく）
+  if (input.startOrder && input.startOrder.length > 0) {
+    const rest = [...startOrders[0]]
+    const seeded: Item[] = []
+    for (const type of input.startOrder) {
+      const i = rest.findIndex((it) => it.type === type)
+      if (i >= 0) seeded.push(...rest.splice(i, 1))
+    }
+    startOrders.unshift([...seeded, ...rest])
+  }
+
   let bestOrder = startOrders[0]
   let bestTrace = packInOrder(bestOrder, input)
   let best = finish(bestTrace, input, tooBig)
+  onResult?.(best)
   let tried = 1
   const rand = random(input.seed * 7919 + items.length)
   const typeCount = new Set(items.map((it) => it.type)).size
@@ -671,6 +692,7 @@ export function createSearch(input: PackInput) {
       if (from === order.length) return false
       const trace = packInOrder(order, input, bestTrace, from)
       const result = finish(trace, input, tooBig)
+      onResult?.(result)
       if (result.score < best.score - 1e-9) {
         best = result
         bestOrder = order
@@ -685,4 +707,43 @@ export function createSearch(input: PackInput) {
       return false
     },
   }
+}
+
+// ---- 部門別のいちばん ----
+
+/**
+ * 人が見比べて選ぶための部門。
+ * 同じ床と箱で全部置けた結果どうしなら、充填率は高さだけで決まるので部門にしない
+ */
+export type Metric = 'height' | 'floor' | 'low'
+
+export const metricLabels: Record<Metric, string> = {
+  height: 'いちばん低い',
+  floor: '1 段目がいちばん埋まっている',
+  low: '重心がいちばん低い',
+}
+
+export const metrics = Object.keys(metricLabels) as Metric[]
+
+/** 部門の対象になる結果か（置けなかった箱がない） */
+export function isComplete(r: PackResult) {
+  return r.unplaced.length === 0 && r.placements.length > 0
+}
+
+/** a が b より、その部門で良いか（b がなければ、対象になる結果なら良い） */
+export function betterFor(metric: Metric, a: PackResult, b?: PackResult) {
+  if (!isComplete(a)) return false
+  if (!b) return true
+  const cogZ = (r: PackResult) => r.cog?.z ?? 0
+  const keys: Record<Metric, (r: PackResult) => number[]> = {
+    height: (r) => [r.height, -r.floorCoverage, cogZ(r)],
+    floor: (r) => [-r.floorCoverage, r.height, cogZ(r)],
+    low: (r) => [cogZ(r), r.height, -r.floorCoverage],
+  }
+  const ka = keys[metric](a)
+  const kb = keys[metric](b)
+  for (let i = 0; i < ka.length; i++) {
+    if (Math.abs(ka[i] - kb[i]) > 1e-6) return ka[i] < kb[i]
+  }
+  return false
 }
