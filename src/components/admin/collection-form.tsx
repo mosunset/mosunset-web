@@ -1,7 +1,6 @@
 import { useRouter } from '@tanstack/react-router'
 import { useServerFn } from '@tanstack/react-start'
-import { useCallback, useMemo, useRef, useState } from 'react'
-import { flushSync } from 'react-dom'
+import { useCallback, useMemo } from 'react'
 import { toast } from 'sonner'
 
 import { AttributeInput } from '@/components/admin/attribute-input'
@@ -18,23 +17,18 @@ import {
   mergeIsbnResult,
 } from '@/components/admin/isbn-lookup'
 import { PreviewButton } from '@/components/admin/preview-dialog'
-import {
-  BackupNotice,
-  SaveStatus,
-  UnsavedChangesGuard,
-} from '@/components/admin/unsaved-changes'
+import { FormRecovery, SaveStatus } from '@/components/admin/unsaved-changes'
 import { RichTextEditor } from '@/components/editor/rich-text-editor'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { useLocalBackup } from '@/hooks/use-local-backup'
+import { useEditableForm } from '@/hooks/use-editable-form'
 import { useSaveShortcut } from '@/hooks/use-save-shortcut'
 import {
   type CollectionAttributes,
   type CollectionKind,
   collections,
 } from '@/lib/collections'
-import { errorMessage } from '@/lib/errors'
 import { imageUrl } from '@/lib/images'
 import { slugInputPattern } from '@/lib/slug'
 import { emptyDoc, type RichTextDoc } from '@/lib/tiptap'
@@ -85,28 +79,24 @@ export function CollectionForm({ kind, item }: Props) {
     }),
     [item],
   )
-  const [fields, setFields] = useState<CollectionFields>(initial)
-  const [savedSnapshot, setSavedSnapshot] = useState(() =>
-    JSON.stringify(initial),
-  )
-  const [editorKey, setEditorKey] = useState(0)
-  const [saving, setSaving] = useState(false)
-  const [savedAt, setSavedAt] = useState<Date | null>(
-    item ? item.updatedAt : null,
-  )
-  const [error, setError] = useState<string | null>(null)
-
-  const dirty = JSON.stringify(fields) !== savedSnapshot
   const {
-    backup,
-    clear: clearBackup,
-    dismiss: dismissBackup,
-  } = useLocalBackup(`collection:${kind}:${item?.id ?? 'new'}`, fields, dirty)
+    fields,
+    setFields,
+    set,
+    dirty,
+    editorKey,
+    saving,
+    savedAt,
+    error,
+    runSave,
+    runDelete,
+    recovery,
+  } = useEditableForm({
+    initial,
+    backupKey: `collection:${kind}:${item?.id ?? 'new'}`,
+    savedAt: item ? item.updatedAt : null,
+  })
 
-  const set = <K extends keyof CollectionFields>(
-    key: K,
-    value: CollectionFields[K],
-  ) => setFields((prev) => ({ ...prev, [key]: value }))
   const setAttribute = (key: string, value: string) =>
     setFields((prev) => ({
       ...prev,
@@ -130,73 +120,55 @@ export function CollectionForm({ kind, item }: Props) {
     }
   }
 
-  const savingRef = useRef(false)
-  const submit = useCallback(async (): Promise<boolean> => {
-    if (savingRef.current) return false
-    savingRef.current = true
-    setSaving(true)
-    setError(null)
-    const snapshot = JSON.stringify(fields)
-    try {
-      const result = await save({
-        data: {
-          id: item?.id,
-          kind,
-          ...fields,
-          // 並び順は一覧のドラッグで変えるので、ここでは今の値を保つ
-          sortOrder: item?.sortOrder ?? 0,
+  const submit = useCallback(
+    (): Promise<boolean> =>
+      runSave(
+        (fields) =>
+          save({
+            data: {
+              id: item?.id,
+              kind,
+              ...fields,
+              // 並び順は一覧のドラッグで変えるので、ここでは今の値を保つ
+              sortOrder: item?.sortOrder ?? 0,
+            },
+          }),
+        {
+          onSaved: async (result) => {
+            toast.success(
+              item ? '保存しました' : `${config.label}を追加しました`,
+            )
+            if (!item) {
+              await router.navigate({
+                to: '/admin/collections/$kind/$id',
+                params: { kind, id: result.id },
+                replace: true,
+              })
+            } else {
+              await router.invalidate()
+            }
+          },
         },
-      })
-      flushSync(() => {
-        setSavedSnapshot(snapshot)
-        setSavedAt(new Date())
-      })
-      clearBackup()
-      toast.success(item ? '保存しました' : `${config.label}を追加しました`)
-      if (!item) {
-        await router.navigate({
-          to: '/admin/collections/$kind/$id',
-          params: { kind, id: result.id },
-          replace: true,
-        })
-      } else {
-        await router.invalidate()
-      }
-      return true
-    } catch (e) {
-      const message = errorMessage(e)
-      setError(message)
-      toast.error(message)
-      return false
-    } finally {
-      savingRef.current = false
-      setSaving(false)
-    }
-  }, [fields, item, kind, save, router, clearBackup, config.label])
+      ),
+    [runSave, item, kind, save, router, config.label],
+  )
 
   useSaveShortcut(() => {
     submit()
   })
 
-  const onDelete = async () => {
+  const onDelete = () => {
     if (!item) return
-    if (!window.confirm(`「${item.title}」を削除します。元に戻せません。`)) {
-      return
-    }
-    setSaving(true)
-    try {
-      await remove({ data: { id: item.id } })
-      flushSync(() => setSavedSnapshot(JSON.stringify(fields)))
-      clearBackup()
-      toast.success('削除しました')
-      await router.navigate({
-        to: '/admin/collections/$kind',
-        params: { kind },
-      })
-    } catch (e) {
-      toast.error(errorMessage(e, '削除できませんでした'))
-      setSaving(false)
-    }
+    return runDelete({
+      title: item.title,
+      remove: () => remove({ data: { id: item.id } }),
+      onDeleted: async () => {
+        await router.navigate({
+          to: '/admin/collections/$kind',
+          params: { kind },
+        })
+      },
+    })
   }
 
   return (
@@ -207,19 +179,7 @@ export function CollectionForm({ kind, item }: Props) {
         submit()
       }}
     >
-      <UnsavedChangesGuard dirty={dirty} onSave={submit} />
-
-      {backup && JSON.stringify(backup.value) !== JSON.stringify(fields) && (
-        <BackupNotice
-          savedAt={backup.savedAt}
-          onRestore={() => {
-            setFields(backup.value)
-            setEditorKey((k) => k + 1)
-            dismissBackup()
-          }}
-          onDiscard={clearBackup}
-        />
-      )}
+      <FormRecovery {...recovery} onSave={submit} />
 
       <div className="grid gap-8 md:grid-cols-[16rem_1fr]">
         <ImageUpload

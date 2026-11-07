@@ -1,8 +1,7 @@
 import { useRouter } from '@tanstack/react-router'
 import { useServerFn } from '@tanstack/react-start'
 import { Wand2 } from 'lucide-react'
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { flushSync } from 'react-dom'
+import { useCallback, useEffect, useMemo, useRef } from 'react'
 import { toast } from 'sonner'
 
 import {
@@ -13,19 +12,14 @@ import {
 } from '@/components/admin/form-parts'
 import { ImageUpload } from '@/components/admin/image-upload'
 import { PreviewButton } from '@/components/admin/preview-dialog'
-import {
-  BackupNotice,
-  SaveStatus,
-  UnsavedChangesGuard,
-} from '@/components/admin/unsaved-changes'
+import { FormRecovery, SaveStatus } from '@/components/admin/unsaved-changes'
 import { RichTextEditor } from '@/components/editor/rich-text-editor'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
-import { useLocalBackup } from '@/hooks/use-local-backup'
+import { useEditableForm } from '@/hooks/use-editable-form'
 import { useSaveShortcut } from '@/hooks/use-save-shortcut'
-import { errorMessage } from '@/lib/errors'
 import { slugInputPattern, slugPattern } from '@/lib/slug'
 import { emptyDoc, type RichTextDoc } from '@/lib/tiptap'
 import { deletePost, type PostInput, savePost } from '@/server/posts'
@@ -71,93 +65,74 @@ export function PostForm({ post }: Props) {
     }),
     [post],
   )
-  const [fields, setFields] = useState<Fields>(initial)
-  const [savedSnapshot, setSavedSnapshot] = useState(() =>
-    JSON.stringify(initial),
-  )
-  const [editorKey, setEditorKey] = useState(0)
-  const [saving, setSaving] = useState(false)
-  const [autoSaving, setAutoSaving] = useState(false)
-  const [savedAt, setSavedAt] = useState<Date | null>(
-    post ? post.updatedAt : null,
-  )
-  const [error, setError] = useState<string | null>(null)
+  const {
+    fields,
+    set,
+    dirty,
+    editorKey,
+    saving,
+    autoSaving,
+    savedAt,
+    error,
+    runSave,
+    runDelete,
+    recovery,
+  } = useEditableForm({
+    initial,
+    backupKey: `post:${post?.id ?? 'new'}`,
+    savedAt: post ? post.updatedAt : null,
+  })
 
   const status = post?.status ?? 'draft'
   const isPublished = status === 'published'
-  const dirty = JSON.stringify(fields) !== savedSnapshot
-  const {
-    backup,
-    clear: clearBackup,
-    dismiss: dismissBackup,
-  } = useLocalBackup(`post:${post?.id ?? 'new'}`, fields, dirty)
 
-  const set = <K extends keyof Fields>(key: K, value: Fields[K]) =>
-    setFields((prev) => ({ ...prev, [key]: value }))
-
-  // 保存中に重ねて保存しないための印
-  const savingRef = useRef(false)
   // 自動保存に失敗したときの内容
   const failedSnapshotRef = useRef<string | null>(null)
 
   const submit = useCallback(
-    async (
+    (
       nextStatus: PostInput['status'],
       { silent = false }: { silent?: boolean } = {},
-    ): Promise<boolean> => {
-      if (savingRef.current) return false
-      savingRef.current = true
-      setSaving(true)
-      setAutoSaving(silent)
-      setError(null)
-      // 保存中に入力が続いても、送った時点の内容を「保存済み」とする
-      const snapshot = JSON.stringify(fields)
-      try {
-        const result = await save({
-          data: { id: post?.id, ...fields, status: nextStatus },
-        })
-        flushSync(() => {
-          setSavedSnapshot(snapshot)
-          setSavedAt(new Date())
-        })
-        clearBackup()
-        failedSnapshotRef.current = null
+    ): Promise<boolean> =>
+      runSave(
+        (fields) =>
+          save({ data: { id: post?.id, ...fields, status: nextStatus } }),
+        {
+          silent,
+          onSaved: async (result) => {
+            failedSnapshotRef.current = null
 
-        if (!silent) {
-          toast.success(
-            nextStatus === 'published'
-              ? isPublished
-                ? '更新しました'
-                : '公開しました'
-              : nextStatus !== status
-                ? '非公開（下書き）に戻しました'
-                : '下書きを保存しました',
-          )
-        }
-        if (!post) {
-          await router.navigate({
-            to: '/admin/posts/$id',
-            params: { id: result.id },
-            replace: true,
-          })
-        } else if (nextStatus !== status) {
-          await router.invalidate()
-        }
-        return true
-      } catch (e) {
-        const message = errorMessage(e)
-        setError(message)
-        // 自動保存の失敗は、入力が変わるまで繰り返さない
-        if (silent) failedSnapshotRef.current = snapshot
-        toast.error(silent ? `自動保存できませんでした: ${message}` : message)
-        return false
-      } finally {
-        savingRef.current = false
-        setSaving(false)
-        setAutoSaving(false)
-      }
-    },
-    [fields, post, status, isPublished, save, router, clearBackup],
+            if (!silent) {
+              toast.success(
+                nextStatus === 'published'
+                  ? isPublished
+                    ? '更新しました'
+                    : '公開しました'
+                  : nextStatus !== status
+                    ? '非公開（下書き）に戻しました'
+                    : '下書きを保存しました',
+              )
+            }
+            if (!post) {
+              await router.navigate({
+                to: '/admin/posts/$id',
+                params: { id: result.id },
+                replace: true,
+              })
+            } else if (nextStatus !== status) {
+              await router.invalidate()
+            }
+          },
+          onError: (message, snapshot) => {
+            // 自動保存の失敗は、入力が変わるまで繰り返さない
+            if (silent) failedSnapshotRef.current = snapshot
+            toast.error(
+              silent ? `自動保存できませんでした: ${message}` : message,
+            )
+          },
+        },
+      ),
+    [runSave, post, status, isPublished, save, router],
   )
 
   // 下書きの記事は、入力が止まって少したったら自動で保存する
@@ -180,22 +155,15 @@ export function PostForm({ post }: Props) {
     submit(status)
   })
 
-  const onDelete = async () => {
+  const onDelete = () => {
     if (!post) return
-    if (!window.confirm(`「${post.title}」を削除します。元に戻せません。`)) {
-      return
-    }
-    setSaving(true)
-    try {
-      await remove({ data: { id: post.id } })
-      flushSync(() => setSavedSnapshot(JSON.stringify(fields)))
-      clearBackup()
-      toast.success('削除しました')
-      await router.navigate({ to: '/admin/posts' })
-    } catch (e) {
-      toast.error(errorMessage(e, '削除できませんでした'))
-      setSaving(false)
-    }
+    return runDelete({
+      title: post.title,
+      remove: () => remove({ data: { id: post.id } }),
+      onDeleted: async () => {
+        await router.navigate({ to: '/admin/posts' })
+      },
+    })
   }
 
   const fillSlugFromDate = () => {
@@ -215,19 +183,7 @@ export function PostForm({ post }: Props) {
         submit(status)
       }}
     >
-      <UnsavedChangesGuard dirty={dirty} onSave={() => submit(status)} />
-
-      {backup && JSON.stringify(backup.value) !== JSON.stringify(fields) && (
-        <BackupNotice
-          savedAt={backup.savedAt}
-          onRestore={() => {
-            setFields(backup.value)
-            setEditorKey((k) => k + 1)
-            dismissBackup()
-          }}
-          onDiscard={clearBackup}
-        />
-      )}
+      <FormRecovery {...recovery} onSave={() => submit(status)} />
 
       <div className="space-y-2">
         <Label htmlFor="title">タイトル</Label>

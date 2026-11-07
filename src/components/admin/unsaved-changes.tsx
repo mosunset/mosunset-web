@@ -114,6 +114,39 @@ export function SaveStatus({
   return null
 }
 
+/**
+ * 編集フォームの先頭に置く、移動の確認と控えの復元の案内。
+ * 値は useEditableForm の recovery をそのまま渡す
+ */
+export function FormRecovery({
+  dirty,
+  onSave,
+  backupSavedAt,
+  onRestore,
+  onDiscard,
+}: {
+  dirty: boolean
+  /** 保存に成功したら true を返す */
+  onSave: () => Promise<boolean>
+  /** 復元できる控えの日時。案内を出さないときは null */
+  backupSavedAt: number | null
+  onRestore: () => void
+  onDiscard: () => void
+}) {
+  return (
+    <>
+      <UnsavedChangesGuard dirty={dirty} onSave={onSave} />
+      {backupSavedAt !== null && (
+        <BackupNotice
+          savedAt={backupSavedAt}
+          onRestore={onRestore}
+          onDiscard={onDiscard}
+        />
+      )}
+    </>
+  )
+}
+
 /** ブラウザ内に控えが残っているときの案内 */
 export function BackupNotice({
   savedAt,
