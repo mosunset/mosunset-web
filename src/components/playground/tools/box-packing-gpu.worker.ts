@@ -40,6 +40,12 @@ const STALL_MS = 90_000
 const MIN_BATCH = 16384
 const MAX_BATCH = 65536
 const TARGET_BATCH_MS = 3000
+/** 覚えておく良い並べ順の数 */
+const ELITES = 12
+/** 何回続けて良くならなければ、大きく崩して別の場所を探すか */
+const STAGNATION = 4
+/** 大きく崩した出発点の近くを、何回探すか */
+const KICK_BATCHES = 6
 
 // tsconfig は DOM の型なので、Worker の self として使う分だけ型を付ける
 const worker = self as unknown as {
@@ -187,54 +193,149 @@ async function search(
   const limit = Math.min(MAX_BATCH, ev.maxBatch)
   let batch = Math.min(16384, limit)
   let checked = false
-  /** 今の良い並べ順の記録（GPU が、入れ替えた位置より前を写すのに使う） */
-  let baseTrace = traceOrder(input, toTypes(bestOrder))
+
+  // ---- 探し方 ----
+  // 1. 良い並べ順を上位 ELITES 通り覚えておき、出発点を「いちばん良いもの」だけでなく、ほかの良いものからも選ぶ
+  // 2. 崩し方を混ぜる: 2 個の入れ替え・1 個を抜いて別の位置へ・区間を逆順に・2 つの良い並べ順の組み合わせ
+  // 3. しばらく良くならないときは、いちばん良い並べ順の一部を大きく混ぜた並べ順を出発点にして、別の場所を探す
+
+  /** 良い並べ順の控え（点数の良い順。種類の列が同じものは 1 つだけ） */
+  type Elite = {
+    order: Uint32Array
+    types: Int32Array
+    score: number
+    key: string
+  }
+  const elites: Elite[] = []
+  const addElite = (order: ArrayLike<number>, score: number) => {
+    const t = Int32Array.from(order, (i) => types[i])
+    const key = t.join(',')
+    if (elites.some((e) => e.key === key)) return
+    if (elites.length >= ELITES && score >= elites[elites.length - 1].score)
+      return
+    elites.push({ order: Uint32Array.from(order), types: t, score, key })
+    elites.sort((a, b) => a.score - b.score)
+    if (elites.length > ELITES) elites.pop()
+  }
+  addElite(bestOrder, best.score)
+
+  // 種類ごとの箱の番号（種類の列から並べ順を作り直すときに使う）
+  const typeCount = Math.max(...types) + 1
+  const indicesOfType: number[][] = Array.from({ length: typeCount }, () => [])
+  types.forEach((t, i) => {
+    indicesOfType[t].push(i)
+  })
+
+  /** 大きく崩した出発点から探しているあいだの状態（その近くで見つけたいちばん良い並べ順と、残りの回数） */
+  let kick: { order: Uint32Array; score: number; left: number } | null = null
+  /** いちばん良い結果が、何回続けて良くならなかったか */
+  let sinceImproved = 0
+  const shake = (base: ArrayLike<number>) => {
+    const o = Uint32Array.from(base)
+    const len = Math.max(3, Math.floor(m / 5))
+    const i = Math.floor(rand() * Math.max(1, m - len + 1))
+    for (let a = Math.min(m, i + len) - 1; a > i; a--) {
+      const b = i + Math.floor(rand() * (a - i + 1))
+      const t = o[a]
+      o[a] = o[b]
+      o[b] = t
+    }
+    return o
+  }
+
+  /** 今回の出発点を選ぶ */
+  const pickParent = () => {
+    if (kick) return { parent: kick.order, fromKick: true }
+    if (elites.length < 2 || rand() < 0.6) {
+      return { parent: Uint32Array.from(bestOrder), fromKick: false }
+    }
+    // 良いものほど選ばれやすく
+    return {
+      parent: elites[Math.floor(rand() ** 2 * elites.length)].order,
+      fromKick: false,
+    }
+  }
 
   /**
-   * 今の良い並べ順を少しずつ入れ替えた並べ順を count 通り作る。
-   * それぞれ「元と初めて違う位置」を求め、その位置の順に並べる（GPU の 32 本ずつの足並みがそろう）。
-   * 入れ替えても種類が同じで並べ順が変わらないものは、入れ替え方を選び直す。
-   * 何万通りも作るので、配列は最後にまとめて 1 回だけ作る
+   * 出発点を崩した並べ順を count 通り作る。
+   * それぞれ「出発点と初めて違う位置」を求め、その位置の順に並べる（GPU の 32 本ずつの足並みがそろう）。
+   * 崩しても種類の列が変わらないものは、崩し方を選び直す
    */
   const generate = (count: number) => {
-    const base = Uint32Array.from(bestOrder)
-    const baseTypes = Int32Array.from(base, (i) => types[i])
-    const work = Uint32Array.from(base)
-    const pairs = new Int32Array(count * 6)
-    const pairCount = new Uint8Array(count)
+    const { parent, fromKick } = pickParent()
+    const parentTypes = Int32Array.from(parent, (i) => types[i])
+    const trace = traceOrder(input, Array.from(parentTypes))
+    const temp = new Uint32Array(count * m)
     const startOf = new Int32Array(count)
-    const swapAt = (i: number, j: number) => {
-      const t = work[i]
-      work[i] = work[j]
-      work[j] = t
-    }
+    const used = new Int32Array(typeCount)
+    const taken = new Int32Array(typeCount)
     for (let r = 0; r < count; r++) {
+      const o = temp.subarray(r * m, (r + 1) * m)
       let start = m
-      let n = 0
       for (let attempt = 0; attempt < 4 && start === m; attempt++) {
-        n = 1 + Math.floor(rand() * 3)
+        o.set(parent)
         let lowest = m
-        for (let sw = 0; sw < n; sw++) {
+        const kind = rand()
+        if (kind < 0.5) {
+          // 2 個の入れ替え（1〜3 回。近くの箱と入れ替えることが多いほうが、良い並びを壊しにくい）
+          const swaps = 1 + Math.floor(rand() * 3)
+          for (let sw = 0; sw < swaps; sw++) {
+            const i = Math.floor(rand() * m)
+            const reach = rand() < 0.7 ? 4 : m
+            const j = Math.min(
+              m - 1,
+              Math.max(0, i + Math.floor((rand() * 2 - 1) * reach)),
+            )
+            const t = o[i]
+            o[i] = o[j]
+            o[j] = t
+            lowest = Math.min(lowest, i, j)
+          }
+        } else if (kind < 0.7) {
+          // 1 個を抜いて、別の位置に入れる
           const i = Math.floor(rand() * m)
-          // 近くの箱と入れ替えることが多いほうが、良い並びを壊しにくい
-          const reach = rand() < 0.7 ? 4 : m
+          const reach = rand() < 0.7 ? 6 : m
           const j = Math.min(
             m - 1,
             Math.max(0, i + Math.floor((rand() * 2 - 1) * reach)),
           )
-          pairs[r * 6 + sw * 2] = i
-          pairs[r * 6 + sw * 2 + 1] = j
-          swapAt(i, j)
-          if (i < lowest) lowest = i
-          if (j < lowest) lowest = j
+          const v = o[i]
+          if (i < j) o.copyWithin(i, i + 1, j + 1)
+          else if (i > j) o.copyWithin(j + 1, j, i)
+          o[j] = v
+          lowest = Math.min(i, j)
+        } else if (kind < 0.8 || elites.length < 2) {
+          // 一続きの区間を逆順にする
+          const len =
+            2 + Math.floor(rand() * Math.max(1, Math.floor(m / 4) - 1))
+          const i = Math.floor(rand() * Math.max(1, m - len + 1))
+          o.subarray(i, Math.min(m, i + len)).reverse()
+          lowest = i
+        } else {
+          // 2 つの良い並べ順の組み合わせ: 出発点の前半はそのまま、残りはもう片方の順番に並べる
+          const other = elites[Math.floor(rand() * elites.length)]
+          const c = 1 + Math.floor(rand() * (m - 1))
+          used.fill(0)
+          taken.fill(0)
+          for (let q = 0; q < c; q++) used[parentTypes[q]]++
+          for (let q = 0; q < c; q++) {
+            const t = parentTypes[q]
+            o[q] = indicesOfType[t][taken[t]++]
+          }
+          let w = c
+          for (let q = 0; q < m && w < m; q++) {
+            const t = other.types[q]
+            if (used[t] > 0) {
+              used[t]--
+              continue
+            }
+            o[w++] = indicesOfType[t][taken[t]++]
+          }
+          lowest = c
         }
         start = lowest
-        while (start < m && types[work[start]] === baseTypes[start]) start++
-        // 入れ替えを戻す（逆の順に）
-        for (let sw = n - 1; sw >= 0; sw--)
-          swapAt(pairs[r * 6 + sw * 2], pairs[r * 6 + sw * 2 + 1])
+        while (start < m && types[o[start]] === parentTypes[start]) start++
       }
-      pairCount[r] = n
       startOf[r] = start
     }
     // 違う位置ごとに数えて、その順の並び位置を決める（数え上げの並べ替え）
@@ -245,18 +346,10 @@ async function search(
     const starts = new Int32Array(count)
     for (let r = 0; r < count; r++) {
       const pos = offset[startOf[r]]++
-      const dst = orders.subarray(pos * m, (pos + 1) * m)
-      dst.set(base)
-      for (let sw = 0; sw < pairCount[r]; sw++) {
-        const i = pairs[r * 6 + sw * 2]
-        const j = pairs[r * 6 + sw * 2 + 1]
-        const t = dst[i]
-        dst[i] = dst[j]
-        dst[j] = t
-      }
+      orders.set(temp.subarray(r * m, (r + 1) * m), pos * m)
       starts[pos] = startOf[r]
     }
-    return { orders, starts, trace: baseTrace, count }
+    return { orders, starts, trace, count, fromKick }
   }
 
   type Batch = ReturnType<typeof generate>
@@ -314,6 +407,11 @@ async function search(
           start: job.starts[r],
         })
       }
+      addElite(order, result.score)
+      // 大きく崩した出発点から探しているあいだは、その近くでいちばん良いものを次の出発点にする
+      if (job.fromKick && kick && result.score < kick.score) {
+        kick = { ...kick, order: Uint32Array.from(order), score: result.score }
+      }
       consider(result)
       if (result.score < best.score - 1e-9) {
         best = result
@@ -324,7 +422,25 @@ async function search(
       }
     }
     checked = true
-    if (improved) baseTrace = traceOrder(input, toTypes(bestOrder))
+    if (improved) {
+      sinceImproved = 0
+      kick = null
+    } else {
+      sinceImproved++
+      if (kick && job.fromKick) {
+        kick.left--
+        if (kick.left <= 0) kick = null
+      }
+      // しばらく良くならなければ、いちばん良い並べ順の一部を大きく混ぜて、別の場所を探す
+      if (!kick && sinceImproved >= STAGNATION) {
+        kick = {
+          order: shake(bestOrder),
+          score: Number.POSITIVE_INFINITY,
+          left: KICK_BATCHES,
+        }
+        sinceImproved = 0
+      }
+    }
   }
 
   // GPU が計算している間に、CPU で前の回の上位を正式に評価し、次の次の回の並べ順を作っておく
