@@ -17,3 +17,10 @@ content/migration/
 - 画像は旧サイトのパス（`/images/...` や `@assets/...`）のまま書けば、取り込み時に R2 へ移します
 
 旧サイトの原文と比べたいときは、`git show 0fa6d60:src/content/blog/<名前>.mdoc` で見られます。
+
+## 画像を差し替える
+
+旧サイトの画像に番号など公開したくないものが写っているときは、隠した版を
+`content/migration/images/<旧サイトでのパス>` に置くと、取り込み時にそちらを使います。
+
+例：`content/migration/images/src/assets/images/qualifications/fe/thumbnail.webp`

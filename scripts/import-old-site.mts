@@ -131,7 +131,9 @@ async function importImage(src: string | undefined, folder: string): Promise<str
   const path = resolveAssetPath(str(src))
   const ext = path?.split('.').pop()?.toLowerCase() ?? ''
   const type = contentTypes[ext]
-  const blob = path && type ? readBlob(path) : null
+  // 番号などを隠した版を content/migration/images/ に置いてあれば、そちらを使う
+  const edited = path ? `content/migration/images/${path}` : ''
+  const blob = path && type ? (existsSync(edited) ? readFileSync(edited) : readBlob(path)) : null
   if (!blob) {
     missing.push(str(src))
     return null

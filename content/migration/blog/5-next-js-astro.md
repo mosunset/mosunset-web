@@ -1,12 +1,12 @@
 ---
-# 旧サイトの「大改修5回目（Astro を選んだ理由）」を、今の構成に合わせて書き直したもの。下書きのまま取り込む
+# 旧サイトの「大改修5回目（Astro を選んだ理由）」を、今の構成に合わせて書き直したもの
 title: 大改修6回目：Astro から TanStack Start と Cloudflare に乗り換えた話
 slug: site-renewal-6
 description: このサイトを Astro + Keystatic から、TanStack Start・Cloudflare Workers・D1・R2 の構成に作り直しました。変えたもの、変えなかった考え方、作り直してよかったところをまとめます。
-publishedDate: 2026-11-03
-updatedDate: 2026-11-03
+publishedDate: 2026-11-07
+updatedDate: 2026-11-07
 thumbnail: ""
-visibility: unlisted
+visibility: public
 ---
 このサイトは「たのしく、つくる。」をテーマに、作ったものや集めているものを置いている場所です。
 
