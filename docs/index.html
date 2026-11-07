@@ -3,28 +3,129 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="robots" content="noindex" />
     <title>mosunset-web 開発ドキュメント</title>
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/docsify@4.13.1/lib/themes/vue.css" />
+    <!-- テーマ: OS の設定に合わせてライト / ダークを切り替える -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/docsify-themeable@0.9.0/dist/css/theme-simple.css" />
+    <link
+      rel="stylesheet"
+      media="(prefers-color-scheme: dark)"
+      href="https://cdn.jsdelivr.net/npm/docsify-themeable@0.9.0/dist/css/theme-simple-dark.css"
+    />
+    <style>
+      :root {
+        --base-font-family: system-ui, -apple-system, 'Hiragino Sans', 'Noto Sans JP', 'Yu Gothic UI', sans-serif;
+        --base-font-size: 15px;
+        --base-line-height: 1.8;
+        --theme-color: #e8742c;
+        --code-font-family: ui-monospace, 'Cascadia Code', Consolas, monospace;
+        --sidebar-width: 17rem;
+      }
+      .markdown-section table { display: table; width: 100%; }
+      .markdown-section code, .markdown-section pre { font-variant-ligatures: none; }
+      .markdown-section td code, .markdown-section th code { white-space: nowrap; }
+      .page-footer {
+        margin-top: 3rem;
+        padding-top: 1rem;
+        border-top: 1px solid var(--mono-tint2, #ddd);
+        font-size: 0.85em;
+        opacity: 0.75;
+      }
+    </style>
   </head>
   <body>
     <div id="app">読み込み中…</div>
     <script>
       window.$docsify = {
         name: 'mosunset-web',
+        nameLink: '#/',
+        repo: 'mosunset/mosunset-web',
         loadSidebar: true,
+        // サブフォルダ（specs/ など）でもルートのサイドバーを使う
+        alias: { '/.*/_sidebar.md': '/_sidebar.md' },
+        notFoundPage: '_404.md',
         subMaxLevel: 2,
+        maxLevel: 4,
         auto2top: true,
+        executeScript: false,
         search: {
           placeholder: '検索',
           noData: '見つかりませんでした',
           depth: 3,
+          paths: 'auto',
         },
+        pagination: {
+          previousText: '前へ',
+          nextText: '次へ',
+          crossChapter: true,
+          crossChapterText: true,
+        },
+        copyCode: {
+          buttonText: 'コピー',
+          errorText: 'コピーできませんでした',
+          successText: 'コピーしました',
+        },
+        themeable: { readyTransition: true, responsiveTables: true },
+        markdown: {
+          renderer: {
+            // ```mermaid のコードブロックは図として描く（下の plugins で描く）
+            code(code, lang) {
+              if (lang === 'mermaid') {
+                const escaped = code.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+                return `<pre class="mermaid">${escaped}</pre>`
+              }
+              return this.origin.code.apply(this, arguments)
+            },
+          },
+        },
+        plugins: [
+          // 図は 1 つずつ順番に描く（まとめて描くと、1 ページに図が 2 つ以上あるときに重なる）
+          (hook) => {
+            let count = 0
+            hook.doneEach(async () => {
+              for (const el of document.querySelectorAll('.markdown-section pre.mermaid')) {
+                try {
+                  const { svg } = await mermaid.render(`mermaid-${++count}`, el.textContent)
+                  const div = document.createElement('div')
+                  div.className = 'mermaid'
+                  div.innerHTML = svg
+                  el.replaceWith(div)
+                } catch (e) {
+                  el.textContent = `図を描けませんでした: ${e.message}`
+                }
+              }
+            })
+          },
+          // 各ページの下に GitHub の編集リンクを出す
+          (hook, vm) => {
+            hook.afterEach((html) => {
+              const file = vm.route.file
+              const url = `https://github.com/mosunset/mosunset-web/blob/main/docs/${file}`
+              return `${html}<footer class="page-footer"><a href="${url}" target="_blank" rel="noopener">GitHub で見る・編集する</a></footer>`
+            })
+          },
+        ],
       }
     </script>
+    <script src="https://cdn.jsdelivr.net/npm/mermaid@10.9.1/dist/mermaid.min.js"></script>
+    <script>
+      mermaid.initialize({
+        startOnLoad: false,
+        theme: window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'default',
+      })
+    </script>
     <script src="https://cdn.jsdelivr.net/npm/docsify@4.13.1/lib/docsify.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/docsify-themeable@0.9.0/dist/js/docsify-themeable.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/docsify@4.13.1/lib/plugins/search.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/docsify@4.13.1/lib/plugins/zoom-image.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/docsify-copy-code@3.0.0/dist/docsify-copy-code.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/docsify-pagination@2.10.1/dist/docsify-pagination.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-bash.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-typescript.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-jsx.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-tsx.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-json.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-sql.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-diff.min.js"></script>
   </body>
 </html>
