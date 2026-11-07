@@ -1,18 +1,5 @@
 import { createMiddleware } from '@tanstack/react-start'
 
-/**
- * Content-Security-Policy。
- * script-src などを絞ると、Clerk・Turnstile・プレイグラウンドの外部モデルや、
- * TanStack Start が出すインラインのスクリプトが動かなくなるので、
- * ここでは壊れる心配のない指定だけにしている（クリックジャッキング・<base> の差し替え・プラグインの読み込みを防ぐ）
- */
-const csp = [
-  "base-uri 'self'",
-  "object-src 'none'",
-  "frame-ancestors 'none'",
-  "form-action 'self'",
-]
-
 /** すべてのページ・API に付ける */
 const commonHeaders: Record<string, string> = {
   // 中身の種類をブラウザに推測させない
@@ -28,6 +15,69 @@ const commonHeaders: Record<string, string> = {
   'Cross-Origin-Opener-Policy': 'same-origin-allow-popups',
 }
 
+/** Clerk の公開キー（pk_live_<base64("clerk.mosunset.com$")>）から、Clerk の API のホストを取り出す */
+function clerkFrontendOrigin() {
+  const key = process.env.CLERK_PUBLISHABLE_KEY ?? ''
+  try {
+    const host = atob(key.replace(/^pk_(live|test)_/, '')).replace(/\$$/, '')
+    return /^[a-z0-9.-]+$/.test(host) ? `https://${host}` : null
+  } catch {
+    return null
+  }
+}
+
+/** Turnstile（お問い合わせと、Clerk のロボット対策の両方で使う） */
+const TURNSTILE = 'https://challenges.cloudflare.com'
+
+/**
+ * Content-Security-Policy。
+ * スクリプトは、サーバーがリクエストごとに作る nonce が付いたものと、そこから読み込まれたもの（strict-dynamic）だけ動かせる。
+ * 外部から読み込むもの: Clerk（ログイン）、Turnstile、物体認識のモデル（storage.googleapis.com）
+ */
+function contentSecurityPolicy(nonce: string, local: boolean) {
+  const clerk = clerkFrontendOrigin()
+  return [
+    "default-src 'self'",
+    // https: と 'unsafe-inline' は、strict-dynamic に対応していない古いブラウザ向け（新しいブラウザは無視する）
+    `script-src 'nonce-${nonce}' 'strict-dynamic' https: 'unsafe-inline'`,
+    // Tailwind や Clerk が style 属性・<style> を使う
+    "style-src 'self' 'unsafe-inline'",
+    // 本文には https の外部画像も置ける。ファイルを選んだときのプレビューは blob: / data:
+    "img-src 'self' data: blob: https:",
+    "font-src 'self' data:",
+    `connect-src 'self' ${[
+      clerk,
+      // Clerk の不正利用対策（いくつかのポートを試すので :* が要る）と、利用状況の送信
+      'https://*.client.protect.clerk.com:*',
+      'https://clerk-telemetry.com',
+      TURNSTILE,
+      'https://storage.googleapis.com',
+    ]
+      .filter(Boolean)
+      .join(' ')}`,
+    `frame-src ${TURNSTILE}`,
+    "worker-src 'self' blob:",
+    "media-src 'self' blob:",
+    "manifest-src 'self'",
+    "base-uri 'self'",
+    "object-src 'none'",
+    "frame-ancestors 'none'",
+    "form-action 'self'",
+    // http の localhost で付けると、確認用のサーバーで画像や CSS が読めなくなる
+    ...(local ? [] : ['upgrade-insecure-requests']),
+  ].join('; ')
+}
+
+/** 開発中（vite dev）は Vite がインラインのスクリプトを入れるので、壊れない指定だけにする */
+function devContentSecurityPolicy() {
+  return [
+    "base-uri 'self'",
+    "object-src 'none'",
+    "frame-ancestors 'none'",
+    "form-action 'self'",
+  ].join('; ')
+}
+
 function isLocal(url: URL) {
   return url.hostname === 'localhost' || url.hostname === '127.0.0.1'
 }
@@ -41,22 +91,31 @@ function isPrivatePath(pathname: string) {
   )
 }
 
-/** レスポンスにセキュリティ関連のヘッダーを付ける */
+/** 推測できない nonce（16 バイトの乱数を base64 にしたもの） */
+function createNonce() {
+  const bytes = crypto.getRandomValues(new Uint8Array(16))
+  return btoa(String.fromCharCode(...bytes))
+}
+
+/**
+ * レスポンスにセキュリティ関連のヘッダーを付ける。
+ * nonce は context.cspNonce としてルーター（src/router.tsx）に渡し、ページに出すスクリプトに付けてもらう
+ */
 export const securityHeadersMiddleware = createMiddleware({
   type: 'request',
 }).server(async ({ request, next }) => {
-  const result = await next()
+  const nonce = createNonce()
+  const result = await next({ context: { cspNonce: nonce } })
   const url = new URL(request.url)
+  const local = isLocal(url)
 
   const headers: Record<string, string> = {
     ...commonHeaders,
-    'Content-Security-Policy': [
-      ...csp,
-      // http の localhost で付けると、開発中に画像や CSS が読めなくなる
-      ...(isLocal(url) ? [] : ['upgrade-insecure-requests']),
-    ].join('; '),
+    'Content-Security-Policy': import.meta.env.DEV
+      ? devContentSecurityPolicy()
+      : contentSecurityPolicy(nonce, local),
   }
-  if (!isLocal(url)) {
+  if (!local) {
     // 一度来たブラウザには、1 年間 https でしか接続させない
     headers['Strict-Transport-Security'] = 'max-age=31536000; includeSubDomains'
   }

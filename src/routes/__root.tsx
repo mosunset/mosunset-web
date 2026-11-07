@@ -8,6 +8,7 @@ import {
   HeadContent,
   rootRouteId,
   Scripts,
+  useRouter,
   useRouterState,
 } from '@tanstack/react-router'
 import { TanStackRouterDevtoolsPanel } from '@tanstack/react-router-devtools'
@@ -150,13 +151,18 @@ function RootDocument({ children }: { children: React.ReactNode }) {
       state.location.pathname.startsWith('/admin/'),
   })
 
+  const nonce = useRouter().options.ssr?.nonce
+
   return (
     <html lang="ja">
       <head>
+        {/* ブラウザ側のルーターが CSP の nonce を読むためのもの（src/router.tsx） */}
+        <meta property="csp-nonce" nonce={nonce} />
         <HeadContent />
       </head>
       <body>
         <ClerkProvider
+          nonce={nonce}
           appearance={{ theme: shadcn }}
           signInUrl="/sign-in"
           localization={jaJP}
