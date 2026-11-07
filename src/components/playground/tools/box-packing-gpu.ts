@@ -132,19 +132,64 @@ fn addSet(base: u32, count: ptr<function, u32>, x: i32) {
   *count = *count + 1u;
 }
 
+/**
+ * 始める前の準備。state[k * 8] には CPU が「入れ替えた位置 s」を入れておく。
+ * s より前は元の良い並べ順と同じ置き方になるので、その記録（orients の後ろ）を写し、
+ * 候補の場所も同じ順に作り直してから、s 番目から計算する
+ */
 @compute @workgroup_size(64)
 fn init(@builtin(global_invocation_id) gid: vec3<u32>) {
   let k = gid.x;
   if (k >= P.k) { return; }
   let sb = k * 8u;
-  state[sb] = 0; state[sb + 1u] = 0; state[sb + 2u] = 1; state[sb + 3u] = 1;
-  state[sb + 4u] = 1; state[sb + 5u] = 0; state[sb + 6u] = 0; state[sb + 7u] = 0;
+  let s = u32(state[sb]);
+  let tb = P.m * 6u;
+  var n0 = 0u;
+  var height0 = 0;
+  if (s > 0u) {
+    let rec = orients[tb + 2u * (s - 1u) + 1u];
+    n0 = u32(rec.z);
+    height0 = rec.w;
+  }
   cand[usBase(k)] = 0;
   cand[vsBase(k)] = 0;
   cand[ptBase(k)] = 0;
   cand[ptBase(k) + 1u] = 0;
-  fstate[k * 2u] = 0.0;
-  fstate[k * 2u + 1u] = 0.0;
+  var nu = 1u;
+  var nv = 1u;
+  var np = 1u;
+  var floorArea = 0;
+  var cog = 0.0;
+  var vol = 0.0;
+  for (var j = 0u; j < n0; j++) {
+    let a = orients[tb + 2u * j];
+    let b = orients[tb + 2u * j + 1u];
+    let u = a.x; let v = a.y; let z = a.z; let w = a.w; let d = b.x; let h = b.y;
+    let q = k * P.m * 6u + j * 6u;
+    placed[q] = u; placed[q + 1u] = v; placed[q + 2u] = z;
+    placed[q + 3u] = w; placed[q + 4u] = d; placed[q + 5u] = h;
+    addSet(usBase(k), &nu, u + w + P.gap);
+    addSet(vsBase(k), &nv, v + d + P.gap);
+    addPoint(k, &np, u + w + P.gap, v);
+    addPoint(k, &np, u, v + d + P.gap);
+    addPoint(k, &np, u, v);
+    addPoint(k, &np, u + w + P.gap, 0);
+    addPoint(k, &np, 0, v + d + P.gap);
+    if (z == 0) { floorArea += w * d; }
+    let bv = f32(w) * f32(d) * f32(h);
+    cog += bv * (f32(z) + f32(h) / 2.0);
+    vol += bv;
+  }
+  state[sb] = i32(s);
+  state[sb + 1u] = i32(n0);
+  state[sb + 2u] = i32(nu);
+  state[sb + 3u] = i32(nv);
+  state[sb + 4u] = i32(np);
+  state[sb + 5u] = height0;
+  state[sb + 6u] = floorArea;
+  state[sb + 7u] = 0;
+  fstate[k * 2u] = cog;
+  fstate[k * 2u + 1u] = vol;
 }
 
 @compute @workgroup_size(64)
@@ -200,6 +245,13 @@ fn step(@builtin(global_invocation_id) gid: vec3<u32>) {
   state[sb + 5u] = height;
 }
 `
+
+/** 元の良い並べ順の記録（traceOrder の結果） */
+export type GpuBase = {
+  placed: readonly (readonly number[])[]
+  placedAfter: readonly number[]
+  heightAfter: readonly number[]
+}
 
 /** GPU で評価した結果（並べ順ごと） */
 export type GpuMetrics = {
@@ -295,7 +347,9 @@ export function createGpuEvaluator(ctx: GpuContext, input: PackInput) {
   const { device } = ctx
   const { items } = itemsOf(input)
   const m = items.length
-  const orientData = new Int32Array(Math.max(1, m) * MAX_ORIENTATIONS * 4)
+  // 前半は箱ごとの置き方（箱 × 6）、後半は元の良い並べ順の記録（1 個ごとに 2 つ:
+  // (u, v, z, w), (d, h, その時点で置いた数, その時点の高さ)）。後半は評価のたびに書き換える
+  const orientData = new Int32Array(Math.max(1, m) * (MAX_ORIENTATIONS + 2) * 4)
   items.forEach((it, i) => {
     it.orientations.slice(0, MAX_ORIENTATIONS).forEach((o, j) => {
       orientData.set([o.w, o.d, o.h, 1], (i * MAX_ORIENTATIONS + j) * 4)
@@ -381,9 +435,42 @@ export function createGpuEvaluator(ctx: GpuContext, input: PackInput) {
     m,
     types: items.map((it) => it.type),
     maxBatch,
-    /** k 通りの並べ順（k × m）をまとめて評価する */
-    async evaluate(orders: Uint32Array, k: number): Promise<GpuMetrics> {
+    /**
+     * k 通りの並べ順（k × m）をまとめて評価する。
+     * starts[i] は、i 番目の並べ順が元の良い並べ順（base）と初めて違う位置。そこより前は base の記録を写す。
+     * 同じ GPU の計算単位（32 本ずつ）の中で starts が近いほど、待ちが減って速い
+     */
+    async evaluate(
+      orders: Uint32Array,
+      starts: Int32Array,
+      base: GpuBase,
+      k: number,
+    ): Promise<GpuMetrics> {
       ensure(k)
+      // 元の良い並べ順の記録を、orients の後ろに書く
+      const rec = new Int32Array(m * 2 * 4)
+      for (let j = 0; j < m; j++) {
+        const p = base.placed[j]
+        if (p) rec.set([p[0], p[1], p[2], p[3]], j * 8)
+        rec.set(
+          [
+            p ? p[4] : 0,
+            p ? p[5] : 0,
+            base.placedAfter[j] ?? 0,
+            base.heightAfter[j] ?? 0,
+          ],
+          j * 8 + 4,
+        )
+      }
+      device.queue.writeBuffer(orientBuf, m * MAX_ORIENTATIONS * 16, rec)
+      // 入れ替えた位置を、state の先頭に入れておく（init が読む）
+      const st0 = new Int32Array(k * 8)
+      let minStart = m
+      for (let i = 0; i < k; i++) {
+        st0[i * 8] = starts[i]
+        if (starts[i] < minStart) minStart = starts[i]
+      }
+      device.queue.writeBuffer(stateBuf, 0, st0)
       const U = input.floorX - 2 * input.edgeGap
       const V = input.floorY - 2 * input.edgeGap
       device.queue.writeBuffer(
@@ -414,8 +501,9 @@ export function createGpuEvaluator(ctx: GpuContext, input: PackInput) {
         return enc
       }
       device.queue.submit([run(ctx.init, 1).finish()])
-      // 「1 個置く」を、何回かずつ区切って GPU に渡す（1 回の計算を短くして、GPU のリセットを避ける）
-      for (let done = 0; done < m; done += STEPS_PER_SUBMIT) {
+      // 「1 個置く」を、何回かずつ区切って GPU に渡す（1 回の計算を短くして、GPU のリセットを避ける）。
+      // いちばん早く入れ替えた位置から最後までの回数だけでよい
+      for (let done = minStart; done < m; done += STEPS_PER_SUBMIT) {
         device.queue.submit([
           run(ctx.step, Math.min(STEPS_PER_SUBMIT, m - done)).finish(),
         ])

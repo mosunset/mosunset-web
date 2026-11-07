@@ -17,6 +17,7 @@ import {
   type PackInput,
   type PackResult,
   random,
+  traceOrder,
 } from './box-packing-solver'
 
 /** 画面から GPU 係への頼みごと */
@@ -166,74 +167,120 @@ async function run(token: number, input: PackInput, durationMs: number) {
   const limit = Math.min(MAX_BATCH, ev.maxBatch)
   let batch = Math.min(16384, limit)
   let checked = false
-  while (token === current && Date.now() - started < durationMs) {
-    if (Date.now() - lastImproved > STALL_MS) break
-    // 今の良い並べ順を少しずつ入れ替えた並べ順を batch 通り作る（1 通り目は今の良い並べ順そのもの）
-    const orders = new Uint32Array(batch * m)
-    for (let r = 0; r < batch; r++) {
-      const o = orders.subarray(r * m, (r + 1) * m)
-      o.set(bestOrder)
-      if (r === 0) continue
-      const swaps = 1 + Math.floor(rand() * 3)
-      for (let s = 0; s < swaps; s++) {
-        const i = Math.floor(rand() * m)
-        // 近くの箱と入れ替えることが多いほうが、良い並びを壊しにくい
-        const reach = rand() < 0.7 ? 4 : m
-        const j = Math.min(
-          m - 1,
-          Math.max(0, i + Math.floor((rand() * 2 - 1) * reach)),
-        )
-        const t = o[i]
-        o[i] = o[j]
-        o[j] = t
-      }
-    }
-    const t0 = performance.now()
-    let res: Awaited<ReturnType<GpuEvaluator['evaluate']>>
-    try {
-      res = await ev.evaluate(orders, batch)
-    } catch (e) {
-      console.error('GPU の計算に失敗しました', e)
-      break
-    }
-    const ms = performance.now() - t0
-    if (token !== current) break
-    tried += batch
+  /** 今の良い並べ順の記録（GPU が、入れ替えた位置より前を写すのに使う） */
+  let baseTrace = traceOrder(input, toTypes(bestOrder))
 
-    // 上位の並べ順を選ぶ（全部置けたものから。なければ全部から）
-    const all = Array.from({ length: batch }, (_, i) => i)
+  /**
+   * 今の良い並べ順を少しずつ入れ替えた並べ順を count 通り作る。
+   * それぞれ「元と初めて違う位置」を求め、その位置の順に並べる（GPU の 32 本ずつの足並みがそろう）。
+   * 入れ替えても種類が同じで並べ順が変わらないものは、入れ替え方を選び直す。
+   * 何万通りも作るので、配列は最後にまとめて 1 回だけ作る
+   */
+  const generate = (count: number) => {
+    const base = Uint32Array.from(bestOrder)
+    const baseTypes = Int32Array.from(base, (i) => types[i])
+    const work = Uint32Array.from(base)
+    const pairs = new Int32Array(count * 6)
+    const pairCount = new Uint8Array(count)
+    const startOf = new Int32Array(count)
+    const swapAt = (i: number, j: number) => {
+      const t = work[i]
+      work[i] = work[j]
+      work[j] = t
+    }
+    for (let r = 0; r < count; r++) {
+      let start = m
+      let n = 0
+      for (let attempt = 0; attempt < 4 && start === m; attempt++) {
+        n = 1 + Math.floor(rand() * 3)
+        let lowest = m
+        for (let sw = 0; sw < n; sw++) {
+          const i = Math.floor(rand() * m)
+          // 近くの箱と入れ替えることが多いほうが、良い並びを壊しにくい
+          const reach = rand() < 0.7 ? 4 : m
+          const j = Math.min(
+            m - 1,
+            Math.max(0, i + Math.floor((rand() * 2 - 1) * reach)),
+          )
+          pairs[r * 6 + sw * 2] = i
+          pairs[r * 6 + sw * 2 + 1] = j
+          swapAt(i, j)
+          if (i < lowest) lowest = i
+          if (j < lowest) lowest = j
+        }
+        start = lowest
+        while (start < m && types[work[start]] === baseTypes[start]) start++
+        // 入れ替えを戻す（逆の順に）
+        for (let sw = n - 1; sw >= 0; sw--)
+          swapAt(pairs[r * 6 + sw * 2], pairs[r * 6 + sw * 2 + 1])
+      }
+      pairCount[r] = n
+      startOf[r] = start
+    }
+    // 違う位置ごとに数えて、その順の並び位置を決める（数え上げの並べ替え）
+    const offset = new Int32Array(m + 2)
+    for (let r = 0; r < count; r++) offset[startOf[r] + 1]++
+    for (let i = 1; i <= m + 1; i++) offset[i] += offset[i - 1]
+    const orders = new Uint32Array(count * m)
+    const starts = new Int32Array(count)
+    for (let r = 0; r < count; r++) {
+      const pos = offset[startOf[r]]++
+      const dst = orders.subarray(pos * m, (pos + 1) * m)
+      dst.set(base)
+      for (let sw = 0; sw < pairCount[r]; sw++) {
+        const i = pairs[r * 6 + sw * 2]
+        const j = pairs[r * 6 + sw * 2 + 1]
+        const t = dst[i]
+        dst[i] = dst[j]
+        dst[j] = t
+      }
+      starts[pos] = startOf[r]
+    }
+    return { orders, starts, trace: baseTrace, count }
+  }
+
+  type Batch = ReturnType<typeof generate>
+  /** GPU の結果の上位を、CPU で正式に評価する */
+  const review = (
+    job: Batch,
+    res: Awaited<ReturnType<GpuEvaluator['evaluate']>>,
+  ) => {
+    const k = job.count
+    const all = Array.from({ length: k }, (_, i) => i).filter(
+      (i) => job.starts[i] < m,
+    )
     const complete = all.filter((i) => res.placed[i] === m)
     const pool = complete.length > 0 ? complete : all
     const primary =
       input.objective === 'height'
-        ? (a: number, b: number) =>
-            res.placed[b] - res.placed[a] ||
-            res.height[a] - res.height[b] ||
-            res.floorArea[b] - res.floorArea[a] ||
-            res.cogZ[a] - res.cogZ[b]
-        : (a: number, b: number) =>
-            res.placed[b] - res.placed[a] ||
-            res.floorArea[b] - res.floorArea[a] ||
-            res.height[a] - res.height[b] ||
-            res.cogZ[a] - res.cogZ[b]
+        ? (x: number, y: number) =>
+            res.placed[y] - res.placed[x] ||
+            res.height[x] - res.height[y] ||
+            res.floorArea[y] - res.floorArea[x] ||
+            res.cogZ[x] - res.cogZ[y]
+        : (x: number, y: number) =>
+            res.placed[y] - res.placed[x] ||
+            res.floorArea[y] - res.floorArea[x] ||
+            res.height[x] - res.height[y] ||
+            res.cogZ[x] - res.cogZ[y]
     const picks = new Set<number>([
       ...[...pool].sort(primary).slice(0, 4),
       ...[...pool]
         .sort(
-          (a, b) =>
-            res.floorArea[b] - res.floorArea[a] ||
-            res.height[a] - res.height[b],
+          (x, y) =>
+            res.floorArea[y] - res.floorArea[x] ||
+            res.height[x] - res.height[y],
         )
         .slice(0, 3),
       ...[...pool]
         .sort(
-          (a, b) => res.cogZ[a] - res.cogZ[b] || res.height[a] - res.height[b],
+          (x, y) => res.cogZ[x] - res.cogZ[y] || res.height[x] - res.height[y],
         )
         .slice(0, 3),
     ])
-    // 上位だけを CPU で正式に評価する（重心の前後左右や「ぽつんと高い塔」も含めた点数）
+    let improved = false
     for (const r of picks) {
-      const order = orders.subarray(r * m, (r + 1) * m)
+      const order = job.orders.subarray(r * m, (r + 1) * m)
       const result = evaluateOrder(input, toTypes(order))
       // 最初の 1 回だけ、GPU と CPU の置き方が同じかを確かめる（違えば計算の食い違い）
       if (
@@ -244,6 +291,7 @@ async function run(token: number, input: PackInput, durationMs: number) {
         console.warn('GPU と CPU の結果が違います', {
           gpu: [res.height[r], res.placed[r]],
           cpu: [result.height, result.placements.length],
+          start: job.starts[r],
         })
       }
       consider(result)
@@ -251,25 +299,60 @@ async function run(token: number, input: PackInput, durationMs: number) {
         best = result
         bestOrder = Array.from(order)
         pending = true
+        improved = true
         lastImproved = Date.now()
       }
     }
     checked = true
+    if (improved) baseTrace = traceOrder(input, toTypes(bestOrder))
+  }
+
+  // GPU が計算している間に、CPU で前の回の上位を正式に評価し、次の次の回の並べ順を作っておく
+  // （GPU は、前の回が終わったらすぐ次の回に取りかかれる）
+  let job = generate(batch)
+  let inFlight: Promise<Awaited<ReturnType<GpuEvaluator['evaluate']>>> | null =
+    ev.evaluate(job.orders, job.starts, job.trace, job.count)
+  let t0 = performance.now()
+  let next = generate(batch)
+  while (inFlight && token === current) {
+    let res: Awaited<ReturnType<GpuEvaluator['evaluate']>>
+    try {
+      res = await inFlight
+    } catch (e) {
+      console.error('GPU の計算に失敗しました', e)
+      break
+    }
+    const ms = performance.now() - t0
+    const done = job
+    tried += done.count
+    const keepGoing =
+      token === current &&
+      Date.now() - started < durationMs &&
+      Date.now() - lastImproved <= STALL_MS
+    inFlight = null
+    if (keepGoing) {
+      job = next
+      t0 = performance.now()
+      inFlight = ev.evaluate(job.orders, job.starts, job.trace, job.count)
+    }
+    review(done, res)
+    // 1 回の時間が目安に近づくよう、まとめる数を調整する
+    batch = Math.max(
+      Math.min(MIN_BATCH, limit),
+      Math.min(
+        limit,
+        Math.round((done.count * TARGET_BATCH_MS) / Math.max(1, ms) / 64) * 64,
+      ),
+    )
+    if (keepGoing) next = generate(batch)
     if ((pending || pendingMetrics.size > 0) && Date.now() - lastPosted > 150)
       flush()
     if (Date.now() - lastStats > 500) {
       post({ kind: 'stats', tried, elapsed: Date.now() - started })
       lastStats = Date.now()
     }
-    // 1 回の時間が目安に近づくよう、まとめる数を調整する
-    batch = Math.max(
-      Math.min(MIN_BATCH, limit),
-      Math.min(
-        limit,
-        Math.round((batch * TARGET_BATCH_MS) / Math.max(1, ms) / 64) * 64,
-      ),
-    )
   }
+  if (inFlight) await inFlight.catch(() => undefined)
   flush()
   post({ kind: 'done', tried, elapsed: Date.now() - started })
 }

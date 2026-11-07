@@ -641,6 +641,27 @@ export function evaluateOrder(input: PackInput, types: number[]): PackResult {
   return finish(packInOrder(order, input), input, tooBig)
 }
 
+/**
+ * 並べ順を 1 つ積んだ記録（置き始める角を原点にした座標）。GPU の計算で、
+ * 入れ替えた位置より前の置き方をここから写して、そこから先だけを計算するのに使う
+ */
+export function traceOrder(input: PackInput, types: number[]) {
+  const { items } = itemsOf(input)
+  const rest = [...items]
+  const order: Item[] = []
+  for (const type of types) {
+    const i = rest.findIndex((it) => it.type === type)
+    if (i >= 0) order.push(...rest.splice(i, 1))
+  }
+  order.push(...rest)
+  const t = packInOrder(order, input)
+  return {
+    placed: t.placed.map((p) => [p.u, p.v, p.z, p.w, p.d, p.h] as const),
+    placedAfter: t.placedAfter,
+    heightAfter: t.heightAfter,
+  }
+}
+
 /** 置き始める角の向き（GPU の計算でも同じ決め方を使う） */
 export function alongSideFirstOf(walls: Walls) {
   return anchorOf(walls).alongSideFirst
