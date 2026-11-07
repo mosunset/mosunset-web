@@ -169,7 +169,14 @@ async function search(
   const pendingMetrics = new Set<Metric>()
   const consider = (r: PackResult) => {
     for (const metric of metrics) {
-      if (betterFor(metric, r, metricBest.get(metric))) {
+      if (
+        betterFor(
+          metric,
+          r,
+          metricBest.get(metric),
+          metricBest.get('height')?.height,
+        )
+      ) {
         metricBest.set(metric, r)
         pendingMetrics.add(metric)
         lastImproved = Date.now()

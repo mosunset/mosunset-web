@@ -29,6 +29,7 @@ export type Objective = 'height' | 'floor'
 /**
  * 見た目の整い（人の感覚）。weight（0〜100）が 0 なら使わない。
  * group: 同じ箱がまとまっている / flat: 上の面が平ら / bigBottom: 大きい箱が下 / upright: 横倒しが少ない
+ * compact: すき間が少ない / noTower: 塔がない
  */
 export type Tidy = {
   weight: number
@@ -36,6 +37,8 @@ export type Tidy = {
   flat: boolean
   bigBottom: boolean
   upright: boolean
+  compact: boolean
+  noTower: boolean
 }
 
 export type PackInput = {
@@ -601,6 +604,11 @@ function finish(
   }
 }
 
+/** 置き場所から見た目の整い（0〜1）を測る。保存した結果を今の測り方で測り直すのに使う */
+export function measureTidiness(placements: Placement[], input: PackInput) {
+  return tidinessOf(placements, input, gapOf(input)).value
+}
+
 /** 見た目の整いの点数の重み（重視する度合いが 100 のとき、見る点 1 つが全部だめなら高さの h0 の 0.3 倍ぶん） */
 const TIDY_SCALE = 0.3
 
@@ -609,9 +617,11 @@ const gapOf = (input: PackInput) => input.gap
 /**
  * 見た目の整い。見る点ごとに 0〜1（1 が良い）で測り、使う見る点の平均（value）と、足りなさの合計（penalty）を返す
  * - group: 箱どうしが接している面のうち、同じ種類（タグ）の箱どうしが接している割合
- * - flat: 箱が置かれている範囲で、上の面の高さのばらつきの小ささ
+ * - flat: 箱が置かれている範囲（外側を囲んだ四角）で、上の面の高さのばらつきの小ささ。空いたところは高さ 0 として数える
  * - bigBottom: 箱が箱の上に載っている面積のうち、下の箱より大きい箱が載っていない割合
  * - upright: 横倒しにしていない箱の割合
+ * - compact: 箱の体積 ÷ 上の面より下の空間の体積（すき間が少ないほど 1 に近い）
+ * - noTower: 平均の上面の高さ ÷ いちばん高い上面（ぽつんと高い塔がないほど 1 に近い）
  */
 function tidinessOf(placements: Placement[], input: PackInput, gap: number) {
   const n = placements.length
@@ -653,30 +663,50 @@ function tidinessOf(placements: Placement[], input: PackInput, gap: number) {
       }
     }
   }
-  // 上の面: 床をマス目に分け、箱が置かれているマスの上面の高さのばらつき
-  const G = 16
-  const { floorX: X, floorY: Y } = input
-  const tops: number[] = []
-  let maxTop = 0
-  for (let i = 0; i < G; i++) {
-    for (let j = 0; j < G; j++) {
-      const px = ((i + 0.5) * X) / G
-      const py = ((j + 0.5) * Y) / G
-      let top = 0
-      for (const p of placements) {
-        if (px >= p.x && px < p.x + p.w && py >= p.y && py < p.y + p.d)
-          top = Math.max(top, p.z + p.h)
-      }
-      if (top > 0) {
-        tops.push(top)
-        maxTop = Math.max(maxTop, top)
+  // 上から見た高さの地図。箱が置かれている範囲（外側を囲んだ四角）をマス目に分け、
+  // 各マスの中心でいちばん高い上面を調べる。箱のないマスは高さ 0（すき間や空いたところ）
+  const G = 24
+  let minX = Number.POSITIVE_INFINITY
+  let minY = Number.POSITIVE_INFINITY
+  let maxX = 0
+  let maxY = 0
+  let boxVolume = 0
+  for (const p of placements) {
+    minX = Math.min(minX, p.x)
+    minY = Math.min(minY, p.y)
+    maxX = Math.max(maxX, p.x + p.w)
+    maxY = Math.max(maxY, p.y + p.d)
+    boxVolume += p.w * p.d * p.h
+  }
+  const cw = (maxX - minX) / G
+  const ch = (maxY - minY) / G
+  const tops = new Float64Array(G * G)
+  const cells = (from: number, size: number, min: number, step: number) => [
+    Math.max(0, Math.ceil((from - min) / step - 0.5)),
+    Math.min(G - 1, Math.ceil((from + size - min) / step - 0.5) - 1),
+  ]
+  for (const p of placements) {
+    const [i0, i1] = cells(p.x, p.w, minX, cw)
+    const [j0, j1] = cells(p.y, p.d, minY, ch)
+    const top = p.z + p.h
+    for (let i = i0; i <= i1; i++) {
+      for (let j = j0; j <= j1; j++) {
+        if (top > tops[i * G + j]) tops[i * G + j] = top
       }
     }
   }
-  const mean = tops.reduce((s, t) => s + t, 0) / Math.max(1, tops.length)
-  const std = Math.sqrt(
-    tops.reduce((s, t) => s + (t - mean) ** 2, 0) / Math.max(1, tops.length),
-  )
+  let maxTop = 0
+  let sum = 0
+  for (const t of tops) {
+    maxTop = Math.max(maxTop, t)
+    sum += t
+  }
+  const mean = sum / tops.length
+  let varSum = 0
+  for (const t of tops) varSum += (t - mean) ** 2
+  const std = Math.sqrt(varSum / tops.length)
+  // 上の面より下の空間の体積（箱の体積との差が、箱の間や下にできたすき間）
+  const underTop = sum * cw * ch
   const parts: number[] = []
   if (input.tidy.group)
     parts.push(contactAll > 0 ? contactSame / contactAll : 1)
@@ -686,6 +716,11 @@ function tidinessOf(placements: Placement[], input: PackInput, gap: number) {
     parts.push(supportAll > 0 ? 1 - supportBad / supportAll : 1)
   if (input.tidy.upright)
     parts.push(1 - placements.filter((p) => p.laidDown).length / n)
+  if (input.tidy.compact)
+    parts.push(underTop > 0 ? Math.min(1, boxVolume / underTop) : 1)
+  // いちばん高いところまで、まわりも同じくらい高いか（平均の高さ ÷ いちばん高い上面）。
+  // ぽつんと高い塔があると、いちばん高い上面だけが上がって小さくなる
+  if (input.tidy.noTower) parts.push(maxTop > 0 ? mean / maxTop : 1)
   if (parts.length === 0) return { value: 1, penalty: 0 }
   return {
     value: parts.reduce((s, x) => s + x, 0) / parts.length,
@@ -937,10 +972,29 @@ export function isComplete(r: PackResult) {
   return r.unplaced.length === 0 && r.placements.length > 0
 }
 
-/** a が b より、その部門で良いか（b がなければ、対象になる結果なら良い） */
-export function betterFor(metric: Metric, a: PackResult, b?: PackResult) {
+/** 「見た目がいちばん整っている」部門の対象にする高さの幅（いちばん低い結果の何倍まで） */
+export const TIDY_HEIGHT_BAND = 1.1
+
+/**
+ * a が b より、その部門で良いか（b がなければ、対象になる結果なら良い）。
+ * lowest は、今わかっているいちばん低い高さ。「見た目がいちばん整っている」部門は、
+ * いちばん低い結果より TIDY_HEIGHT_BAND 倍以内の高さのものだけで整いを比べる
+ */
+export function betterFor(
+  metric: Metric,
+  a: PackResult,
+  b?: PackResult,
+  lowest?: number,
+) {
   if (!isComplete(a)) return false
   if (!b) return true
+  if (metric === 'tidy') {
+    const low = Math.min(lowest ?? Number.POSITIVE_INFINITY, a.height, b.height)
+    const inA = a.height <= low * TIDY_HEIGHT_BAND + 1e-6
+    const inB = b.height <= low * TIDY_HEIGHT_BAND + 1e-6
+    if (inA !== inB) return inA
+    if (!inA) return a.height < b.height
+  }
   const cogZ = (r: PackResult) => r.cog?.z ?? 0
   const keys: Record<Metric, (r: PackResult) => number[]> = {
     // 高さが同じ結果はたくさんあるので、同じなら見た目が整っているほうを残す

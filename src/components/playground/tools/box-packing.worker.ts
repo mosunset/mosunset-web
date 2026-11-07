@@ -44,7 +44,14 @@ worker.onmessage = (event) => {
   let metricImproved = false
   const search = createSearch(event.data, (result) => {
     for (const metric of metrics) {
-      if (betterFor(metric, result, metricBest.get(metric))) {
+      if (
+        betterFor(
+          metric,
+          result,
+          metricBest.get(metric),
+          metricBest.get('height')?.height,
+        )
+      ) {
         metricBest.set(metric, result)
         metricPending.add(metric)
         metricImproved = true

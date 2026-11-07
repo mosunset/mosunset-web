@@ -28,6 +28,7 @@ import {
   type BoxSpec,
   betterFor,
   type Metric,
+  measureTidiness,
   metricLabels,
   metrics,
   type Objective,
@@ -94,7 +95,15 @@ const initial: Settings = {
   supportPercent: 95,
   objective: 'height',
   wallBias: 50,
-  tidy: { weight: 50, group: true, flat: true, bigBottom: true, upright: true },
+  tidy: {
+    weight: 50,
+    group: true,
+    flat: true,
+    bigBottom: true,
+    upright: true,
+    compact: true,
+    noTower: true,
+  },
   boxes: [
     { tag: '冬服', x: 500, y: 400, z: 350, count: 4, canLayDown: false },
     { tag: '本', x: 400, y: 300, z: 250, count: 8, canLayDown: false },
@@ -315,7 +324,9 @@ function parseSettingsObject(value: unknown): Settings | null {
     wallBias: num(s.wallBias, initial.wallBias, 0, 100),
     tidy: (() => {
       const t = (s.tidy ?? {}) as Record<string, unknown>
-      const flag = (key: 'group' | 'flat' | 'bigBottom' | 'upright') =>
+      const flag = (
+        key: 'group' | 'flat' | 'bigBottom' | 'upright' | 'compact' | 'noTower',
+      ) =>
         typeof t[key] === 'boolean' ? (t[key] as boolean) : initial.tidy[key]
       return {
         weight: num(t.weight, initial.tidy.weight, 0, 100),
@@ -323,6 +334,8 @@ function parseSettingsObject(value: unknown): Settings | null {
         flat: flag('flat'),
         bigBottom: flag('bigBottom'),
         upright: flag('upright'),
+        compact: flag('compact'),
+        noTower: flag('noTower'),
       }
     })(),
     boxes: (s.boxes as Record<string, unknown>[]).slice(0, MAX_ROWS).map((b) =>
@@ -461,7 +474,7 @@ function loadSaved(): Saved[] {
         savedAt: isNumber(item.savedAt) ? item.savedAt : Date.now(),
         run: isNumber(item.run) ? item.run : 1,
         settings,
-        result: withTidiness(r),
+        result: withTidiness(r, settings),
       })
     } catch {
       // 壊れた 1 件は飛ばす
@@ -503,8 +516,16 @@ type BestGroup = {
 const MAX_BEST_GROUPS = 10
 
 /** 前の版で保存した結果には見た目の整いがないので、0 で補う */
-function withTidiness(r: PackResult): PackResult {
-  return typeof r.tidiness === 'number' ? r : { ...r, tidiness: 0 }
+/** 保存した結果の整いを、今の測り方で測り直す（測り方を変えても、比べ方がずれないように） */
+function withTidiness(r: PackResult, settings: Settings): PackResult {
+  try {
+    return {
+      ...r,
+      tidiness: measureTidiness(r.placements, toInput(settings, 0)),
+    }
+  } catch {
+    return { ...r, tidiness: typeof r.tidiness === 'number' ? r.tidiness : 0 }
+  }
 }
 
 function isResult(r: unknown): r is PackResult {
@@ -539,7 +560,7 @@ function loadBests(): Record<string, BestGroup> {
         sweep: typeof e.sweep === 'number' ? e.sweep : undefined,
         foundAt: typeof e.foundAt === 'number' ? e.foundAt : Date.now(),
         settings,
-        result: withTidiness(e.result),
+        result: withTidiness(e.result, settings),
       }
     }
     out[key] = {
@@ -574,6 +595,8 @@ function summarize(s: Settings): SettingsSummary {
               s.tidy.flat && '平ら',
               s.tidy.bigBottom && '大が下',
               s.tidy.upright && '横倒し少',
+              s.tidy.compact && 'すき間少',
+              s.tidy.noTower && '塔なし',
             ]
               .filter(Boolean)
               .join('・')}）`,
@@ -615,14 +638,20 @@ function withBest(
   entry: BestEntry,
 ): Record<string, BestGroup> {
   const group = all[key]
-  if (!betterFor(metric, entry.result, group?.entries[metric]?.result))
+  const lowest = group?.entries.height?.result.height
+  if (!betterFor(metric, entry.result, group?.entries[metric]?.result, lowest))
     return all
+  const entries = { ...group?.entries, [metric]: entry }
+  // いちばん低い結果が変わると、「見た目がいちばん整っている」部門の対象になる高さの幅も変わる
+  if (
+    metric === 'height' &&
+    betterFor('tidy', entry.result, entries.tidy?.result, entry.result.height)
+  ) {
+    entries.tidy = entry
+  }
   const next = {
     ...all,
-    [key]: {
-      updatedAt: Date.now(),
-      entries: { ...group?.entries, [metric]: entry },
-    },
+    [key]: { updatedAt: Date.now(), entries },
   }
   // 古いまとまりから消して、数を抑える
   const keys = Object.keys(next).sort(
@@ -2024,6 +2053,8 @@ export function BoxPacking() {
                   ['flat', '上の面を平らに'],
                   ['bigBottom', '大きい箱を下に'],
                   ['upright', '横倒しを減らす'],
+                  ['compact', 'すき間を少なく'],
+                  ['noTower', '塔を作らない'],
                 ] as const
               ).map(([key, label]) => (
                 <label key={key} className="flex items-center gap-2">
