@@ -11,8 +11,9 @@
     {
       "binding": "DB",
       "database_name": "mosunset-web",
-      // 本番用は `npx wrangler d1 create mosunset-web` で作成し、出力された ID に置き換える
-      "database_id": "00000000-0000-0000-0000-000000000000",
+      // 本番用（2026-11-07 に `npx wrangler d1 create mosunset-web --location apac` で作成）。
+      // ローカルの開発用データベースもこの ID ごとに分かれるので、変えたら migrate と取り込みをやり直す
+      "database_id": "607e13ee-8d11-4b1b-a4c0-782b69cc26f0",
       "migrations_dir": "drizzle"
     }
   ],
@@ -28,7 +29,8 @@
   "vars": {
     // 通知メールの送信元（mosunset.com で Email Routing を有効にしておく）
     "CONTACT_FROM": "noreply@mosunset.com",
-    // Turnstile のサイトキー（公開してよい値）。今は Cloudflare のテスト用キー。本番のキーに置き換える
-    "TURNSTILE_SITE_KEY": "1x00000000000000000000AA"
+    // Turnstile のサイトキー（公開してよい値・mosunset.com 用）。
+    // 開発中は .dev.vars でテスト用キーに上書きする。シークレットキーは `wrangler secret put TURNSTILE_SECRET_KEY`
+    "TURNSTILE_SITE_KEY": "0x4AAAAAAF3C6_jGAZzC4eAG"
   }
 }
