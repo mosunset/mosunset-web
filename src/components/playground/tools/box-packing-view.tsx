@@ -306,6 +306,11 @@ export function PackingView(props: Props) {
     const aspect = s.camera.aspect > 0 ? s.camera.aspect : 1
     const hfov = 2 * Math.atan(Math.tan(vfov / 2) * aspect)
     const distance = (radius / Math.sin(Math.min(vfov, hfov) / 2)) * 1.02
+    // ドラッグの勢い（慣性）が残っていると、合わせたあとも視点が流れるので消しておく。
+    // OrbitControls は、慣性をオフにして update すると残りの勢いを捨てる
+    s.controls.enableDamping = false
+    s.controls.update()
+    s.controls.enableDamping = true
     s.camera.position.copy(center).addScaledVector(viewDirection, distance)
     s.camera.near = distance / 100
     s.camera.far = distance * 10 + radius * 4
