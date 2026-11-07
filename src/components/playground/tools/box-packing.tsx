@@ -752,105 +752,118 @@ export function BoxPacking() {
         </div>
       )}
 
-      {/* 候補 */}
-      {candidates.length > 0 && (
-        <section className="space-y-2 rounded-lg border p-4">
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <h2 className="font-semibold">
-              候補（良い結果が見つかるたびに保存）
-            </h2>
-            {pinned !== null && (
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => setPinned(null)}
-              >
-                いちばん良い結果を表示し続ける
-              </Button>
-            )}
-          </div>
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[32rem] text-sm">
-              <thead className="text-left text-xs text-muted-foreground">
-                <tr>
-                  <th className="py-1 font-normal">見つかった時間</th>
-                  <th className="py-1 font-normal">高さ</th>
-                  <th className="py-1 font-normal">充填率</th>
-                  <th className="py-1 font-normal">1 段目</th>
-                  <th className="py-1 font-normal">置けた箱</th>
-                  <th className="py-1 font-normal">重心 x, y</th>
-                  <th className="py-1">
-                    <span className="sr-only">表示</span>
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="font-mono tabular-nums">
-                {[...candidates].reverse().map((c) => {
-                  const active = c.id === current?.id
-                  return (
-                    <tr
-                      key={c.id}
-                      className={cn('border-t', active && 'bg-muted/60')}
-                    >
-                      <td className="py-1">
-                        {seconds(c.elapsed)}
-                        {c.id === latest?.id && (
-                          <span className="ml-2 font-sans text-xs text-primary">
-                            最良
-                          </span>
-                        )}
-                      </td>
-                      <td className="py-1">
-                        {c.result.height.toLocaleString()} mm
-                      </td>
-                      <td className="py-1">{percent(c.result.fillRate)}%</td>
-                      <td className="py-1">
-                        {percent(c.result.floorCoverage)}%
-                      </td>
-                      <td className="py-1">{c.result.placements.length}</td>
-                      <td className="py-1">
-                        {c.result.cog
-                          ? `${Math.round(c.result.cog.x)}, ${Math.round(c.result.cog.y)}`
-                          : '—'}
-                      </td>
-                      <td className="py-1 text-right">
-                        <Button
-                          type="button"
-                          variant={active ? 'secondary' : 'ghost'}
-                          size="sm"
-                          aria-pressed={active}
-                          onClick={() =>
-                            setPinned(c.id === latest?.id ? null : c.id)
-                          }
-                        >
-                          {active ? '表示中' : '表示'}
-                        </Button>
-                      </td>
-                    </tr>
-                  )
-                })}
-              </tbody>
-            </table>
-          </div>
-        </section>
-      )}
-
-      {result && result.placements.length > 1 && (
-        <div className="rounded-lg border p-4">
-          <RangeSlider
-            label="積む順に見る"
-            value={visible ?? result.placements.length}
-            min={0}
-            max={result.placements.length}
-            step={1}
-            unit={` / ${result.placements.length} 個`}
-            onChange={(v) =>
-              setVisible(v === result.placements.length ? null : v)
-            }
-          />
+      {/* 候補。増えても下の設定がずれないよう、高さを決めて中だけスクロールする */}
+      <section className="space-y-2 rounded-lg border p-4">
+        <div className="flex min-h-8 flex-wrap items-center justify-between gap-2">
+          <h2 className="font-semibold">
+            候補（良い結果が見つかるたびに保存）
+          </h2>
+          {pinned !== null && (
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => setPinned(null)}
+            >
+              いちばん良い結果を表示し続ける
+            </Button>
+          )}
         </div>
-      )}
+        <div className="h-56 overflow-auto rounded-md border">
+          {candidates.length === 0 && (
+            <p className="flex h-full items-center justify-center text-sm text-muted-foreground">
+              {status === 'invalid'
+                ? '入力を直すと計算します'
+                : '計算すると、ここに候補が並びます'}
+            </p>
+          )}
+          <table
+            className={cn(
+              'w-full min-w-[32rem] text-sm [&_td]:px-3 [&_th]:px-3',
+              candidates.length === 0 && 'hidden',
+            )}
+          >
+            <thead className="sticky top-0 bg-background text-left text-xs text-muted-foreground">
+              <tr>
+                <th className="py-1 font-normal">見つかった時間</th>
+                <th className="py-1 font-normal">高さ</th>
+                <th className="py-1 font-normal">充填率</th>
+                <th className="py-1 font-normal">1 段目</th>
+                <th className="py-1 font-normal">置けた箱</th>
+                <th className="py-1 font-normal">重心 x, y</th>
+                <th className="py-1">
+                  <span className="sr-only">表示</span>
+                </th>
+              </tr>
+            </thead>
+            <tbody className="font-mono tabular-nums">
+              {[...candidates].reverse().map((c) => {
+                const active = c.id === current?.id
+                return (
+                  <tr
+                    key={c.id}
+                    className={cn('border-t', active && 'bg-muted/60')}
+                  >
+                    <td className="py-1">
+                      {seconds(c.elapsed)}
+                      {c.id === latest?.id && (
+                        <span className="ml-2 font-sans text-xs text-primary">
+                          最良
+                        </span>
+                      )}
+                    </td>
+                    <td className="py-1">
+                      {c.result.height.toLocaleString()} mm
+                    </td>
+                    <td className="py-1">{percent(c.result.fillRate)}%</td>
+                    <td className="py-1">{percent(c.result.floorCoverage)}%</td>
+                    <td className="py-1">{c.result.placements.length}</td>
+                    <td className="py-1">
+                      {c.result.cog
+                        ? `${Math.round(c.result.cog.x)}, ${Math.round(c.result.cog.y)}`
+                        : '—'}
+                    </td>
+                    <td className="py-1 text-right">
+                      <Button
+                        type="button"
+                        variant={active ? 'secondary' : 'ghost'}
+                        size="sm"
+                        aria-pressed={active}
+                        onClick={() =>
+                          setPinned(c.id === latest?.id ? null : c.id)
+                        }
+                      >
+                        {active ? '表示中' : '表示'}
+                      </Button>
+                    </td>
+                  </tr>
+                )
+              })}
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      {/* 結果がないときも欄は出しておく（出たり消えたりで下の設定がずれないように） */}
+      <div
+        className={cn(
+          'rounded-lg border p-4',
+          !(result && result.placements.length > 1) &&
+            'pointer-events-none opacity-50',
+        )}
+      >
+        <RangeSlider
+          label="積む順に見る"
+          value={visible ?? result?.placements.length ?? 0}
+          min={0}
+          max={result?.placements.length ?? 0}
+          step={1}
+          unit={` / ${result?.placements.length ?? 0} 個`}
+          onChange={(v) =>
+            setVisible(v === result?.placements.length ? null : v)
+          }
+        />
+      </div>
 
       {/* 床と積み方 */}
       <section className="space-y-4 rounded-lg border p-4">
