@@ -13,7 +13,7 @@ import { cn } from '@/lib/utils'
 type ViewerImage = { src: string; alt: string }
 
 /** 画像を画面いっぱいに、切らずに全体を表示する */
-export function ImageLightbox({
+function ImageLightbox({
   image,
   onClose,
 }: {

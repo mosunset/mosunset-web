@@ -16,7 +16,7 @@ import {
  * 保存していない変更があるときに、ページの移動を止めて確認する。
  * タブを閉じる・リロードするときはブラウザの標準の確認を出す。
  */
-export function UnsavedChangesGuard({
+function UnsavedChangesGuard({
   dirty,
   onSave,
 }: {
@@ -148,7 +148,7 @@ export function FormRecovery({
 }
 
 /** ブラウザ内に控えが残っているときの案内 */
-export function BackupNotice({
+function BackupNotice({
   savedAt,
   onRestore,
   onDiscard,

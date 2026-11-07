@@ -19,7 +19,7 @@ type Options = {
 const kataToHira = (s: string) =>
   s.replace(/[ァ-ヶ]/g, (c) => String.fromCharCode(c.charCodeAt(0) - 0x60))
 
-export function normalize(text: string, o: Options) {
+function normalize(text: string, o: Options) {
   let s = text
   if (o.nfkc) s = s.normalize('NFKC')
   if (o.removeSpace) s = s.replace(/\s+/g, '')
@@ -28,7 +28,7 @@ export function normalize(text: string, o: Options) {
   return s
 }
 
-export function ngrams(text: string, n: number): string[] {
+function ngrams(text: string, n: number): string[] {
   const chars = Array.from(text)
   const out: string[] = []
   for (let i = 0; i + n <= chars.length; i++)
@@ -36,7 +36,7 @@ export function ngrams(text: string, n: number): string[] {
   return out
 }
 
-export function similarity(a: string, b: string, n: number) {
+function similarity(a: string, b: string, n: number) {
   const setA = new Set(ngrams(a, n))
   const setB = new Set(ngrams(b, n))
   const common = [...setA].filter((g) => setB.has(g)).sort()

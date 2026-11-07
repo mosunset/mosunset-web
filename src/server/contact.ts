@@ -37,7 +37,7 @@ const singleLine = (max: number) =>
       '改行や制御文字は使えません',
     )
 
-export const contactInputSchema = z.object({
+const contactInputSchema = z.object({
   name: singleLine(100).refine((v) => v.length > 0, 'お名前を入力してください'),
   email: z.email('メールアドレスの形式が正しくありません').max(200),
   subject: singleLine(200).default(''),
@@ -50,8 +50,6 @@ export const contactInputSchema = z.object({
   /** 人には見えない入力欄。値が入っていたら bot とみなす */
   website: z.string().default(''),
 })
-
-export type ContactInput = z.input<typeof contactInputSchema>
 
 export const submitContact = createServerFn({ method: 'POST' })
   .validator((data: unknown) => contactInputSchema.parse(data))

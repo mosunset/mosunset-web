@@ -12,7 +12,7 @@ declare module '@tanstack/react-router' {
   }
 }
 
-export type Crumb = { label: string; pathname: string }
+type Crumb = { label: string; pathname: string }
 
 /** マッチしているルートの staticData.breadcrumb からパンくずを組み立てる */
 export function resolveBreadcrumbs(matches: AnyRouteMatch[]): Crumb[] {
