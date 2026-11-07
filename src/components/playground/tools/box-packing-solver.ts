@@ -190,22 +190,146 @@ function anchorOf(walls: Walls) {
   }
 }
 
-function packInOrder(order: Item[], input: PackInput) {
+/**
+ * 置いた箱を床のマス目に登録しておき、ある範囲の近くにある箱だけを取り出す。
+ * 箱が多いときに、置く場所の候補ごとに全部の箱を調べ直さずに済む
+ */
+class Grid {
+  private readonly cells: number[][]
+  private readonly cols: number
+  private readonly cw: number
+  private readonly ch: number
+  private readonly marks: Uint32Array
+  private stamp = 0
+
+  /** cell はマス目 1 つの大きさの目安（箱の 1 辺くらいにすると、調べるマスも箱も少なくて済む） */
+  constructor(U: number, V: number, capacity: number, cell: number) {
+    this.cols = Math.max(2, Math.min(32, Math.round(Math.max(U, V) / cell)))
+    this.cw = U / this.cols
+    this.ch = V / this.cols
+    this.cells = Array.from({ length: this.cols * this.cols }, () => [])
+    this.marks = new Uint32Array(Math.max(1, capacity))
+  }
+
+  private range(u0: number, v0: number, u1: number, v1: number) {
+    const last = this.cols - 1
+    const clamp = (n: number) => Math.max(0, Math.min(last, n))
+    return [
+      clamp(Math.floor(u0 / this.cw)),
+      clamp(Math.floor(v0 / this.ch)),
+      // 範囲の右・奥の端はふくまない（座標は整数）
+      clamp(Math.floor((u1 - 1) / this.cw)),
+      clamp(Math.floor((v1 - 1) / this.ch)),
+    ]
+  }
+
+  add(id: number, u0: number, v0: number, u1: number, v1: number) {
+    const [i0, j0, i1, j1] = this.range(u0, v0, u1, v1)
+    for (let i = i0; i <= i1; i++)
+      for (let j = j0; j <= j1; j++) this.cells[i * this.cols + j].push(id)
+  }
+
+  /** 範囲に重なるマスに登録された箱の番号を out に入れる（重複なし） */
+  query(u0: number, v0: number, u1: number, v1: number, out: number[]) {
+    out.length = 0
+    this.stamp++
+    const [i0, j0, i1, j1] = this.range(u0, v0, u1, v1)
+    for (let i = i0; i <= i1; i++) {
+      for (let j = j0; j <= j1; j++) {
+        for (const id of this.cells[i * this.cols + j]) {
+          if (this.marks[id] === this.stamp) continue
+          this.marks[id] = this.stamp
+          out.push(id)
+        }
+      }
+    }
+  }
+}
+
+/** 置いた箱がこれより少ないうちは、マス目を使わずに全部を調べたほうが速い */
+const SMALL = 40
+
+/**
+ * 1 つの並べ順で置いた記録。置いた箱は後ろに足していくだけなので、
+ * 「i 番目まで置いた時点」の状態は、各時点の個数を覚えておけば取り出せる
+ */
+type Trace = {
+  placed: Placed[]
+  unplaced: number[]
+  height: number
+  /** 並べ順の i 番目を置き終えた時点での、置いた数・置けなかった数・高さ */
+  placedAfter: number[]
+  unplacedAfter: number[]
+  heightAfter: number[]
+}
+
+/**
+ * 並べ順のとおりに 1 個ずつ置いていく。
+ * base と from を渡すと、base の並べ順と from 番目より前が同じとみなし、そこから先だけを置き直す
+ */
+function packInOrder(
+  order: Item[],
+  input: PackInput,
+  base?: Trace,
+  from = 0,
+): Trace {
   const { gap, objective } = input
   const U = input.floorX - 2 * input.edgeGap
   const V = input.floorY - 2 * input.edgeGap
   const anchor = anchorOf(input.walls)
-  const placed: Placed[] = []
-  const unplaced: number[] = []
-  let height = 0
+  const start = base ? from : 0
+  const placed = base
+    ? base.placed.slice(0, start > 0 ? base.placedAfter[start - 1] : 0)
+    : []
+  const unplaced = base
+    ? base.unplaced.slice(0, start > 0 ? base.unplacedAfter[start - 1] : 0)
+    : []
+  let height = base && start > 0 ? base.heightAfter[start - 1] : 0
+  const placedAfter = base ? base.placedAfter.slice(0, start) : []
+  const unplacedAfter = base ? base.unplacedAfter.slice(0, start) : []
+  const heightAfter = base ? base.heightAfter.slice(0, start) : []
 
   // 置く場所の候補（左・手前の端を、床の端か、置いた箱の右・奥の端 ＋ すき間にそろえる）
   const us = new Set([0])
   const vs = new Set([0])
   // 箱が多いときは組み合わせが増えすぎるので、置いた箱の角のまわりだけを候補にする
   const points: [number, number][] = [[0, 0]]
+  const pointKeys = new Set([0])
+  const addPoint = (u: number, v: number) => {
+    if (u >= U || v >= V) return
+    const key = u * 1_000_003 + v
+    if (pointKeys.has(key)) return
+    pointKeys.add(key)
+    points.push([u, v])
+  }
+  const sides = order.map((it) =>
+    Math.min(it.orientations[0].w, it.orientations[0].d),
+  )
+  const grid = new Grid(
+    U,
+    V,
+    order.length,
+    sides.reduce((a, b) => a + b, 0) / Math.max(1, sides.length),
+  )
+  /** 置いた箱の番号（箱が少ないうちは、マス目を使わずに全部を調べる） */
+  const all: number[] = []
+  const register = (p: Placed, id: number) => {
+    us.add(p.u + p.w + gap)
+    vs.add(p.v + p.d + gap)
+    addPoint(p.u + p.w + gap, p.v)
+    addPoint(p.u, p.v + p.d + gap)
+    addPoint(p.u, p.v)
+    addPoint(p.u + p.w + gap, 0)
+    addPoint(0, p.v + p.d + gap)
+    all.push(id)
+    // すき間の分だけ広げて登録すると、すき間の確認に要る箱も取り出せる
+    grid.add(id, p.u - gap, p.v - gap, p.u + p.w + gap, p.v + p.d + gap)
+  }
+  placed.forEach(register)
 
-  for (const item of order) {
+  const found: number[] = []
+  for (let index = start; index < order.length; index++) {
+    const item = order[index]
     let best: { score: number[]; p: Placed } | null = null
     const candidates: Iterable<[number, number]> =
       us.size * vs.size <= 2500
@@ -218,23 +342,41 @@ function packInOrder(order: Item[], input: PackInput) {
     for (const [u, v] of candidates) {
       for (const o of item.orientations) {
         if (u + o.w > U || v + o.d > V) continue
+        // 床に直接置けたとしても今の最良に勝てない場所は、調べるまでもない
+        const along = anchor.alongSideFirst ? [u, v] : [v, u]
+        const scoreAt = (z: number) =>
+          objective === 'height'
+            ? [Math.max(height, z + o.h), z + o.h, z, ...along]
+            : [z, z + o.h, ...along]
+        if (best && compare(scoreAt(0), best.score) >= 0) continue
+        let near = all
+        if (all.length > SMALL) {
+          grid.query(u, v, u + o.w, v + o.d, found)
+          near = found
+        }
 
         // 真下にある箱のいちばん高い上面に乗せる
         let z = 0
-        for (const b of placed) {
+        for (const id of near) {
+          const b = placed[id]
           if (
             u < b.u + b.w &&
             b.u < u + o.w &&
             v < b.v + b.d &&
-            b.v < v + o.d
+            b.v < v + o.d &&
+            b.z + b.h > z
           ) {
-            if (b.z + b.h > z) z = b.z + b.h
+            z = b.z + b.h
           }
         }
+        // 置ける高さが決まった時点で勝てないなら、すき間や支えは確かめない
+        const score = scoreAt(z)
+        if (best && compare(score, best.score) >= 0) continue
 
         // 横に並ぶ箱（高さの範囲が重なる箱）とは、すき間をあける
         let blocked = false
-        for (const b of placed) {
+        for (const id of near) {
+          const b = placed[id]
           if (b.z >= z + o.h || b.z + b.h <= z) continue
           if (
             u < b.u + b.w + gap &&
@@ -251,7 +393,8 @@ function packInOrder(order: Item[], input: PackInput) {
         // 底面がどれだけ支えられているか（ちょうど z の高さに上面がある箱との重なり）
         if (z > 0) {
           let supported = 0
-          for (const b of placed) {
+          for (const id of near) {
+            const b = placed[id]
             if (b.z + b.h !== z) continue
             const ou = Math.min(u + o.w, b.u + b.w) - Math.max(u, b.u)
             const ov = Math.min(v + o.d, b.v + b.d) - Math.max(v, b.v)
@@ -260,37 +403,23 @@ function packInOrder(order: Item[], input: PackInput) {
           if (supported * 100 < input.supportPercent * o.w * o.d) continue
         }
 
-        const top = z + o.h
-        const along = anchor.alongSideFirst ? [u, v] : [v, u]
-        const score =
-          objective === 'height'
-            ? [Math.max(height, top), top, z, ...along]
-            : [z, top, ...along]
-        if (!best || compare(score, best.score) < 0) {
-          best = { score, p: { ...o, type: item.type, u, v, z } }
-        }
+        best = { score, p: { ...o, type: item.type, u, v, z } }
       }
     }
 
-    if (!best) {
+    if (best) {
+      placed.push(best.p)
+      register(best.p, placed.length - 1)
+      height = Math.max(height, best.p.z + best.p.h)
+    } else {
       unplaced.push(item.type)
-      continue
     }
-    const p = best.p
-    placed.push(p)
-    us.add(p.u + p.w + gap)
-    vs.add(p.v + p.d + gap)
-    points.push(
-      [p.u + p.w + gap, p.v],
-      [p.u, p.v + p.d + gap],
-      [p.u, p.v],
-      [p.u + p.w + gap, 0],
-      [0, p.v + p.d + gap],
-    )
-    height = Math.max(height, p.z + p.h)
+    placedAfter.push(placed.length)
+    unplacedAfter.push(unplaced.length)
+    heightAfter.push(height)
   }
 
-  return { placed, unplaced, height }
+  return { placed, unplaced, height, placedAfter, unplacedAfter, heightAfter }
 }
 
 // ---- 結果を床の座標に直して、評価する ----
@@ -488,13 +617,12 @@ export function createSearch(input: PackInput) {
     (a: Item, b: Item) => tall(a) - tall(b) || area(b) - area(a),
   ].map((sort) => [...items].sort((a, b) => sort(a, b) || a.type - b.type))
 
-  const evaluate = (order: Item[]) =>
-    finish(packInOrder(order, input), input, tooBig)
-
   let bestOrder = startOrders[0]
-  let best = evaluate(bestOrder)
+  let bestTrace = packInOrder(bestOrder, input)
+  let best = finish(bestTrace, input, tooBig)
   let tried = 1
   const rand = random(input.seed * 7919 + items.length)
+  const typeCount = new Set(items.map((it) => it.type)).size
 
   return {
     get best() {
@@ -503,9 +631,9 @@ export function createSearch(input: PackInput) {
     get tried() {
       return tried
     },
-    /** これ以上試しても変わらない（箱が 1 個以下で、最初の並べ順も試し終えた） */
+    /** これ以上試しても変わらない（箱が 1 種類以下で、最初の並べ順も試し終えた） */
     get exhausted() {
-      return tried >= startOrders.length && items.length <= 1
+      return tried >= startOrders.length && typeCount <= 1
     },
     step() {
       let order: Item[]
@@ -526,14 +654,25 @@ export function createSearch(input: PackInput) {
         }
       }
       tried++
-      const result = evaluate(order)
+      // 今いちばん良い並べ順と同じところまでは、置き方も同じになるので置き直さない
+      // （同じ種類の箱どうしの入れ替えは、並べ順が変わらないのと同じ）
+      let from = 0
+      while (from < order.length && order[from].type === bestOrder[from].type)
+        from++
+      if (from === order.length) return false
+      const trace = packInOrder(order, input, bestTrace, from)
+      const result = finish(trace, input, tooBig)
       if (result.score < best.score - 1e-9) {
         best = result
         bestOrder = order
+        bestTrace = trace
         return true
       }
       // 同じ点数なら並べ順だけ乗り換える（行き詰まりにくくする）
-      if (result.score <= best.score) bestOrder = order
+      if (result.score <= best.score) {
+        bestOrder = order
+        bestTrace = trace
+      }
       return false
     },
   }

@@ -363,6 +363,15 @@ function NumberField({
 
 const numberInput = 'h-8 w-20 px-2 text-right font-mono tabular-nums'
 
+/**
+ * 同時に動かす Worker の数。CPU のコアの数から、画面のために 1 つ残す（1〜8）。
+ * それぞれ別の乱数で並べ順を探し、いちばん良い結果を採る
+ */
+const workerCount = Math.max(
+  1,
+  Math.min(8, (globalThis.navigator?.hardwareConcurrency ?? 2) - 1),
+)
+
 export function BoxPacking() {
   const [settings, setSettings] = useState<Settings>(initial)
   const [view, setView] = useState<ViewOptions>({
@@ -378,7 +387,7 @@ export function BoxPacking() {
   const [visible, setVisible] = useState<number | null>(null)
   const [selected, setSelected] = useState<number | null>(null)
   const [runToken, setRunToken] = useState(0)
-  const workerRef = useRef<Worker | null>(null)
+  const workersRef = useRef<Worker[]>([])
   const captureRef = useRef<(() => Promise<Blob | null>) | null>(null)
   const fileRef = useRef<HTMLInputElement>(null)
   const layDownAllRef = useRef<HTMLInputElement>(null)
@@ -412,46 +421,62 @@ export function BoxPacking() {
     }
     setStatus('waiting')
     const snapshot = settings
-    let worker: Worker | null = null
+    const workers: Worker[] = []
     let nextCandidateId = 1
+    // 全部の Worker を通して、いちばん良い結果だけを候補にする
+    let bestScore = Number.POSITIVE_INFINITY
+    const tried = new Array<number>(workerCount).fill(0)
+    let elapsed = 0
+    let finished = 0
     const timer = window.setTimeout(() => {
-      worker = new Worker(new URL('./box-packing.worker.ts', import.meta.url), {
-        type: 'module',
-      })
-      workerRef.current = worker
       setStatus('running')
-      worker.onmessage = (event: MessageEvent<WorkerMessage>) => {
-        const message = event.data
-        setProgress({ tried: message.tried, elapsed: message.elapsed })
-        if (message.kind === 'best') {
-          const candidate: Candidate = {
-            id: nextCandidateId++,
-            settings: snapshot,
-            result: message.result,
-            elapsed: message.elapsed,
+      for (let w = 0; w < workerCount; w++) {
+        const worker = new Worker(
+          new URL('./box-packing.worker.ts', import.meta.url),
+          { type: 'module' },
+        )
+        workers.push(worker)
+        worker.onmessage = (event: MessageEvent<WorkerMessage>) => {
+          const message = event.data
+          tried[w] = message.tried
+          elapsed = Math.max(elapsed, message.elapsed)
+          setProgress({ tried: tried.reduce((a, b) => a + b, 0), elapsed })
+          if (message.kind === 'best') {
+            if (message.result.score >= bestScore - 1e-9) return
+            bestScore = message.result.score
+            const candidate: Candidate = {
+              id: nextCandidateId++,
+              settings: snapshot,
+              result: message.result,
+              elapsed: message.elapsed,
+            }
+            setCandidates((list) => [...list, candidate].slice(-MAX_CANDIDATES))
+          } else if (message.kind === 'done') {
+            worker.terminate()
+            finished++
+            if (finished === workerCount) setStatus('done')
           }
-          setCandidates((list) => [...list, candidate].slice(-MAX_CANDIDATES))
-        } else if (message.kind === 'done') {
-          setStatus('done')
-          worker?.terminate()
         }
+        worker.onerror = () => {
+          for (const x of workers) x.terminate()
+          setStatus('stopped')
+          toast.error('計算に失敗しました')
+        }
+        // Worker ごとに乱数の種を変えて、別々の並べ順を探させる
+        worker.postMessage(toInput(snapshot, (runToken + 1) * 1000 + w))
       }
-      worker.onerror = () => {
-        setStatus('stopped')
-        toast.error('計算に失敗しました')
-      }
-      worker.postMessage(toInput(snapshot, runToken + 1))
+      workersRef.current = workers
     }, 400)
     return () => {
       window.clearTimeout(timer)
-      worker?.terminate()
-      workerRef.current = null
+      for (const worker of workers) worker.terminate()
+      workersRef.current = []
     }
   }, [packKey, error, runToken])
 
   const stop = () => {
-    workerRef.current?.terminate()
-    workerRef.current = null
+    for (const worker of workersRef.current) worker.terminate()
+    workersRef.current = []
     setStatus('stopped')
   }
 
@@ -583,6 +608,7 @@ export function BoxPacking() {
         {progress.tried > 0 && (
           <span className="font-mono text-xs text-muted-foreground tabular-nums">
             {progress.tried.toLocaleString()} 通り・{seconds(progress.elapsed)}
+            ・{workerCount} 並列
           </span>
         )}
         <div className="ml-auto flex gap-2">
