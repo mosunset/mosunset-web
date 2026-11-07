@@ -42,6 +42,8 @@ import {
   buildCombos,
   comboChips,
   defaultSweep,
+  isSweepActive,
+  RangeOrValue,
   type SweepConfig,
   SweepPanel,
   type SweepRow,
@@ -584,6 +586,7 @@ type RunStatus =
   | 'done'
   | 'invalid'
   | 'sweep'
+  | 'sweepReady'
 
 const statusText: Record<RunStatus, string> = {
   waiting: '設定の変更を待っています（最後に触ってから 1 秒で計算し直します）',
@@ -592,6 +595,8 @@ const statusText: Record<RunStatus, string> = {
   done: 'しばらく良い結果が出なくなったので止めました',
   invalid: '入力を直すと計算します',
   sweep: '範囲でまとめて試しています（その間、ふつうの計算は止めています）',
+  sweepReady:
+    '範囲で試す項目があるので、自動では計算しません（下の「範囲でまとめて試す」で計算します）',
 }
 
 const percent = (v: number) => (v * 100).toFixed(1)
@@ -891,6 +896,13 @@ export function BoxPacking() {
     rows: SweepRow[]
   }>({ running: false, index: 0, combos: [], rows: [] })
   const [showBest3D, setShowBest3D] = useState(true)
+  const sweepActive = isSweepActive(sweepConfig)
+  const setRange = <
+    K extends 'gap' | 'edgeGap' | 'supportPercent' | 'wallBias',
+  >(
+    key: K,
+    r: SweepConfig[K],
+  ) => setSweepConfig((c) => ({ ...c, [key]: r }))
   /** 今のふつうの計算を止める関数（「停止」ボタンで使う） */
   const stopWorkersRef = useRef<(() => void) | null>(null)
   const captureRef = useRef<(() => Promise<Blob | null>) | null>(null)
@@ -924,8 +936,8 @@ export function BoxPacking() {
       setVisible(null)
       setProgress({ tried: 0, elapsed: 0 })
     }
-    if (sweep.running) {
-      setStatus('sweep')
+    if (sweep.running || sweepActive) {
+      setStatus(sweep.running ? 'sweep' : 'sweepReady')
       return
     }
     if (error) {
@@ -988,7 +1000,7 @@ export function BoxPacking() {
       stopRun?.()
       stopWorkersRef.current = null
     }
-  }, [packKey, error, runToken, sweep.running])
+  }, [packKey, error, runToken, sweep.running, sweepActive])
 
   const stop = () => {
     stopWorkersRef.current?.()
@@ -1319,12 +1331,13 @@ export function BoxPacking() {
   const resetAll = () => {
     if (
       !window.confirm(
-        '床・積み方・箱のリスト・ランダム生成・表示の設定を、すべて初期値に戻します。保存した結果は消しません。よろしいですか？',
+        '床・積み方（範囲で試す設定も）・箱のリスト・ランダム生成・表示の設定を、すべて初期値に戻します。保存した結果と部門別ベストは消しません。よろしいですか？',
       )
     ) {
       return
     }
     setSettings(freshInitial())
+    setSweepConfig(defaultSweep)
     setView(defaultView)
     setViewingSaved(null)
     toast.success('設定を初期値に戻しました')
@@ -1491,7 +1504,8 @@ export function BoxPacking() {
           </span>
         )}
         <div className="ml-auto flex gap-2">
-          {status === 'sweep' ? null : status === 'running' ? (
+          {status === 'sweep' || status === 'sweepReady' ? null : status ===
+            'running' ? (
             <Button type="button" variant="outline" size="sm" onClick={stop}>
               <Square />
               停止
@@ -1725,20 +1739,6 @@ export function BoxPacking() {
         )}
       </div>
 
-      <SweepPanel
-        config={sweepConfig}
-        onConfig={setSweepConfig}
-        comboCount={comboCount}
-        running={sweep.running}
-        disabled={!!error}
-        rows={sweep.rows}
-        current={sweep.index}
-        viewing={sweepShown ? sweepIndex : null}
-        onStart={startSweep}
-        onStop={stopSweep}
-        onView={(i) => setViewingSaved(i === null ? null : `sweep:${i}`)}
-      />
-
       <SavedResults
         saved={savedViews}
         current={currentSummary}
@@ -1845,42 +1845,49 @@ export function BoxPacking() {
               ))}
             </div>
           </fieldset>
-          <RangeSlider
+          <RangeOrValue
             label="箱どうしのすき間"
-            help="横に並べる箱の間にあけるすき間です。段ボールはぴったりくっつけられないので、その分の余裕を取ります。上下に重ねる箱の間にはあけません。"
+            help="横に並べる箱の間にあけるすき間です。段ボールはぴったりくっつけられないので、その分の余裕を取ります。上下に重ねる箱の間にはあけません。「範囲で試す」にすると、最小〜最大を刻みごとに試します。"
             value={settings.gap}
             min={0}
             max={50}
             step={1}
             unit=" mm"
-            onChange={(v) => set('gap', v)}
+            range={sweepConfig.gap}
+            onValue={(v) => set('gap', v)}
+            onRange={(r) => setRange('gap', r)}
           />
-          <RangeSlider
+          <RangeOrValue
             label="箱と床の端・壁とのすき間"
-            help="床の端や壁と、箱の間にあけるすき間です。"
+            help="床の端や壁と、箱の間にあけるすき間です。「範囲で試す」にすると、最小〜最大を刻みごとに試します。"
             value={settings.edgeGap}
             min={0}
             max={50}
             step={1}
             unit=" mm"
-            onChange={(v) => set('edgeGap', v)}
+            range={sweepConfig.edgeGap}
+            onValue={(v) => set('edgeGap', v)}
+            onRange={(r) => setRange('edgeGap', r)}
           />
-          <RangeSlider
+          <RangeOrValue
             label="底面を支える割合"
-            help="上に載せる箱の底面のうち、下の箱で支えられていないといけない割合です。100% なら、はみ出して載せることはしません。下げるほど詰めやすくなりますが、不安定になります。"
+            help="上に載せる箱の底面のうち、下の箱で支えられていないといけない割合です。100% なら、はみ出して載せることはしません。下げるほど詰めやすくなりますが、不安定になります。「範囲で試す」にすると、最小〜最大を刻みごとに試します。"
             value={settings.supportPercent}
             min={50}
             max={100}
             step={5}
             unit="% 以上"
-            onChange={(v) => set('supportPercent', v)}
+            range={sweepConfig.supportPercent}
+            onValue={(v) => set('supportPercent', v)}
+            onRange={(r) => setRange('supportPercent', r)}
           />
           <fieldset className="space-y-2">
             <legend className="flex items-center gap-1 text-sm">
               優先すること
               <HelpTip>
                 「全体の高さを低く」は、積み上がった高さがいちばん低くなる並べ方を探します。「下の段から隙間なく」は、床に直接置く
-                1 段目をなるべく埋めることを優先します。
+                1
+                段目をなるべく埋めることを優先します。「両方」にすると、範囲でまとめて試すときに両方を試します。
               </HelpTip>
             </legend>
             <div className="inline-flex rounded-md border p-0.5">
@@ -1889,20 +1896,40 @@ export function BoxPacking() {
                   ['height', '全体の高さを低く'],
                   ['floor', '下の段から隙間なく'],
                 ] as const satisfies readonly [Objective, string][]
-              ).map(([value, label]) => (
-                <button
-                  key={value}
-                  type="button"
-                  aria-pressed={settings.objective === value}
-                  onClick={() => set('objective', value)}
-                  className={cn(
-                    'rounded px-3 py-1 text-xs text-muted-foreground',
-                    settings.objective === value && 'bg-muted text-foreground',
-                  )}
-                >
-                  {label}
-                </button>
-              ))}
+              ).map(([value, label]) => {
+                const active =
+                  !sweepConfig.bothObjectives && settings.objective === value
+                return (
+                  <button
+                    key={value}
+                    type="button"
+                    aria-pressed={active}
+                    onClick={() => {
+                      set('objective', value)
+                      setSweepConfig((c) => ({ ...c, bothObjectives: false }))
+                    }}
+                    className={cn(
+                      'rounded px-3 py-1 text-xs text-muted-foreground',
+                      active && 'bg-muted text-foreground',
+                    )}
+                  >
+                    {label}
+                  </button>
+                )
+              })}
+              <button
+                type="button"
+                aria-pressed={sweepConfig.bothObjectives}
+                onClick={() =>
+                  setSweepConfig((c) => ({ ...c, bothObjectives: true }))
+                }
+                className={cn(
+                  'rounded px-3 py-1 text-xs text-muted-foreground',
+                  sweepConfig.bothObjectives && 'bg-muted text-foreground',
+                )}
+              >
+                両方
+              </button>
             </div>
           </fieldset>
           <div
@@ -1914,17 +1941,20 @@ export function BoxPacking() {
               ) && 'opacity-50',
             )}
           >
-            <RangeSlider
+            <RangeOrValue
               label="重心を壁側に寄せる強さ"
-              help="壁があるとき、全体の重心をどれだけ壁側に寄せるかです。強くするほど、箱のかたまりが壁際に集まり、手前に高い山ができにくくなります。壁がないときは、重心を床の中心に近づけます。"
+              help="壁があるとき、全体の重心をどれだけ壁側に寄せるかです（0〜100）。強くするほど、箱のかたまりが壁際に集まり、手前に高い山ができにくくなります。壁がないときは、重心を床の中心に近づけます。"
               value={settings.wallBias}
               min={0}
               max={100}
               step={10}
+              unit=""
               format={(v) =>
                 v === 0 ? 'なし' : v <= 30 ? '弱' : v <= 70 ? '中' : '強'
               }
-              onChange={(v) => set('wallBias', v)}
+              range={sweepConfig.wallBias}
+              onValue={(v) => set('wallBias', v)}
+              onRange={(r) => setRange('wallBias', r)}
             />
             <p className="mt-1 text-xs text-muted-foreground">
               壁がないときは、重心を床の中心に近づけます。
@@ -1961,6 +1991,23 @@ export function BoxPacking() {
             </label>
             <HelpTip>
               すべての箱の「横倒し」をまとめてオン・オフします。許可は「倒してもよい」という意味で、倒したほうが良く積めるときだけ倒します。倒すときに上へ向けるのは、元の「前」か「左」の面だけです。
+            </HelpTip>
+            <label className="ml-3 flex items-center gap-2 text-sm">
+              <input
+                type="checkbox"
+                checked={sweepConfig.bothLayDown}
+                onChange={(e) =>
+                  setSweepConfig((c) => ({
+                    ...c,
+                    bothLayDown: e.target.checked,
+                  }))
+                }
+                className="size-4 accent-primary"
+              />
+              全部オンでも試す
+            </label>
+            <HelpTip>
+              範囲でまとめて試すときに、横倒しの許可を「今の設定のまま」と「全部オン」の両方で試します。
             </HelpTip>
           </span>
         </div>
@@ -2252,6 +2299,21 @@ export function BoxPacking() {
           </details>
         </div>
       </section>
+
+      <SweepPanel
+        config={sweepConfig}
+        onConfig={setSweepConfig}
+        comboCount={comboCount}
+        running={sweep.running}
+        active={sweepActive}
+        disabled={!!error}
+        rows={sweep.rows}
+        current={sweep.index}
+        viewing={sweepShown ? sweepIndex : null}
+        onStart={startSweep}
+        onStop={stopSweep}
+        onView={(i) => setViewingSaved(i === null ? null : `sweep:${i}`)}
+      />
 
       {/* 書き出し・読み込み */}
       <section className="space-y-3 rounded-lg border p-4">

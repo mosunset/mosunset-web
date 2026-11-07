@@ -1,7 +1,7 @@
 import { Eye, Loader2, Play, Square } from 'lucide-react'
-import { useId } from 'react'
+import type { ReactNode } from 'react'
 
-import { HelpTip } from '@/components/playground/parts'
+import { HelpTip, RangeSlider } from '@/components/playground/parts'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { cn } from '@/lib/utils'
@@ -27,15 +27,27 @@ export type SweepConfig = {
 }
 
 export const defaultSweep: SweepConfig = {
-  gap: { on: true, min: 2, max: 10, step: 2 },
+  gap: { on: false, min: 2, max: 10, step: 2 },
   edgeGap: { on: false, min: 2, max: 10, step: 2 },
-  supportPercent: { on: true, min: 85, max: 100, step: 5 },
+  supportPercent: { on: false, min: 85, max: 100, step: 5 },
   wallBias: { on: false, min: 0, max: 100, step: 50 },
-  bothObjectives: true,
+  bothObjectives: false,
   bothLayDown: false,
   perComboSec: 15,
   mode: 'all',
   randomCount: 20,
+}
+
+/** 範囲か「両方」を 1 つでも選んでいるか（選んでいれば、自動の計算はせず、まとめて試す） */
+export function isSweepActive(c: SweepConfig) {
+  return (
+    c.gap.on ||
+    c.edgeGap.on ||
+    c.supportPercent.on ||
+    c.wallBias.on ||
+    c.bothObjectives ||
+    c.bothLayDown
+  )
 }
 
 /** 1 つの組み合わせ（今の設定から変える値） */
@@ -129,53 +141,97 @@ export type SweepRow = {
 
 const percent = (v: number) => (v * 100).toFixed(1)
 
-function RangeEditor({
+/**
+ * 設定欄の数値の項目。「1 つの値」ならスライダー、「範囲」なら最小〜最大・刻みの入力を出す。
+ * 範囲にした項目があると、自動の計算はせず、「範囲でまとめて試す」で組み合わせを計算する
+ */
+export function RangeOrValue({
   label,
+  help,
   unit,
+  value,
+  min,
+  max,
+  step,
+  format,
   range,
-  onChange,
+  onValue,
+  onRange,
 }: {
   label: string
+  help?: ReactNode
   unit: string
+  value: number
+  min: number
+  max: number
+  step: number
+  format?: (v: number) => ReactNode
   range: SweepRange
-  onChange: (r: SweepRange) => void
+  onValue: (v: number) => void
+  onRange: (r: SweepRange) => void
 }) {
-  const id = useId()
   const num = (key: 'min' | 'max' | 'step') => (
     <Input
       aria-label={`${label}の${{ min: '最小', max: '最大', step: '刻み' }[key]}`}
       type="number"
       inputMode="numeric"
       value={range[key]}
-      disabled={!range.on}
       onChange={(e) =>
-        onChange({ ...range, [key]: Math.trunc(Number(e.target.value)) || 0 })
+        onRange({ ...range, [key]: Math.trunc(Number(e.target.value)) || 0 })
       }
       className="h-8 w-16 px-2 text-right font-mono tabular-nums"
     />
   )
   return (
-    <div className="flex flex-wrap items-center gap-2 text-sm">
-      <input
-        id={id}
-        type="checkbox"
-        checked={range.on}
-        onChange={(e) => onChange({ ...range, on: e.target.checked })}
-        className="size-4 accent-primary"
-      />
-      <label htmlFor={id} className="w-40">
-        {label}
-      </label>
-      {num('min')}
-      <span className="text-muted-foreground">〜</span>
-      {num('max')}
-      <span className="text-muted-foreground">{unit}・刻み</span>
-      {num('step')}
-      {!range.on && (
-        <span className="text-xs text-muted-foreground">
-          （今の設定の値で固定）
-        </span>
+    <div className="space-y-2">
+      {range.on ? (
+        <>
+          <span className="flex items-center gap-1 text-sm">
+            {label}
+            {help && <HelpTip>{help}</HelpTip>}
+          </span>
+          <div className="flex flex-wrap items-center gap-1.5 text-sm">
+            {num('min')}
+            <span className="text-muted-foreground">〜</span>
+            {num('max')}
+            <span className="text-muted-foreground">{unit.trim()}・刻み</span>
+            {num('step')}
+          </div>
+        </>
+      ) : (
+        <RangeSlider
+          label={label}
+          help={help}
+          value={value}
+          min={min}
+          max={max}
+          step={step}
+          unit={unit}
+          format={format}
+          onChange={onValue}
+        />
       )}
+      <div className="inline-flex rounded-md border p-0.5">
+        {(
+          [
+            [false, '1 つの値'],
+            [true, '範囲で試す'],
+          ] as const
+        ).map(([on, text]) => (
+          <button
+            key={text}
+            type="button"
+            aria-pressed={range.on === on}
+            onClick={() => onRange({ ...range, on })}
+            className={cn(
+              'rounded px-2 py-0.5 text-xs text-muted-foreground',
+              range.on === on && 'bg-muted text-foreground',
+            )}
+          >
+            {text}
+          </button>
+        ))}
+      </div>
     </div>
   )
 }
@@ -189,6 +245,7 @@ export function SweepPanel({
   onConfig,
   comboCount,
   running,
+  active,
   disabled,
   rows,
   current,
@@ -202,6 +259,8 @@ export function SweepPanel({
   /** 今の範囲で試す組み合わせの数 */
   comboCount: number
   running: boolean
+  /** 設定欄で、範囲か「両方」を 1 つでも選んでいるか */
+  active: boolean
   /** 入力に誤りがあるときなど */
   disabled: boolean
   rows: SweepRow[]
@@ -224,56 +283,16 @@ export function SweepPanel({
       <h2 className="flex items-center gap-1 font-semibold">
         範囲でまとめて試す
         <HelpTip>
-          設定を 1
-          つずつ変える代わりに、範囲を決めて、その中の組み合わせを順に計算します。床・箱・壁は今のままで、結果は「この床と箱での部門別ベスト」に自動で入ります。試している間は、ふつうの計算は止めます。
+          上の「床と積み方」で「範囲で試す」にした項目（と、優先することの「両方」、横倒しの「全部オンでも試す」）の組み合わせを、順に計算します。床・箱・壁は今のままで、結果は「この床と箱での部門別ベスト」に自動で入ります。範囲にした項目があるあいだは、設定を変えても自動では計算しません。
         </HelpTip>
       </h2>
+      {!active && (
+        <p className="text-sm text-muted-foreground">
+          上の「床と積み方」で、どれかの項目を「範囲で試す」にする（または、優先することを「両方」にする）と、ここでまとめて試せます。
+        </p>
+      )}
 
       <fieldset disabled={running} className="space-y-2">
-        <RangeEditor
-          label="箱どうしのすき間"
-          unit="mm"
-          range={config.gap}
-          onChange={(r) => set('gap', r)}
-        />
-        <RangeEditor
-          label="床の端・壁とのすき間"
-          unit="mm"
-          range={config.edgeGap}
-          onChange={(r) => set('edgeGap', r)}
-        />
-        <RangeEditor
-          label="底面を支える割合"
-          unit="%"
-          range={config.supportPercent}
-          onChange={(r) => set('supportPercent', r)}
-        />
-        <RangeEditor
-          label="重心を壁側に寄せる強さ"
-          unit=""
-          range={config.wallBias}
-          onChange={(r) => set('wallBias', r)}
-        />
-        <div className="flex flex-wrap gap-x-6 gap-y-2 pt-1 text-sm">
-          <label className="flex items-center gap-2">
-            <input
-              type="checkbox"
-              checked={config.bothObjectives}
-              onChange={(e) => set('bothObjectives', e.target.checked)}
-              className="size-4 accent-primary"
-            />
-            優先することを両方試す
-          </label>
-          <label className="flex items-center gap-2">
-            <input
-              type="checkbox"
-              checked={config.bothLayDown}
-              onChange={(e) => set('bothLayDown', e.target.checked)}
-              className="size-4 accent-primary"
-            />
-            横倒しの許可を「今のまま」と「全部オン」で試す
-          </label>
-        </div>
         <div className="flex flex-wrap items-center gap-x-6 gap-y-2 pt-1 text-sm">
           <span className="flex items-center gap-2">
             1 つの組み合わせに
@@ -344,7 +363,12 @@ export function SweepPanel({
         </div>
       </fieldset>
 
-      <div className="flex flex-wrap items-center gap-3 text-sm">
+      <div
+        className={cn(
+          'flex flex-wrap items-center gap-3 text-sm',
+          !active && !running && 'hidden',
+        )}
+      >
         <span>
           {comboCount.toLocaleString()} 通り・{minutes}
           {config.mode === 'all' && comboCount > 60 && (
