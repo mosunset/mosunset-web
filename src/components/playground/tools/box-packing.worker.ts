@@ -14,9 +14,9 @@ export type WorkerMessage =
   | { kind: 'done'; tried: number; elapsed: number }
 
 /** この時間、良い結果が出なければ止める */
-const STALL_MS = 30_000
+const STALL_MS = 90_000
 /** どんなに良くなり続けても、ここで止める */
-const MAX_MS = 5 * 60_000
+const MAX_MS = 15 * 60_000
 
 // tsconfig は DOM の型なので、Worker の self として使う分だけ型を付ける
 const worker = self as unknown as {
