@@ -1,7 +1,20 @@
 import { createFileRoute } from '@tanstack/react-router'
 
-import { ToolPage, toolRouteOptions } from '@/components/playground/tool-page'
-import { IdGenerators } from '@/components/playground/tools/id-generators'
+import {
+  clientOnlyTool,
+  ToolPage,
+  toolRouteOptions,
+} from '@/components/playground/tool-page'
+
+// ツール本体はブラウザでだけ読み込む（サーバー用のビルドには入れない）
+const IdGenerators = clientOnlyTool(
+  import.meta.env.SSR
+    ? null
+    : () =>
+        import('@/components/playground/tools/id-generators').then((m) => ({
+          default: m.IdGenerators,
+        })),
+)
 
 export const Route = createFileRoute('/playground/id-generators')({
   ...toolRouteOptions('id-generators'),

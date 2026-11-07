@@ -1,7 +1,20 @@
 import { createFileRoute } from '@tanstack/react-router'
 
-import { ToolPage, toolRouteOptions } from '@/components/playground/tool-page'
-import { AutophagyClock } from '@/components/playground/tools/autophagy-clock'
+import {
+  clientOnlyTool,
+  ToolPage,
+  toolRouteOptions,
+} from '@/components/playground/tool-page'
+
+// ツール本体はブラウザでだけ読み込む（サーバー用のビルドには入れない）
+const AutophagyClock = clientOnlyTool(
+  import.meta.env.SSR
+    ? null
+    : () =>
+        import('@/components/playground/tools/autophagy-clock').then((m) => ({
+          default: m.AutophagyClock,
+        })),
+)
 
 export const Route = createFileRoute('/playground/autophagy-clock')({
   ...toolRouteOptions('autophagy-clock'),

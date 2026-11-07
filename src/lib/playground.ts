@@ -3,7 +3,7 @@
  * ツールを足すときは、ここに 1 件追加して src/routes/playground/<slug>.tsx と
  * src/components/playground/tools/<slug>.tsx を作る。
  */
-export type PlaygroundTool = {
+type PlaygroundTool = {
   slug: PlaygroundSlug
   /** 一覧のカードに出す短い名前 */
   name: string
@@ -28,7 +28,7 @@ export const playgroundTools = [
     category: 'ユーティリティ',
     tags: ['文字数', 'カウント', '原稿用紙', 'バイト数', '文字コード'],
     publishedDate: '2025-01-27',
-    thumbnail: '/playground/character-count/thumbnail.png',
+    thumbnail: '/playground/character-count/thumbnail.webp',
   },
   {
     slug: 'hash-generator',
@@ -39,7 +39,7 @@ export const playgroundTools = [
     category: 'ユーティリティ',
     tags: ['ハッシュ', 'MD5', 'SHA', 'JavaScript'],
     publishedDate: '2025-01-27',
-    thumbnail: '/playground/hash-generator/thumbnail.png',
+    thumbnail: '/playground/hash-generator/thumbnail.webp',
   },
   {
     slug: 'id-generators',
@@ -50,7 +50,7 @@ export const playgroundTools = [
     category: 'ユーティリティ',
     tags: ['UUID', 'ULID', 'Cuid2', 'NanoID', 'JavaScript'],
     publishedDate: '2025-11-04',
-    thumbnail: '/playground/id-generators/thumbnail.png',
+    thumbnail: '/playground/id-generators/thumbnail.webp',
   },
   {
     slug: 'ngram-similarity',
@@ -61,7 +61,7 @@ export const playgroundTools = [
     category: 'ユーティリティ',
     tags: ['自然言語処理', 'NLP', '類似度', 'Jaccard', 'Dice', 'n-gram'],
     publishedDate: '2025-11-27',
-    thumbnail: '/playground/ngram-similarity/thumbnail.png',
+    thumbnail: '/playground/ngram-similarity/thumbnail.webp',
   },
   {
     slug: 'monitor-pairing',
@@ -73,7 +73,7 @@ export const playgroundTools = [
     category: 'ユーティリティ',
     tags: ['モニタ', '計算', 'シミュレーター', 'ペアリング'],
     publishedDate: '2025-01-27',
-    thumbnail: '/playground/monitor-pairing/thumbnail.png',
+    thumbnail: '/playground/monitor-pairing/thumbnail.webp',
   },
   {
     slug: 'unit-price-comparison',
@@ -84,7 +84,7 @@ export const playgroundTools = [
     category: 'ライフスタイル',
     tags: ['価格比較', '買い物', '計算ツール', '単価計算'],
     publishedDate: '2025-01-27',
-    thumbnail: '/playground/unit-price-comparison/thumbnail.png',
+    thumbnail: '/playground/unit-price-comparison/thumbnail.webp',
   },
   {
     slug: 'autophagy-clock',
@@ -107,7 +107,7 @@ export const playgroundTools = [
     category: '健康・フィットネス',
     tags: ['BMI', 'ヘルスケア', 'グラフ', 'インタラクティブ'],
     publishedDate: '2025-09-13',
-    thumbnail: '/playground/interactive-bmi-calculator-graph/thumbnail.png',
+    thumbnail: '/playground/interactive-bmi-calculator-graph/thumbnail.webp',
   },
   {
     slug: 'kuromoji',
@@ -118,7 +118,7 @@ export const playgroundTools = [
     category: '自然言語処理',
     tags: ['NLP', '形態素解析', '日本語', 'テキスト解析'],
     publishedDate: '2025-09-12',
-    thumbnail: '/playground/kuromoji/thumbnail.png',
+    thumbnail: '/playground/kuromoji/thumbnail.webp',
   },
   {
     slug: 'webyolo',
@@ -129,7 +129,7 @@ export const playgroundTools = [
     category: 'AI・人工知能',
     tags: ['AI', '物体認識', 'TensorFlow.js', 'ブラウザ AI'],
     publishedDate: '2025-09-11',
-    thumbnail: '/playground/webyolo/thumbnail.png',
+    thumbnail: '/playground/webyolo/thumbnail.webp',
   },
   {
     slug: 'masonryimage',
@@ -140,7 +140,7 @@ export const playgroundTools = [
     category: '画像・ギャラリー',
     tags: ['画像', 'Masonry', 'ギャラリー', 'レイアウト'],
     publishedDate: '2025-09-10',
-    thumbnail: '/playground/masonryimage/thumbnail.png',
+    thumbnail: '/playground/masonryimage/thumbnail.webp',
   },
   {
     slug: '3dblock',
@@ -151,7 +151,7 @@ export const playgroundTools = [
     category: '3D・ビジュアル',
     tags: ['3D', 'ブロック', 'インタラクティブ', 'WebGL', 'Three.js'],
     publishedDate: '2025-09-09',
-    thumbnail: '/playground/3dblock/thumbnail.png',
+    thumbnail: '/playground/3dblock/thumbnail.webp',
   },
 ] as const satisfies readonly (Omit<PlaygroundTool, 'slug'> & {
   slug: string

@@ -1,6 +1,7 @@
 import { ClientOnly } from '@tanstack/react-router'
 import { Loader2 } from 'lucide-react'
 import type * as React from 'react'
+import { lazy, type ReactNode, Suspense } from 'react'
 
 import { BackLinkFooter } from '@/components/back-link-footer'
 import { Badge } from '@/components/ui/badge'
@@ -19,6 +20,25 @@ export function toolRouteOptions(slug: PlaygroundSlug) {
   }
 }
 
+const loading = (
+  <div className="flex h-64 items-center justify-center gap-2 rounded-lg border text-muted-foreground">
+    <Loader2 className="size-4 animate-spin" />
+    読み込み中…
+  </div>
+)
+
+/**
+ * ツールの本体を、ブラウザでだけ読み込む部品にする。
+ * サーバー用のビルドでは import.meta.env.SSR が true になり、import ごと消えるので、
+ * three.js や TensorFlow.js などの重いライブラリが Worker に入らない。
+ * import() はビルド時に消せるよう、呼び出し側（各ルート）に書く
+ */
+export function clientOnlyTool(
+  load: (() => Promise<{ default: React.ComponentType }>) | null,
+): React.ComponentType {
+  return load ? lazy(load) : () => null
+}
+
 /**
  * ツールのページの枠。
  * clientOnly のツール（canvas・カメラ・大きなライブラリを使うもの）は、ブラウザでだけ描画する。
@@ -33,7 +53,7 @@ export function ToolPage({
   clientOnly?: boolean
   /** 横に広いツールは幅を広げる */
   wide?: boolean
-  children: React.ReactNode
+  children: ReactNode
 }) {
   const tool = getPlaygroundTool(slug)
 
@@ -59,15 +79,9 @@ export function ToolPage({
 
       <div className="mt-8">
         {clientOnly ? (
-          <ClientOnly
-            fallback={
-              <div className="flex h-64 items-center justify-center gap-2 rounded-lg border text-muted-foreground">
-                <Loader2 className="size-4 animate-spin" />
-                読み込み中…
-              </div>
-            }
-          >
-            {children}
+          // ツールの本体は lazy() で後から読み込むので、それを待つあいだも同じ表示にする
+          <ClientOnly fallback={loading}>
+            <Suspense fallback={loading}>{children}</Suspense>
           </ClientOnly>
         ) : (
           children
