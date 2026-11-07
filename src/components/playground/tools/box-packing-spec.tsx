@@ -159,12 +159,12 @@ export function BoxPackingSpec() {
             <tr>
               <td>箱どうしのすき間</td>
               <td>0〜50 mm</td>
-              <td>2 mm</td>
+              <td>5 mm</td>
             </tr>
             <tr>
               <td>箱と床の端・壁とのすき間</td>
               <td>0〜50 mm</td>
-              <td>2 mm</td>
+              <td>5 mm</td>
             </tr>
             <tr>
               <td>底面を支える割合</td>
