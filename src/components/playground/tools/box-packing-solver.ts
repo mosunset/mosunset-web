@@ -260,6 +260,9 @@ class Grid {
   }
 }
 
+/** 接している面積の上限（調べる前の見積もりに使う。GPU の計算と同じ i32 の最大値） */
+const MAX_CONTACT = 2_147_483_647
+
 /** 置いた箱がこれより少ないうちは、マス目を使わずに全部を調べたほうが速い */
 const SMALL = 40
 
@@ -356,13 +359,14 @@ function packInOrder(
     for (const [u, v] of candidates) {
       for (const o of item.orientations) {
         if (u + o.w > U || v + o.d > V) continue
-        // 床に直接置けたとしても今の最良に勝てない場所は、調べるまでもない
+        // 点数: 全体の高さ → 上面の高さ → 置く高さ →（同じなら）まわりに接している面積が大きいほう → 奥・左に近いほう
+        // 床に直接置けて、いちばん接していたとしても今の最良に勝てない場所は、調べるまでもない
         const along = anchor.alongSideFirst ? [u, v] : [v, u]
-        const scoreAt = (z: number) =>
+        const scoreAt = (z: number, contact: number) =>
           objective === 'height'
-            ? [Math.max(height, z + o.h), z + o.h, z, ...along]
-            : [z, z + o.h, ...along]
-        if (best && compare(scoreAt(0), best.score) >= 0) continue
+            ? [Math.max(height, z + o.h), z + o.h, z, -contact, ...along]
+            : [z, z + o.h, -contact, ...along]
+        if (best && compare(scoreAt(0, MAX_CONTACT), best.score) >= 0) continue
         let near = all
         if (all.length > SMALL) {
           grid.query(u, v, u + o.w, v + o.d, found)
@@ -384,8 +388,7 @@ function packInOrder(
           }
         }
         // 置ける高さが決まった時点で勝てないなら、すき間や支えは確かめない
-        const score = scoreAt(z)
-        if (best && compare(score, best.score) >= 0) continue
+        if (best && compare(scoreAt(z, MAX_CONTACT), best.score) >= 0) continue
 
         // 横に並ぶ箱（高さの範囲が重なる箱）とは、すき間をあける
         let blocked = false
@@ -416,6 +419,35 @@ function packInOrder(
           }
           if (supported * 100 < input.supportPercent * o.w * o.d) continue
         }
+
+        // まわりに接している面積: 左右前後の面が、床の端（壁）か、ちょうどすき間の分だけ離れて並ぶ箱と向き合う面積
+        // （すき間ができにくい場所ほど大きい）
+        let contact = 0
+        if (u === 0) contact += o.d * o.h
+        if (u + o.w === U) contact += o.d * o.h
+        if (v === 0) contact += o.w * o.h
+        if (v + o.d === V) contact += o.w * o.h
+        let side = all
+        if (all.length > SMALL) {
+          // すき間の分だけ離れた箱も入るよう、1 だけ広げて探す
+          grid.query(u - 1, v - 1, u + o.w + 1, v + o.d + 1, found)
+          side = found
+        }
+        for (const id of side) {
+          const b = placed[id]
+          const oz = Math.min(z + o.h, b.z + b.h) - Math.max(z, b.z)
+          if (oz <= 0) continue
+          const ov = Math.min(v + o.d, b.v + b.d) - Math.max(v, b.v)
+          if (ov > 0 && (b.u + b.w + gap === u || u + o.w + gap === b.u)) {
+            contact += ov * oz
+          }
+          const ou = Math.min(u + o.w, b.u + b.w) - Math.max(u, b.u)
+          if (ou > 0 && (b.v + b.d + gap === v || v + o.d + gap === b.v)) {
+            contact += ou * oz
+          }
+        }
+        const score = scoreAt(z, contact)
+        if (best && compare(score, best.score) >= 0) continue
 
         best = { score, p: { ...o, type: item.type, u, v, z } }
       }

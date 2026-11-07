@@ -23,9 +23,12 @@ struct Params {
   gap: i32, support: i32, objective: i32, alongUFirst: i32,
 }
 struct Best {
-  found: i32, s0: i32, s1: i32, s2: i32, s3: i32, s4: i32,
+  found: i32, s0: i32, s1: i32, s2: i32, s3: i32, s4: i32, s5: i32,
   u: i32, v: i32, z: i32, w: i32, d: i32, h: i32,
 }
+
+/** 接している面積の上限（調べる前の見積もりに使う） */
+const MAX_CONTACT: i32 = 2147483647;
 
 @group(0) @binding(0) var<uniform> P: Params;
 @group(0) @binding(1) var<storage, read> orients: array<vec4<i32>>;  // 箱 × 6（w, d, h, 有効なら 1）
@@ -40,23 +43,25 @@ fn usBase(k: u32) -> u32 { return k * candSize(); }
 fn vsBase(k: u32) -> u32 { return usBase(k) + P.m + 1u; }
 fn ptBase(k: u32) -> u32 { return usBase(k) + 2u * (P.m + 1u); }
 
-fn makeScore(height: i32, z: i32, h: i32, u: i32, v: i32) -> array<i32, 5> {
+/** 点数: 全体の高さ → 上面の高さ → 置く高さ →（同じなら）接している面積が大きいほう → 奥・左に近いほう */
+fn makeScore(height: i32, z: i32, h: i32, u: i32, v: i32, contact: i32) -> array<i32, 6> {
   var a0 = v;
   var a1 = u;
   if (P.alongUFirst == 1) { a0 = u; a1 = v; }
   let top = z + h;
-  if (P.objective == 0) { return array<i32, 5>(max(height, top), top, z, a0, a1); }
-  return array<i32, 5>(z, top, a0, a1, 0);
+  if (P.objective == 0) { return array<i32, 6>(max(height, top), top, z, -contact, a0, a1); }
+  return array<i32, 6>(z, top, -contact, a0, a1, 0);
 }
 
 /** s が今の最良より（同じなら負け）良いか */
-fn better(s: array<i32, 5>, b: ptr<function, Best>) -> bool {
+fn better(s: array<i32, 6>, b: ptr<function, Best>) -> bool {
   if ((*b).found == 0) { return true; }
   if (s[0] != (*b).s0) { return s[0] < (*b).s0; }
   if (s[1] != (*b).s1) { return s[1] < (*b).s1; }
   if (s[2] != (*b).s2) { return s[2] < (*b).s2; }
   if (s[3] != (*b).s3) { return s[3] < (*b).s3; }
   if (s[4] != (*b).s4) { return s[4] < (*b).s4; }
+  if (s[5] != (*b).s5) { return s[5] < (*b).s5; }
   return false;
 }
 
@@ -71,7 +76,7 @@ fn tryAt(k: u32, u: i32, v: i32, item: u32, n: u32, height: i32, b: ptr<function
     let h = ori.z;
     if (u + w > P.U || v + d > P.V) { continue; }
     // 床に直接置けたとしても勝てない場所は、調べるまでもない
-    if (!better(makeScore(height, 0, h, u, v), b)) { continue; }
+    if (!better(makeScore(height, 0, h, u, v, MAX_CONTACT), b)) { continue; }
     var z = 0;
     for (var j = 0u; j < n; j++) {
       let q = pb + j * 6u;
@@ -79,8 +84,7 @@ fn tryAt(k: u32, u: i32, v: i32, item: u32, n: u32, height: i32, b: ptr<function
       let qw = placed[q + 3u]; let qd = placed[q + 4u]; let qh = placed[q + 5u];
       if (u < qu + qw && qu < u + w && v < qv + qd && qv < v + d && qz + qh > z) { z = qz + qh; }
     }
-    let s = makeScore(height, z, h, u, v);
-    if (!better(s, b)) { continue; }
+    if (!better(makeScore(height, z, h, u, v, MAX_CONTACT), b)) { continue; }
     var blocked = false;
     for (var j = 0u; j < n; j++) {
       let q = pb + j * 6u;
@@ -109,7 +113,26 @@ fn tryAt(k: u32, u: i32, v: i32, item: u32, n: u32, height: i32, b: ptr<function
         if (sup * 100 < P.support * w * d) { continue; }
       } else if (f32(sup) * 100.0 < f32(P.support) * f32(w) * f32(d)) { continue; }
     }
-    (*b) = Best(1, s[0], s[1], s[2], s[3], s[4], u, v, z, w, d, h);
+    // まわりに接している面積（床の端か、ちょうどすき間の分だけ離れて並ぶ箱と向き合う面積）
+    var contact = 0;
+    if (u == 0) { contact += d * h; }
+    if (u + w == P.U) { contact += d * h; }
+    if (v == 0) { contact += w * h; }
+    if (v + d == P.V) { contact += w * h; }
+    for (var j = 0u; j < n; j++) {
+      let q = pb + j * 6u;
+      let qu = placed[q]; let qv = placed[q + 1u]; let qz = placed[q + 2u];
+      let qw = placed[q + 3u]; let qd = placed[q + 4u]; let qh = placed[q + 5u];
+      let oz = min(z + h, qz + qh) - max(z, qz);
+      if (oz <= 0) { continue; }
+      let ov = min(v + d, qv + qd) - max(v, qv);
+      if (ov > 0 && (qu + qw + P.gap == u || u + w + P.gap == qu)) { contact += ov * oz; }
+      let ou = min(u + w, qu + qw) - max(u, qu);
+      if (ou > 0 && (qv + qd + P.gap == v || v + d + P.gap == qv)) { contact += ou * oz; }
+    }
+    let s = makeScore(height, z, h, u, v, contact);
+    if (!better(s, b)) { continue; }
+    (*b) = Best(1, s[0], s[1], s[2], s[3], s[4], s[5], u, v, z, w, d, h);
   }
 }
 
