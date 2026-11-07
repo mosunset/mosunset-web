@@ -48,12 +48,15 @@ export function ToolPage({
   clientOnly = false,
   wide = false,
   children,
+  after,
 }: {
   slug: PlaygroundSlug
   clientOnly?: boolean
   /** 横に広いツールは幅を広げる */
   wide?: boolean
   children: ReactNode
+  /** ツールの下に置く文章（仕様など）。clientOnly でもサーバーで描画する */
+  after?: ReactNode
 }) {
   const tool = getPlaygroundTool(slug)
 
@@ -87,6 +90,8 @@ export function ToolPage({
           children
         )}
       </div>
+
+      {after}
 
       <BackLinkFooter to="/playground">プレイグラウンドの一覧へ</BackLinkFooter>
     </div>

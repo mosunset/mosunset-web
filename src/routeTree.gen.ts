@@ -40,6 +40,7 @@ import { Route as InstrumentsSlugRouteImport } from './routes/instruments/$slug'
 import { Route as PlaygroundIndexRouteImport } from './routes/playground/index'
 import { Route as Playground3dblockRouteImport } from './routes/playground/3dblock'
 import { Route as PlaygroundAutophagyClockRouteImport } from './routes/playground/autophagy-clock'
+import { Route as PlaygroundBoxPackingRouteImport } from './routes/playground/box-packing'
 import { Route as PlaygroundCharacterCountRouteImport } from './routes/playground/character-count'
 import { Route as PlaygroundHashGeneratorRouteImport } from './routes/playground/hash-generator'
 import { Route as PlaygroundIdGeneratorsRouteImport } from './routes/playground/id-generators'
@@ -221,6 +222,11 @@ const PlaygroundAutophagyClockRoute =
     path: '/autophagy-clock',
     getParentRoute: () => PlaygroundRouteRoute,
   } as any)
+const PlaygroundBoxPackingRoute = PlaygroundBoxPackingRouteImport.update({
+  id: '/box-packing',
+  path: '/box-packing',
+  getParentRoute: () => PlaygroundRouteRoute,
+} as any)
 const PlaygroundCharacterCountRoute =
   PlaygroundCharacterCountRouteImport.update({
     id: '/character-count',
@@ -370,6 +376,7 @@ export interface FileRoutesByFullPath {
   '/instruments/$slug': typeof InstrumentsSlugRoute
   '/playground/3dblock': typeof Playground3dblockRoute
   '/playground/autophagy-clock': typeof PlaygroundAutophagyClockRoute
+  '/playground/box-packing': typeof PlaygroundBoxPackingRoute
   '/playground/character-count': typeof PlaygroundCharacterCountRoute
   '/playground/hash-generator': typeof PlaygroundHashGeneratorRoute
   '/playground/id-generators': typeof PlaygroundIdGeneratorsRoute
@@ -416,6 +423,7 @@ export interface FileRoutesByTo {
   '/instruments/$slug': typeof InstrumentsSlugRoute
   '/playground/3dblock': typeof Playground3dblockRoute
   '/playground/autophagy-clock': typeof PlaygroundAutophagyClockRoute
+  '/playground/box-packing': typeof PlaygroundBoxPackingRoute
   '/playground/character-count': typeof PlaygroundCharacterCountRoute
   '/playground/hash-generator': typeof PlaygroundHashGeneratorRoute
   '/playground/id-generators': typeof PlaygroundIdGeneratorsRoute
@@ -472,6 +480,7 @@ export interface FileRoutesById {
   '/instruments/$slug': typeof InstrumentsSlugRoute
   '/playground/3dblock': typeof Playground3dblockRoute
   '/playground/autophagy-clock': typeof PlaygroundAutophagyClockRoute
+  '/playground/box-packing': typeof PlaygroundBoxPackingRoute
   '/playground/character-count': typeof PlaygroundCharacterCountRoute
   '/playground/hash-generator': typeof PlaygroundHashGeneratorRoute
   '/playground/id-generators': typeof PlaygroundIdGeneratorsRoute
@@ -530,6 +539,7 @@ export interface FileRouteTypes {
     | '/instruments/$slug'
     | '/playground/3dblock'
     | '/playground/autophagy-clock'
+    | '/playground/box-packing'
     | '/playground/character-count'
     | '/playground/hash-generator'
     | '/playground/id-generators'
@@ -576,6 +586,7 @@ export interface FileRouteTypes {
     | '/instruments/$slug'
     | '/playground/3dblock'
     | '/playground/autophagy-clock'
+    | '/playground/box-packing'
     | '/playground/character-count'
     | '/playground/hash-generator'
     | '/playground/id-generators'
@@ -631,6 +642,7 @@ export interface FileRouteTypes {
     | '/instruments/$slug'
     | '/playground/3dblock'
     | '/playground/autophagy-clock'
+    | '/playground/box-packing'
     | '/playground/character-count'
     | '/playground/hash-generator'
     | '/playground/id-generators'
@@ -899,6 +911,13 @@ declare module '@tanstack/react-router' {
       path: '/autophagy-clock'
       fullPath: '/playground/autophagy-clock'
       preLoaderRoute: typeof PlaygroundAutophagyClockRouteImport
+      parentRoute: typeof PlaygroundRouteRoute
+    }
+    '/playground/box-packing': {
+      id: '/playground/box-packing'
+      path: '/box-packing'
+      fullPath: '/playground/box-packing'
+      preLoaderRoute: typeof PlaygroundBoxPackingRouteImport
       parentRoute: typeof PlaygroundRouteRoute
     }
     '/playground/character-count': {
@@ -1202,6 +1221,7 @@ const InstrumentsRouteRouteWithChildren =
 interface PlaygroundRouteRouteChildren {
   Playground3dblockRoute: typeof Playground3dblockRoute
   PlaygroundAutophagyClockRoute: typeof PlaygroundAutophagyClockRoute
+  PlaygroundBoxPackingRoute: typeof PlaygroundBoxPackingRoute
   PlaygroundCharacterCountRoute: typeof PlaygroundCharacterCountRoute
   PlaygroundHashGeneratorRoute: typeof PlaygroundHashGeneratorRoute
   PlaygroundIdGeneratorsRoute: typeof PlaygroundIdGeneratorsRoute
@@ -1218,6 +1238,7 @@ interface PlaygroundRouteRouteChildren {
 const PlaygroundRouteRouteChildren: PlaygroundRouteRouteChildren = {
   Playground3dblockRoute: Playground3dblockRoute,
   PlaygroundAutophagyClockRoute: PlaygroundAutophagyClockRoute,
+  PlaygroundBoxPackingRoute: PlaygroundBoxPackingRoute,
   PlaygroundCharacterCountRoute: PlaygroundCharacterCountRoute,
   PlaygroundHashGeneratorRoute: PlaygroundHashGeneratorRoute,
   PlaygroundIdGeneratorsRoute: PlaygroundIdGeneratorsRoute,

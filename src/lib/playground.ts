@@ -143,6 +143,17 @@ export const playgroundTools = [
     thumbnail: '/playground/masonryimage/thumbnail.webp',
   },
   {
+    slug: 'box-packing',
+    name: '箱詰めシミュレーター',
+    title: '箱詰めシミュレーター | 段ボール箱を床に低く積む並べ方を 3D で計算',
+    description:
+      '床の広さと段ボール箱の寸法・個数を入れると、なるべく低く、下から詰める並べ方を計算して 3D で表示します。箱どうしのすき間、底面の支え、横倒しの許可、壁側への重心寄せに対応し、CSV・JSON・PNG で書き出せます。',
+    category: '3D・ビジュアル',
+    tags: ['箱詰め', '3D', '積み付け', '段ボール', 'Three.js'],
+    publishedDate: '2026-11-07',
+    thumbnail: '/playground/box-packing/thumbnail.svg',
+  },
+  {
     slug: '3dblock',
     name: '3D ブロック',
     title: '3DBlock | 建物のボリュームを 3D で確かめるブロック・木組みデモ',
