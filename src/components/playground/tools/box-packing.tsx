@@ -6,6 +6,8 @@ import {
   Loader2,
   Play,
   Plus,
+  RotateCcw,
+  Save,
   Square,
   Trash2,
   Upload,
@@ -18,6 +20,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { cn } from '@/lib/utils'
 import type { WorkerMessage } from './box-packing.worker'
+import { SavedResults, type SettingsSummary } from './box-packing-saved'
 import {
   type BoxSpec,
   type Objective,
@@ -220,15 +223,21 @@ function placementsCsv(boxes: BoxSpec[], placements: Placement[]) {
   return `﻿${lines.map((l) => l.map(csvCell).join(',')).join('\r\n')}\r\n`
 }
 
-function exportJson(settings: Settings, result: PackResult | null) {
-  const { boxes: _used, ...rest } = toInput(settings, 0)
+/** 設定を JSON にできる形にする（書き出し・ブラウザへの保存で使う。使わない箱も個数のまま残す） */
+function serializeSettings(settings: Settings) {
+  const { boxes: _used, seed: _seed, ...rest } = toInput(settings, 0)
   const boxes = settings.boxes.map(({ id: _id, ...box }) => box)
+  return { ...rest, boxes, random: settings.random }
+}
+
+function exportJson(settings: Settings, result: PackResult | null) {
+  const boxes = settings.boxes
   return JSON.stringify(
     {
       tool: 'box-packing',
       version: 1,
       unit: 'mm',
-      settings: { ...rest, seed: undefined, boxes, random: settings.random },
+      settings: serializeSettings(settings),
       result: result && {
         height: result.height,
         fillRate: result.fillRate,
@@ -258,10 +267,15 @@ function exportJson(settings: Settings, result: PackResult | null) {
   )
 }
 
-/** 書き出した JSON から設定を読み戻す。数値は範囲に収め、残りは validate で確かめる */
+/** 書き出した JSON から設定を読み戻す */
 function parseSettings(text: string): Settings | null {
-  const data = JSON.parse(text) as { settings?: Record<string, unknown> }
-  const s = data?.settings
+  const data = JSON.parse(text) as { settings?: unknown }
+  return parseSettingsObject(data?.settings)
+}
+
+/** JSON から読んだ設定を確かめて戻す。数値は範囲に収め、残りは validate で確かめる */
+function parseSettingsObject(value: unknown): Settings | null {
+  const s = value as Record<string, unknown> | null
   if (!s || typeof s !== 'object' || !Array.isArray(s.boxes)) return null
   const num = (v: unknown, fallback: number, min: number, max: number) =>
     typeof v === 'number' && Number.isFinite(v)
@@ -311,10 +325,159 @@ function parseSettings(text: string): Settings | null {
   }
 }
 
+// ---- ブラウザへの保存 ----
+
+/** 設定・表示・保存した結果を、ページを読み込み直しても残すための localStorage のキー */
+const STORAGE = {
+  settings: 'mosunset:box-packing:settings',
+  view: 'mosunset:box-packing:view',
+  saved: 'mosunset:box-packing:saved',
+} as const
+
+/** プライベートモードなどで localStorage が使えないときは、保存せずに続ける */
+function readStorage(key: string): unknown {
+  try {
+    const text = window.localStorage.getItem(key)
+    return text ? JSON.parse(text) : null
+  } catch {
+    return null
+  }
+}
+
+function writeStorage(key: string, value: unknown) {
+  try {
+    window.localStorage.setItem(key, JSON.stringify(value))
+    return true
+  } catch {
+    return false
+  }
+}
+
+const defaultView: ViewOptions = {
+  showTags: true,
+  showFaceLabels: true,
+  translucentFloor: false,
+  wireframe: false,
+  opacity: 1,
+  showGrid: true,
+}
+
+function loadView(): ViewOptions {
+  const v = readStorage(STORAGE.view) as Record<string, unknown> | null
+  if (!v || typeof v !== 'object') return defaultView
+  const flag = (key: keyof ViewOptions) =>
+    typeof v[key] === 'boolean'
+      ? (v[key] as boolean)
+      : (defaultView[key] as boolean)
+  const opacity =
+    typeof v.opacity === 'number' && Number.isFinite(v.opacity)
+      ? Math.min(1, Math.max(0.1, v.opacity))
+      : 1
+  return {
+    showTags: flag('showTags'),
+    showFaceLabels: flag('showFaceLabels'),
+    translucentFloor: flag('translucentFloor'),
+    wireframe: flag('wireframe'),
+    showGrid: flag('showGrid'),
+    opacity,
+  }
+}
+
+/** 初期値（箱の行は作り直して、前の行と番号が重ならないようにする） */
+function freshInitial(): Settings {
+  return {
+    ...initial,
+    boxes: initial.boxes.map(({ id: _id, enabled, ...box }) =>
+      row(box, enabled),
+    ),
+  }
+}
+
+/** 保存した結果。設定と結果を一緒に持つ */
+type Saved = {
+  id: string
+  savedAt: number
+  run: number
+  settings: Settings
+  result: PackResult
+}
+
+/** 保存しておく結果の数 */
+const MAX_SAVED = 20
+
+/** ブラウザに残っていた結果を読む。形がおかしいものは捨てる */
+function loadSaved(): Saved[] {
+  const list = readStorage(STORAGE.saved)
+  if (!Array.isArray(list)) return []
+  const isNumber = (v: unknown) => typeof v === 'number' && Number.isFinite(v)
+  const out: Saved[] = []
+  for (const item of list.slice(-MAX_SAVED)) {
+    try {
+      const settings = parseSettingsObject(item?.settings)
+      const r = item?.result as PackResult | undefined
+      if (
+        !settings ||
+        !r ||
+        !Array.isArray(r.placements) ||
+        !Array.isArray(r.unplaced) ||
+        ![r.height, r.fillRate, r.floorCoverage].every(isNumber)
+      ) {
+        continue
+      }
+      out.push({
+        id: String(item.id),
+        savedAt: isNumber(item.savedAt) ? item.savedAt : Date.now(),
+        run: isNumber(item.run) ? item.run : 1,
+        settings,
+        result: r,
+      })
+    } catch {
+      // 壊れた 1 件は飛ばす
+    }
+  }
+  return out
+}
+
+/** 比べるときに並べる、設定の要点 */
+function summarize(s: Settings): SettingsSummary {
+  const walls =
+    [s.walls.back && '奥', s.walls.left && '左', s.walls.right && '右']
+      .filter(Boolean)
+      .join('・') || 'なし'
+  const used = s.boxes.filter((b) => b.enabled && b.count > 0)
+  return [
+    { label: '床', value: `${s.floorX}×${s.floorY}` },
+    { label: '壁', value: walls },
+    { label: 'すき間', value: `${s.gap}/${s.edgeGap} mm` },
+    { label: '支え', value: `${s.supportPercent}%` },
+    { label: '優先', value: s.objective === 'height' ? '高さ' : '1 段目' },
+    { label: '寄せ', value: String(s.wallBias) },
+    {
+      label: '箱',
+      value: `${used.length} 種 ${used.reduce((n, b) => n + b.count, 0)} 個`,
+    },
+    // 寸法や横倒しの違いは、要点の数字だけでは分からないので、中身から短い印を作る
+    { label: '箱の中身', value: boxesMark(used) },
+  ]
+}
+
+/** 箱のリストの中身から作る短い印（同じ中身なら同じ印になる） */
+function boxesMark(boxes: BoxRow[]) {
+  const text = boxes
+    .map((b) => `${b.tag}|${b.x}|${b.y}|${b.z}|${b.count}|${b.canLayDown}`)
+    .join(';')
+  let h = 0
+  for (let i = 0; i < text.length; i++)
+    h = (Math.imul(h, 31) + text.charCodeAt(i)) | 0
+  return (h >>> 0).toString(36).slice(0, 4).toUpperCase()
+}
+
 // ---- 計算の状態 ----
 
 type Candidate = {
   id: number
+  /** 何回目の探し方（乱数の種）で見つけたか */
+  run: number
   settings: Settings
   result: PackResult
   /** 計算を始めてから見つかるまでの時間 */
@@ -397,15 +560,14 @@ const workerCount = Math.max(
 )
 
 export function BoxPacking() {
-  const [settings, setSettings] = useState<Settings>(initial)
-  const [view, setView] = useState<ViewOptions>({
-    showTags: true,
-    showFaceLabels: true,
-    translucentFloor: false,
-    wireframe: false,
-    opacity: 1,
-    showGrid: true,
-  })
+  // 前に開いたときの設定・表示・保存した結果を、ブラウザから読み戻す
+  const [settings, setSettings] = useState<Settings>(
+    () => parseSettingsObject(readStorage(STORAGE.settings)) ?? initial,
+  )
+  const [view, setView] = useState<ViewOptions>(loadView)
+  const [saved, setSaved] = useState<Saved[]>(loadSaved)
+  /** 表示している保存した結果（null なら今の計算の結果） */
+  const [viewingSaved, setViewingSaved] = useState<string | null>(null)
   const [status, setStatus] = useState<RunStatus>('waiting')
   const [progress, setProgress] = useState({ tried: 0, elapsed: 0 })
   const [candidates, setCandidates] = useState<Candidate[]>([])
@@ -478,6 +640,7 @@ export function BoxPacking() {
             bestScore = message.result.score
             const candidate: Candidate = {
               id: nextCandidateId++,
+              run: runToken + 1,
               settings: snapshot,
               result: message.result,
               elapsed: message.elapsed,
@@ -520,8 +683,40 @@ export function BoxPacking() {
     }
   }, [someLayDown, allLayDown])
 
+  // 変えるたびにブラウザへ保存する
+  useEffect(() => {
+    writeStorage(STORAGE.settings, serializeSettings(settings))
+  }, [settings])
+  useEffect(() => {
+    writeStorage(STORAGE.view, view)
+  }, [view])
+  useEffect(() => {
+    const ok = writeStorage(
+      STORAGE.saved,
+      saved.map((x) => ({ ...x, settings: serializeSettings(x.settings) })),
+    )
+    if (!ok && saved.length > 0) {
+      toast.error(
+        'ブラウザに保存できませんでした（容量が足りないか、保存が許可されていません）',
+      )
+    }
+  }, [saved])
+
   const latest = candidates.at(-1)
-  const current = candidates.find((c) => c.id === pinned) ?? latest
+  const candidate = candidates.find((c) => c.id === pinned) ?? latest
+  const savedShown = saved.find((x) => x.id === viewingSaved)
+  // 保存した結果を表示しているときはそれを、そうでなければ今の計算の候補を見せる
+  const current = savedShown
+    ? {
+        key: `s${savedShown.id}`,
+        settings: savedShown.settings,
+        result: savedShown.result,
+      }
+    : candidate && {
+        key: `c${candidate.id}`,
+        settings: candidate.settings,
+        result: candidate.result,
+      }
   const result = current?.result
   const shownBoxes = current?.settings.boxes ?? settings.boxes
   const names = useMemo(
@@ -541,11 +736,64 @@ export function BoxPacking() {
   const shownTotal = shownBoxes.reduce((sum, b) => sum + usedCount(b), 0)
 
   // 表示する結果が変わったら、積む順のスライダーと選んだ箱を戻す
-  // biome-ignore lint/correctness/useExhaustiveDependencies: current の id が変わったときだけ
+  // biome-ignore lint/correctness/useExhaustiveDependencies: 表示する結果が変わったときだけ
   useEffect(() => {
     setVisible(null)
     setSelected(null)
-  }, [current?.id])
+  }, [current?.key])
+
+  /** 候補を「保存した結果」に足す（いっぱいなら古いものから消す） */
+  const saveCandidate = (c: Candidate) => {
+    const entry: Saved = {
+      id: `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`,
+      savedAt: Date.now(),
+      run: c.run,
+      settings: c.settings,
+      result: c.result,
+    }
+    setSaved((list) => [...list, entry].slice(-MAX_SAVED))
+    toast.success('保存しました（下の「保存した結果」で比べられます）')
+  }
+
+  const restoreSaved = (id: string) => {
+    const entry = saved.find((x) => x.id === id)
+    if (!entry) return
+    if (
+      !window.confirm(
+        '今の設定を、この結果の設定に置き換えます。よろしいですか？',
+      )
+    )
+      return
+    // 箱の行は作り直す（今の行と番号が重ならないように）
+    setSettings({
+      ...entry.settings,
+      boxes: entry.settings.boxes.map(({ id: _id, enabled, ...box }) =>
+        row(box, enabled),
+      ),
+    })
+    setViewingSaved(null)
+    toast.success('設定を戻しました')
+  }
+
+  const resetAll = () => {
+    if (
+      !window.confirm(
+        '床・積み方・箱のリスト・ランダム生成・表示の設定を、すべて初期値に戻します。保存した結果は消しません。よろしいですか？',
+      )
+    ) {
+      return
+    }
+    setSettings(freshInitial())
+    setView(defaultView)
+    setViewingSaved(null)
+    toast.success('設定を初期値に戻しました')
+  }
+
+  const currentSummary = useMemo(() => summarize(settings), [settings])
+  const savedViews = useMemo(
+    () => saved.map((x) => ({ ...x, summary: summarize(x.settings) })),
+    [saved],
+  )
 
   const generate = (mode: 'replace' | 'append') => {
     const boxes = randomBoxes(settings.random, settings).map((box) => row(box))
@@ -777,14 +1025,17 @@ export function BoxPacking() {
       <section className="space-y-2 rounded-lg border p-4">
         <div className="flex min-h-8 flex-wrap items-center justify-between gap-2">
           <h2 className="font-semibold">
-            候補（良い結果が見つかるたびに保存）
+            候補（探し方 #{runToken + 1}・良い結果が見つかるたびに追加）
           </h2>
           {pinned !== null && (
             <Button
               type="button"
               variant="outline"
               size="sm"
-              onClick={() => setPinned(null)}
+              onClick={() => {
+                setPinned(null)
+                setViewingSaved(null)
+              }}
             >
               いちばん良い結果を表示し続ける
             </Button>
@@ -819,7 +1070,7 @@ export function BoxPacking() {
             </thead>
             <tbody className="font-mono tabular-nums">
               {[...candidates].reverse().map((c) => {
-                const active = c.id === current?.id
+                const active = !savedShown && c.id === candidate?.id
                 return (
                   <tr
                     key={c.id}
@@ -844,17 +1095,28 @@ export function BoxPacking() {
                         ? `${Math.round(c.result.cog.x)}, ${Math.round(c.result.cog.y)}`
                         : '—'}
                     </td>
-                    <td className="py-1 text-right">
+                    <td className="py-1 text-right whitespace-nowrap">
                       <Button
                         type="button"
                         variant={active ? 'secondary' : 'ghost'}
                         size="sm"
                         aria-pressed={active}
-                        onClick={() =>
+                        onClick={() => {
                           setPinned(c.id === latest?.id ? null : c.id)
-                        }
+                          setViewingSaved(null)
+                        }}
                       >
                         {active ? '表示中' : '表示'}
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        title="比べるために、下の「保存した結果」に残します"
+                        onClick={() => saveCandidate(c)}
+                      >
+                        <Save />
+                        保存
                       </Button>
                     </td>
                   </tr>
@@ -864,6 +1126,22 @@ export function BoxPacking() {
           </table>
         </div>
       </section>
+
+      <SavedResults
+        saved={savedViews}
+        current={currentSummary}
+        viewing={savedShown ? savedShown.id : null}
+        onView={setViewingSaved}
+        onRestore={restoreSaved}
+        onDelete={(id) => {
+          setSaved((list) => list.filter((x) => x.id !== id))
+          if (viewingSaved === id) setViewingSaved(null)
+        }}
+        onClear={() => {
+          setSaved([])
+          setViewingSaved(null)
+        }}
+      />
 
       {/* 結果がないときも欄は出しておく（出たり消えたりで下の設定がずれないように） */}
       <div
@@ -888,7 +1166,24 @@ export function BoxPacking() {
 
       {/* 床と積み方 */}
       <section className="space-y-4 rounded-lg border p-4">
-        <h2 className="font-semibold">床と積み方</h2>
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <h2 className="font-semibold">床と積み方</h2>
+          <span className="flex items-center gap-1">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={resetAll}
+            >
+              <RotateCcw />
+              設定をすべて初期値に戻す
+            </Button>
+            <HelpTip>
+              床・積み方・箱のリスト・ランダム生成・3D
+              の表示の設定を、すべて初期値に戻します。保存した結果は消しません。設定はブラウザに保存しているので、ページを読み込み直しても残ります。
+            </HelpTip>
+          </span>
+        </div>
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           <NumberField
             label="床の幅 X（mm）"
