@@ -604,11 +604,11 @@ export function random(seed: number) {
  * 探索を 1 歩ずつ進める。step() は、より良い結果が見つかったら true を返す。
  * まず「大きい箱から」などのよく効く並べ順を試し、そのあとは今いちばん良い並べ順を少しずつ入れ替える
  */
-export function createSearch(
-  input: PackInput,
-  /** 評価したすべての結果を受け取る（部門別のいちばんを見張るため） */
-  onResult?: (result: PackResult) => void,
-) {
+/**
+ * 置く箱の一覧（1 個ずつ）と、どの向きでも床からはみ出す箱。
+ * 種類の番号の順に、個数ぶん並べる（GPU の計算でも同じ並びを使う）
+ */
+export function itemsOf(input: PackInput) {
   const items: Item[] = []
   const tooBig: Unplaced[] = []
   input.boxes.forEach((box, type) => {
@@ -622,6 +622,36 @@ export function createSearch(
       items.push({ type, orientations, volume: box.x * box.y * box.z })
     }
   })
+  return { items, tooBig }
+}
+
+/**
+ * 並べ順（箱の種類の番号の列）を 1 つ、ふつうの計算で正式に評価する。
+ * 同じ種類の箱は入れ替えても同じなので、種類の列だけで並べ順が決まる
+ */
+export function evaluateOrder(input: PackInput, types: number[]): PackResult {
+  const { items, tooBig } = itemsOf(input)
+  const rest = [...items]
+  const order: Item[] = []
+  for (const type of types) {
+    const i = rest.findIndex((it) => it.type === type)
+    if (i >= 0) order.push(...rest.splice(i, 1))
+  }
+  order.push(...rest)
+  return finish(packInOrder(order, input), input, tooBig)
+}
+
+/** 置き始める角の向き（GPU の計算でも同じ決め方を使う） */
+export function alongSideFirstOf(walls: Walls) {
+  return anchorOf(walls).alongSideFirst
+}
+
+export function createSearch(
+  input: PackInput,
+  /** 評価したすべての結果を受け取る（部門別のいちばんを見張るため） */
+  onResult?: (result: PackResult) => void,
+) {
+  const { items, tooBig } = itemsOf(input)
 
   const box = (it: Item) => input.boxes[it.type]
   const area = (it: Item) => box(it).x * box(it).y

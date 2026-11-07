@@ -18,6 +18,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { cn } from '@/lib/utils'
 import type { WorkerMessage } from './box-packing.worker'
+import type { GpuReply, GpuRequest } from './box-packing-gpu.worker'
 import {
   BestResults,
   SavedResults,
@@ -348,6 +349,7 @@ const STORAGE = {
   view: 'mosunset:box-packing:view',
   saved: 'mosunset:box-packing:saved',
   bests: 'mosunset:box-packing:bests',
+  gpu: 'mosunset:box-packing:gpu',
   sweep: 'mosunset:box-packing:sweep',
 } as const
 
@@ -598,6 +600,12 @@ function withBest(
   return next
 }
 
+/**
+ * GPU 係が 1 回に 1 つの組み合わせを受け持つ時間。GPU は数千〜数万通りをまとめて数秒かけて評価するので、
+ * CPU の係（SLICE_SEC）より長くする
+ */
+const GPU_SLICE_MS = 15_000
+
 /** Worker を 1 つ動かして、1 つの組み合わせを計算する。止める関数を返す */
 function runWorker(
   input: PackInput,
@@ -839,6 +847,48 @@ export function BoxPacking() {
   }>({ running: false, combos: [], rows: [], startedAt: 0 })
   /** 経過時間の表示を進めるための時計 */
   const [now, setNow] = useState(() => Date.now())
+  /** GPU（WebGPU）を使うか（使える環境のときだけ効く） */
+  const [useGpu, setUseGpu] = useState(() => readStorage(STORAGE.gpu) !== false)
+  const [gpu, setGpu] = useState<{
+    status: 'checking' | 'ready' | 'unavailable'
+    description?: string
+  }>({ status: 'checking' })
+  /** GPU 係の Worker（ページを開いているあいだ 1 つだけ動かし続ける）と、頼みごとごとの返事の受け取り先 */
+  const gpuWorkerRef = useRef<Worker | null>(null)
+  const gpuHandlersRef = useRef(new Map<number, (reply: GpuReply) => void>())
+  const gpuTokenRef = useRef(0)
+
+  // GPU 係を用意し、GPU が使えるかを確かめる
+  useEffect(() => {
+    if (!('gpu' in navigator)) {
+      setGpu({ status: 'unavailable' })
+      return
+    }
+    const w = new Worker(
+      new URL('./box-packing-gpu.worker.ts', import.meta.url),
+      {
+        type: 'module',
+      },
+    )
+    gpuWorkerRef.current = w
+    w.onmessage = (event: MessageEvent<GpuReply>) => {
+      const reply = event.data
+      if (reply.kind === 'ready')
+        setGpu({ status: 'ready', description: reply.description })
+      else if (reply.kind === 'unavailable') setGpu({ status: 'unavailable' })
+      gpuHandlersRef.current.get(reply.token)?.(reply)
+    }
+    w.onerror = () => setGpu({ status: 'unavailable' })
+    w.postMessage({ type: 'probe' } satisfies GpuRequest)
+    return () => {
+      w.terminate()
+      gpuWorkerRef.current = null
+    }
+  }, [])
+  useEffect(() => {
+    writeStorage(STORAGE.gpu, useGpu)
+  }, [useGpu])
+  const gpuOn = useGpu && gpu.status === 'ready'
   const [showBest3D, setShowBest3D] = useState(true)
   const captureRef = useRef<(() => Promise<Blob | null>) | null>(null)
   const fileRef = useRef<HTMLInputElement>(null)
@@ -934,6 +984,32 @@ export function BoxPacking() {
       .map((c, i) => (validate(c) ? -1 : i))
       .filter((i) => i >= 0)
     const stops = new Array<(() => void) | null>(workerCount).fill(null)
+    // GPU を使うときは、計算係のうち 1 つ（0 番）を GPU 係にする
+    const gpuWorker = gpuOn ? gpuWorkerRef.current : null
+    const runGpu: typeof runWorker = (job, on) => {
+      const w = gpuWorker
+      if (!w) return runWorker(job, on)
+      const token = ++gpuTokenRef.current
+      gpuHandlersRef.current.set(token, (reply) => {
+        if (reply.kind === 'best') on.best(reply.result)
+        else if (reply.kind === 'metric') on.metric(reply.metric, reply.result)
+        else if (reply.kind === 'done') {
+          gpuHandlersRef.current.delete(token)
+          on.done()
+        }
+        if ('tried' in reply) on.progress(reply.tried)
+      })
+      w.postMessage({
+        type: 'run',
+        token,
+        input: job,
+        durationMs: MAX_SEARCH_MS,
+      } satisfies GpuRequest)
+      return () => {
+        gpuHandlersRef.current.delete(token)
+        w.postMessage({ type: 'stop', token } satisfies GpuRequest)
+      }
+    }
     const slotTried = new Array<number>(workerCount).fill(0)
     let finishedTried = 0
     let lastProgress = 0
@@ -985,7 +1061,7 @@ export function BoxPacking() {
         patchRow(i, (r) => ({ ...r, active: active[i], visits: visits[i] }))
         launch(slot)
       }
-      stops[slot] = runWorker(
+      stops[slot] = (slot === 0 && gpuWorker ? runGpu : runWorker)(
         {
           ...input,
           seed: Math.floor(Math.random() * 1_000_000_000),
@@ -1045,7 +1121,11 @@ export function BoxPacking() {
       // 組み合わせが 1 つだけなら区切らずに探し続ける（良い結果が出なくなったら、良い並べ方から再開）
       timer = window.setTimeout(
         finish,
-        n > 1 ? SLICE_SEC * 1000 : MAX_SEARCH_MS,
+        n > 1
+          ? slot === 0 && gpuWorker
+            ? GPU_SLICE_MS
+            : SLICE_SEC * 1000
+          : MAX_SEARCH_MS,
       )
     }
 
@@ -1896,6 +1976,9 @@ export function BoxPacking() {
         count={search.combos.length}
         tried={progress.tried}
         workers={workerCount}
+        gpu={gpu}
+        useGpu={useGpu}
+        onUseGpu={setUseGpu}
         error={error}
         onStart={() => startSearch()}
         onStop={stopSearch}

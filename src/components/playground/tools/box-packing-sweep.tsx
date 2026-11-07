@@ -247,6 +247,9 @@ export function SearchBar({
   count,
   tried,
   workers,
+  gpu,
+  useGpu,
+  onUseGpu,
   error,
   onStart,
   onStop,
@@ -263,6 +266,10 @@ export function SearchBar({
   count: number
   tried: number
   workers: number
+  /** GPU（WebGPU）が使えるか */
+  gpu: { status: 'checking' | 'ready' | 'unavailable'; description?: string }
+  useGpu: boolean
+  onUseGpu: (on: boolean) => void
   /** 入力の誤り（あれば探せない） */
   error: string | null
   onStart: () => void
@@ -284,23 +291,42 @@ export function SearchBar({
             秒ずつ受け持ち、終わったら次の組み合わせをランダムに選び直します（計算した回数が少ないものを優先）。同じ組み合わせにまた当たったときは、前に見つけた良い並べ方の続きから詰めるので、全部の組み合わせが同時に少しずつ良くなっていきます。結果は下の「部門別ベスト」に自動で入ります。
           </HelpTip>
         </h2>
+        <label
+          className={cn(
+            'ml-auto flex items-center gap-2 text-sm',
+            gpu.status !== 'ready' && 'text-muted-foreground',
+          )}
+          title={gpu.description}
+        >
+          <input
+            type="checkbox"
+            checked={useGpu && gpu.status === 'ready'}
+            disabled={running || gpu.status !== 'ready'}
+            onChange={(e) => onUseGpu(e.target.checked)}
+            className="size-4 accent-primary"
+          />
+          GPU も使う
+          <span className="text-xs text-muted-foreground">
+            {gpu.status === 'checking'
+              ? '（確認中）'
+              : gpu.status === 'unavailable'
+                ? '（この環境では使えません）'
+                : ''}
+          </span>
+        </label>
+        <HelpTip>
+          WebGPU が使えるブラウザでは、計算係の 1 つを GPU
+          にして、少しずつ入れ替えた並べ順を数千通りまとめて評価します（上位だけを
+          CPU で正式に評価）。使えないブラウザや、オフにしたときは CPU
+          だけで計算します。
+        </HelpTip>
         {running ? (
-          <Button
-            type="button"
-            variant="outline"
-            className="ml-auto"
-            onClick={onStop}
-          >
+          <Button type="button" variant="outline" onClick={onStop}>
             <Square />
             止める
           </Button>
         ) : (
-          <Button
-            type="button"
-            className="ml-auto"
-            disabled={!!error}
-            onClick={onStart}
-          >
+          <Button type="button" disabled={!!error} onClick={onStart}>
             <Search />
             探す
           </Button>
@@ -319,7 +345,10 @@ export function SearchBar({
             </span>
           )}
           <span className="font-mono text-xs tabular-nums">
-            {tried.toLocaleString()} 通りの並べ方を試行中・{workers} 並列
+            {tried.toLocaleString()} 通りの並べ方を試行中・
+            {useGpu && gpu.status === 'ready'
+              ? `GPU ＋ CPU ${workers - 1} 並列`
+              : `${workers} 並列`}
           </span>
         </p>
       ) : (
