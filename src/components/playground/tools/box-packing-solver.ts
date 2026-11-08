@@ -1563,11 +1563,10 @@ export function createSearch(
  * 人が見比べて選ぶための部門。
  * 同じ床と箱で全部置けた結果どうしなら、充填率は高さだけで決まるので部門にしない
  */
-export type Metric = 'height' | 'floor' | 'low' | 'tidy'
+export type Metric = 'height' | 'low' | 'tidy'
 
 export const metricLabels: Record<Metric, string> = {
   height: 'いちばん低い',
-  floor: '1 段目がいちばん埋まっている',
   low: '重心がいちばん低い',
   tidy: '見た目がいちばん整っている',
 }
@@ -1606,7 +1605,6 @@ export function betterFor(
   const keys: Record<Metric, (r: PackResult) => number[]> = {
     // 高さが同じ結果はたくさんあるので、同じなら見た目が整っているほうを残す
     height: (r) => [r.height, -r.tidiness, -r.floorCoverage, cogZ(r)],
-    floor: (r) => [-r.floorCoverage, r.height, -r.tidiness, cogZ(r)],
     low: (r) => [cogZ(r), r.height, -r.floorCoverage],
     tidy: (r) => [-r.tidiness, r.height, cogZ(r)],
   }

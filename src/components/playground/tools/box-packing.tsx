@@ -712,7 +712,9 @@ function runWorker(
 function loadSweep(): SweepConfig {
   const v = readStorage(STORAGE.sweep) as Partial<SweepConfig> | null
   if (!v || typeof v !== 'object') return defaultSweep
-  const range = (key: 'gap' | 'edgeGap' | 'supportPercent' | 'wallBias') => {
+  const range = (
+    key: 'gap' | 'edgeGap' | 'supportPercent' | 'wallBias' | 'tidyWeight',
+  ) => {
     const r = v[key] as Partial<SweepConfig['gap']> | undefined
     const d = defaultSweep[key]
     const n = (x: unknown, fallback: number) =>
@@ -729,6 +731,7 @@ function loadSweep(): SweepConfig {
     edgeGap: range('edgeGap'),
     supportPercent: range('supportPercent'),
     wallBias: range('wallBias'),
+    tidyWeight: range('tidyWeight'),
     bothObjectives:
       typeof v.bothObjectives === 'boolean'
         ? v.bothObjectives
@@ -968,7 +971,7 @@ export function BoxPacking() {
   const setRandom = (patch: Partial<RandomOptions>) =>
     setSettings((s) => ({ ...s, random: { ...s.random, ...patch } }))
   const setRange = <
-    K extends 'gap' | 'edgeGap' | 'supportPercent' | 'wallBias',
+    K extends 'gap' | 'edgeGap' | 'supportPercent' | 'wallBias' | 'tidyWeight',
   >(
     key: K,
     r: SweepConfig[K],
@@ -982,6 +985,7 @@ export function BoxPacking() {
     edgeGap: settings.edgeGap,
     supportPercent: settings.supportPercent,
     wallBias: settings.wallBias,
+    tidyWeight: settings.tidy.weight,
     objective: settings.objective,
   }
   const plan = planSearch(sweepConfig, sweepBase, workerCount)
@@ -1001,6 +1005,7 @@ export function BoxPacking() {
         edgeGap: c.edgeGap,
         supportPercent: c.supportPercent,
         wallBias: c.wallBias,
+        tidy: { ...settings.tidy, weight: c.tidyWeight },
         objective: c.objective,
         boxes: c.layDownAll
           ? settings.boxes.map((b) => ({ ...b, canLayDown: true }))
@@ -1154,23 +1159,22 @@ export function BoxPacking() {
               }),
             )
             patchRow(i, (r) => {
+              let next = r
               if (metric === 'height' && betterFor('height', found, r.lowest)) {
-                return { ...r, lowest: found }
+                next = { ...next, lowest: found }
               }
-              if (
-                metric === 'floor' &&
-                found.floorCoverage > (r.bestFloor ?? -1)
-              ) {
-                return { ...r, bestFloor: found.floorCoverage }
+              // 1 段目の埋まり方は部門にしないが、試した組み合わせの表には出す
+              if (found.floorCoverage > (next.bestFloor ?? -1)) {
+                next = { ...next, bestFloor: found.floorCoverage }
               }
               if (
                 metric === 'low' &&
                 found.cog &&
-                found.cog.z < (r.bestCogZ ?? Number.POSITIVE_INFINITY)
+                found.cog.z < (next.bestCogZ ?? Number.POSITIVE_INFINITY)
               ) {
-                return { ...r, bestCogZ: found.cog.z }
+                next = { ...next, bestCogZ: found.cog.z }
               }
-              return r
+              return next
             })
           },
           progress: (tried) => {
@@ -2033,23 +2037,28 @@ export function BoxPacking() {
           </div>
           <div className="space-y-2 sm:col-span-2 lg:col-span-3">
             <div className="max-w-md">
-              <RangeSlider
+              <RangeOrValue
                 label="見た目の整い（人の感覚）"
-                help="人が見て整っていると感じる積み方を、どれだけ重視するかです。0 なら気にせず、上げるほど、高さを少し譲ってでも整った積み方を選びます。下の 4 つで、何を整いとみなすかを選べます。"
+                help="人が見て整っていると感じる積み方を、どれだけ重視するかです（0〜100）。0 なら気にせず、上げるほど、高さを少し譲ってでも整った積み方を選びます。範囲にすると、重視する度合いを変えながら試します。下の 5 つで、何を整いとみなすかを選べます。"
                 value={settings.tidy.weight}
                 min={0}
                 max={100}
                 step={10}
+                unit=""
                 format={(v) =>
                   v === 0 ? 'なし' : v <= 30 ? '弱' : v <= 70 ? '中' : '強'
                 }
-                onChange={(v) => set('tidy', { ...settings.tidy, weight: v })}
+                range={sweepConfig.tidyWeight}
+                onValue={(v) => set('tidy', { ...settings.tidy, weight: v })}
+                onRange={(r) => setRange('tidyWeight', r)}
               />
             </div>
             <div
               className={cn(
                 'flex flex-wrap gap-x-5 gap-y-1 text-sm',
-                settings.tidy.weight === 0 && 'opacity-50',
+                settings.tidy.weight === 0 &&
+                  !sweepConfig.tidyWeight.on &&
+                  'opacity-50',
               )}
             >
               {(

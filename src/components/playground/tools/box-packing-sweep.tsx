@@ -15,6 +15,8 @@ export type SweepConfig = {
   edgeGap: SweepRange
   supportPercent: SweepRange
   wallBias: SweepRange
+  /** 見た目の整いを重視する度合い（0〜100） */
+  tidyWeight: SweepRange
   /** 「全体の高さを低く」と「下の段から隙間なく」の両方を試す */
   bothObjectives: boolean
   /** 横倒しの許可を「今のまま」と「全部オン」の両方で試す */
@@ -27,6 +29,7 @@ export const defaultSweep: SweepConfig = {
   edgeGap: { on: false, min: 2, max: 10, step: 2 },
   supportPercent: { on: true, min: 85, max: 100, step: 5 },
   wallBias: { on: false, min: 0, max: 100, step: 50 },
+  tidyWeight: { on: false, min: 0, max: 100, step: 50 },
   bothObjectives: true,
   bothLayDown: true,
 }
@@ -46,6 +49,7 @@ export type SweepCombo = {
   edgeGap: number
   supportPercent: number
   wallBias: number
+  tidyWeight: number
   objective: Objective
   layDownAll: boolean
 }
@@ -73,6 +77,7 @@ export function buildCombos(
   const edges = valuesOf(config.edgeGap, base.edgeGap, 0, 50)
   const supports = valuesOf(config.supportPercent, base.supportPercent, 50, 100)
   const biases = valuesOf(config.wallBias, base.wallBias, 0, 100)
+  const tidies = valuesOf(config.tidyWeight, base.tidyWeight, 0, 100)
   const objectives: Objective[] = config.bothObjectives
     ? ['height', 'floor']
     : [base.objective]
@@ -83,17 +88,19 @@ export function buildCombos(
       for (const gap of gaps)
         for (const edgeGap of edges)
           for (const wallBias of biases)
-            for (const layDownAll of layDowns) {
-              if (all.length >= MAX_COMBOS) break
-              all.push({
-                gap,
-                edgeGap,
-                supportPercent,
-                wallBias,
-                objective,
-                layDownAll,
-              })
-            }
+            for (const tidyWeight of tidies)
+              for (const layDownAll of layDowns) {
+                if (all.length >= MAX_COMBOS) break
+                all.push({
+                  gap,
+                  edgeGap,
+                  supportPercent,
+                  wallBias,
+                  tidyWeight,
+                  objective,
+                  layDownAll,
+                })
+              }
   return all
 }
 
@@ -116,6 +123,7 @@ export function comboChips(config: SweepConfig, c: SweepCombo) {
   if (config.edgeGap.on) chips.push(`端 ${c.edgeGap}`)
   if (config.supportPercent.on) chips.push(`支え ${c.supportPercent}%`)
   if (config.wallBias.on) chips.push(`寄せ ${c.wallBias}`)
+  if (config.tidyWeight.on) chips.push(`整い ${c.tidyWeight}`)
   if (config.bothObjectives)
     chips.push(c.objective === 'height' ? '優先 高さ' : '優先 1 段目')
   if (config.bothLayDown)
