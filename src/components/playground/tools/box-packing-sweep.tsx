@@ -36,7 +36,7 @@ export const defaultSweep: SweepConfig = {
 
 /**
  * 1 回に 1 つの組み合わせへかける時間。Worker ごとに別の組み合わせをこの時間だけ計算し、
- * 終わったら次の組み合わせをランダムに選び直す（計算した回数が少ないものを優先）
+ * 終わったら次の組み合わせを選び直す（まず全部に 1 回ずつ、そのあとは成績の良いもの・伸びているものを多めに）
  */
 export const SLICE_SEC = 2
 
@@ -138,6 +138,12 @@ export type SweepRow = {
   visits: number
   /** 今、何個の Worker がこの組み合わせを計算しているか */
   active: number
+  /**
+   * 最後に良くなってから、計算に使った時間（ミリ秒）。計算していない時間は数えない。
+   * 今計算しているときは、stallFrom からの時間を足して表示する
+   */
+  stallMs: number
+  stallFrom?: number
   /** 全部の箱を置けた結果のうち、いちばん低いもの（表示用） */
   lowest?: PackResult
   /** 全部の箱を置けた結果のうち、1 段目のいちばん大きい割合と、いちばん低い重心 */
@@ -288,7 +294,7 @@ export function SearchBar({
   const planText =
     plan.all === 1
       ? `条件はすべて 1 つの値なので、その 1 通りを ${workers} 並列で探し続けます。「止める」を押すまで続け、1 時間たったら自動で止めます`
-      : `${plan.all} 通りの組み合わせを、${workers} 並列でランダムに少しずつ（1 回 ${SLICE_SEC} 秒）探し続けます。全部に 1 回ずつ当たるまで ${minutes(plan.roundSec)}で、そのあとも前の良い並べ方の続きから詰めていきます。「止める」を押すまで続け、1 時間たったら自動で止めます`
+      : `${plan.all} 通りの組み合わせを、${workers} 並列で少しずつ（1 回 ${SLICE_SEC} 秒）探し続けます（全部に当てたあとは、成績の良い組み合わせに時間を多く使います）。全部に 1 回ずつ当たるまで ${minutes(plan.roundSec)}で、そのあとも前の良い並べ方の続きから詰めていきます。「止める」を押すまで続け、1 時間たったら自動で止めます`
   return (
     <section className="space-y-3 rounded-lg border-2 border-primary/30 p-4">
       <div className="flex flex-wrap items-center gap-3">
@@ -296,7 +302,8 @@ export function SearchBar({
           4. 探す
           <HelpTip>
             並列で動く計算係（Worker）が、それぞれ別の組み合わせを {SLICE_SEC}{' '}
-            秒ずつ受け持ち、終わったら次の組み合わせをランダムに選び直します（計算した回数が少ないものを優先）。同じ組み合わせにまた当たったときは、前に見つけた良い並べ方の続きから詰めるので、全部の組み合わせが同時に少しずつ良くなっていきます。結果は下の「部門別ベスト」に自動で入ります。
+            秒ずつ受け持ち、終わったら次の組み合わせを選び直します（まず全部に 1
+            回ずつ当て、そのあとは成績の良いものや、前回伸びたものを多めに）。同じ組み合わせにまた当たったときは、前に見つけた良い並べ方の続きから詰めるので、全部の組み合わせが同時に少しずつ良くなっていきます。結果は下の「部門別ベスト」に自動で入ります。
           </HelpTip>
         </h2>
         <label
@@ -366,17 +373,32 @@ export function SearchBar({
   )
 }
 
-type SortKey = 'order' | 'height' | 'floor' | 'cog'
+type SortKey = 'order' | 'height' | 'floor' | 'cog' | 'stall'
 
 /** 試した組み合わせの一覧。高さ・1 段目・重心で並べ替えられる */
+/** 最後に良くなってから、計算に使った時間（ミリ秒） */
+export const stallOf = (r: SweepRow, now: number) =>
+  r.stallMs + (r.stallFrom !== undefined ? Math.max(0, now - r.stallFrom) : 0)
+
+/** 秒・分の表示 */
+const duration = (ms: number) => {
+  const sec = Math.floor(ms / 1000)
+  return sec < 60
+    ? `${sec} 秒`
+    : `${Math.floor(sec / 60)} 分 ${String(sec % 60).padStart(2, '0')} 秒`
+}
+
 export function SweepTable({
   rows,
   viewing,
   onView,
+  now,
 }: {
   rows: SweepRow[]
   viewing: number | null
   onView: (index: number) => void
+  /** 今の時刻（計算中の組み合わせの「変化なし」を進めて表示する） */
+  now: number
 }) {
   const [sort, setSort] = useState<SortKey>('order')
   const order = rows.map((r, i) => ({ r, i }))
@@ -389,6 +411,8 @@ export function SweepTable({
     order.sort((a, b) => (b.r.bestFloor ?? -1) - (a.r.bestFloor ?? -1))
   if (sort === 'cog')
     order.sort((a, b) => (a.r.bestCogZ ?? inf) - (b.r.bestCogZ ?? inf))
+  if (sort === 'stall')
+    order.sort((a, b) => stallOf(b.r, now) - stallOf(a.r, now))
   const head = (key: SortKey, text: string) => (
     <th className="py-1 font-normal">
       <button
@@ -411,7 +435,9 @@ export function SweepTable({
         試した組み合わせ（{rows.filter((r) => r.visits > 0).length} /{' '}
         {rows.length}）
         <HelpTip>
-          今回の「探す」で試している条件の組み合わせです。「回数」は、その組み合わせを何回計算したかで、水色の行は今計算している組み合わせです。見出しを押すと、その項目で並べ替えます。「表示」で、その組み合わせのいちばん低い結果を下の「詳しく見る」に出します。
+          今回の「探す」で試している条件の組み合わせです。「回数」は、その組み合わせを何回計算したか、「変化なし」は、最後に良くなってから計算に使った時間です（計算していない時間は数えません。良くなると
+          0
+          に戻ります）。水色の行は今計算している組み合わせです。見出しを押すと、その項目で並べ替えます。「表示」で、その組み合わせのいちばん低い結果を下の「詳しく見る」に出します。
         </HelpTip>
       </h2>
       <div className="h-64 overflow-auto rounded-md border">
@@ -421,6 +447,7 @@ export function SweepTable({
               {head('order', '#')}
               <th className="py-1 font-normal">変えた条件</th>
               <th className="py-1 font-normal">回数</th>
+              {head('stall', '変化なし')}
               {head('height', 'いちばん低い')}
               {head('floor', '1 段目（最大）')}
               {head('cog', '重心の高さ（最小）')}
@@ -462,6 +489,11 @@ export function SweepTable({
                   </td>
                   <td className="py-1 font-mono whitespace-nowrap tabular-nums">
                     {r.visits}
+                  </td>
+                  <td className="py-1 font-mono whitespace-nowrap tabular-nums">
+                    {r.visits > 0 || r.active > 0
+                      ? duration(stallOf(r, now))
+                      : '—'}
                   </td>
                   <td className="py-1 font-mono whitespace-nowrap tabular-nums">
                     {r.lowest

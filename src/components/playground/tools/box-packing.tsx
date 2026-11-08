@@ -694,6 +694,17 @@ function withBest(
  */
 const GPU_SLICE_MS = 15_000
 
+/** 止めたときの行: 計算中の印を消し、「変化なし」の時間を止める */
+const stopRow = (r: SweepRow): SweepRow => ({
+  ...r,
+  active: 0,
+  stallMs:
+    r.stallFrom !== undefined
+      ? r.stallMs + Math.max(0, Date.now() - r.stallFrom)
+      : r.stallMs,
+  stallFrom: undefined,
+})
+
 /** 係を止める関数（adopt で、ほかの係が見つけた良い並べ方を渡せる） */
 type Runner = (() => void) & { adopt: (genome: Genome) => void }
 
@@ -1140,7 +1151,7 @@ export function BoxPacking() {
     setSearch({
       running: true,
       combos,
-      rows: chips.map((c) => ({ chips: c, visits: 0, active: 0 })),
+      rows: chips.map((c) => ({ chips: c, visits: 0, active: 0, stallMs: 0 })),
       startedAt: Date.now(),
       startOrder: from?.result.placements.map((p) => p.type),
       startGenome: from?.result.genome,
@@ -1151,7 +1162,7 @@ export function BoxPacking() {
     setSearch((s) => ({
       ...s,
       running: false,
-      rows: s.rows.map((r) => ({ ...r, active: 0 })),
+      rows: s.rows.map(stopRow),
     }))
 
   // Worker ごとに別の組み合わせを SLICE_SEC だけ計算し、終わったら次の組み合わせをランダムに選び直す
@@ -1225,7 +1236,8 @@ export function BoxPacking() {
 
     const patchRow = (i: number, patch: (r: SweepRow) => SweepRow) =>
       setSearch((s) => {
-        if (s.startedAt !== startedAt) return s
+        // 止めたあとに届いた知らせでは、表を変えない（止めたときに「変化なし」の時間も止めている）
+        if (s.startedAt !== startedAt || !s.running) return s
         const rows = [...s.rows]
         rows[i] = patch(rows[i])
         return { ...s, rows }
@@ -1276,7 +1288,13 @@ export function BoxPacking() {
       active[i]++
       slotCombo[slot] = i
       const scoreAtStart = bestScore[i]
-      patchRow(i, (r) => ({ ...r, active: active[i] }))
+      // 計算し始めたら「変化なし」の時間を数え始める（ほかの係がすでに計算中なら、そのまま）
+      const startedAtSlot = Date.now()
+      patchRow(i, (r) => ({
+        ...r,
+        active: active[i],
+        stallFrom: r.stallFrom ?? startedAtSlot,
+      }))
       const { seed: _seed, ...input } = toInput(combos[i], 0)
       let finished = false
       let timer = 0
@@ -1294,7 +1312,19 @@ export function BoxPacking() {
         slotTried[slot] = 0
         active[i]--
         visits[i]++
-        patchRow(i, (r) => ({ ...r, active: active[i], visits: visits[i] }))
+        // 誰も計算していなくなったら、「変化なし」の時間を止める
+        const endedAt = Date.now()
+        patchRow(i, (r) =>
+          active[i] > 0 || r.stallFrom === undefined
+            ? { ...r, active: active[i], visits: visits[i] }
+            : {
+                ...r,
+                active: active[i],
+                visits: visits[i],
+                stallMs: r.stallMs + Math.max(0, endedAt - r.stallFrom),
+                stallFrom: undefined,
+              },
+        )
         launch(slot)
       }
       stops[slot] = (slot === 0 && gpuWorker ? runGpu : runWorker)(
@@ -1311,6 +1341,13 @@ export function BoxPacking() {
               bestScore[i] = found.score
               bestOrder[i] = found.placements.map((p) => p.type)
               bestGenome[i] = found.genome
+              // 良くなったので「変化なし」を 0 に戻す
+              const improvedAt = Date.now()
+              patchRow(i, (r) => ({
+                ...r,
+                stallMs: 0,
+                stallFrom: active[i] > 0 ? improvedAt : undefined,
+              }))
               // 同じ組み合わせを受け持っているほかの係にも、すぐ教える（1 秒に 1 回まで）
               const genome = found.genome
               if (genome && Date.now() - lastShared[i] > 1000) {
@@ -1389,7 +1426,7 @@ export function BoxPacking() {
           ? {
               ...s,
               running: false,
-              rows: s.rows.map((r) => ({ ...r, active: 0 })),
+              rows: s.rows.map(stopRow),
             }
           : s,
       )
@@ -2382,6 +2419,7 @@ export function BoxPacking() {
       {search.rows.length > 0 && (
         <SweepTable
           rows={search.rows}
+          now={now}
           viewing={sweepIndex}
           onView={(i) => show(`sweep:${i}`)}
         />
