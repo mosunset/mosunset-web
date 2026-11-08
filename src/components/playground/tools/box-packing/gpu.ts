@@ -1,12 +1,12 @@
 /// <reference types="@webgpu/types" />
 /**
  * 箱詰めの「1 つの並べ方で 1 つずつ置いていく」計算を、GPU（WebGPU）で何万通りも同時に行う。
- * 置き方の決め方は box-packing-solver.ts の packInOrder と同じ（同じ並べ方なら同じ置き方になる）:
+ * 置き方の決め方は solver.ts の packInOrder と同じ（同じ並べ方なら同じ置き方になる）:
  *   置く単位（ばらの箱か、同じ寸法の箱のかたまり）を並べ順に置く。候補 = 床の端か置いた単位の右・奥の端＋すき間
  *  （組み合わせが多いときは置いた単位の角のまわりだけ）、真下の上に乗せる、横のすき間、底面の支え、
  *   並べ方ごとのルールの重みで点数を付け、小さい順（同じなら先に見つけたほう）。
  * 置き終えたら、重心・置いた範囲・見た目の整い（同じ寸法のまとまり・平らさ・大きい箱が下・くぼみ）・塔も
- * GPU で見積もり、CPU が正式な点数に近い点数を出して、上位だけを CPU で正式に評価する（box-packing-gpu.worker.ts）。
+ * GPU で見積もり、CPU が正式な点数に近い点数を出して、上位だけを CPU で正式に評価する（gpu.worker.ts）。
  *
  * Windows は GPU の 1 回の計算が長いと GPU をリセットするので、「全部の並べ方について 1 つ置く」
  * 短い計算に分けて、何回かずつ GPU に渡す。
@@ -21,7 +21,7 @@ import {
   type UnitTable,
   unitExtras,
   wallSidesOf,
-} from './box-packing-solver'
+} from './solver'
 
 /** 置き方は単位 1 つにつき最大 6 通り */
 const MAX_ORIENTATIONS = 6

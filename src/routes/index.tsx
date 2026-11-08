@@ -1,7 +1,7 @@
 import { createFileRoute, Link } from '@tanstack/react-router'
 import { ArrowRight } from 'lucide-react'
 
-import { SocialIcon } from '@/components/social-icons'
+import { SocialIcon } from '@/components/layout/social-icons'
 import { Button } from '@/components/ui/button'
 import {
   Card,

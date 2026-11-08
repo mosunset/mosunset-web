@@ -2,8 +2,8 @@
 // GPU 係の Worker。ページを開いているあいだ 1 つだけ動かし続け、「この組み合わせを、この時間だけ」と頼まれたら、
 // 今の良い並べ順を少しずつ入れ替えた並べ順を数千通り作って GPU でまとめて評価し、
 // 上位の数通りだけを CPU で正式に評価して、良ければ次の出発点にする（を繰り返す）
-import type { WorkerMessage } from './box-packing.worker'
-import type { EvalReply, EvalRequest } from './box-packing-eval.worker'
+
+import type { EvalReply, EvalRequest } from './eval.worker'
 import {
   createGpuContext,
   createGpuEvaluator,
@@ -11,7 +11,8 @@ import {
   type GpuEvaluator,
   type GpuMetrics,
   NONE,
-} from './box-packing-gpu'
+} from './gpu'
+import type { WorkerMessage } from './search.worker'
 import {
   acceptWorse,
   betterFor,
@@ -38,7 +39,7 @@ import {
   unitsOf,
   weightOf,
   withRulePhase,
-} from './box-packing-solver'
+} from './solver'
 
 /** 画面から GPU 係への頼みごと */
 export type GpuRequest =
@@ -137,12 +138,9 @@ const getHelpers = () => {
   helpers = []
   for (let i = 0; i < HELPERS; i++) {
     try {
-      const w = new Worker(
-        new URL('./box-packing-eval.worker.ts', import.meta.url),
-        {
-          type: 'module',
-        },
-      )
+      const w = new Worker(new URL('./eval.worker.ts', import.meta.url), {
+        type: 'module',
+      })
       w.onmessage = (e: MessageEvent<EvalReply>) => {
         helperWaits.get(e.data.id)?.(e.data.results)
         helperWaits.delete(e.data.id)

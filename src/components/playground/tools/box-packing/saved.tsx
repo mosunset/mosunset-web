@@ -4,12 +4,7 @@ import type { ReactNode } from 'react'
 import { HelpTip } from '@/components/playground/parts'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
-import {
-  type Metric,
-  metricLabels,
-  metrics,
-  type PackResult,
-} from './box-packing-solver'
+import { type Metric, metricLabels, metrics, type PackResult } from './solver'
 
 /** 設定の要点（比べるときに並べる項目）。box-packing.tsx の設定から作る */
 export type SettingsSummary = { label: string; value: string }[]

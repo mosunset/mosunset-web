@@ -7,7 +7,7 @@ import {
   metrics,
   type PackInput,
   type PackResult,
-} from './box-packing-solver'
+} from './solver'
 
 export type WorkerMessage =
   /** より良い結果が見つかった（「優先すること」の点数で） */

@@ -12,9 +12,8 @@ import {
   useRouterState,
 } from '@tanstack/react-router'
 import { TanStackRouterDevtoolsPanel } from '@tanstack/react-router-devtools'
-
+import { SiteShell } from '@/components/layout/site-shell'
 import { NotFoundPage } from '@/components/not-found-page'
-import { SiteShell } from '@/components/site-shell'
 import { Toaster } from '@/components/ui/sonner'
 import { TooltipProvider } from '@/components/ui/tooltip'
 

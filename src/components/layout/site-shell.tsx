@@ -1,9 +1,9 @@
 import type * as React from 'react'
 
-import { AppBreadcrumb } from '@/components/app-breadcrumb'
-import { AppSidebar } from '@/components/app-sidebar'
-import { SiteFooter } from '@/components/site-footer'
-import { SiteHeader } from '@/components/site-header'
+import { AppBreadcrumb } from '@/components/layout/app-breadcrumb'
+import { AppSidebar } from '@/components/layout/app-sidebar'
+import { SiteFooter } from '@/components/layout/site-footer'
+import { SiteHeader } from '@/components/layout/site-header'
 import { SidebarInset, SidebarProvider } from '@/components/ui/sidebar'
 
 /** 公開サイトのレイアウト（ヘッダー・必要なときだけ出るサイドバー・フッター） */

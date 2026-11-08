@@ -3,7 +3,7 @@ import { ExternalLink } from 'lucide-react'
 import type * as React from 'react'
 
 import { AdminSidebar } from '@/components/admin/admin-sidebar'
-import { AppBreadcrumb } from '@/components/app-breadcrumb'
+import { AppBreadcrumb } from '@/components/layout/app-breadcrumb'
 import { Button } from '@/components/ui/button'
 import { Separator } from '@/components/ui/separator'
 import {

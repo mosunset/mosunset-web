@@ -44,7 +44,14 @@ TURNSTILE_SITE_KEY=1x00000000000000000000AA   # 開発中は Cloudflare のテ�
 ```
 src/
   routes/        ページ（TanStack Router のファイルベースルーティング）。admin/ は管理画面
-  components/    画面の部品。ui/ は shadcn/ui、admin/ は管理画面、playground/ はツール
+  components/    画面の部品
+    layout/        サイト全体の枠（ヘッダー・フッター・サイドバー・パンくず）
+    collection/    コレクション（楽器・資格・おもちゃ・本）の一覧と詳細ページ
+    admin/         管理画面
+    editor/        本文のリッチテキストエディター
+    playground/    プレイグラウンドのツール。tools/ に 1 ツール 1 ファイル（ファイルが複数あるツールは tools/<名前>/ にまとめる）
+    ui/            shadcn/ui
+    （直下）       いろいろなページで使う小さな部品（空のとき・見つからないとき・画像ビューアーなど）
   hooks/         React のフック
   functions/     server function（画面から呼ぶ API）。posts・collections・contact・images・isbn・dashboard・auth
   server/        サーバーの中だけで使う処理（DB・R2・認証・メール・Turnstile・本文の無害化・ヘッダー・フィードなど）
@@ -67,7 +74,7 @@ drizzle/         D1 のマイグレーション
 - 画面のファイルから `src/server` を import すると、`pnpm build` が import protection のエラーで止まります（`vite.config.ts` の `importProtection`）。server function の handler や `.server()` の中でだけ使うものは、ブラウザ用のバンドルでは消えるので通ります。
 - 例外は、画面を持たない server route（`sitemap.xml`・`rss.xml`・`llms.txt`・`/images/$`）と `src/start.ts` です。どちらも `server.handlers` や `.server()` の中から `src/server` の関数を呼ぶだけにしています。
 - コレクション（楽器・資格・おもちゃ・本）の種類と項目は `src/lib/collections.ts` の 1 か所で決めています。管理画面の入力欄・サーバーでの入力チェック・公開ページの表示は、ここから作ります。
-- プレイグラウンドのツールは `src/lib/playground.ts` に 1 件足し、`src/routes/playground/<slug>.tsx` と `src/components/playground/tools/` にファイルを作ります。重いライブラリを使うツールは `clientOnlyTool` でブラウザでだけ読み込みます（Worker に入れない）。
+- プレイグラウンドのツールは `src/lib/playground.ts` に 1 件足し、`src/routes/playground/<slug>.tsx` と `src/components/playground/tools/` にファイルを作ります（ファイルが複数になったら `tools/<名前>/` のフォルダにまとめます。例: `tools/box-packing/`）。重いライブラリを使うツールは `clientOnlyTool` でブラウザでだけ読み込みます（Worker に入れない）。
 
 ## セキュリティ
 

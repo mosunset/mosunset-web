@@ -7,7 +7,7 @@ import {
   type Rule,
   type UnitTable,
   unitsOf,
-} from './box-packing-solver'
+} from './solver'
 
 /** GPU 係から: 設定（頼みごとが変わったときだけ送る）と、評価する並べ方 */
 export type EvalRequest = {

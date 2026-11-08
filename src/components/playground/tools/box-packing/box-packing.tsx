@@ -21,13 +21,9 @@ import { HelpTip, RangeSlider, Stat } from '@/components/playground/parts'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { cn } from '@/lib/utils'
-import type { AdoptMessage, WorkerMessage } from './box-packing.worker'
-import type { GpuReply, GpuRequest } from './box-packing-gpu.worker'
-import {
-  BestResults,
-  SavedResults,
-  type SettingsSummary,
-} from './box-packing-saved'
+import type { GpuReply, GpuRequest } from './gpu.worker'
+import { BestResults, SavedResults, type SettingsSummary } from './saved'
+import type { AdoptMessage, WorkerMessage } from './search.worker'
 import {
   type BoxSpec,
   betterFor,
@@ -42,7 +38,7 @@ import {
   type Placement,
   random,
   type Walls,
-} from './box-packing-solver'
+} from './solver'
 import {
   buildCombos,
   comboChips,
@@ -55,8 +51,8 @@ import {
   type SweepConfig,
   type SweepRow,
   SweepTable,
-} from './box-packing-sweep'
-import { gridStep, PackingView, type ViewOptions } from './box-packing-view'
+} from './sweep'
+import { gridStep, PackingView, type ViewOptions } from './view'
 
 // ---- 設定 ----
 
@@ -719,12 +715,9 @@ function runWorker(
     done: () => void
   },
 ) {
-  const worker = new Worker(
-    new URL('./box-packing.worker.ts', import.meta.url),
-    {
-      type: 'module',
-    },
-  )
+  const worker = new Worker(new URL('./search.worker.ts', import.meta.url), {
+    type: 'module',
+  })
   let stopped = false
   const stop: Runner = Object.assign(
     () => {
@@ -981,12 +974,9 @@ export function BoxPacking() {
       setGpu({ status: 'unavailable' })
       return
     }
-    const w = new Worker(
-      new URL('./box-packing-gpu.worker.ts', import.meta.url),
-      {
-        type: 'module',
-      },
-    )
+    const w = new Worker(new URL('./gpu.worker.ts', import.meta.url), {
+      type: 'module',
+    })
     gpuWorkerRef.current = w
     w.onmessage = (event: MessageEvent<GpuReply>) => {
       const reply = event.data

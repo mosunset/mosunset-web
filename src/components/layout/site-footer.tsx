@@ -1,6 +1,6 @@
 import { Link } from '@tanstack/react-router'
 
-import { SocialIcon } from '@/components/social-icons'
+import { SocialIcon } from '@/components/layout/social-icons'
 import { contactNav, mainNav } from '@/lib/navigation'
 import { site } from '@/lib/site'
 

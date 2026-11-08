@@ -4,7 +4,7 @@ import {
   CollectionDetail,
   CollectionGrid,
   CollectionNotFound,
-} from '@/components/collection-view'
+} from '@/components/collection/collection-view'
 import { SectionPage } from '@/components/section-page'
 import { getPublishedItem, listPublishedItems } from '@/functions/collections'
 import { collectionDetailHead } from '@/lib/collection-seo'

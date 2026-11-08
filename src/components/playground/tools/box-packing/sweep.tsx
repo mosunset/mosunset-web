@@ -5,7 +5,7 @@ import { HelpTip, RangeSlider } from '@/components/playground/parts'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { cn } from '@/lib/utils'
-import type { Objective, PackResult } from './box-packing-solver'
+import type { Objective, PackResult } from './solver'
 
 /** 範囲で試す数値の設定（on でなければ、設定欄の 1 つの値で固定） */
 export type SweepRange = { on: boolean; min: number; max: number; step: number }

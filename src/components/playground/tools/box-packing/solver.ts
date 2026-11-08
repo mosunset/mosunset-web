@@ -1,6 +1,6 @@
 /**
  * 箱詰めの計算（Web Worker の中で動かす。画面の部品は import しない）。
- * 仕様は box-packing-spec.tsx。
+ * 仕様は spec.tsx。
  *
  * 座標: x は床の幅（右が +）、y は奥行き（奥が +、手前が 0）、z は高さ。単位は mm の整数。
  *
@@ -519,7 +519,7 @@ type Trace = {
 /**
  * 並べ順（置く単位の番号の列）のとおりに 1 つずつ置いていく。置く場所はルールの重み（weights）で選ぶ。
  * base と from を渡すと、base の並べ順・ルールと from 番目より前が同じとみなし、そこから先だけを置き直す。
- * GPU の計算（box-packing-gpu.ts）も同じ決め方をする
+ * GPU の計算（gpu.ts）も同じ決め方をする
  */
 function packInOrder(
   order: readonly number[],
@@ -930,7 +930,7 @@ export const COG_WEIGHT = 0.3
 /**
  * 重心のずれ（床の大きさで割った値）。壁に沿う向き（その向きに壁がない、または両側に壁がある）は床の中央からのずれ。
  * 壁に垂直な向き（奥の壁・片側だけの横の壁）は、壁からの距離に寄せる強さ（0〜1）を掛けたもの（壁に近いほど良い）。
- * GPU の見積もり（box-packing-gpu.ts）でも使う
+ * GPU の見積もり（gpu.ts）でも使う
  */
 export function cogErrorOf(x: number, y: number, input: PackInput) {
   const { floorX: X, floorY: Y, walls } = input

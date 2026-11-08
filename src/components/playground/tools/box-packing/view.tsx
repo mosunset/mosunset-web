@@ -6,7 +6,7 @@ import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
 
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
-import type { FaceLabel, Placement, Walls } from './box-packing-solver'
+import type { FaceLabel, Placement, Walls } from './solver'
 
 export type ViewOptions = {
   showTags: boolean
