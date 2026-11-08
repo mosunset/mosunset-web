@@ -72,6 +72,45 @@ const boxColor = (hue: number) => `hsl(${hue} 60% 62%)`
 
 // ---- 面に貼る絵 ----
 
+/** タグを分けてよい行数と、行の高さ（文字の大きさの何倍か） */
+const MAX_TAG_LINES = 4
+const LINE_HEIGHT = 1.15
+
+/**
+ * 文字を n 行に分ける（幅がだいたいそろうように。空白があれば、なるべくそこで分ける）。
+ * ctx には測る大きさの文字の設定をしておく
+ */
+function splitLines(ctx: CanvasRenderingContext2D, text: string, n: number) {
+  const chars = Array.from(text.trim())
+  if (n <= 1 || chars.length <= 1) return [chars.join('')]
+  const widths = chars.map((c) => ctx.measureText(c).width)
+  const total = widths.reduce((a, w) => a + w, 0)
+  const lines: string[] = []
+  let line = ''
+  let acc = 0
+  let lastSpace = -1
+  for (let i = 0; i < chars.length; i++) {
+    const c = chars[i]
+    const target = (total * (lines.length + 1)) / n
+    if (line && acc + widths[i] / 2 > target && lines.length < n - 1) {
+      // 近くに空白があれば、そこで分ける
+      if (lastSpace > 0 && line.length - lastSpace <= 3) {
+        lines.push(line.slice(0, lastSpace).trimEnd())
+        line = line.slice(lastSpace).trimStart()
+      } else {
+        lines.push(line)
+        line = ''
+      }
+      lastSpace = -1
+    }
+    if (c === ' ' || c === '　') lastSpace = line.length
+    line += c
+    acc += widths[i]
+  }
+  if (line.trim()) lines.push(line.trim())
+  return lines.filter((l) => l.length > 0)
+}
+
 /**
  * 箱の面に貼る絵。隅に向きの文字（上・前など）、真ん中にタグ。
  * faceW・faceH は面の大きさ（mm）。文字が小さくなりすぎるときは描かない
@@ -107,16 +146,30 @@ function faceTexture(
       }
     }
     if (tag) {
+      // 長いタグは何行かに分けて、いちばん大きく書ける行数を選ぶ
       ctx.font = 'bold 100px sans-serif'
-      const ratio = ctx.measureText(tag).width / 100
-      const sizeMm = Math.min(
-        faceH * 0.3,
-        (faceW * 0.84) / Math.max(ratio, 0.5),
-      )
-      if (sizeMm >= minFontMm) {
-        ctx.font = `bold ${sizeMm * scale}px sans-serif`
+      let best = { size: 0, lines: [tag] }
+      for (let n = 1; n <= MAX_TAG_LINES; n++) {
+        const lines = splitLines(ctx, tag, n)
+        const widest = Math.max(
+          ...lines.map((l) => ctx.measureText(l).width / 100),
+        )
+        const size = Math.min(
+          (faceH * 0.78) / (lines.length * LINE_HEIGHT),
+          (faceW * 0.86) / Math.max(widest, 0.5),
+          faceH * 0.3,
+        )
+        if (size > best.size) best = { size, lines }
+        if (lines.length < n) break
+      }
+      if (best.size >= minFontMm) {
+        const px = best.size * scale
+        ctx.font = `bold ${px}px sans-serif`
         ctx.textAlign = 'center'
-        ctx.fillText(tag, cw / 2, ch * 0.55)
+        const top = ch * 0.55 - ((best.lines.length - 1) * px * LINE_HEIGHT) / 2
+        best.lines.forEach((l, i) => {
+          ctx.fillText(l, cw / 2, top + i * px * LINE_HEIGHT)
+        })
       }
     }
   }
