@@ -1,4 +1,7 @@
 import {
+  ArrowDown,
+  ArrowUp,
+  ArrowUpDown,
   Dices,
   Download,
   FileJson,
@@ -525,6 +528,18 @@ const MAX_BEST_GROUPS = 10
 
 /** 前の版で保存した結果には見た目の整いがないので、0 で補う */
 /** 保存した結果の整いを、今の測り方で測り直す（測り方を変えても、比べ方がずれないように） */
+/** 箱のリストを並べ替えるときの列 */
+type BoxSortKey = 'enabled' | 'tag' | 'x' | 'y' | 'z' | 'count' | 'canLayDown'
+
+/** 箱のリストの 2 行を、列の値で比べる（タグは数字を数として比べる） */
+function compareBoxes(a: BoxRow, b: BoxRow, key: BoxSortKey) {
+  if (key === 'tag')
+    return a.tag.trim().localeCompare(b.tag.trim(), 'ja', { numeric: true })
+  if (key === 'enabled' || key === 'canLayDown')
+    return Number(a[key]) - Number(b[key])
+  return a[key] - b[key]
+}
+
 function withTidiness(r: PackResult, settings: Settings): PackResult {
   try {
     return {
@@ -982,6 +997,44 @@ export function BoxPacking() {
       ...s,
       boxes: s.boxes.map((b) => (b.id === id ? { ...b, ...patch } : b)),
     }))
+  /** 箱のリストを、列の値の昇順・降順に並べ替える（同じ列をもう一度押すと逆の順） */
+  const [boxSort, setBoxSort] = useState<{
+    key: BoxSortKey
+    dir: 1 | -1
+  } | null>(null)
+  const sortBoxes = (key: BoxSortKey) => {
+    const dir = boxSort?.key === key && boxSort.dir === 1 ? -1 : 1
+    setBoxSort({ key, dir })
+    setSettings((s) => ({
+      ...s,
+      boxes: [...s.boxes].sort((a, b) => dir * compareBoxes(a, b, key)),
+    }))
+  }
+  const sortLabel = (key: BoxSortKey, label: string) => {
+    const active = boxSort?.key === key
+    return (
+      <button
+        type="button"
+        onClick={() => sortBoxes(key)}
+        aria-label={`${label}で並べ替える（${active && boxSort.dir === 1 ? '今は昇順。押すと降順' : '押すと昇順'}）`}
+        className={cn(
+          'inline-flex items-center gap-0.5 rounded hover:text-foreground',
+          active && 'text-foreground',
+        )}
+      >
+        {label}
+        {active ? (
+          boxSort.dir === 1 ? (
+            <ArrowUp className="size-3" />
+          ) : (
+            <ArrowDown className="size-3" />
+          )
+        ) : (
+          <ArrowUpDown className="size-3 opacity-40" />
+        )}
+      </button>
+    )
+  }
   /** 箱のリストの from 番目を、to 番目の前へ動かす（to が長さなら最後へ） */
   const moveBox = (from: number, to: number) =>
     setSettings((s) => {
@@ -990,6 +1043,7 @@ export function BoxPacking() {
       const boxes = [...s.boxes]
       const [moved] = boxes.splice(from, 1)
       boxes.splice(target > from ? target - 1 : target, 0, moved)
+      setBoxSort(null)
       return { ...s, boxes }
     })
   // ドラッグで並べ替える（マウスでも指でも動くよう、ポインターの動きで行の位置を見る）
@@ -1657,13 +1711,13 @@ export function BoxPacking() {
                     <HelpTip>
                       左のつまみをドラッグすると、箱のリストの好きな位置へ動かせます（つまみを選んで
                       ↑↓
-                      キーでも動かせます）。「リストで近い箱を近くに」がオンのとき、リストで近い箱ほど近くに置きます（同じシリーズの箱を並べておく、など）。
+                      キーでも動かせます）。列の名前を押すと、その列の昇順・降順に並べ替えます。「リストで近い箱を近くに」がオンのとき、リストで近い箱ほど近くに置きます（同じシリーズの箱を並べておく、など）。
                     </HelpTip>
                   </span>
                 </th>
                 <th className="py-1 pr-2 font-normal">
                   <span className="flex items-center gap-1">
-                    使う
+                    {sortLabel('enabled', '使う')}
                     <HelpTip>
                       オフにした箱は、リストに残したまま積み上げの計算から外します。入れる箱を選び直すときに使います。
                     </HelpTip>
@@ -1671,7 +1725,7 @@ export function BoxPacking() {
                 </th>
                 <th className="py-1 font-normal">
                   <span className="flex items-center gap-1">
-                    タグ
+                    {sortLabel('tag', 'タグ')}
                     <HelpTip>
                       何の箱か分かるための名前です（例：冬服、食器）。3D
                       の箱の面に表示し、同じタグの箱は同じ色になります。空のときは「箱
@@ -1681,13 +1735,13 @@ export function BoxPacking() {
                 </th>
                 <th className="py-1 font-normal">
                   <span className="flex items-center gap-1">
-                    X 幅（mm）
+                    {sortLabel('x', 'X 幅（mm）')}
                     <HelpTip>そのまま置いたときの、左右の長さです。</HelpTip>
                   </span>
                 </th>
                 <th className="py-1 font-normal">
                   <span className="flex items-center gap-1">
-                    Y 奥行き（mm）
+                    {sortLabel('y', 'Y 奥行き（mm）')}
                     <HelpTip>
                       そのまま置いたときの、手前から奥までの長さです。
                     </HelpTip>
@@ -1695,7 +1749,7 @@ export function BoxPacking() {
                 </th>
                 <th className="py-1 font-normal">
                   <span className="flex items-center gap-1">
-                    Z 高さ（mm）
+                    {sortLabel('z', 'Z 高さ（mm）')}
                     <HelpTip>
                       そのまま置いたときの高さです。横倒しを許可しないときは、この辺がいつも上を向きます。
                     </HelpTip>
@@ -1703,13 +1757,13 @@ export function BoxPacking() {
                 </th>
                 <th className="py-1 font-normal">
                   <span className="flex items-center gap-1">
-                    個数
+                    {sortLabel('count', '個数')}
                     <HelpTip>同じ寸法の箱がいくつあるかです。</HelpTip>
                   </span>
                 </th>
                 <th className="py-1 font-normal">
                   <span className="flex items-center gap-1">
-                    横倒し
+                    {sortLabel('canLayDown', '横倒し')}
                     <HelpTip>
                       オンにすると、この箱を横に倒して置いてもよいことにします。倒したほうが良く積めるときだけ倒し、上へ向けるのは元の「前」か「左」の面だけです。
                     </HelpTip>
