@@ -5,7 +5,7 @@ import { HelpTip, RangeSlider } from '@/components/playground/parts'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { cn } from '@/lib/utils'
-import type { Objective, PackResult } from './solver'
+import type { Method, Objective, PackResult } from './solver'
 
 /** 範囲で試す数値の設定（on でなければ、設定欄の 1 つの値で固定） */
 export type SweepRange = { on: boolean; min: number; max: number; step: number }
@@ -21,6 +21,8 @@ export type SweepConfig = {
   bothObjectives: boolean
   /** 横倒しの許可を「今のまま」と「全部オン」の両方で試す */
   bothLayDown: boolean
+  /** 計算方法「並べ順で探す」と「柱で積む」の両方を試す */
+  bothMethods: boolean
 }
 
 /** 最初の条件。だいたいの範囲から始め、決めたい項目だけ「1 つの値」にする */
@@ -32,6 +34,7 @@ export const defaultSweep: SweepConfig = {
   tidyWeight: { on: false, min: 0, max: 100, step: 50 },
   bothObjectives: true,
   bothLayDown: true,
+  bothMethods: true,
 }
 
 /**
@@ -52,6 +55,7 @@ export type SweepCombo = {
   tidyWeight: number
   objective: Objective
   layDownAll: boolean
+  method: Method
 }
 
 /** 範囲（最小〜最大、刻み）の値の一覧。範囲でなければ 1 つの値だけ */
@@ -73,6 +77,9 @@ export function buildCombos(
   config: SweepConfig,
   base: Omit<SweepCombo, 'layDownAll'>,
 ): SweepCombo[] {
+  const methods: Method[] = config.bothMethods
+    ? ['order', 'columns']
+    : [base.method]
   const gaps = valuesOf(config.gap, base.gap, 0, 50)
   const edges = valuesOf(config.edgeGap, base.edgeGap, 0, 50)
   const supports = valuesOf(config.supportPercent, base.supportPercent, 50, 100)
@@ -83,24 +90,26 @@ export function buildCombos(
     : [base.objective]
   const layDowns = config.bothLayDown ? [false, true] : [false]
   const all: SweepCombo[] = []
-  for (const objective of objectives)
-    for (const supportPercent of supports)
-      for (const gap of gaps)
-        for (const edgeGap of edges)
-          for (const wallBias of biases)
-            for (const tidyWeight of tidies)
-              for (const layDownAll of layDowns) {
-                if (all.length >= MAX_COMBOS) break
-                all.push({
-                  gap,
-                  edgeGap,
-                  supportPercent,
-                  wallBias,
-                  tidyWeight,
-                  objective,
-                  layDownAll,
-                })
-              }
+  for (const method of methods)
+    for (const objective of objectives)
+      for (const supportPercent of supports)
+        for (const gap of gaps)
+          for (const edgeGap of edges)
+            for (const wallBias of biases)
+              for (const tidyWeight of tidies)
+                for (const layDownAll of layDowns) {
+                  if (all.length >= MAX_COMBOS) break
+                  all.push({
+                    gap,
+                    edgeGap,
+                    supportPercent,
+                    wallBias,
+                    tidyWeight,
+                    objective,
+                    layDownAll,
+                    method,
+                  })
+                }
   return all
 }
 
@@ -124,6 +133,8 @@ export function comboChips(config: SweepConfig, c: SweepCombo) {
   if (config.supportPercent.on) chips.push(`支え ${c.supportPercent}%`)
   if (config.wallBias.on) chips.push(`寄せ ${c.wallBias}`)
   if (config.tidyWeight.on) chips.push(`整い ${c.tidyWeight}`)
+  if (config.bothMethods)
+    chips.push(c.method === 'columns' ? '方式 柱' : '方式 並べ順')
   if (config.bothObjectives)
     chips.push(c.objective === 'height' ? '優先 高さ' : '優先 1 段目')
   if (config.bothLayDown)
