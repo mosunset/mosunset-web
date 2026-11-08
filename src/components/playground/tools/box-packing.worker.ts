@@ -2,6 +2,7 @@
 import {
   betterFor,
   createSearch,
+  type Genome,
   type Metric,
   metrics,
   type PackInput,
@@ -33,16 +34,37 @@ const POST_MS = 150
 
 // tsconfig は DOM の型なので、Worker の self として使う分だけ型を付ける
 const worker = self as unknown as {
-  onmessage: (event: MessageEvent<PackInput>) => void
+  onmessage: (event: MessageEvent<PackInput | AdoptMessage>) => void
   postMessage: (message: WorkerMessage) => void
 }
 
+/** 画面から: ほかの係が見つけた良い並べ方（今より良ければ乗り換える） */
+export type AdoptMessage = { kind: 'adopt'; genome: Genome }
+
+/** 今動いている探索（ほかの係の並べ方を受け取るのに使う） */
+let current: ReturnType<typeof createSearch> | null = null
+/** 計算を区切る時間。区切りごとにほかの知らせ（並べ方の受け取り）を受け付ける */
+const CHUNK_MS = 40
+
 worker.onmessage = (event) => {
+  const data = event.data
+  if ('kind' in data) {
+    if (data.kind === 'adopt' && current?.adopt(data.genome))
+      pendingAdopt = true
+    return
+  }
+  void run(data)
+}
+
+/** 受け取った並べ方で良くなった（次の区切りで知らせる） */
+let pendingAdopt = false
+
+async function run(input: PackInput) {
   // 部門別のいちばん（全部置けた結果だけ）。更新されたら、間引いて送る
   const metricBest = new Map<Metric, PackResult>()
   const metricPending = new Set<Metric>()
   let metricImproved = false
-  const search = createSearch(event.data, (result) => {
+  const search = createSearch(input, (result) => {
     for (const metric of metrics) {
       if (
         betterFor(
@@ -58,8 +80,11 @@ worker.onmessage = (event) => {
       }
     }
   })
+  current = search
+  pendingAdopt = false
   const started = Date.now()
   let lastImproved = started
+  let chunkStarted = started
   let lastPosted = 0
   let lastStats = 0
   let pending = true
@@ -90,7 +115,19 @@ worker.onmessage = (event) => {
   }
 
   for (;;) {
-    const now = Date.now()
+    let now = Date.now()
+    // ときどき区切って、ほかの知らせ（並べ方の受け取り）を受け付ける
+    if (now - chunkStarted > CHUNK_MS) {
+      await new Promise((resolve) => setTimeout(resolve, 0))
+      now = Date.now()
+      chunkStarted = now
+      if (current !== search) return
+      if (pendingAdopt) {
+        pendingAdopt = false
+        pending = true
+        lastImproved = now
+      }
+    }
     const elapsed = now - started
     // 良い結果は見つかるたびに送る（続けて見つかるときは間引く）
     if ((pending || metricPending.size > 0) && now - lastPosted > POST_MS) {
@@ -104,6 +141,7 @@ worker.onmessage = (event) => {
     if (search.exhausted || now - lastImproved > STALL_MS || elapsed > MAX_MS) {
       flush(elapsed)
       worker.postMessage({ kind: 'done', tried: search.tried, elapsed })
+      current = null
       return
     }
     metricImproved = false

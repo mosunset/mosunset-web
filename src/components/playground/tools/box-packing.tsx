@@ -21,7 +21,7 @@ import { HelpTip, RangeSlider, Stat } from '@/components/playground/parts'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { cn } from '@/lib/utils'
-import type { WorkerMessage } from './box-packing.worker'
+import type { AdoptMessage, WorkerMessage } from './box-packing.worker'
 import type { GpuReply, GpuRequest } from './box-packing-gpu.worker'
 import {
   BestResults,
@@ -694,6 +694,9 @@ function withBest(
  */
 const GPU_SLICE_MS = 15_000
 
+/** 係を止める関数（adopt で、ほかの係が見つけた良い並べ方を渡せる） */
+type Runner = (() => void) & { adopt: (genome: Genome) => void }
+
 /** Worker を 1 つ動かして、1 つの組み合わせを計算する。止める関数を返す */
 function runWorker(
   input: PackInput,
@@ -712,10 +715,18 @@ function runWorker(
     },
   )
   let stopped = false
-  const stop = () => {
-    stopped = true
-    worker.terminate()
-  }
+  const stop: Runner = Object.assign(
+    () => {
+      stopped = true
+      worker.terminate()
+    },
+    {
+      adopt: (genome: Genome) => {
+        if (!stopped)
+          worker.postMessage({ kind: 'adopt', genome } satisfies AdoptMessage)
+      },
+    },
+  )
   worker.onmessage = (event: MessageEvent<WorkerMessage>) => {
     if (stopped) return
     const message = event.data
@@ -1164,7 +1175,13 @@ export function BoxPacking() {
     const usable = combos
       .map((c, i) => (validate(c) ? -1 : i))
       .filter((i) => i >= 0)
-    const stops = new Array<(() => void) | null>(workerCount).fill(null)
+    const stops = new Array<Runner | null>(workerCount).fill(null)
+    /** 係ごとに、今受け持っている組み合わせ（受け持っていなければ -1） */
+    const slotCombo = new Array<number>(workerCount).fill(-1)
+    /** 組み合わせごとに、最後の受け持ちで良くなったか（まだなら、良くなるかもしれないとみなす） */
+    const gained = new Array<boolean>(n).fill(true)
+    /** 組み合わせごとに、ほかの係へ良い並べ方を最後に渡した時刻（渡しすぎないよう間引く） */
+    const lastShared = new Array<number>(n).fill(0)
     // GPU を使うときは、計算係のうち 1 つ（0 番）を GPU 係にする
     const gpuWorker = gpuOn ? gpuWorkerRef.current : null
     const runGpu: typeof runWorker = (job, on) => {
@@ -1186,10 +1203,20 @@ export function BoxPacking() {
         input: job,
         durationMs: MAX_SEARCH_MS,
       } satisfies GpuRequest)
-      return () => {
-        gpuHandlersRef.current.delete(token)
-        w.postMessage({ type: 'stop', token } satisfies GpuRequest)
-      }
+      return Object.assign(
+        () => {
+          gpuHandlersRef.current.delete(token)
+          w.postMessage({ type: 'stop', token } satisfies GpuRequest)
+        },
+        {
+          adopt: (genome: Genome) =>
+            w.postMessage({
+              type: 'adopt',
+              token,
+              genome,
+            } satisfies GpuRequest),
+        },
+      )
     }
     const slotTried = new Array<number>(workerCount).fill(0)
     let finishedTried = 0
@@ -1205,26 +1232,50 @@ export function BoxPacking() {
       })
 
     /** 次に計算する組み合わせ（計算中を含めた回数がいちばん少ないものから、ランダムに 1 つ） */
-    const pick = () => {
-      let min = Number.POSITIVE_INFINITY
-      let choices: number[] = []
+    const pick = (slot: number) => {
+      if (usable.length === 0) return -1
+      // まだ一度も当たっていない組み合わせがあれば、そこから
+      const fresh = usable.filter((i) => visits[i] + active[i] === 0)
+      if (fresh.length > 0)
+        return fresh[Math.floor(Math.random() * fresh.length)]
+      // 成績の順位（0 がいちばん良い）。点数が出ていないものは最後
+      const order = [...usable].sort(
+        (a, b) =>
+          (bestScore[a] ?? Number.POSITIVE_INFINITY) -
+          (bestScore[b] ?? Number.POSITIVE_INFINITY),
+      )
+      const rank = new Map(
+        order.map((i, r) => [i, r / Math.max(1, order.length - 1)]),
+      )
+      const total = usable.reduce((a, i) => a + visits[i] + active[i], 0)
+      // GPU 係は、良い組み合わせを深く探す（試す数が多いので、良いところに使う）
+      const explore = slot === 0 && gpuWorker ? 0.15 : 0.5
+      let chosen = usable[0]
+      let bestValue = Number.NEGATIVE_INFINITY
       for (const i of usable) {
         const load = visits[i] + active[i]
-        if (load < min) {
-          min = load
-          choices = [i]
-        } else if (load === min) choices.push(i)
+        const value =
+          1 -
+          (rank.get(i) ?? 1) +
+          (gained[i] ? 0.3 : 0) +
+          explore * Math.sqrt(Math.log(total + 1) / (load + 1)) -
+          0.3 * active[i] +
+          Math.random() * 0.05
+        if (value > bestValue) {
+          bestValue = value
+          chosen = i
+        }
       }
-      return choices.length > 0
-        ? choices[Math.floor(Math.random() * choices.length)]
-        : -1
+      return chosen
     }
 
     const launch = (slot: number) => {
       if (ended) return
-      const i = pick()
+      const i = pick(slot)
       if (i < 0) return
       active[i]++
+      slotCombo[slot] = i
+      const scoreAtStart = bestScore[i]
       patchRow(i, (r) => ({ ...r, active: active[i] }))
       const { seed: _seed, ...input } = toInput(combos[i], 0)
       let finished = false
@@ -1235,6 +1286,10 @@ export function BoxPacking() {
         window.clearTimeout(timer)
         stops[slot]?.()
         stops[slot] = null
+        slotCombo[slot] = -1
+        gained[i] =
+          bestScore[i] !== undefined &&
+          (scoreAtStart === undefined || bestScore[i] < scoreAtStart - 1e-9)
         finishedTried += slotTried[slot]
         slotTried[slot] = 0
         active[i]--
@@ -1256,6 +1311,14 @@ export function BoxPacking() {
               bestScore[i] = found.score
               bestOrder[i] = found.placements.map((p) => p.type)
               bestGenome[i] = found.genome
+              // 同じ組み合わせを受け持っているほかの係にも、すぐ教える（1 秒に 1 回まで）
+              const genome = found.genome
+              if (genome && Date.now() - lastShared[i] > 1000) {
+                lastShared[i] = Date.now()
+                stops.forEach((other, s) => {
+                  if (s !== slot && slotCombo[s] === i) other?.adopt(genome)
+                })
+              }
             }
           },
           metric: (metric, found) => {

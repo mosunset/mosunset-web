@@ -1496,6 +1496,44 @@ export function startPlans(input: PackInput, table: UnitTable) {
   return plans
 }
 
+/** 崩し方の種類の数と、最初の重み（入れ替え・移す・逆順・ルール・分ける・つなぐ・組み合わせ） */
+export const MUTATION_KINDS = 7
+const BASE_KIND_WEIGHTS = [40, 15, 7, 14, 8, 8, 8]
+
+/**
+ * 崩し方ごとの成績。良くなった回数が多い崩し方ほど、よく選ぶようにする（崩し方を自分で調整する）。
+ * 古い成績は少しずつ薄めて、探している場所が変わったときにも追いつけるようにする
+ */
+export function createKindStats() {
+  const tries = new Float64Array(MUTATION_KINDS)
+  const wins = new Float64Array(MUTATION_KINDS)
+  let total = 0
+  return {
+    /** 崩し方ごとの重み（どれも最初の重みの 0.25 倍は残す） */
+    weights() {
+      const rates = BASE_KIND_WEIGHTS.map(
+        (_, k) => (wins[k] + 1) / (tries[k] + 50),
+      )
+      const mean = rates.reduce((a, r) => a + r, 0) / rates.length
+      return BASE_KIND_WEIGHTS.map((b, k) => b * (0.25 + rates[k] / mean))
+    },
+    /** count 回試して、win 回良くなった */
+    record(kind: number, count: number, win: number) {
+      if (kind < 0) return
+      tries[kind] += count
+      wins[kind] += win
+      total += count
+      if (total > 20000) {
+        for (let k = 0; k < MUTATION_KINDS; k++) {
+          tries[k] *= 0.5
+          wins[k] *= 0.5
+        }
+        total = 0
+      }
+    },
+  }
+}
+
 /**
  * 並べ方を少し崩す（CPU の係と GPU の係で同じ崩し方を使う）。
  * 並べ順の入れ替え・1 つを別の位置へ・区間を逆順に・ルールの重みを変える（2 つの重みを入れ替えると優先する順が変わる）・
@@ -1508,14 +1546,25 @@ export function mutate(
   rand: () => number,
   table: UnitTable,
   other?: readonly number[],
+  /** 崩し方の重み（createKindStats の weights）。なければ最初の重み */
+  kindWeights?: readonly number[],
 ) {
+  const w = kindWeights ?? BASE_KIND_WEIGHTS
   for (let attempt = 0; attempt < 6; attempt++) {
     const o = [...ids]
     let r = [...rule]
     const m = o.length
-    const kind = rand()
-    if (m < 2 && kind < 0.62) continue
-    if (kind < 0.4) {
+    // 崩し方を重みで選ぶ（組み合わせる相手がいなければ、組み合わせは選ばない）
+    const weightOfKind = (k: number) => (k === 6 && !other ? 0 : w[k])
+    let roll =
+      rand() * [0, 1, 2, 3, 4, 5, 6].reduce((a, k) => a + weightOfKind(k), 0)
+    let kind = 0
+    for (; kind < 6; kind++) {
+      if (roll < weightOfKind(kind)) break
+      roll -= weightOfKind(kind)
+    }
+    if (m < 2 && kind <= 2) continue
+    if (kind === 0) {
       // 2 つの入れ替え（1〜3 回。近くと入れ替えることが多いほうが、良い並びを壊しにくい）
       const swaps = 1 + Math.floor(rand() * 3)
       for (let s = 0; s < swaps; s++) {
@@ -1529,7 +1578,7 @@ export function mutate(
         o[i] = o[j]
         o[j] = t
       }
-    } else if (kind < 0.55) {
+    } else if (kind === 1) {
       // 1 つを抜いて、別の位置に入れる
       const i = Math.floor(rand() * m)
       const reach = rand() < 0.7 ? 6 : m
@@ -1539,13 +1588,13 @@ export function mutate(
       )
       const [v] = o.splice(i, 1)
       o.splice(j, 0, v)
-    } else if (kind < 0.62) {
+    } else if (kind === 2) {
       // 一続きの区間を逆順にする
       const len = 2 + Math.floor(rand() * Math.max(1, Math.floor(m / 4) - 1))
       const i = Math.floor(rand() * Math.max(1, m - len + 1))
       const part = o.slice(i, i + len).reverse()
       o.splice(i, part.length, ...part)
-    } else if (kind < 0.76) {
+    } else if (kind === 3) {
       // ルールを変える: 1 つの重みを上げ下げするか、2 つの重みを入れ替える（優先する順が変わる）
       r = [...rule]
       if (rand() < 0.5) {
@@ -1559,7 +1608,7 @@ export function mutate(
         r[a] = r[b]
         r[b] = t
       }
-    } else if (kind < 0.84) {
+    } else if (kind === 4) {
       // かたまりを 2 つに分ける
       const big = o.map((_, i) => i).filter((i) => table.units[o[i]].size > 1)
       if (big.length === 0) continue
@@ -1577,7 +1626,7 @@ export function mutate(
       const iq = unitAt(table, u.group, q[0], q[1], q[2])
       if (ip !== undefined && iq !== undefined) o.splice(i, 1, ip, iq)
       else o.splice(i, 1, ...new Array(u.size).fill(table.single[u.group]))
-    } else if (kind < 0.92 || !other) {
+    } else if (kind === 5 || !other) {
       // 同じ寸法の 2 つをつないで、1 つのかたまりにする
       const i = Math.floor(rand() * m)
       const u = table.units[o[i]]
@@ -1632,10 +1681,13 @@ export function mutate(
       while (start < len && o[start] === ids[start]) start++
       if (start === len && o.length === ids.length) continue
     }
-    return { ids: o, rule: r, start }
+    return { ids: o, rule: r, start, kind }
   }
-  return { ids: [...ids], rule: [...rule], start: ids.length }
+  return { ids: [...ids], rule: [...rule], start: ids.length, kind: -1 }
 }
+
+/** 何回続けて良くならなければ、丁寧な仕上げ（近くを全部試す）に切り替えるか */
+const POLISH_AFTER = 3000
 
 export function createSearch(
   input: PackInput,
@@ -1651,6 +1703,54 @@ export function createSearch(
   onResult?.(best)
   let tried = 1
   const rand = random(input.seed * 7919 + table.boxCount)
+  const stats = createKindStats()
+  /** 良くならなかった回数と、丁寧な仕上げで次に試す手（近くの入れ替えと、ルールの重みを 1 段ずつ） */
+  let fails = 0
+  let polish: { ids: number[]; rule: Rule; start: number }[] = []
+  const polishMoves = () => {
+    const moves: { ids: number[]; rule: Rule; start: number }[] = []
+    for (let i = 0; i < bestIds.length; i++) {
+      for (let d = 1; d <= 3 && i + d < bestIds.length; d++) {
+        if (bestIds[i] === bestIds[i + d]) continue
+        const o = [...bestIds]
+        o[i] = bestIds[i + d]
+        o[i + d] = bestIds[i]
+        moves.push({ ids: o, rule: bestRule, start: i })
+      }
+    }
+    for (let k = 0; k < RULE_SIZE; k++) {
+      for (const step of [-1, 1]) {
+        const e = bestRule[k] + step
+        if (e < 0 || e > RULE_MAX) continue
+        const r = [...bestRule]
+        r[k] = e
+        moves.push({ ids: bestIds, rule: r, start: 0 })
+      }
+    }
+    return moves
+  }
+  const accept = (
+    ids: number[],
+    rule: Rule,
+    trace: Trace,
+    result: PackResult,
+  ) => {
+    if (result.score < best.score - 1e-9) {
+      best = result
+      bestIds = ids
+      bestRule = rule
+      bestTrace = trace
+      fails = 0
+      return true
+    }
+    // 同じ点数なら並べ方だけ乗り換える（行き詰まりにくくする）
+    if (result.score <= best.score) {
+      bestIds = ids
+      bestRule = rule
+      bestTrace = trace
+    }
+    return false
+  }
 
   return {
     get best() {
@@ -1663,51 +1763,82 @@ export function createSearch(
     get exhausted() {
       return tried >= plans.length && table.boxCount <= 1
     },
+    /** ほかの係が見つけた良い並べ方を受け取る（今より良ければ乗り換える） */
+    adopt(genome: Genome) {
+      const ids = unitIdsOf(genome.seq, table)
+      const rule = normalizeRule(genome.rule, input)
+      const trace = packInOrder(ids, rule.map(weightOf), input, table)
+      const result = finish(trace, input, table, genomeOf(ids, rule, table))
+      tried++
+      onResult?.(result)
+      if (result.score < best.score - 1e-9) {
+        polish = []
+        return accept(ids, rule, trace, result)
+      }
+      return false
+    },
     step() {
       let ids: number[]
       let rule: Rule
-      let trace: Trace
+      let start = 0
+      let kind = -1
       if (tried < plans.length) {
         ids = plans[tried].ids
         rule = plans[tried].rule
-        tried++
-        trace = packInOrder(ids, rule.map(weightOf), input, table)
       } else {
-        const next = mutate(bestIds, bestRule, rand, table)
-        tried++
-        if (next.start >= next.ids.length && next.ids.length === bestIds.length)
-          return false
-        ids = next.ids
-        rule = next.rule
-        // 今いちばん良い並べ方と同じところまでは、置き方も同じになるので置き直さない
-        trace =
-          next.start > 0
-            ? packInOrder(
-                ids,
-                rule.map(weightOf),
-                input,
-                table,
-                bestTrace,
-                next.start,
-              )
-            : packInOrder(ids, rule.map(weightOf), input, table)
+        // しばらく良くならなければ、今の並べ方の近く（近くの入れ替え・ルールの重みを 1 段）を順に全部試す
+        if (polish.length === 0 && fails >= POLISH_AFTER) polish = polishMoves()
+        const move = polish.pop()
+        if (move) {
+          ids = move.ids
+          rule = move.rule
+          // 同じ点数で乗り換えていることがあるので、今の並べ方と初めて違う位置を求め直す
+          start = 0
+          if (rule.every((x, i) => x === bestRule[i])) {
+            const len = Math.min(ids.length, bestIds.length)
+            while (start < len && ids[start] === bestIds[start]) start++
+            if (start === len && ids.length === bestIds.length) {
+              tried++
+              return false
+            }
+          }
+          if (polish.length === 0) fails = 0
+        } else {
+          const next = mutate(
+            bestIds,
+            bestRule,
+            rand,
+            table,
+            undefined,
+            stats.weights(),
+          )
+          if (
+            next.start >= next.ids.length &&
+            next.ids.length === bestIds.length
+          ) {
+            tried++
+            fails++
+            return false
+          }
+          ids = next.ids
+          rule = next.rule
+          start = next.start
+          kind = next.kind
+        }
       }
+      tried++
+      // 今いちばん良い並べ方と同じところまでは、置き方も同じになるので置き直さない
+      const trace =
+        start > 0
+          ? packInOrder(ids, rule.map(weightOf), input, table, bestTrace, start)
+          : packInOrder(ids, rule.map(weightOf), input, table)
       const result = finish(trace, input, table, genomeOf(ids, rule, table))
       onResult?.(result)
-      if (result.score < best.score - 1e-9) {
-        best = result
-        bestIds = ids
-        bestRule = rule
-        bestTrace = trace
-        return true
-      }
-      // 同じ点数なら並べ方だけ乗り換える（行き詰まりにくくする）
-      if (result.score <= best.score) {
-        bestIds = ids
-        bestRule = rule
-        bestTrace = trace
-      }
-      return false
+      const improved = accept(ids, rule, trace, result)
+      stats.record(kind, 1, improved ? 1 : 0)
+      if (improved) polish = []
+      else fails++
+      return improved
     },
   }
 }

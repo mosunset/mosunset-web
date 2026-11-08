@@ -3,6 +3,7 @@
 // 今の良い並べ順を少しずつ入れ替えた並べ順を数千通り作って GPU でまとめて評価し、
 // 上位の数通りだけを CPU で正式に評価して、良ければ次の出発点にする（を繰り返す）
 import type { WorkerMessage } from './box-packing.worker'
+import type { EvalReply, EvalRequest } from './box-packing-eval.worker'
 import {
   createGpuContext,
   createGpuEvaluator,
@@ -13,8 +14,11 @@ import {
 } from './box-packing-gpu'
 import {
   betterFor,
+  createKindStats,
   evaluateIds,
+  type Genome,
   type Metric,
+  MUTATION_KINDS,
   metrics,
   mutate,
   type PackInput,
@@ -26,6 +30,7 @@ import {
   startPlans,
   traceIds,
   type UnitTable,
+  unitIdsOf,
   unitsOf,
   weightOf,
 } from './box-packing-solver'
@@ -35,6 +40,8 @@ export type GpuRequest =
   | { type: 'probe' }
   | { type: 'run'; token: number; input: PackInput; durationMs: number }
   | { type: 'stop'; token: number }
+  /** ほかの係が見つけた良い並べ方（今より良ければ乗り換える） */
+  | { type: 'adopt'; token: number; genome: Genome }
 
 /** GPU 係からの知らせ（token で、どの頼みごとへの返事かを見分ける） */
 export type GpuReply =
@@ -52,6 +59,9 @@ const MAX_BATCH = 65536
 const TARGET_BATCH_MS = 3000
 /** 覚えておく良い並べ順の数 */
 const ELITES = 12
+/** GPU の見積もりの上位から、正式に評価する数（手伝いの係がいれば多く） */
+const REVIEW_TOP_WITH_HELPERS = 96
+const REVIEW_TOP_ALONE = 16
 /** 何回続けて良くならなければ、大きく崩して別の場所を探すか */
 const STAGNATION = 4
 /** 大きく崩した出発点の近くを、何回探すか */
@@ -86,6 +96,8 @@ worker.onmessage = async (event) => {
     )
   } else if (req.type === 'stop') {
     if (req.token === currentToken) currentToken = -1
+  } else if (req.type === 'adopt') {
+    if (req.token === currentToken) adopted = req.genome
   } else {
     // 前の頼みごとが GPU で計算中の 1 回分を終えるまで待ってから始める
     // （同じ組み合わせだと作業用の場所を共有するので、同時に動かすと結果が壊れる）
@@ -98,6 +110,84 @@ worker.onmessage = async (event) => {
     )
     await queue
   }
+}
+
+/** ほかの係から受け取った並べ方（次の区切りで調べる） */
+let adopted: Genome | null = null
+
+// ---- 手伝いの係（GPU の上位の並べ方を、CPU の空いているコアで正式に評価する） ----
+
+/** 手伝いの係の数（画面の計算係と画面の分を除いた、空いているコアから最大 4 つ） */
+const HELPERS = Math.max(
+  0,
+  Math.min(4, (globalThis.navigator?.hardwareConcurrency ?? 2) - 9),
+)
+let helpers: { worker: Worker; run: number }[] | null = null
+let helperId = 0
+const helperWaits = new Map<number, (results: PackResult[]) => void>()
+const getHelpers = () => {
+  if (helpers) return helpers
+  helpers = []
+  for (let i = 0; i < HELPERS; i++) {
+    try {
+      const w = new Worker(
+        new URL('./box-packing-eval.worker.ts', import.meta.url),
+        {
+          type: 'module',
+        },
+      )
+      w.onmessage = (e: MessageEvent<EvalReply>) => {
+        helperWaits.get(e.data.id)?.(e.data.results)
+        helperWaits.delete(e.data.id)
+      }
+      helpers.push({ worker: w, run: -1 })
+    } catch {
+      break
+    }
+  }
+  return helpers
+}
+
+/**
+ * 並べ方をまとめて正式に評価する。手伝いの係がいれば分けて頼み、いなければ自分で評価する。
+ * 返す順は plans と同じ
+ */
+async function evaluateMany(
+  run: number,
+  input: PackInput,
+  table: UnitTable,
+  plans: Plan[],
+): Promise<PackResult[]> {
+  const pool = getHelpers()
+  if (pool.length === 0 || plans.length < 8) {
+    return plans.map((p) => evaluateIds(input, table, p.ids, p.rule))
+  }
+  const per = Math.ceil(plans.length / pool.length)
+  const parts = await Promise.all(
+    pool.map((h, i) => {
+      const chunk = plans.slice(i * per, (i + 1) * per)
+      if (chunk.length === 0) return Promise.resolve([] as PackResult[])
+      const id = ++helperId
+      const req: EvalRequest = {
+        id,
+        run,
+        plans: chunk.map((p) => ({ ids: p.ids, rule: p.rule })),
+      }
+      if (h.run !== run) {
+        req.input = input
+        h.run = run
+      }
+      return new Promise<PackResult[]>((resolve) => {
+        helperWaits.set(id, resolve)
+        h.worker.postMessage(req)
+      })
+    }),
+  )
+  const results = parts.flat()
+  // 手伝いの係が答えられなかったとき（頼みごとの切り替わりなど）は、自分で評価する
+  return results.length === plans.length
+    ? results
+    : plans.map((p) => evaluateIds(input, table, p.ids, p.rule))
 }
 
 /** 頼みごとを順に 1 つずつ動かすための鎖 */
@@ -181,14 +271,16 @@ async function search(
   type Elite = Plan & { score: number; key: string }
   const elites: Elite[] = []
   const keyOf = (p: Plan) => `${p.ids.join(',')}|${p.rule.join(',')}`
+  /** 良い並べ方の控えに入れる（入ったら true） */
   const addElite = (p: Plan, score: number) => {
     const key = keyOf(p)
-    if (elites.some((e) => e.key === key)) return
+    if (elites.some((e) => e.key === key)) return false
     if (elites.length >= ELITES && score >= elites[elites.length - 1].score)
-      return
+      return false
     elites.push({ ids: [...p.ids], rule: [...p.rule], score, key })
     elites.sort((a, b) => a.score - b.score)
     if (elites.length > ELITES) elites.pop()
+    return true
   }
 
   // 最初の並べ方（頼まれた並べ方・ばらの箱をいろいろな順に・大きなかたまり、ルールもいくつか）を CPU で評価する
@@ -224,6 +316,8 @@ async function search(
   }
 
   const rand = random(input.seed)
+  const stats = createKindStats()
+  adopted = null
   const limit = Math.min(MAX_BATCH, evs[0].maxBatch)
   let batch = Math.min(MIN_BATCH, limit)
   let checked = false
@@ -269,15 +363,18 @@ async function search(
   const generate = (count: number) => {
     const { parent, fromKick } = pickParent()
     const trace = traceIds(input, table, parent.ids, parent.rule)
-    const plans: Plan[] = new Array(count)
+    const plans: (Plan & { kind: number })[] = new Array(count)
     const startOf = new Int32Array(count)
+    const weights = stats.weights()
+    const kindCount = new Array<number>(MUTATION_KINDS).fill(0)
     for (let r = 0; r < count; r++) {
       const other =
         elites.length > 1
           ? elites[Math.floor(rand() * elites.length)].ids
           : undefined
-      const next = mutate(parent.ids, parent.rule, rand, table, other)
-      plans[r] = { ids: next.ids, rule: next.rule }
+      const next = mutate(parent.ids, parent.rule, rand, table, other, weights)
+      plans[r] = { ids: next.ids, rule: next.rule, kind: next.kind }
+      if (next.kind >= 0) kindCount[next.kind]++
       startOf[r] = Math.min(next.start, m)
     }
     // 違う位置ごとに数えて、その順の並び位置を決める（数え上げの並べ替え）
@@ -287,7 +384,7 @@ async function search(
     const rows = new Uint32Array(count * stride)
     rows.fill(NONE)
     const starts = new Int32Array(count)
-    const sorted: Plan[] = new Array(count)
+    const sorted: (Plan & { kind: number })[] = new Array(count)
     let length = 0
     for (let r = 0; r < count; r++) {
       const pos = offset[startOf[r]]++
@@ -299,12 +396,21 @@ async function search(
       sorted[pos] = p
       if (p.ids.length > length) length = p.ids.length
     }
-    return { rows, starts, plans: sorted, trace, count, fromKick, length }
+    return {
+      rows,
+      starts,
+      plans: sorted,
+      trace,
+      count,
+      fromKick,
+      length,
+      kindCount,
+    }
   }
 
   type Batch = ReturnType<typeof generate>
   /** GPU の見積もりの上位を、CPU で正式に評価する */
-  const review = (job: Batch, res: GpuMetrics) => {
+  const review = async (job: Batch, res: GpuMetrics) => {
     const k = job.count
     const all = Array.from({ length: k }, (_, i) => i).filter(
       (i) => job.starts[i] < m,
@@ -315,7 +421,10 @@ async function search(
       [...pool].sort(cmp).slice(0, n)
     // 正式な点数に近い見積もりで上位を選び、部門ごとの上位と、ランダムな数通りも混ぜる
     const picks = new Set<number>([
-      ...top((x, y) => res.score[x] - res.score[y], 16),
+      ...top(
+        (x, y) => res.score[x] - res.score[y],
+        getHelpers().length > 0 ? REVIEW_TOP_WITH_HELPERS : REVIEW_TOP_ALONE,
+      ),
       ...top(
         (x, y) => res.height[x] - res.height[y] || res.score[x] - res.score[y],
         3,
@@ -339,9 +448,18 @@ async function search(
       picks.add(pool[Math.floor(rand() * pool.length)])
     }
     let improved = false
-    for (const r of picks) {
+    const pickList = [...picks]
+    const results = await evaluateMany(
+      token,
+      input,
+      table,
+      pickList.map((r) => job.plans[r]),
+    )
+    const kindWins = new Array<number>(MUTATION_KINDS).fill(0)
+    for (let q = 0; q < pickList.length; q++) {
+      const r = pickList[q]
       const plan = job.plans[r]
-      const result = evaluateIds(input, table, plan.ids, plan.rule)
+      const result = results[q]
       // 最初の 1 回だけ、GPU と CPU の置き方が同じかを確かめる（違えば計算の食い違い）
       if (
         !checked &&
@@ -354,7 +472,8 @@ async function search(
           start: job.starts[r],
         })
       }
-      addElite(plan, result.score)
+      const entered = addElite(plan, result.score)
+      if (entered && plan.kind >= 0) kindWins[plan.kind]++
       // 大きく崩した出発点から探しているあいだは、その近くでいちばん良いものを次の出発点にする
       if (job.fromKick && kick && result.score < kick.score) {
         kick = { ...kick, ids: plan.ids, rule: plan.rule, score: result.score }
@@ -369,6 +488,9 @@ async function search(
       }
     }
     checked = true
+    job.kindCount.forEach((count, kind) => {
+      stats.record(kind, count, kindWins[kind])
+    })
     if (improved) {
       sinceImproved = 0
       kick = null
@@ -425,7 +547,28 @@ async function search(
       token === currentToken &&
       Date.now() - started < durationMs &&
       Date.now() - lastImproved <= STALL_MS
-    review(flight.job, res)
+    // 次の回を先に GPU に渡してから、この回の上位を調べる（GPU を待たせない）
+    flights[slot] = keepGoing ? launch(slot) : null
+    await review(flight.job, res)
+    // 受け取った並べ方は、ほかの関数（onmessage）で書き換わるので、型の絞り込みを外して読む
+    const g = adopted as Genome | null
+    if (g) {
+      adopted = null
+      const plan = {
+        ids: unitIdsOf(g.seq, table),
+        rule: g.rule.map((e) => Math.max(0, Math.min(RULE_MAX, e))),
+      }
+      const r = evaluateIds(input, table, plan.ids, plan.rule)
+      tried++
+      consider(r)
+      addElite(plan, r.score)
+      if (r.score < currentBest.score - 1e-9) {
+        currentBest = r
+        current = plan
+        pending = true
+        lastImproved = Date.now()
+      }
+    }
     // 1 回の時間が目安に近づくよう、まとめる数を調整する（2 回分が同時に動くので、そのぶん長くかかる）
     batch = Math.max(
       Math.min(MIN_BATCH, limit),
@@ -436,7 +579,6 @@ async function search(
         ) * 64,
       ),
     )
-    flights[slot] = keepGoing ? launch(slot) : null
     slot = 1 - slot
     if ((pending || pendingMetrics.size > 0) && Date.now() - lastPosted > 150)
       flush()
