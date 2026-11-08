@@ -14,6 +14,8 @@
 import {
   alongSideFirstOf,
   anchorOf,
+  COG_WEIGHT,
+  cogErrorOf,
   type PackInput,
   RULE_SIZE,
   type UnitTable,
@@ -27,7 +29,7 @@ const MAX_ORIENTATIONS = 6
 const STEPS_PER_SUBMIT = 8
 /** 並べ方ごとの状態の数・見積もりの数 */
 const SS = 10
-const FS = 16
+const FS = 20
 /** 並べ順の空き（並べ順の長さが単位の数より短いときの埋め草） */
 export const NONE = 0xffffffff
 
@@ -40,31 +42,32 @@ struct Params {
 }
 struct Best {
   found: i32, score: i32, u: i32, v: i32, z: i32, w: i32, d: i32, h: i32,
-  flags: i32, internal: i32, boxVol: i32,
+  flags: i32, internal: i32, boxVol: i32, rank: i32, frontOK: i32,
 }
 
-/** 置いた単位 1 つぶんの数（u, v, z, w, d, h, まとまり, 箱の数 + 256 × 横倒し, 中の接触面積, 箱 1 個の体積） */
-const PS: u32 = 10u;
+/** 置いた単位 1 つぶんの数（u, v, z, w, d, h, まとまり, 箱の数 + 256 × 横倒し, 中の接触面積, 箱 1 個の体積, 並び順, 正面を手前に向けられるか） */
+const PS: u32 = 12u;
 const SS: u32 = ${SS}u;
 const FS: u32 = ${FS}u;
 const NONE: u32 = 0xffffffffu;
 
 @group(0) @binding(0) var<uniform> P: Params;
-// 前半: 単位 × 6 の置き方 × 2（(w, d, h, 印), (中の接触面積, 箱 1 個の体積, 0, 0)）。
+// 前半: 単位 × 6 の置き方 × 2（(w, d, h, 印), (中の接触面積, 箱 1 個の体積, 並び順, 正面を手前に向けられるか)）。
 //       印 = 1（有効）+ 2（横倒し）+ 4 × 箱の数 + 256 × まとまりの番号
-// 後半: 元の良い並べ方の記録（1 つごとに 3 つ: (u, v, z, w), (d, h, その時点で置いた数, その時点の高さ),
-//       (まとまり, 箱の数 + 256 × 横倒し, 中の接触面積, 箱 1 個の体積)）
+// 後半: 元の良い並べ方の記録（1 つごとに 4 つ: (u, v, z, w), (d, h, その時点で置いた数, その時点の高さ),
+//       (まとまり, 箱の数 + 256 × 横倒し, 中の接触面積, 箱 1 個の体積), (並び順, 正面を手前に向けられるか, 0, 0)）
 @group(0) @binding(1) var<storage, read> orients: array<vec4<i32>>;
-// 並べ方ごとに stride 個: 置く単位の番号 × m（空きは NONE）、ルールの重み × 10
+// 並べ方ごとに stride 個: 置く単位の番号 × m（空きは NONE）、ルールの重み × 12
 @group(0) @binding(2) var<storage, read> orders: array<u32>;
 @group(0) @binding(3) var<storage, read_write> placed: array<i32>;
 @group(0) @binding(4) var<storage, read_write> cand: array<i32>;
 // 並べ方ごとに SS 個（次の位置, 置いた単位の数, u 候補の数, v 候補の数, 点の数, 高さ, 1 段目の面積, 横倒しの箱の数, 置いた箱の数, 0）
 @group(0) @binding(5) var<storage, read_write> state: array<i32>;
-// 並べ方ごとに FS 個（体積 × 重心の高さ, 体積, 体積 × u, 体積 × v, 範囲 4 つ, まとまり, 平ら, 大が下, くぼみ, 塔, 壁側, 0, 0）
+// 並べ方ごとに FS 個（体積 × 重心の高さ, 体積, 体積 × u, 体積 × v, 範囲 4 つ, まとまり, 平ら, 大が下, くぼみ, 塔, 壁側,
+// 大きい箱が壁側, 正面, 手前の面, リストの近さ, 左右の釣り合い, 0）
 @group(0) @binding(6) var<storage, read_write> fstate: array<f32>;
 
-var<private> Wt: array<i32, 10>;
+var<private> Wt: array<i32, 12>;
 
 fn candSize() -> u32 { return 2u * (P.m + 1u) + 2u * (5u * P.m + 1u); }
 fn usBase(k: u32) -> u32 { return k * candSize(); }
@@ -92,7 +95,8 @@ fn tryAt(k: u32, u: i32, v: i32, unit: u32, n: u32, height: i32, b: ptr<function
     let isLaid = (ori.w >> 1u) & 1;
     let grp = ori.w >> 8u;
     if (u + w > P.U || v + d > P.V) { continue; }
-    let fixed = Wt[3] * isLaid * 100 + Wt[5] * a1 + Wt[6] * a2;
+    let ex = orients[(unit * 6u + o) * 2u + 1u];
+    let fixed = Wt[3] * isLaid * 100 + Wt[5] * a1 + Wt[6] * a2 + Wt[10] * (1 - ex.w) * 100;
     if ((*b).found == 1 && scoreAt(height, 0, h, fixed) >= (*b).score) { continue; }
     var z = 0;
     for (var j = 0u; j < n; j++) {
@@ -145,6 +149,8 @@ fn tryAt(k: u32, u: i32, v: i32, unit: u32, n: u32, height: i32, b: ptr<function
     var boxContact = 0;
     var same = 0;
     var flush = 0;
+    var sideLen = 0;
+    var farSum = 0;
     for (var j = 0u; j < n; j++) {
       let q = pb + j * PS;
       let qu = placed[q]; let qv = placed[q + 1u]; let qz = placed[q + 2u];
@@ -159,6 +165,8 @@ fn tryAt(k: u32, u: i32, v: i32, unit: u32, n: u32, height: i32, b: ptr<function
         boxContact += ov * oz;
         if (isSame) { same += ov * oz; }
         if (isFlat) { flush += ov; }
+        sideLen += ov;
+        farSum += ov * abs(placed[q + 10u] - ex.z);
         if (qv == v) { align++; }
         if (qv + qd == v + d) { align++; }
       }
@@ -168,6 +176,8 @@ fn tryAt(k: u32, u: i32, v: i32, unit: u32, n: u32, height: i32, b: ptr<function
         boxContact += ou * oz;
         if (isSame) { same += ou * oz; }
         if (isFlat) { flush += ou; }
+        sideLen += ou;
+        farSum += ou * abs(placed[q + 10u] - ex.z);
         if (qu == u) { align++; }
         if (qu + qw == u + w) { align++; }
       }
@@ -177,10 +187,11 @@ fn tryAt(k: u32, u: i32, v: i32, unit: u32, n: u32, height: i32, b: ptr<function
     let unaligned = 1000 - min(8, align) * 125;
     var notSame = 1000;
     if (boxContact > 0) { notSame = 1000 - min(1000, same / max(1, boxContact / 1000)); }
-    let score = scoreAt(height, z, h, fixed) + Wt[4] * openR + Wt[7] * unflush + Wt[8] * unaligned + Wt[9] * notSame;
+    var farOrder = 1000;
+    if (sideLen > 0) { farOrder = farSum / sideLen; }
+    let score = scoreAt(height, z, h, fixed) + Wt[4] * openR + Wt[7] * unflush + Wt[8] * unaligned + Wt[9] * notSame + Wt[11] * farOrder;
     if ((*b).found == 1 && score >= (*b).score) { continue; }
-    let ex = orients[(unit * 6u + o) * 2u + 1u];
-    (*b) = Best(1, score, u, v, z, w, d, h, ((ori.w >> 2u) & 63) | (isLaid << 8u), ex.x, ex.y);
+    (*b) = Best(1, score, u, v, z, w, d, h, ((ori.w >> 2u) & 63) | (isLaid << 8u), ex.x, ex.y, ex.z, ex.w);
   }
 }
 
@@ -228,7 +239,7 @@ fn init(@builtin(global_invocation_id) gid: vec3<u32>) {
   var n0 = 0u;
   var height0 = 0;
   if (s > 0u) {
-    let rec = orients[tb + 3u * (s - 1u) + 1u];
+    let rec = orients[tb + 4u * (s - 1u) + 1u];
     n0 = u32(rec.z);
     height0 = rec.w;
   }
@@ -245,14 +256,16 @@ fn init(@builtin(global_invocation_id) gid: vec3<u32>) {
   var cog = 0.0;
   var vol = 0.0;
   for (var j = 0u; j < n0; j++) {
-    let a = orients[tb + 3u * j];
-    let b = orients[tb + 3u * j + 1u];
-    let c = orients[tb + 3u * j + 2u];
+    let a = orients[tb + 4u * j];
+    let b = orients[tb + 4u * j + 1u];
+    let c = orients[tb + 4u * j + 2u];
+    let e = orients[tb + 4u * j + 3u];
     let u = a.x; let v = a.y; let z = a.z; let w = a.w; let d = b.x; let h = b.y;
     let q = k * P.m * PS + j * PS;
     placed[q] = u; placed[q + 1u] = v; placed[q + 2u] = z;
     placed[q + 3u] = w; placed[q + 4u] = d; placed[q + 5u] = h;
     placed[q + 6u] = c.x; placed[q + 7u] = c.y; placed[q + 8u] = c.z; placed[q + 9u] = c.w;
+    placed[q + 10u] = e.x; placed[q + 11u] = e.y;
     addCands(k, &nu, &nv, &np, u, v, w, d);
     if (z == 0) { floorArea += w * d; }
     let size = c.y & 255;
@@ -288,7 +301,7 @@ fn step(@builtin(global_invocation_id) gid: vec3<u32>) {
     state[sb] = i32(P.m);
     return;
   }
-  for (var i = 0u; i < 10u; i++) { Wt[i] = i32(orders[k * P.stride + P.m + i]); }
+  for (var i = 0u; i < 12u; i++) { Wt[i] = i32(orders[k * P.stride + P.m + i]); }
   var n = u32(state[sb + 1u]);
   var nu = u32(state[sb + 2u]);
   var nv = u32(state[sb + 3u]);
@@ -314,6 +327,7 @@ fn step(@builtin(global_invocation_id) gid: vec3<u32>) {
     placed[q + 3u] = b.w; placed[q + 4u] = b.d; placed[q + 5u] = b.h;
     placed[q + 6u] = orients[unit * 12u].w >> 8u;
     placed[q + 7u] = b.flags; placed[q + 8u] = b.internal; placed[q + 9u] = b.boxVol;
+    placed[q + 10u] = b.rank; placed[q + 11u] = b.frontOK;
     n++;
     addCands(k, &nu, &nv, &np, b.u, b.v, b.w, b.d);
     height = max(height, b.z + b.h);
@@ -331,6 +345,14 @@ fn step(@builtin(global_invocation_id) gid: vec3<u32>) {
   state[sb + 3u] = i32(nv);
   state[sb + 4u] = i32(np);
   state[sb + 5u] = height;
+}
+
+/** 壁からの中心の距離（置き始める角を原点にした座標では、壁は小さい側。両方あれば近いほう） */
+fn wallDist(u: i32, v: i32, w: i32, d: i32) -> f32 {
+  var dist = 1e9;
+  if (P.wallV == 1) { dist = min(dist, f32(v) + f32(d) / 2.0); }
+  if (P.wallU == 1) { dist = min(dist, f32(u) + f32(w) / 2.0); }
+  return dist;
 }
 
 /**
@@ -354,6 +376,11 @@ fn fin(@builtin(global_invocation_id) gid: vec3<u32>) {
   var cSame = 0.0;
   var sAll = 0.0;
   var sBad = 0.0;
+  var nearArea = 0.0;
+  var nearSum = 0.0;
+  var wallPairs = 0.0;
+  var wallGood = 0.0;
+  var frontBoxes = 0.0;
   for (var j = 0u; j < n; j++) {
     let q = pb + j * PS;
     let pu = placed[q]; let pv = placed[q + 1u]; let pz = placed[q + 2u];
@@ -369,6 +396,9 @@ fn fin(@builtin(global_invocation_id) gid: vec3<u32>) {
     let internal = f32(placed[q + 8u]);
     cAll += internal;
     cSame += internal;
+    nearArea += internal;
+    frontBoxes += f32((placed[q + 7u] & 255) * placed[q + 11u]);
+    let pDist = wallDist(pu, pv, pw, pd);
     for (var i = j + 1u; i < n; i++) {
       let r = pb + i * PS;
       let ru = placed[r]; let rv = placed[r + 1u]; let rz = placed[r + 2u];
@@ -382,6 +412,16 @@ fn fin(@builtin(global_invocation_id) gid: vec3<u32>) {
         if (ox > 0 && (pv + pd + P.gap == rv || rv + rd + P.gap == pv)) { area += f32(ox) * f32(oz); }
         cAll += area;
         if (pg == placed[r + 6u]) { cSame += area; }
+        nearArea += area;
+        nearSum += area * f32(abs(placed[q + 10u] - placed[r + 10u])) / 1000.0;
+      }
+      if (P.wallV == 1 || P.wallU == 1) {
+        let rDist = wallDist(ru, rv, rw, rd);
+        let rv2 = placed[r + 9u];
+        if (pVol != rv2 && pDist != rDist) {
+          wallPairs += 1.0;
+          if ((pVol > rv2) == (pDist < rDist)) { wallGood += 1.0; }
+        }
       }
       if (ox > 0 && oy > 0) {
         let area = f32(ox) * f32(oy);
@@ -467,6 +507,42 @@ fn fin(@builtin(global_invocation_id) gid: vec3<u32>) {
   for (var i = 0u; i < 8u; i++) { badCount += countOneBits(bad[i]); }
   let even = max(0.0, 1.0 - 5.0 * f32(badCount) / 256.0);
 
+  // 左右の釣り合い: 置いた範囲の高さの地図を左右に折り返して、どれだけ重なるか
+  var symDiff = 0.0;
+  var symTotal = 0.0;
+  for (var c = 0u; c < 256u; c++) {
+    let mirror = (c / 16u) * 16u + (15u - c % 16u);
+    symDiff += abs(tops[c] - tops[mirror]);
+    symTotal += tops[c] + tops[mirror];
+  }
+  var balance = 1.0;
+  if (symTotal > 0.0) { balance = 1.0 - symDiff / symTotal; }
+
+  // 手前の面: 横に 16 に分けた列ごとに、いちばん手前の単位の前の面の位置（奥の壁から詰めるときは v の大きい側が手前）
+  var fSum = 0.0;
+  var fSq = 0.0;
+  var fCount = 0.0;
+  for (var c = 0u; c < 16u; c++) {
+    let px = minU + (f32(c) + 0.5) * cw;
+    var f = -1.0;
+    for (var j = 0u; j < n; j++) {
+      let q = pb + j * PS;
+      let u = f32(placed[q]);
+      if (px >= u && px < u + f32(placed[q + 3u])) {
+        var pos = f32(placed[q + 1u]);
+        if (P.wallV == 1) { pos = maxV - f32(placed[q + 1u] + placed[q + 4u]); }
+        if (f < 0.0 || pos < f) { f = pos; }
+      }
+    }
+    if (f >= 0.0) { fSum += f; fSq += f * f; fCount += 1.0; }
+  }
+  var frontFlat = 1.0;
+  if (fCount > 0.0) {
+    let fm = fSum / fCount;
+    let fsd = sqrt(max(0.0, fSq / fCount - fm * fm));
+    frontFlat = max(0.0, 1.0 - 2.0 * fsd / max(1.0, maxV - minV));
+  }
+
   // 塔: 床全体の高さの地図（16 × 16）で、まわりより飛び抜けて高いところと、壁側より高いところ
   let fw = f32(P.U) / 16.0;
   let fh = f32(P.V) / 16.0;
@@ -513,6 +589,18 @@ fn fin(@builtin(global_invocation_id) gid: vec3<u32>) {
   fstate[fb + 11u] = even;
   fstate[fb + 12u] = spike;
   fstate[fb + 13u] = towardWall;
+  var bigWall = 1.0;
+  if (wallPairs > 0.0) { bigWall = wallGood / wallPairs; }
+  fstate[fb + 14u] = bigWall;
+  let boxes = f32(state[k * SS + 8u]);
+  var front = 1.0;
+  if (boxes > 0.0) { front = frontBoxes / boxes; }
+  fstate[fb + 15u] = front;
+  fstate[fb + 16u] = frontFlat;
+  var near = 1.0;
+  if (nearArea > 0.0) { near = max(0.0, 1.0 - 2.0 * nearSum / nearArea); }
+  fstate[fb + 17u] = near;
+  fstate[fb + 18u] = balance;
 }
 `
 
@@ -629,7 +717,7 @@ export function createGpuEvaluator(
   const m = Math.max(1, table.boxCount)
   const stride = m + RULE_SIZE
   const nUnits = table.units.length
-  const orientData = new Int32Array((nUnits * MAX_ORIENTATIONS * 2 + m * 3) * 4)
+  const orientData = new Int32Array((nUnits * MAX_ORIENTATIONS * 2 + m * 4) * 4)
   table.units.forEach((unit, i) => {
     unit.orientations.slice(0, MAX_ORIENTATIONS).forEach((o, j) => {
       const at = (i * MAX_ORIENTATIONS + j) * 2 * 4
@@ -644,7 +732,12 @@ export function createGpuEvaluator(
       )
       const ex = unitExtras(table, i, j)
       orientData.set(
-        [ex.internal, Math.round(ex.boxVolume / 1000), 0, 0],
+        [
+          ex.internal,
+          Math.round(ex.boxVolume / 1000),
+          unit.rank,
+          o.frontOK ? 1 : 0,
+        ],
         at + 4,
       )
     })
@@ -695,7 +788,7 @@ export function createGpuEvaluator(
       size: k * stride * 4,
       usage: S | GPUBufferUsage.COPY_DST,
     })
-    const placedBuf = device.createBuffer({ size: k * m * 10 * 4, usage: S })
+    const placedBuf = device.createBuffer({ size: k * m * 12 * 4, usage: S })
     const candBuf = device.createBuffer({ size: k * candSize * 4, usage: S })
     stateBuf = device.createBuffer({
       size: k * SS * 4,
@@ -729,7 +822,7 @@ export function createGpuEvaluator(
   }
 
   // 一度に評価できる並べ方の数の上限（作業用の場所が、いちばん大きいものでも 256MB に収まるように）
-  const bytesPerOrder = Math.max(candSize * 4, m * 10 * 4, stride * 4)
+  const bytesPerOrder = Math.max(candSize * 4, m * 12 * 4, stride * 4)
   const maxBatch = Math.max(
     64,
     Math.floor(
@@ -748,17 +841,7 @@ export function createGpuEvaluator(
   )
   const h0 = Math.max(1, allVolume / (X * Y))
   const tooBigCount = table.tooBig.reduce((s, u) => s + u.count, 0)
-  const offset = (input.wallBias / 100) * 0.25
-  const tx =
-    X / 2 +
-    (input.walls.left === input.walls.right
-      ? 0
-      : input.walls.left
-        ? -offset * X
-        : offset * X)
-  const ty = Y / 2 + (input.walls.back ? offset * Y : 0)
-  const hasWall = input.walls.back || input.walls.left || input.walls.right
-  const cogWeight = hasWall ? 0.15 + 0.35 * (input.wallBias / 100) : 0.3
+  const wallPart = input.walls.back || input.walls.left !== input.walls.right
   const centerX = input.walls.left === input.walls.right
   const centerY = !input.walls.back
   const tidy = input.tidy
@@ -783,10 +866,10 @@ export function createGpuEvaluator(
     ): Promise<GpuMetrics> {
       ensure(k)
       // 元の良い並べ方の記録を、orients の後ろに書く
-      const rec = new Int32Array(m * 3 * 4)
+      const rec = new Int32Array(m * 4 * 4)
       for (let j = 0; j < m; j++) {
         const p = base.placed[j]
-        if (p) rec.set([p[0], p[1], p[2], p[3]], j * 12)
+        if (p) rec.set([p[0], p[1], p[2], p[3]], j * 16)
         rec.set(
           [
             p ? p[4] : 0,
@@ -794,9 +877,12 @@ export function createGpuEvaluator(
             base.placedAfter[j] ?? 0,
             base.heightAfter[j] ?? 0,
           ],
-          j * 12 + 4,
+          j * 16 + 4,
         )
-        if (p) rec.set([p[6], p[7], p[8], Math.round(p[9] / 1000)], j * 12 + 8)
+        if (p) {
+          rec.set([p[6], p[7], p[8], Math.round(p[9] / 1000)], j * 16 + 8)
+          rec.set([p[10], p[11], 0, 0], j * 16 + 12)
+        }
       }
       device.queue.writeBuffer(
         orientBuf,
@@ -898,7 +984,7 @@ export function createGpuEvaluator(
             : [e + fs[f + 6], e + fs[f + 7], e + cv]
           const dx = centerX ? Math.round((X - x1 - x0) / 2) : 0
           const dy = centerY ? Math.round((Y - y1 - y0) / 2) : 0
-          cogError = Math.hypot((cx + dx - tx) / X, (cy + dy - ty) / Y)
+          cogError = cogErrorOf(cx + dx, cy + dy, input)
         }
         const parts: number[] = []
         if (tidy.group) parts.push(fs[f + 8])
@@ -907,6 +993,11 @@ export function createGpuEvaluator(
         if (tidy.upright)
           parts.push(placed[i] > 0 ? 1 - st[s + 7] / placed[i] : 1)
         if (tidy.even) parts.push(fs[f + 11])
+        if (tidy.bigWall && wallPart) parts.push(fs[f + 14])
+        if (tidy.front) parts.push(fs[f + 15])
+        if (tidy.frontFlat) parts.push(fs[f + 16])
+        if (tidy.near) parts.push(fs[f + 17])
+        if (tidy.balance && centerX) parts.push(fs[f + 18])
         const penalty = parts.reduce((a, x) => a + (1 - x), 0)
         tidiness[i] =
           parts.length > 0 ? parts.reduce((a, x) => a + x, 0) / parts.length : 1
@@ -916,7 +1007,7 @@ export function createGpuEvaluator(
           (input.objective === 'height'
             ? height[i] / h0
             : 3 * (1 - floorCoverage) + 0.3 * (height[i] / h0)) +
-          cogWeight * cogError +
+          COG_WEIGHT * cogError +
           (0.3 * (0.5 * fs[f + 12] + fs[f + 13])) / (256 * h0) +
           0.05 * (cogZ[i] / h0) +
           (tidy.weight / 100) * 0.3 * penalty

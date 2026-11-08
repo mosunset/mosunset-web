@@ -1,4 +1,6 @@
 import {
+  ChevronDown,
+  ChevronUp,
   Dices,
   Download,
   FileJson,
@@ -103,6 +105,11 @@ const initial: Settings = {
     bigBottom: true,
     upright: true,
     even: true,
+    bigWall: true,
+    front: true,
+    frontFlat: true,
+    near: true,
+    balance: true,
   },
   boxes: [
     { tag: '冬服', x: 500, y: 400, z: 350, count: 4, canLayDown: false },
@@ -324,9 +331,7 @@ function parseSettingsObject(value: unknown): Settings | null {
     wallBias: num(s.wallBias, initial.wallBias, 0, 100),
     tidy: (() => {
       const t = (s.tidy ?? {}) as Record<string, unknown>
-      const flag = (
-        key: 'group' | 'flat' | 'bigBottom' | 'upright' | 'even',
-      ) =>
+      const flag = (key: Exclude<keyof Settings['tidy'], 'weight'>) =>
         typeof t[key] === 'boolean' ? (t[key] as boolean) : initial.tidy[key]
       return {
         weight: num(t.weight, initial.tidy.weight, 0, 100),
@@ -335,6 +340,11 @@ function parseSettingsObject(value: unknown): Settings | null {
         bigBottom: flag('bigBottom'),
         upright: flag('upright'),
         even: flag('even'),
+        bigWall: flag('bigWall'),
+        front: flag('front'),
+        frontFlat: flag('frontFlat'),
+        near: flag('near'),
+        balance: flag('balance'),
       }
     })(),
     boxes: (s.boxes as Record<string, unknown>[]).slice(0, MAX_ROWS).map((b) =>
@@ -595,6 +605,11 @@ function summarize(s: Settings): SettingsSummary {
               s.tidy.bigBottom && '大が下',
               s.tidy.upright && '横倒し少',
               s.tidy.even && 'でこぼこ無',
+              s.tidy.bigWall && '大が壁側',
+              s.tidy.front && '正面',
+              s.tidy.frontFlat && '手前そろい',
+              s.tidy.near && 'リスト順',
+              s.tidy.balance && '左右',
             ]
               .filter(Boolean)
               .join('・')}）`,
@@ -968,6 +983,15 @@ export function BoxPacking() {
       ...s,
       boxes: s.boxes.map((b) => (b.id === id ? { ...b, ...patch } : b)),
     }))
+  /** 箱のリストの i 番目を、上（-1）か下（+1）へ 1 つ動かす */
+  const moveBox = (i: number, dir: -1 | 1) =>
+    setSettings((s) => {
+      const j = i + dir
+      if (j < 0 || j >= s.boxes.length) return s
+      const boxes = [...s.boxes]
+      ;[boxes[i], boxes[j]] = [boxes[j], boxes[i]]
+      return { ...s, boxes }
+    })
   const setRandom = (patch: Partial<RandomOptions>) =>
     setSettings((s) => ({ ...s, random: { ...s.random, ...patch } }))
   const setRange = <
@@ -1649,8 +1673,14 @@ export function BoxPacking() {
                     </HelpTip>
                   </span>
                 </th>
-                <th className="py-1">
-                  <span className="sr-only">削除</span>
+                <th className="py-1 text-right font-normal">
+                  <span className="inline-flex items-center gap-1">
+                    並べ替え
+                    <HelpTip>
+                      ↑↓
+                      で箱のリストの順番を変えます。「リストで近い箱を近くに」がオンのとき、リストで近い箱ほど近くに置きます（同じシリーズの箱を並べておく、など）。
+                    </HelpTip>
+                  </span>
                 </th>
               </tr>
             </thead>
@@ -1734,7 +1764,27 @@ export function BoxPacking() {
                       className="size-4 accent-primary"
                     />
                   </td>
-                  <td className="py-1.5 text-right">
+                  <td className="whitespace-nowrap py-1.5 text-right">
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      aria-label="上へ動かす"
+                      disabled={i === 0}
+                      onClick={() => moveBox(i, -1)}
+                    >
+                      <ChevronUp />
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      aria-label="下へ動かす"
+                      disabled={i === settings.boxes.length - 1}
+                      onClick={() => moveBox(i, 1)}
+                    >
+                      <ChevronDown />
+                    </Button>
                     <Button
                       type="button"
                       variant="ghost"
@@ -2039,7 +2089,7 @@ export function BoxPacking() {
             <div className="max-w-md">
               <RangeOrValue
                 label="見た目の整い（人の感覚）"
-                help="人が見て整っていると感じる積み方を、どれだけ重視するかです（0〜100）。0 なら気にせず、上げるほど、高さを少し譲ってでも整った積み方を選びます。範囲にすると、重視する度合いを変えながら試します。下の 5 つで、何を整いとみなすかを選べます。"
+                help="人が見て整っていると感じる積み方を、どれだけ重視するかです（0〜100）。0 なら気にせず、上げるほど、高さを少し譲ってでも整った積み方を選びます。範囲にすると、重視する度合いを変えながら試します。下の 10 個で、何を整いとみなすかを選べます。"
                 value={settings.tidy.weight}
                 min={0}
                 max={100}
@@ -2068,6 +2118,11 @@ export function BoxPacking() {
                   ['bigBottom', '大きい箱を下に'],
                   ['upright', '横倒しを減らす'],
                   ['even', 'くぼみ・飛び出しを作らない'],
+                  ['bigWall', '大きい箱を壁側に'],
+                  ['front', '箱の正面を手前に'],
+                  ['frontFlat', '手前の面をそろえる'],
+                  ['near', 'リストで近い箱を近くに'],
+                  ['balance', '左右の釣り合い'],
                 ] as const
               ).map(([key, label]) => (
                 <label key={key} className="flex items-center gap-2">

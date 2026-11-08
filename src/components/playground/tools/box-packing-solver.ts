@@ -29,7 +29,8 @@ export type Objective = 'height' | 'floor'
 /**
  * 見た目の整い（人の感覚）。weight（0〜100）が 0 なら使わない。
  * group: 同じ箱がまとまっている / flat: 上の面が平ら / bigBottom: 大きい箱が下 / upright: 横倒しが少ない
- * even: くぼみや飛び出しがない
+ * even: くぼみや飛び出しがない / bigWall: 大きい箱が壁側（壁があるとき）/ front: 箱の正面が手前を向く /
+ * frontFlat: 手前の面がそろう / near: リストで近い箱どうしが近くにある / balance: 左右の釣り合い（横の壁が片側だけでないとき）
  */
 export type Tidy = {
   weight: number
@@ -38,6 +39,11 @@ export type Tidy = {
   bigBottom: boolean
   upright: boolean
   even: boolean
+  bigWall: boolean
+  front: boolean
+  frontFlat: boolean
+  near: boolean
+  balance: boolean
 }
 
 export type PackInput = {
@@ -117,6 +123,8 @@ type Orientation = {
   h: number
   faces: FaceLabel[]
   laidDown: boolean
+  /** この寸法の置き方で、箱の正面（「前」の面）を手前に向けられるか（かたまりの置き方で使う） */
+  frontOK?: boolean
 }
 
 /** 元の軸（0: x, 1: y, 2: z）と向き（+1 / -1）から面の名前 */
@@ -156,7 +164,7 @@ const allowedUp: readonly FaceLabel[] = ['上', '前', '左']
  * 箱の置き方の一覧。回転（鏡に映した形にはしない）だけを考え、
  * 上を向く面が allowedUp に入る向きだけにする。横倒しは許されたときだけ
  */
-export function orientationsOf(box: BoxSpec): Orientation[] {
+export function orientationsOf(box: BoxSpec, all = false): Orientation[] {
   const dims = [box.x, box.y, box.z]
   const result: Orientation[] = []
   const seen = new Set<string>()
@@ -180,7 +188,7 @@ export function orientationsOf(box: BoxSpec): Orientation[] {
       // 同じ寸法でも上を向く面が違えば別の置き方（文字の向きが変わる）だが、
       // 積み方は寸法だけで決まるので、寸法が同じものは 1 つにまとめる
       const key = `${w}x${d}x${h}`
-      if (seen.has(key)) continue
+      if (!all && seen.has(key)) continue
       seen.add(key)
       result.push({ w, d, h, faces, laidDown: !upright })
     }
@@ -221,6 +229,8 @@ export type Unit = {
   c: number
   size: number
   code: number
+  /** リストでの並び順（0〜1000） */
+  rank: number
   orientations: Orientation[]
   base: number[]
 }
@@ -250,21 +260,22 @@ export function unitsOf(input: PackInput) {
   const groups: Group[] = []
   const tooBig: Unplaced[] = []
   const keyIndex = new Map<string, number>()
-  /** 種類ごとの置き方（かたまりの中の箱の面の名前を決めるのに使う） */
+  /** 種類ごとの置き方（まとめない一覧。箱の面の名前と、正面を手前に向けられるかを決めるのに使う） */
   const orientsByType: Orientation[][] = []
   input.boxes.forEach((box, type) => {
-    orientsByType[type] = orientationsOf(box)
+    orientsByType[type] = orientationsOf(box, true)
     if (box.count <= 0) return
     if (!fitsFloor(box, input)) {
       tooBig.push({ type, count: box.count, reason: 'too-big' })
       return
     }
-    const key = `${Math.min(box.x, box.y)}x${Math.max(box.x, box.y)}x${box.z}:${box.canLayDown ? 1 : 0}`
+    // 正面の向きが変わらないよう、入力の向き（X・Y・Z）まで同じものだけを同じ寸法とみなす
+    const key = `${box.x}x${box.y}x${box.z}:${box.canLayDown ? 1 : 0}`
     let g = keyIndex.get(key)
     if (g === undefined) {
       g = groups.length
       keyIndex.set(key, g)
-      groups.push({ members: [], orientations: orientsByType[type] })
+      groups.push({ members: [], orientations: orientationsOf(box) })
     }
     for (let i = 0; i < box.count; i++) groups[g].members.push(type)
   })
@@ -274,8 +285,19 @@ export function unitsOf(input: PackInput) {
   const units: Unit[] = []
   const single: number[] = []
   const byCode = new Map<number, number>()
+  // リストでの並び順（使う箱の中での順番を 0〜1000 にそろえる）。まとまりは中の箱の平均
+  const present = [...new Set(groups.flatMap((g) => g.members))].sort(
+    (a, b) => a - b,
+  )
+  const rankOfType = new Map(present.map((t, i) => [t, i]))
+  const rankScale = 1000 / Math.max(1, present.length - 1)
   groups.forEach((g, gi) => {
     const n = g.members.length
+    const rank = Math.round(
+      (g.members.reduce((a, t) => a + (rankOfType.get(t) ?? 0), 0) / n) *
+        rankScale,
+    )
+    const all = orientsByType[g.members[0]]
     for (let c = 1; c <= MAX_STACK; c++) {
       for (let a = 1; a <= MAX_SIDE; a++) {
         for (let b = 1; b <= MAX_SIDE; b++) {
@@ -292,14 +314,39 @@ export function unitsOf(input: PackInput) {
             const key = `${w}x${d}x${h}`
             if (seen.has(key)) return
             seen.add(key)
-            orientations.push({ w, d, h, faces: o.faces, laidDown: o.laidDown })
+            const frontOK = all.some(
+              (x) =>
+                x.w === o.w &&
+                x.d === o.d &&
+                x.h === o.h &&
+                x.laidDown === o.laidDown &&
+                x.faces[3] === '前',
+            )
+            orientations.push({
+              w,
+              d,
+              h,
+              faces: o.faces,
+              laidDown: o.laidDown,
+              frontOK,
+            })
             base.push(oi)
           })
           if (orientations.length === 0) continue
           const code = codeOf(gi, a, b, c)
           if (size === 1) single[gi] = units.length
           byCode.set(code, units.length)
-          units.push({ group: gi, a, b, c, size, code, orientations, base })
+          units.push({
+            group: gi,
+            a,
+            b,
+            c,
+            size,
+            code,
+            rank,
+            orientations,
+            base,
+          })
         }
       }
     }
@@ -320,6 +367,8 @@ export type UnitTable = ReturnType<typeof unitsOf>
  * - unflush: となりの箱と上面の高さがそろっていない割合（0〜1000）
  * - unaligned: となりや下の箱と端がそろっていない割合（0〜1000）
  * - notSame: となりの箱のうち、同じ寸法の箱でない割合（0〜1000）
+ * - sideways: 箱の正面を手前に向けられない置き方なら 100
+ * - farOrder: となりの箱との、リストでの並び順の離れ具合（0〜1000）
  * ルールは見る点ごとの重みの段階（0 は見ない。1 段上がるごとに重みが 2 倍）で、重みを掛けた合計がいちばん小さい場所に置く。
  * どれを優先するかも決め打ちせず、並べ順と一緒に探す
  */
@@ -334,6 +383,8 @@ export const ruleKeys = [
   'unflush',
   'unaligned',
   'notSame',
+  'sideways',
+  'farOrder',
 ] as const
 export const RULE_SIZE = ruleKeys.length
 /** 重みの段階の上限（11 で重み 1024） */
@@ -346,12 +397,14 @@ export function defaultRules(input: PackInput): Rule[] {
   const t = input.tidy.weight > 0
   const up = t && input.tidy.upright ? 5 : 0
   const same = t && input.tidy.group ? 5 : 2
+  const front = t && input.tidy.front ? 5 : 0
+  const near = t && input.tidy.near ? 5 : 0
   return [
     input.objective === 'height'
-      ? [11, 8, 6, up, 4, 2, 1, 0, 0, same]
-      : [3, 8, 11, up, 5, 2, 1, 0, 0, same],
-    [9, 7, 5, up, 6, 2, 1, 8, 8, same + 2],
-    [8, 6, 4, up, 9, 2, 1, 5, 5, same],
+      ? [11, 8, 6, up, 4, 2, 1, 0, 0, same, front, near]
+      : [3, 8, 11, up, 5, 2, 1, 0, 0, same, front, near],
+    [9, 7, 5, up, 6, 2, 1, 8, 8, same + 2, front + 2, near + 2],
+    [8, 6, 4, up, 9, 2, 1, 5, 5, same, front, near],
   ]
 }
 
@@ -364,6 +417,8 @@ export type Genome = { seq: number[]; rule: Rule }
 type Placed = Orientation & {
   unit: number
   group: number
+  /** リストでの並び順（0〜1000） */
+  rank: number
   /** かたまりの置き方の番号 */
   oi: number
   size: number
@@ -549,7 +604,11 @@ function packInOrder(
         if (u + o.w > U || v + o.d > V) continue
         // 場所と向きだけで決まる点と、置く高さで決まる点。接する面などの点は 0 以上なので、
         // ここまでで今の最良に勝てない場所は、調べるまでもない
-        const fixed = W[3] * (o.laidDown ? 100 : 0) + W[5] * a1 + W[6] * a2
+        const fixed =
+          W[3] * (o.laidDown ? 100 : 0) +
+          W[5] * a1 +
+          W[6] * a2 +
+          W[10] * (o.frontOK ? 0 : 100)
         const at = (z: number) =>
           W[0] * (Math.max(height, z + o.h) - height) +
           W[1] * (z + o.h) +
@@ -626,6 +685,8 @@ function packInOrder(
         let boxContact = 0
         let same = 0
         let flush = 0
+        let sideLen = 0
+        let farSum = 0
         let side = all
         if (all.length > SMALL) {
           // すき間の分だけ離れた箱も入るよう、1 だけ広げて探す
@@ -644,6 +705,8 @@ function packInOrder(
             boxContact += ov * oz
             if (isSame) same += ov * oz
             if (flat) flush += ov
+            sideLen += ov
+            farSum += ov * Math.abs(b.rank - item.rank)
             if (b.v === v) align++
             if (b.v + b.d === v + o.d) align++
           }
@@ -653,6 +716,8 @@ function packInOrder(
             boxContact += ou * oz
             if (isSame) same += ou * oz
             if (flat) flush += ou
+            sideLen += ou
+            farSum += ou * Math.abs(b.rank - item.rank)
             if (b.u === u) align++
             if (b.u + b.w === u + o.w) align++
           }
@@ -676,12 +741,14 @@ function packInOrder(
                 Math.floor(same / Math.max(1, Math.floor(boxContact / 1000))),
               )
             : 1000
+        const farOrder = sideLen > 0 ? Math.floor(farSum / sideLen) : 1000
         const score =
           at(z) +
           W[4] * open +
           W[7] * unflush +
           W[8] * unaligned +
-          W[9] * notSame
+          W[9] * notSame +
+          W[11] * farOrder
         if (best && score >= best.score) continue
 
         best = {
@@ -690,6 +757,7 @@ function packInOrder(
             ...o,
             unit: unitId,
             group: item.group,
+            rank: item.rank,
             oi,
             size: item.size,
             u,
@@ -739,14 +807,14 @@ function finish(
           const type = takeType(p.group)
           // 同じ寸法でも入力の向きが違う箱があるので、面の名前はその箱の置き方から取る
           const own = table.orientsByType[type]
+          const fits = (x: Orientation) =>
+            x.w === bo.w &&
+            x.d === bo.d &&
+            x.h === bo.h &&
+            x.laidDown === bo.laidDown
           const o =
-            own.find(
-              (x) =>
-                x.w === bo.w &&
-                x.d === bo.d &&
-                x.h === bo.h &&
-                x.laidDown === bo.laidDown,
-            ) ??
+            own.find((x) => fits(x) && x.faces[3] === '前') ??
+            own.find(fits) ??
             own.find((x) => x.w === bo.w && x.d === bo.d && x.h === bo.h) ??
             bo
           const bu = p.u + ia * (bo.w + gap)
@@ -815,15 +883,8 @@ function finish(
   )
   const h0 = Math.max(1, allVolume / (X * Y))
 
-  // 重心のずれ: 壁がなければ床の中心、壁があれば壁側に少し寄せた点を目標にする
-  const offset = (input.wallBias / 100) * 0.25
-  const tx =
-    X / 2 +
-    (walls.left === walls.right ? 0 : walls.left ? -offset * X : offset * X)
-  const ty = Y / 2 + (walls.back ? offset * Y : 0)
-  const cogError = cog ? Math.hypot((cog.x - tx) / X, (cog.y - ty) / Y) : 0
-  const hasWall = walls.back || walls.left || walls.right
-  const cogWeight = hasWall ? 0.15 + 0.35 * (input.wallBias / 100) : 0.3
+  const cogError = cog ? cogErrorOf(cog.x, cog.y, input) : 0
+  const cogWeight = COG_WEIGHT
 
   const tidy = tidinessOf(placements, input, gapOf(input))
   const score =
@@ -861,6 +922,25 @@ function finish(
   }
 }
 
+/** 重心のずれの点数の重み */
+export const COG_WEIGHT = 0.3
+
+/**
+ * 重心のずれ（床の大きさで割った値）。壁に沿う向き（その向きに壁がない、または両側に壁がある）は床の中央からのずれ。
+ * 壁に垂直な向き（奥の壁・片側だけの横の壁）は、壁からの距離に寄せる強さ（0〜1）を掛けたもの（壁に近いほど良い）。
+ * GPU の見積もり（box-packing-gpu.ts）でも使う
+ */
+export function cogErrorOf(x: number, y: number, input: PackInput) {
+  const { floorX: X, floorY: Y, walls } = input
+  const bias = input.wallBias / 100
+  const ex =
+    walls.left === walls.right
+      ? (x - X / 2) / X
+      : (walls.left ? x / X : (X - x) / X) * bias
+  const ey = walls.back ? ((Y - y) / Y) * bias : (y - Y / 2) / Y
+  return Math.hypot(ex, ey)
+}
+
 /** 置き場所から見た目の整い（0〜1）を測る。保存した結果を今の測り方で測り直すのに使う */
 export function measureTidiness(placements: Placement[], input: PackInput) {
   return tidinessOf(placements, input, gapOf(input)).value
@@ -883,10 +963,31 @@ function tidinessOf(placements: Placement[], input: PackInput, gap: number) {
   const n = placements.length
   if (n === 0) return { value: 1, penalty: 0 }
   const name = (t: number) => input.boxes[t]?.tag.trim() || `#${t}`
+  const { floorX: X, floorY: Y, walls } = input
+  // リストでの並び順（置いた箱の種類の中での順番を 0〜1 にそろえる）
+  const present = [...new Set(placements.map((p) => p.type))].sort(
+    (a, b) => a - b,
+  )
+  const rankOf = new Map(
+    present.map((t, i) => [t, i / Math.max(1, present.length - 1)]),
+  )
+  // 壁からの距離（奥の壁・片側だけの横の壁。両方あれば近いほう）
+  const wallDist = (p: Placement) => {
+    let d = Number.POSITIVE_INFINITY
+    if (walls.back) d = Math.min(d, Y - (p.y + p.d / 2))
+    if (walls.left && !walls.right) d = Math.min(d, p.x + p.w / 2)
+    if (walls.right && !walls.left) d = Math.min(d, X - (p.x + p.w / 2))
+    return d
+  }
+  const hasWall = walls.back || walls.left !== walls.right
   let contactAll = 0
   let contactSame = 0
   let supportAll = 0
   let supportBad = 0
+  let nearArea = 0
+  let nearSum = 0
+  let wallPairs = 0
+  let wallGood = 0
   for (let a = 0; a < n; a++) {
     const p = placements[a]
     for (let b = a + 1; b < n; b++) {
@@ -904,6 +1005,10 @@ function tidinessOf(placements: Placement[], input: PackInput, gap: number) {
         if (area > 0) {
           contactAll += area
           if (name(p.type) === name(q.type)) contactSame += area
+          nearArea += area
+          nearSum +=
+            area *
+            Math.abs((rankOf.get(p.type) ?? 0) - (rankOf.get(q.type) ?? 0))
         }
       }
       // 上下に載っている
@@ -915,6 +1020,17 @@ function tidinessOf(placements: Placement[], input: PackInput, gap: number) {
           supportAll += area
           if (upper.w * upper.d * upper.h > lower.w * lower.d * lower.h)
             supportBad += area
+        }
+      }
+      // 大きい箱が壁側か（体積が違う 2 つで、大きいほうが壁に近いか）
+      if (hasWall) {
+        const vp = p.w * p.d * p.h
+        const vq = q.w * q.d * q.h
+        const dp = wallDist(p)
+        const dq = wallDist(q)
+        if (vp !== vq && dp !== dq) {
+          wallPairs++
+          if (vp > vq === dp < dq) wallGood++
         }
       }
     }
@@ -978,6 +1094,43 @@ function tidinessOf(placements: Placement[], input: PackInput, gap: number) {
     parts.push(supportAll > 0 ? 1 - supportBad / supportAll : 1)
   if (input.tidy.upright)
     parts.push(1 - placements.filter((p) => p.laidDown).length / n)
+  if (input.tidy.bigWall && hasWall)
+    parts.push(wallPairs > 0 ? wallGood / wallPairs : 1)
+  if (input.tidy.front)
+    parts.push(placements.filter((p) => p.faces[3] === '前').length / n)
+  if (input.tidy.frontFlat) {
+    // 横に細かく分けた列ごとに、いちばん手前の箱の前の面の位置。そのばらつきが小さいほど 1 に近い
+    const fronts: number[] = []
+    for (let i = 0; i < GX; i++) {
+      const px = minX + (i + 0.5) * cw
+      let f = Number.POSITIVE_INFINITY
+      for (const p of placements)
+        if (px >= p.x && px < p.x + p.w && p.y < f) f = p.y
+      if (Number.isFinite(f)) fronts.push(f)
+    }
+    const fm = fronts.reduce((a, x) => a + x, 0) / Math.max(1, fronts.length)
+    const fs = Math.sqrt(
+      fronts.reduce((a, x) => a + (x - fm) ** 2, 0) /
+        Math.max(1, fronts.length),
+    )
+    parts.push(Math.max(0, 1 - (2 * fs) / Math.max(1, maxY - minY)))
+  }
+  if (input.tidy.near)
+    parts.push(nearArea > 0 ? Math.max(0, 1 - (2 * nearSum) / nearArea) : 1)
+  if (input.tidy.balance && walls.left === walls.right) {
+    // 左右を折り返して、高さの地図がどれだけ重なるか
+    let diff = 0
+    let total = 0
+    for (let j = 0; j < GY; j++) {
+      for (let i = 0; i < GX; i++) {
+        const a = tops[j * GX + i]
+        const b = tops[j * GX + (GX - 1 - i)]
+        diff += Math.abs(a - b)
+        total += a + b
+      }
+    }
+    parts.push(total > 0 ? 1 - diff / total : 1)
+  }
   if (input.tidy.even) {
     parts.push(
       Math.max(
@@ -1260,6 +1413,8 @@ export function traceIds(
         p.size + (p.laidDown ? 256 : 0),
         x.internal,
         x.boxVolume,
+        p.rank,
+        p.frontOK ? 1 : 0,
       ] as const
     }),
     placedAfter: t.placedAfter,
