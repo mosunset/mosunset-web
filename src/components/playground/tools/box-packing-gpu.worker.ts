@@ -13,6 +13,7 @@ import {
   NONE,
 } from './box-packing-gpu'
 import {
+  acceptWorse,
   betterFor,
   createKindStats,
   evaluateIds,
@@ -27,12 +28,16 @@ import {
   RULE_SIZE,
   type Rule,
   random,
+  rulesFrozen,
+  shakePlan,
   startPlans,
+  temperatureAt,
   traceIds,
   type UnitTable,
   unitIdsOf,
   unitsOf,
   weightOf,
+  withRulePhase,
 } from './box-packing-solver'
 
 /** 画面から GPU 係への頼みごと */
@@ -62,6 +67,8 @@ const ELITES = 12
 /** GPU の見積もりの上位から、正式に評価する数（手伝いの係がいれば多く） */
 const REVIEW_TOP_WITH_HELPERS = 96
 const REVIEW_TOP_ALONE = 16
+/** GPU 係の焼きなましの温度が半分になるまでの回数（1 回は数万通り） */
+const GPU_HALF_LIFE = 30
 /** 何回続けて良くならなければ、大きく崩して別の場所を探すか */
 const STAGNATION = 4
 /** 大きく崩した出発点の近くを、何回探すか */
@@ -326,29 +333,16 @@ async function search(
   let kick: (Plan & { score: number; left: number }) | null = null
   /** いちばん良い結果が、何回続けて良くならなかったか */
   let sinceImproved = 0
-  const shake = (p: Plan): Plan => {
-    const o = [...p.ids]
-    const len = Math.max(3, Math.floor(o.length / 5))
-    const i = Math.floor(rand() * Math.max(1, o.length - len + 1))
-    for (let a = Math.min(o.length, i + len) - 1; a > i; a--) {
-      const b = i + Math.floor(rand() * (a - i + 1))
-      const t = o[a]
-      o[a] = o[b]
-      o[b] = t
-    }
-    // ルールも 2 か所ほど大きく変える
-    const r = [...p.rule]
-    for (let t = 0; t < 2; t++) {
-      r[Math.floor(rand() * RULE_SIZE)] = Math.floor(rand() * (RULE_MAX + 1))
-    }
-    return { ids: o, rule: r }
-  }
+  const frozen = () => rulesFrozen(input, Date.now() - started)
+  /** 焼きなまし: 今歩いている並べ方（いちばん良いものより少し悪いこともある）と、温度を決める回数 */
+  let walk: Plan & { score: number } = { ...bestPlan, score: best.score }
+  let annealBatches = 0
 
   /** 今回の出発点を選ぶ */
   const pickParent = (): { parent: Plan; fromKick: boolean } => {
     if (kick) return { parent: kick, fromKick: true }
     if (elites.length < 2 || rand() < 0.6)
-      return { parent: current, fromKick: false }
+      return { parent: walk, fromKick: false }
     // 良いものほど選ばれやすく
     return {
       parent: elites[Math.floor(rand() ** 2 * elites.length)],
@@ -365,7 +359,7 @@ async function search(
     const trace = traceIds(input, table, parent.ids, parent.rule)
     const plans: (Plan & { kind: number })[] = new Array(count)
     const startOf = new Int32Array(count)
-    const weights = stats.weights()
+    const weights = withRulePhase(stats.weights(), frozen())
     const kindCount = new Array<number>(MUTATION_KINDS).fill(0)
     for (let r = 0; r < count; r++) {
       const other =
@@ -456,6 +450,8 @@ async function search(
       pickList.map((r) => job.plans[r]),
     )
     const kindWins = new Array<number>(MUTATION_KINDS).fill(0)
+    /** この回でいちばん良かった並べ方（焼きなましで、乗り換えるか決める） */
+    let batchBest: (Plan & { score: number }) | null = null
     for (let q = 0; q < pickList.length; q++) {
       const r = pickList[q]
       const plan = job.plans[r]
@@ -479,6 +475,8 @@ async function search(
         kick = { ...kick, ids: plan.ids, rule: plan.rule, score: result.score }
       }
       consider(result)
+      if (!job.fromKick && (!batchBest || result.score < batchBest.score))
+        batchBest = { ids: plan.ids, rule: plan.rule, score: result.score }
       if (result.score < currentBest.score - 1e-9) {
         currentBest = result
         current = plan
@@ -488,6 +486,18 @@ async function search(
       }
     }
     checked = true
+    // 焼きなまし: この回のいちばん良い並べ方が今より良ければ乗り換え、少し悪くても、温度に応じてときどき乗り換える
+    annealBatches++
+    if (improved) walk = { ...current, score: currentBest.score }
+    else if (
+      batchBest &&
+      acceptWorse(
+        batchBest.score - walk.score,
+        temperatureAt(annealBatches, GPU_HALF_LIFE),
+        rand,
+      )
+    )
+      walk = batchBest
     job.kindCount.forEach((count, kind) => {
       stats.record(kind, count, kindWins[kind])
     })
@@ -503,11 +513,12 @@ async function search(
       // しばらく良くならなければ、いちばん良い並べ方の一部を大きく混ぜて、別の場所を探す
       if (!kick && sinceImproved >= STAGNATION) {
         kick = {
-          ...shake(current),
+          ...shakePlan(current.ids, current.rule, rand, frozen()),
           score: Number.POSITIVE_INFINITY,
           left: KICK_BATCHES,
         }
         sinceImproved = 0
+        annealBatches = 0
       }
     }
   }
@@ -565,6 +576,7 @@ async function search(
       if (r.score < currentBest.score - 1e-9) {
         currentBest = r
         current = plan
+        walk = { ...plan, score: r.score }
         pending = true
         lastImproved = Date.now()
       }

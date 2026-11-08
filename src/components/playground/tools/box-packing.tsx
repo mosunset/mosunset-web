@@ -1193,6 +1193,8 @@ export function BoxPacking() {
     const gained = new Array<boolean>(n).fill(true)
     /** 組み合わせごとに、ほかの係へ良い並べ方を最後に渡した時刻（渡しすぎないよう間引く） */
     const lastShared = new Array<number>(n).fill(0)
+    /** 組み合わせごとに、これまでにかけた計算の時間（係ごとの合計。ルールを固める頃合いを決めるのに渡す） */
+    const workMs = new Array<number>(n).fill(0)
     // GPU を使うときは、計算係のうち 1 つ（0 番）を GPU 係にする
     const gpuWorker = gpuOn ? gpuWorkerRef.current : null
     const runGpu: typeof runWorker = (job, on) => {
@@ -1305,6 +1307,7 @@ export function BoxPacking() {
         stops[slot]?.()
         stops[slot] = null
         slotCombo[slot] = -1
+        workMs[i] += Date.now() - startedAtSlot
         gained[i] =
           bestScore[i] !== undefined &&
           (scoreAtStart === undefined || bestScore[i] < scoreAtStart - 1e-9)
@@ -1333,6 +1336,7 @@ export function BoxPacking() {
           seed: Math.floor(Math.random() * 1_000_000_000),
           startOrder: bestOrder[i],
           startGenome: bestGenome[i],
+          searchedMs: workMs[i],
         },
         {
           best: (found) => {
