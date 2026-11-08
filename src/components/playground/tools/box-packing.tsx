@@ -21,7 +21,7 @@ import { HelpTip, RangeSlider, Stat } from '@/components/playground/parts'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { cn } from '@/lib/utils'
-import type { AdoptMessage, WorkerMessage } from './box-packing.worker'
+import type { SearchRequest, WorkerMessage } from './box-packing.worker'
 import type { GpuReply, GpuRequest } from './box-packing-gpu.worker'
 import {
   BestResults,
@@ -32,6 +32,7 @@ import {
   type BoxSpec,
   betterFor,
   type Genome,
+  type Method,
   type Metric,
   measureTidiness,
   metricLabels,
@@ -72,7 +73,9 @@ type RandomOptions = {
   seed: number
 }
 
-type Settings = Omit<PackInput, 'boxes' | 'seed'> & {
+type Settings = Omit<PackInput, 'boxes' | 'seed' | 'method'> & {
+  /** 計算方法（範囲で試すときに「両方」にできる） */
+  method: Method
   boxes: BoxRow[]
   random: RandomOptions
 }
@@ -99,6 +102,7 @@ const initial: Settings = {
   edgeGap: 5,
   supportPercent: 95,
   objective: 'height',
+  method: 'order',
   wallBias: 50,
   tidy: {
     weight: 50,
@@ -330,6 +334,7 @@ function parseSettingsObject(value: unknown): Settings | null {
     edgeGap: num(s.edgeGap, initial.edgeGap, 0, 50),
     supportPercent: num(s.supportPercent, initial.supportPercent, 50, 100),
     objective: s.objective === 'floor' ? 'floor' : 'height',
+    method: s.method === 'columns' ? 'columns' : 'order',
     wallBias: num(s.wallBias, initial.wallBias, 0, 100),
     tidy: (() => {
       const t = (s.tidy ?? {}) as Record<string, unknown>
@@ -606,6 +611,7 @@ function summarize(s: Settings): SettingsSummary {
     { label: '壁', value: walls },
     { label: 'すき間', value: `${s.gap}/${s.edgeGap} mm` },
     { label: '支え', value: `${s.supportPercent}%` },
+    { label: '方式', value: s.method === 'columns' ? '柱' : '並べ順' },
     { label: '優先', value: s.objective === 'height' ? '高さ' : '1 段目' },
     { label: '寄せ', value: String(s.wallBias) },
     {
@@ -708,7 +714,21 @@ const stopRow = (r: SweepRow): SweepRow => ({
 /** 係を止める関数（adopt で、ほかの係が見つけた良い並べ方を渡せる） */
 type Runner = (() => void) & { adopt: (genome: Genome) => void }
 
-/** Worker を 1 つ動かして、1 つの組み合わせを計算する。止める関数を返す */
+/** 計算係（Worker）を作る。受け持ちが変わっても作り直さず使い回す */
+function createSearchWorker() {
+  return new Worker(new URL('./box-packing.worker.ts', import.meta.url), {
+    type: 'module',
+  })
+}
+
+/** 計算係が壊れた（エラーで止まった）しるし。次の受け持ちでは作り直す */
+const brokenWorkers = new WeakSet<Worker>()
+let searchToken = 0
+
+/**
+ * 計算係に、1 つの組み合わせの計算を頼む。止める関数を返す。
+ * worker を渡すと、その係を使い回す（止めるときは terminate せず「stop」を送る）
+ */
 function runWorker(
   input: PackInput,
   on: {
@@ -718,44 +738,49 @@ function runWorker(
     /** 良い結果が出なくなって止まった、または失敗した */
     done: () => void
   },
-) {
-  const worker = new Worker(
-    new URL('./box-packing.worker.ts', import.meta.url),
-    {
-      type: 'module',
-    },
-  )
+  shared?: Worker,
+): Runner {
+  const worker = shared ?? createSearchWorker()
+  const token = ++searchToken
   let stopped = false
   const stop: Runner = Object.assign(
     () => {
+      if (stopped) return
       stopped = true
-      worker.terminate()
+      if (shared)
+        shared.postMessage({ kind: 'stop', token } satisfies SearchRequest)
+      else worker.terminate()
     },
     {
       adopt: (genome: Genome) => {
         if (!stopped)
-          worker.postMessage({ kind: 'adopt', genome } satisfies AdoptMessage)
+          worker.postMessage({ kind: 'adopt', genome } satisfies SearchRequest)
       },
     },
   )
-  worker.onmessage = (event: MessageEvent<WorkerMessage>) => {
-    if (stopped) return
+  worker.onmessage = (
+    event: MessageEvent<WorkerMessage & { token: number }>,
+  ) => {
     const message = event.data
+    if (stopped || message.token !== token) return
     on.progress(message.tried)
     if (message.kind === 'best') on.best(message.result)
     else if (message.kind === 'metric')
       on.metric(message.metric, message.result)
     else if (message.kind === 'done') {
-      stop()
+      stopped = true
+      if (!shared) worker.terminate()
       on.done()
     }
   }
   worker.onerror = () => {
     if (stopped) return
-    stop()
+    stopped = true
+    brokenWorkers.add(worker)
+    worker.terminate()
     on.done()
   }
-  worker.postMessage(input)
+  worker.postMessage({ kind: 'run', token, input } satisfies SearchRequest)
   return stop
 }
 
@@ -791,6 +816,10 @@ function loadSweep(): SweepConfig {
       typeof v.bothLayDown === 'boolean'
         ? v.bothLayDown
         : defaultSweep.bothLayDown,
+    bothMethods:
+      typeof v.bothMethods === 'boolean'
+        ? v.bothMethods
+        : defaultSweep.bothMethods,
   }
 }
 
@@ -1119,6 +1148,7 @@ export function BoxPacking() {
     wallBias: settings.wallBias,
     tidyWeight: settings.tidy.weight,
     objective: settings.objective,
+    method: settings.method,
   }
   const plan = planSearch(sweepConfig, sweepBase, workerCount)
 
@@ -1139,6 +1169,7 @@ export function BoxPacking() {
         wallBias: c.wallBias,
         tidy: { ...settings.tidy, weight: c.tidyWeight },
         objective: c.objective,
+        method: c.method,
         boxes: c.layDownAll
           ? settings.boxes.map((b) => ({ ...b, canLayDown: true }))
           : settings.boxes,
@@ -1187,6 +1218,15 @@ export function BoxPacking() {
       .map((c, i) => (validate(c) ? -1 : i))
       .filter((i) => i >= 0)
     const stops = new Array<Runner | null>(workerCount).fill(null)
+    /** 係ごとの計算係（Worker）。探すあいだは作ったまま使い回す */
+    const pool = new Array<Worker | null>(workerCount).fill(null)
+    const workerFor = (slot: number) => {
+      const w = pool[slot]
+      if (w && !brokenWorkers.has(w)) return w
+      const created = createSearchWorker()
+      pool[slot] = created
+      return created
+    }
     /** 係ごとに、今受け持っている組み合わせ（受け持っていなければ -1） */
     const slotCombo = new Array<number>(workerCount).fill(-1)
     /** 組み合わせごとに、最後の受け持ちで良くなったか（まだなら、良くなるかもしれないとみなす） */
@@ -1197,9 +1237,13 @@ export function BoxPacking() {
     const workMs = new Array<number>(n).fill(0)
     // GPU を使うときは、計算係のうち 1 つ（0 番）を GPU 係にする
     const gpuWorker = gpuOn ? gpuWorkerRef.current : null
-    const runGpu: typeof runWorker = (job, on) => {
+    const runGpu = (
+      job: PackInput,
+      on: Parameters<typeof runWorker>[1],
+    ): Runner => {
       const w = gpuWorker
-      if (!w) return runWorker(job, on)
+      if (!w || job.method === 'columns')
+        return runWorker(job, on, workerFor(0))
       const token = ++gpuTokenRef.current
       gpuHandlersRef.current.set(token, (reply) => {
         if (reply.kind === 'best') on.best(reply.result)
@@ -1236,24 +1280,58 @@ export function BoxPacking() {
     let lastProgress = 0
     let ended = false
 
-    const patchRow = (i: number, patch: (r: SweepRow) => SweepRow) =>
-      setSearch((s) => {
-        // 止めたあとに届いた知らせでは、表を変えない（止めたときに「変化なし」の時間も止めている）
-        if (s.startedAt !== startedAt || !s.running) return s
-        const rows = [...s.rows]
-        rows[i] = patch(rows[i])
-        return { ...s, rows }
-      })
+    // 係からの知らせが多いと画面の描き直しが追いつかないので、表と部門別ベストの更新はためておき、
+    // 0.4 秒ごとにまとめて反映する
+    const pendingRows: [number, (r: SweepRow) => SweepRow][] = []
+    const pendingBests: [string, Metric, BestEntry][] = []
+    let flushTimer = 0
+    const flushUpdates = () => {
+      flushTimer = 0
+      const rowPatches = pendingRows.splice(0)
+      const bestItems = pendingBests.splice(0)
+      if (rowPatches.length > 0) {
+        setSearch((s) => {
+          // 止めたあとに届いた知らせでは、表を変えない（止めたときに「変化なし」の時間も止めている）
+          if (s.startedAt !== startedAt || !s.running) return s
+          const rows = [...s.rows]
+          for (const [i, patch] of rowPatches) rows[i] = patch(rows[i])
+          return { ...s, rows }
+        })
+      }
+      if (bestItems.length > 0) {
+        setBests((all) =>
+          bestItems.reduce(
+            (acc, [key, metric, entry]) => withBest(acc, key, metric, entry),
+            all,
+          ),
+        )
+      }
+    }
+    const scheduleFlush = () => {
+      if (!flushTimer) flushTimer = window.setTimeout(flushUpdates, 400)
+    }
+    const patchRow = (i: number, patch: (r: SweepRow) => SweepRow) => {
+      pendingRows.push([i, patch])
+      scheduleFlush()
+    }
+    const queueBest = (key: string, metric: Metric, entry: BestEntry) => {
+      pendingBests.push([key, metric, entry])
+      scheduleFlush()
+    }
 
     /** 次に計算する組み合わせ（計算中を含めた回数がいちばん少ないものから、ランダムに 1 つ） */
     const pick = (slot: number) => {
       if (usable.length === 0) return -1
+      // GPU 係は、並べ順の方式の組み合わせだけを受け持つ
+      const isGpu = slot === 0 && !!gpuWorker
+      const ordered = usable.filter((i) => combos[i].method !== 'columns')
+      const candidates = isGpu && ordered.length > 0 ? ordered : usable
       // まだ一度も当たっていない組み合わせがあれば、そこから
-      const fresh = usable.filter((i) => visits[i] + active[i] === 0)
+      const fresh = candidates.filter((i) => visits[i] + active[i] === 0)
       if (fresh.length > 0)
         return fresh[Math.floor(Math.random() * fresh.length)]
       // 成績の順位（0 がいちばん良い）。点数が出ていないものは最後
-      const order = [...usable].sort(
+      const order = [...candidates].sort(
         (a, b) =>
           (bestScore[a] ?? Number.POSITIVE_INFINITY) -
           (bestScore[b] ?? Number.POSITIVE_INFINITY),
@@ -1261,12 +1339,12 @@ export function BoxPacking() {
       const rank = new Map(
         order.map((i, r) => [i, r / Math.max(1, order.length - 1)]),
       )
-      const total = usable.reduce((a, i) => a + visits[i] + active[i], 0)
+      const total = candidates.reduce((a, i) => a + visits[i] + active[i], 0)
       // GPU 係は、良い組み合わせを深く探す（試す数が多いので、良いところに使う）
-      const explore = slot === 0 && gpuWorker ? 0.15 : 0.5
-      let chosen = usable[0]
+      const explore = isGpu ? 0.15 : 0.5
+      let chosen = candidates[0]
       let bestValue = Number.NEGATIVE_INFINITY
-      for (const i of usable) {
+      for (const i of candidates) {
         const load = visits[i] + active[i]
         const value =
           1 -
@@ -1330,7 +1408,12 @@ export function BoxPacking() {
         )
         launch(slot)
       }
-      stops[slot] = (slot === 0 && gpuWorker ? runGpu : runWorker)(
+      const runner =
+        slot === 0 && gpuWorker
+          ? runGpu
+          : (job: PackInput, on: Parameters<typeof runWorker>[1]) =>
+              runWorker(job, on, workerFor(slot))
+      stops[slot] = runner(
         {
           ...input,
           seed: Math.floor(Math.random() * 1_000_000_000),
@@ -1363,15 +1446,13 @@ export function BoxPacking() {
             }
           },
           metric: (metric, found) => {
-            setBests((all) =>
-              withBest(all, groupKeyOf(combos[i]), metric, {
-                run: runNo,
-                sweep: n > 1 ? i + 1 : undefined,
-                foundAt: Date.now(),
-                settings: combos[i],
-                result: found,
-              }),
-            )
+            queueBest(groupKeyOf(combos[i]), metric, {
+              run: runNo,
+              sweep: n > 1 ? i + 1 : undefined,
+              foundAt: Date.now(),
+              settings: combos[i],
+              result: found,
+            })
             patchRow(i, (r) => {
               let next = r
               if (metric === 'height' && betterFor('height', found, r.lowest)) {
@@ -1442,9 +1523,21 @@ export function BoxPacking() {
     const clock = window.setInterval(() => setNow(Date.now()), 1000)
     return () => {
       ended = true
+      // ためていた更新は、止める前に反映する（部門別ベストは止めたあとも残す）
+      window.clearTimeout(flushTimer)
+      const bestItems = pendingBests.splice(0)
+      if (bestItems.length > 0) {
+        setBests((all) =>
+          bestItems.reduce(
+            (acc, [key, metric, entry]) => withBest(acc, key, metric, entry),
+            all,
+          ),
+        )
+      }
       window.clearTimeout(limit)
       window.clearInterval(clock)
       for (const stop of stops) stop?.()
+      for (const w of pool) w?.terminate()
     }
   }, [search.running, search.startedAt])
 
@@ -2185,6 +2278,55 @@ export function BoxPacking() {
             onValue={(v) => set('supportPercent', v)}
             onRange={(r) => setRange('supportPercent', r)}
           />
+          <fieldset className="space-y-2">
+            <legend className="flex items-center gap-1 text-sm">
+              計算方法
+              <HelpTip>
+                「並べ順で探す」は、箱を置く順番と置き場所の決め方をたくさん試して、いちばん良い置き方を探します。「柱で積む」は、底面の近い箱を縦に積んだ柱を作り、柱を奥（壁側）の列から並べます（上が平らで、列と正面がそろいやすい）。「両方」にすると、両方の結果を部門別ベストで見比べられます。
+              </HelpTip>
+            </legend>
+            <div className="inline-flex rounded-md border p-0.5">
+              {(
+                [
+                  ['order', '並べ順で探す'],
+                  ['columns', '柱で積む'],
+                ] as const satisfies readonly [Method, string][]
+              ).map(([value, label]) => {
+                const active =
+                  !sweepConfig.bothMethods && settings.method === value
+                return (
+                  <button
+                    key={value}
+                    type="button"
+                    aria-pressed={active}
+                    onClick={() => {
+                      set('method', value)
+                      setSweepConfig((c) => ({ ...c, bothMethods: false }))
+                    }}
+                    className={cn(
+                      'rounded px-3 py-1 text-xs text-muted-foreground',
+                      active && 'bg-muted text-foreground',
+                    )}
+                  >
+                    {label}
+                  </button>
+                )
+              })}
+              <button
+                type="button"
+                aria-pressed={sweepConfig.bothMethods}
+                onClick={() =>
+                  setSweepConfig((c) => ({ ...c, bothMethods: true }))
+                }
+                className={cn(
+                  'rounded px-3 py-1 text-xs text-muted-foreground',
+                  sweepConfig.bothMethods && 'bg-muted text-foreground',
+                )}
+              >
+                両方
+              </button>
+            </div>
+          </fieldset>
           <fieldset className="space-y-2">
             <legend className="flex items-center gap-1 text-sm">
               優先すること

@@ -179,14 +179,20 @@ function faceTexture(
   return texture
 }
 
-function disposeGroup(group: THREE.Object3D) {
+/**
+ * 作り直すときに、前の形と絵（テクスチャ）を捨てる。
+ * 材質（Material）そのものは捨てない: 捨てると three.js が使っていたシェーダーも消し、次に作るときに
+ * 同じシェーダーをまた作り直して画面が固まる（計算中は結果が変わるたびに作り直すので、重かった）。
+ * 材質は使われなくなれば、ブラウザが自動で片付ける。最後（画面を閉じるとき）だけ all で材質も捨てる
+ */
+function disposeGroup(group: THREE.Object3D, all = false) {
   group.traverse((o) => {
     const obj = o as THREE.Mesh
     obj.geometry?.dispose()
     const m = obj.material as THREE.Material | THREE.Material[] | undefined
     for (const mat of Array.isArray(m) ? m : m ? [m] : []) {
       ;(mat as THREE.MeshStandardMaterial).map?.dispose()
-      mat.dispose()
+      if (all) mat.dispose()
     }
   })
 }
@@ -540,6 +546,8 @@ export function PackingView(props: Props) {
       preserveDrawingBuffer: true,
     })
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
+    // シェーダーの作りに失敗していないかを毎回確かめると、作り終わるまで画面が待たされるので確かめない
+    renderer.debug.checkShaderErrors = false
     container.appendChild(renderer.domElement)
 
     scene.add(new THREE.AmbientLight(0xffffff, 1.6))
@@ -644,7 +652,7 @@ export function PackingView(props: Props) {
       el.removeEventListener('pointerleave', onLeave)
       controls.removeEventListener('start', onStart)
       controls.dispose()
-      disposeGroup(scene)
+      disposeGroup(scene, true)
       renderer.dispose()
       el.remove()
       sceneRef.current = null

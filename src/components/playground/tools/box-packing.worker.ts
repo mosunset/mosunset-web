@@ -1,4 +1,7 @@
-// 箱詰めの計算を、画面を止めないよう別スレッドで続ける（止めるときは画面側が terminate する）
+// 箱詰めの計算を、画面を止めないよう別スレッドで続ける。
+// 画面は係（この Worker）を作ったまま使い回し、受け持つ組み合わせが変わるたびに「run」で頼み直す
+// （受け持ちのたびに Worker を作り直すと、立ち上がりに時間を取られる）
+import { createColumnSearch } from './box-packing-columns'
 import {
   betterFor,
   createSearch,
@@ -34,37 +37,58 @@ const POST_MS = 150
 
 // tsconfig は DOM の型なので、Worker の self として使う分だけ型を付ける
 const worker = self as unknown as {
-  onmessage: (event: MessageEvent<PackInput | AdoptMessage>) => void
-  postMessage: (message: WorkerMessage) => void
+  onmessage: (event: MessageEvent<SearchRequest>) => void
+  postMessage: (message: WorkerMessage & { token: number }) => void
 }
+
+/** 画面からの頼みごと: 探す（token で、どの頼みごとへの返事かを見分ける）・止める・並べ方の受け取り */
+export type SearchRequest =
+  | { kind: 'run'; token: number; input: PackInput }
+  | { kind: 'stop'; token: number }
+  | AdoptMessage
 
 /** 画面から: ほかの係が見つけた良い並べ方（今より良ければ乗り換える） */
 export type AdoptMessage = { kind: 'adopt'; genome: Genome }
 
 /** 今動いている探索（ほかの係の並べ方を受け取るのに使う） */
-let current: ReturnType<typeof createSearch> | null = null
+let current:
+  | ReturnType<typeof createSearch>
+  | ReturnType<typeof createColumnSearch>
+  | null = null
 /** 計算を区切る時間。区切りごとにほかの知らせ（並べ方の受け取り）を受け付ける */
 const CHUNK_MS = 40
 
+/** 今の頼みごとの番号 */
+let currentToken = -1
+
 worker.onmessage = (event) => {
   const data = event.data
-  if ('kind' in data) {
-    if (data.kind === 'adopt' && current?.adopt(data.genome))
-      pendingAdopt = true
-    return
+  if (data.kind === 'adopt') {
+    if (current?.adopt(data.genome)) pendingAdopt = true
+  } else if (data.kind === 'stop') {
+    // 計算は次の区切りで止まる（止めたあとは何も送らない）
+    if (data.token === currentToken) {
+      current = null
+      currentToken = -1
+    }
+  } else {
+    currentToken = data.token
+    void run(data.input, data.token)
   }
-  void run(data)
 }
 
 /** 受け取った並べ方で良くなった（次の区切りで知らせる） */
 let pendingAdopt = false
 
-async function run(input: PackInput) {
+async function run(input: PackInput, token: number) {
+  const post = (message: WorkerMessage) => {
+    if (token === currentToken) worker.postMessage({ ...message, token })
+  }
   // 部門別のいちばん（全部置けた結果だけ）。更新されたら、間引いて送る
   const metricBest = new Map<Metric, PackResult>()
   const metricPending = new Set<Metric>()
   let metricImproved = false
-  const search = createSearch(input, (result) => {
+  const onResult = (result: PackResult) => {
     for (const metric of metrics) {
       if (
         betterFor(
@@ -79,7 +103,12 @@ async function run(input: PackInput) {
         metricImproved = true
       }
     }
-  })
+  }
+  // 計算方法で、並べ順で探すか、柱で積むかを選ぶ
+  const search =
+    input.method === 'columns'
+      ? createColumnSearch(input, onResult)
+      : createSearch(input, onResult)
   current = search
   pendingAdopt = false
   const started = Date.now()
@@ -91,7 +120,7 @@ async function run(input: PackInput) {
 
   const flush = (elapsed: number) => {
     if (pending) {
-      worker.postMessage({
+      post({
         kind: 'best',
         result: search.best,
         tried: search.tried,
@@ -102,7 +131,7 @@ async function run(input: PackInput) {
     for (const metric of metricPending) {
       const result = metricBest.get(metric)
       if (result) {
-        worker.postMessage({
+        post({
           kind: 'metric',
           metric,
           result,
@@ -135,13 +164,13 @@ async function run(input: PackInput) {
       lastPosted = now
     }
     if (now - lastStats > 500) {
-      worker.postMessage({ kind: 'stats', tried: search.tried, elapsed })
+      post({ kind: 'stats', tried: search.tried, elapsed })
       lastStats = now
     }
     if (search.exhausted || now - lastImproved > STALL_MS || elapsed > MAX_MS) {
       flush(elapsed)
-      worker.postMessage({ kind: 'done', tried: search.tried, elapsed })
-      current = null
+      post({ kind: 'done', tried: search.tried, elapsed })
+      if (current === search) current = null
       return
     }
     metricImproved = false

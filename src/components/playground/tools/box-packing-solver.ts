@@ -73,7 +73,12 @@ export type PackInput = {
   startGenome?: Genome
   /** この組み合わせに前にかけた計算の時間（ミリ秒）。ルールを固める頃合いを決めるのに使う */
   searchedMs?: number
+  /** 計算方法。order: 並べ順で探す（最初の方式）/ columns: 柱で積む（box-packing-columns.ts） */
+  method?: Method
 }
+
+/** 計算方法 */
+export type Method = 'order' | 'columns'
 
 /** 箱の面の名前（入力したときの向きが基準。Z が上、Y が奥） */
 export type FaceLabel = '上' | '下' | '左' | '右' | '前' | '後'
@@ -799,7 +804,7 @@ function finish(
   // かたまりを箱 1 個ずつに戻す。まとまりの中の箱の種類は、並べた順に割り当てる
   const cursor = new Int32Array(table.groups.length)
   const takeType = (g: number) => table.groups[g].members[cursor[g]++]
-  let placements: Placement[] = []
+  const placements: Placement[] = []
   for (const p of packed.placed) {
     const unit = table.units[p.unit]
     const bo = table.groups[p.group].orientations[unit.base[p.oi]]
@@ -842,6 +847,30 @@ function finish(
     for (let i = 0; i < unit.size; i++) unplacedTypes.push(takeType(unit.group))
   }
 
+  return evaluatePlacements(
+    placements,
+    unplacedTypes,
+    packed.height,
+    input,
+    tooBig,
+    genome,
+  )
+}
+
+/**
+ * 床の座標の置き場所から、結果（点数・重心・見た目の整いなど）を作る。並べ順の方式と柱の方式で同じ点数の付け方を使う。
+ * 壁がない向きは、ここで全体を床の中央へ寄せる
+ */
+export function evaluatePlacements(
+  placementsIn: Placement[],
+  unplacedTypes: number[],
+  height: number,
+  input: PackInput,
+  tooBig: Unplaced[],
+  genome?: Genome,
+): PackResult {
+  const { floorX: X, floorY: Y, walls } = input
+  let placements = placementsIn
   // 壁がない向き（と、左右両方に壁がある向き）は、全体を床の中央へ寄せる。
   // 片側だけに壁がある向きは、壁に付けたままにする
   const centerX = walls.left === walls.right
@@ -871,7 +900,6 @@ function finish(
     cy += vol * (p.y + p.d / 2)
     cz += vol * (p.z + p.h / 2)
   }
-  const height = packed.height
   const cog =
     boxVolume > 0
       ? { x: cx / boxVolume, y: cy / boxVolume, z: cz / boxVolume }
