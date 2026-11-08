@@ -1,9 +1,8 @@
 import {
-  ChevronDown,
-  ChevronUp,
   Dices,
   Download,
   FileJson,
+  GripVertical,
   ImageDown,
   Play,
   Plus,
@@ -983,15 +982,48 @@ export function BoxPacking() {
       ...s,
       boxes: s.boxes.map((b) => (b.id === id ? { ...b, ...patch } : b)),
     }))
-  /** 箱のリストの i 番目を、上（-1）か下（+1）へ 1 つ動かす */
-  const moveBox = (i: number, dir: -1 | 1) =>
+  /** 箱のリストの from 番目を、to 番目の前へ動かす（to が長さなら最後へ） */
+  const moveBox = (from: number, to: number) =>
     setSettings((s) => {
-      const j = i + dir
-      if (j < 0 || j >= s.boxes.length) return s
+      const target = Math.max(0, Math.min(s.boxes.length, to))
+      if (target === from || target === from + 1) return s
       const boxes = [...s.boxes]
-      ;[boxes[i], boxes[j]] = [boxes[j], boxes[i]]
+      const [moved] = boxes.splice(from, 1)
+      boxes.splice(target > from ? target - 1 : target, 0, moved)
       return { ...s, boxes }
     })
+  // ドラッグで並べ替える（マウスでも指でも動くよう、ポインターの動きで行の位置を見る）
+  const boxListRef = useRef<HTMLTableSectionElement>(null)
+  const [drag, setDrag] = useState<{ from: number; to: number } | null>(null)
+  /** ポインターの高さから、どの行の前に入れるか（行の上半分なら前、下半分なら次の行の前） */
+  const dropIndexAt = (y: number) => {
+    const rows = boxListRef.current?.querySelectorAll(':scope > tr') ?? []
+    let to = rows.length
+    for (let r = 0; r < rows.length; r++) {
+      const rect = rows[r].getBoundingClientRect()
+      if (y < rect.top + rect.height / 2) {
+        to = r
+        break
+      }
+    }
+    return to
+  }
+  const startDrag = (e: React.PointerEvent<HTMLButtonElement>, i: number) => {
+    if (e.button !== 0) return
+    e.preventDefault()
+    e.currentTarget.setPointerCapture(e.pointerId)
+    setDrag({ from: i, to: i })
+  }
+  const moveDrag = (e: React.PointerEvent<HTMLButtonElement>) => {
+    if (!drag) return
+    const to = dropIndexAt(e.clientY)
+    if (to !== drag.to) setDrag({ ...drag, to })
+  }
+  const endDrag = (e: React.PointerEvent<HTMLButtonElement>) => {
+    if (!drag) return
+    moveBox(drag.from, dropIndexAt(e.clientY))
+    setDrag(null)
+  }
   const setRandom = (patch: Partial<RandomOptions>) =>
     setSettings((s) => ({ ...s, random: { ...s.random, ...patch } }))
   const setRange = <
@@ -1619,6 +1651,16 @@ export function BoxPacking() {
           <table className="w-full min-w-[44rem] text-sm">
             <thead className="text-left text-xs text-muted-foreground">
               <tr>
+                <th className="w-8 py-1 font-normal">
+                  <span className="flex items-center">
+                    <span className="sr-only">並べ替え</span>
+                    <HelpTip>
+                      左のつまみをドラッグすると、箱のリストの好きな位置へ動かせます（つまみを選んで
+                      ↑↓
+                      キーでも動かせます）。「リストで近い箱を近くに」がオンのとき、リストで近い箱ほど近くに置きます（同じシリーズの箱を並べておく、など）。
+                    </HelpTip>
+                  </span>
+                </th>
                 <th className="py-1 pr-2 font-normal">
                   <span className="flex items-center gap-1">
                     使う
@@ -1673,26 +1715,50 @@ export function BoxPacking() {
                     </HelpTip>
                   </span>
                 </th>
-                <th className="py-1 text-right font-normal">
-                  <span className="inline-flex items-center gap-1">
-                    並べ替え
-                    <HelpTip>
-                      ↑↓
-                      で箱のリストの順番を変えます。「リストで近い箱を近くに」がオンのとき、リストで近い箱ほど近くに置きます（同じシリーズの箱を並べておく、など）。
-                    </HelpTip>
-                  </span>
+                <th className="py-1">
+                  <span className="sr-only">削除</span>
                 </th>
               </tr>
             </thead>
-            <tbody>
+            <tbody ref={boxListRef}>
               {settings.boxes.map((b, i) => (
                 <tr
                   key={b.id}
                   className={cn(
                     'border-t',
-                    !b.enabled && '[&_td:not(:first-child)]:opacity-40',
+                    !b.enabled && '[&_td:nth-child(n+3)]:opacity-40',
+                    drag?.from === i && 'bg-muted/60 opacity-60',
+                    drag &&
+                      drag.to === i &&
+                      drag.to !== drag.from &&
+                      drag.to !== drag.from + 1 &&
+                      'shadow-[inset_0_2px_0_0_var(--color-primary)]',
+                    drag &&
+                      i === settings.boxes.length - 1 &&
+                      drag.to === settings.boxes.length &&
+                      drag.from !== settings.boxes.length - 1 &&
+                      'shadow-[inset_0_-2px_0_0_var(--color-primary)]',
                   )}
                 >
+                  <td className="py-1.5">
+                    <button
+                      type="button"
+                      aria-label={`${b.tag || `箱 ${i + 1}`}を並べ替える（ドラッグ、または ↑↓ キー）`}
+                      className="flex size-8 cursor-grab touch-none items-center justify-center rounded-md text-muted-foreground hover:bg-muted active:cursor-grabbing"
+                      onPointerDown={(e) => startDrag(e, i)}
+                      onPointerMove={moveDrag}
+                      onPointerUp={endDrag}
+                      onPointerCancel={() => setDrag(null)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
+                          e.preventDefault()
+                          moveBox(i, e.key === 'ArrowUp' ? i - 1 : i + 2)
+                        }
+                      }}
+                    >
+                      <GripVertical className="size-4" />
+                    </button>
+                  </td>
                   <td className="py-1.5 pr-2 text-center">
                     <input
                       type="checkbox"
@@ -1764,27 +1830,7 @@ export function BoxPacking() {
                       className="size-4 accent-primary"
                     />
                   </td>
-                  <td className="whitespace-nowrap py-1.5 text-right">
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon"
-                      aria-label="上へ動かす"
-                      disabled={i === 0}
-                      onClick={() => moveBox(i, -1)}
-                    >
-                      <ChevronUp />
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon"
-                      aria-label="下へ動かす"
-                      disabled={i === settings.boxes.length - 1}
-                      onClick={() => moveBox(i, 1)}
-                    >
-                      <ChevronDown />
-                    </Button>
+                  <td className="py-1.5 text-right">
                     <Button
                       type="button"
                       variant="ghost"
