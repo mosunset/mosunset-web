@@ -8,16 +8,26 @@ import {
   createGpuEvaluator,
   type GpuContext,
   type GpuEvaluator,
+  type GpuMetrics,
+  NONE,
 } from './box-packing-gpu'
 import {
   betterFor,
-  evaluateOrder,
+  evaluateIds,
   type Metric,
   metrics,
+  mutate,
   type PackInput,
   type PackResult,
+  RULE_MAX,
+  RULE_SIZE,
+  type Rule,
   random,
-  traceOrder,
+  startPlans,
+  traceIds,
+  type UnitTable,
+  unitsOf,
+  weightOf,
 } from './box-packing-solver'
 
 /** 画面から GPU 係への頼みごと */
@@ -56,7 +66,7 @@ const worker = self as unknown as {
 let ctx: GpuContext | null | undefined
 let ctxPromise: Promise<GpuContext | null> | null = null
 /** 今動いている頼みごとの番号（止められたら -1） */
-let current = -1
+let currentToken = -1
 
 const getContext = async () => {
   if (ctx !== undefined) return ctx
@@ -75,14 +85,16 @@ worker.onmessage = async (event) => {
         : { token: 0, kind: 'unavailable' },
     )
   } else if (req.type === 'stop') {
-    if (req.token === current) current = -1
+    if (req.token === currentToken) currentToken = -1
   } else {
     // 前の頼みごとが GPU で計算中の 1 回分を終えるまで待ってから始める
     // （同じ組み合わせだと作業用の場所を共有するので、同時に動かすと結果が壊れる）
-    current = req.token
+    currentToken = req.token
     const token = req.token
     queue = queue.then(() =>
-      token === current ? run(token, req.input, req.durationMs) : skip(token),
+      token === currentToken
+        ? run(token, req.input, req.durationMs)
+        : skip(token),
     )
     await queue
   }
@@ -107,61 +119,37 @@ async function run(token: number, input: PackInput, durationMs: number) {
   }
   // GPU の作業用の場所は頼みごとごとに作り、終わったら捨てる
   // （前の頼みごとのものを使い回すと、結果が食い違うことがあった）
-  const ev = createGpuEvaluator(c, input)
+  const table = unitsOf(input)
+  // 作業用の場所を 2 組作り、2 回分を交互に GPU に渡す（片方の結果を CPU で調べているあいだも、GPU を休ませない）
+  const evs = [
+    createGpuEvaluator(c, input, table),
+    createGpuEvaluator(c, input, table),
+  ]
   try {
-    await search(token, input, durationMs, ev, started, post)
+    await search(token, input, table, durationMs, evs, started, post)
   } finally {
-    ev.destroy()
+    for (const ev of evs) ev.destroy()
   }
 }
+
+/** 並べ方（置く単位の番号の列とルール） */
+type Plan = { ids: number[]; rule: Rule }
 
 async function search(
   token: number,
   input: PackInput,
+  table: UnitTable,
   durationMs: number,
-  ev: GpuEvaluator,
+  evs: GpuEvaluator[],
   started: number,
   post: (m: WorkerMessage) => void,
 ) {
-  const { m, types } = ev
-  if (m === 0) {
+  const { m, stride } = evs[0]
+  if (table.boxCount === 0) {
     post({ kind: 'done', tried: 0, elapsed: 0 })
     return
   }
-
-  /** 種類の列 → 箱の番号の列（同じ種類の箱は、番号の小さい順に割り当てる） */
-  const toIndices = (typeOrder: number[]) => {
-    const pools = new Map<number, number[]>()
-    types.forEach((t, i) => {
-      const pool = pools.get(t)
-      if (pool) pool.push(i)
-      else pools.set(t, [i])
-    })
-    const out: number[] = []
-    for (const t of typeOrder) {
-      const i = pools.get(t)?.shift()
-      if (i !== undefined) out.push(i)
-    }
-    for (const pool of pools.values()) out.push(...pool)
-    return out
-  }
-  const toTypes = (order: ArrayLike<number>) =>
-    Array.from(order, (i) => types[i])
-
-  // 出発点: 頼まれた並べ順か、「底面が大きい順・高い順」
-  const box = (t: number) => input.boxes[t]
-  const firstTypes =
-    input.startOrder ??
-    [...types].sort(
-      (a, b) =>
-        box(b).x * box(b).y - box(a).x * box(a).y ||
-        box(b).z - box(a).z ||
-        a - b,
-    )
-  let bestOrder = toIndices(firstTypes)
-  let best = evaluateOrder(input, toTypes(bestOrder))
   const metricBest = new Map<Metric, PackResult>()
-  let tried = 1
   let lastImproved = Date.now()
   let lastPosted = 0
   let lastStats = 0
@@ -183,10 +171,49 @@ async function search(
       }
     }
   }
-  consider(best)
+
+  // ---- 探し方 ----
+  // 1. 良い並べ方を上位 ELITES 通り覚えておき、出発点を「いちばん良いもの」だけでなく、ほかの良いものからも選ぶ
+  // 2. 崩し方を混ぜる（solver の mutate）: 並べ順・ルールの重み・かたまりの分け方とつなぎ方・2 つの組み合わせ
+  // 3. しばらく良くならないときは、いちばん良い並べ方の一部を大きく混ぜた並べ方を出発点にして、別の場所を探す
+
+  /** 良い並べ方の控え（点数の良い順。同じものは 1 つだけ） */
+  type Elite = Plan & { score: number; key: string }
+  const elites: Elite[] = []
+  const keyOf = (p: Plan) => `${p.ids.join(',')}|${p.rule.join(',')}`
+  const addElite = (p: Plan, score: number) => {
+    const key = keyOf(p)
+    if (elites.some((e) => e.key === key)) return
+    if (elites.length >= ELITES && score >= elites[elites.length - 1].score)
+      return
+    elites.push({ ids: [...p.ids], rule: [...p.rule], score, key })
+    elites.sort((a, b) => a.score - b.score)
+    if (elites.length > ELITES) elites.pop()
+  }
+
+  // 最初の並べ方（頼まれた並べ方・ばらの箱をいろいろな順に・大きなかたまり、ルールもいくつか）を CPU で評価する
+  let tried = 0
+  let bestPlan: Plan | null = null
+  let best: PackResult | null = null
+  for (const p of startPlans(input, table)) {
+    const r = evaluateIds(input, table, p.ids, p.rule)
+    tried++
+    consider(r)
+    addElite(p, r.score)
+    if (!best || r.score < best.score) {
+      best = r
+      bestPlan = p
+    }
+  }
+  if (!best || !bestPlan) {
+    post({ kind: 'done', tried, elapsed: Date.now() - started })
+    return
+  }
+  let current: Plan = bestPlan
+  let currentBest: PackResult = best
   const flush = () => {
     const elapsed = Date.now() - started
-    if (pending) post({ kind: 'best', result: best, tried, elapsed })
+    if (pending) post({ kind: 'best', result: currentBest, tried, elapsed })
     for (const metric of pendingMetrics) {
       const r = metricBest.get(metric)
       if (r) post({ kind: 'metric', metric, result: r, tried, elapsed })
@@ -197,226 +224,124 @@ async function search(
   }
 
   const rand = random(input.seed)
-  const limit = Math.min(MAX_BATCH, ev.maxBatch)
-  let batch = Math.min(16384, limit)
+  const limit = Math.min(MAX_BATCH, evs[0].maxBatch)
+  let batch = Math.min(MIN_BATCH, limit)
   let checked = false
 
-  // ---- 探し方 ----
-  // 1. 良い並べ順を上位 ELITES 通り覚えておき、出発点を「いちばん良いもの」だけでなく、ほかの良いものからも選ぶ
-  // 2. 崩し方を混ぜる: 2 個の入れ替え・1 個を抜いて別の位置へ・区間を逆順に・2 つの良い並べ順の組み合わせ
-  // 3. しばらく良くならないときは、いちばん良い並べ順の一部を大きく混ぜた並べ順を出発点にして、別の場所を探す
-
-  /** 良い並べ順の控え（点数の良い順。種類の列が同じものは 1 つだけ） */
-  type Elite = {
-    order: Uint32Array
-    types: Int32Array
-    score: number
-    key: string
-  }
-  const elites: Elite[] = []
-  const addElite = (order: ArrayLike<number>, score: number) => {
-    const t = Int32Array.from(order, (i) => types[i])
-    const key = t.join(',')
-    if (elites.some((e) => e.key === key)) return
-    if (elites.length >= ELITES && score >= elites[elites.length - 1].score)
-      return
-    elites.push({ order: Uint32Array.from(order), types: t, score, key })
-    elites.sort((a, b) => a.score - b.score)
-    if (elites.length > ELITES) elites.pop()
-  }
-  addElite(bestOrder, best.score)
-
-  // 種類ごとの箱の番号（種類の列から並べ順を作り直すときに使う）
-  const typeCount = Math.max(...types) + 1
-  const indicesOfType: number[][] = Array.from({ length: typeCount }, () => [])
-  types.forEach((t, i) => {
-    indicesOfType[t].push(i)
-  })
-
-  /** 大きく崩した出発点から探しているあいだの状態（その近くで見つけたいちばん良い並べ順と、残りの回数） */
-  let kick: { order: Uint32Array; score: number; left: number } | null = null
+  /** 大きく崩した出発点から探しているあいだの状態（その近くで見つけたいちばん良い並べ方と、残りの回数） */
+  let kick: (Plan & { score: number; left: number }) | null = null
   /** いちばん良い結果が、何回続けて良くならなかったか */
   let sinceImproved = 0
-  const shake = (base: ArrayLike<number>) => {
-    const o = Uint32Array.from(base)
-    const len = Math.max(3, Math.floor(m / 5))
-    const i = Math.floor(rand() * Math.max(1, m - len + 1))
-    for (let a = Math.min(m, i + len) - 1; a > i; a--) {
+  const shake = (p: Plan): Plan => {
+    const o = [...p.ids]
+    const len = Math.max(3, Math.floor(o.length / 5))
+    const i = Math.floor(rand() * Math.max(1, o.length - len + 1))
+    for (let a = Math.min(o.length, i + len) - 1; a > i; a--) {
       const b = i + Math.floor(rand() * (a - i + 1))
       const t = o[a]
       o[a] = o[b]
       o[b] = t
     }
-    return o
+    // ルールも 2 か所ほど大きく変える
+    const r = [...p.rule]
+    for (let t = 0; t < 2; t++) {
+      r[Math.floor(rand() * RULE_SIZE)] = Math.floor(rand() * (RULE_MAX + 1))
+    }
+    return { ids: o, rule: r }
   }
 
   /** 今回の出発点を選ぶ */
-  const pickParent = () => {
-    if (kick) return { parent: kick.order, fromKick: true }
-    if (elites.length < 2 || rand() < 0.6) {
-      return { parent: Uint32Array.from(bestOrder), fromKick: false }
-    }
+  const pickParent = (): { parent: Plan; fromKick: boolean } => {
+    if (kick) return { parent: kick, fromKick: true }
+    if (elites.length < 2 || rand() < 0.6)
+      return { parent: current, fromKick: false }
     // 良いものほど選ばれやすく
     return {
-      parent: elites[Math.floor(rand() ** 2 * elites.length)].order,
+      parent: elites[Math.floor(rand() ** 2 * elites.length)],
       fromKick: false,
     }
   }
 
   /**
-   * 出発点を崩した並べ順を count 通り作る。
-   * それぞれ「出発点と初めて違う位置」を求め、その位置の順に並べる（GPU の 32 本ずつの足並みがそろう）。
-   * 崩しても種類の列が変わらないものは、崩し方を選び直す
+   * 出発点を崩した並べ方を count 通り作る。
+   * それぞれ「出発点と初めて違う位置」を求め、その位置の順に並べる（GPU の 32 本ずつの足並みがそろう）
    */
   const generate = (count: number) => {
     const { parent, fromKick } = pickParent()
-    const parentTypes = Int32Array.from(parent, (i) => types[i])
-    const trace = traceOrder(input, Array.from(parentTypes))
-    const temp = new Uint32Array(count * m)
+    const trace = traceIds(input, table, parent.ids, parent.rule)
+    const plans: Plan[] = new Array(count)
     const startOf = new Int32Array(count)
-    const used = new Int32Array(typeCount)
-    const taken = new Int32Array(typeCount)
     for (let r = 0; r < count; r++) {
-      const o = temp.subarray(r * m, (r + 1) * m)
-      let start = m
-      for (let attempt = 0; attempt < 4 && start === m; attempt++) {
-        o.set(parent)
-        let lowest = m
-        const kind = rand()
-        if (kind < 0.5) {
-          // 2 個の入れ替え（1〜3 回。近くの箱と入れ替えることが多いほうが、良い並びを壊しにくい）
-          const swaps = 1 + Math.floor(rand() * 3)
-          for (let sw = 0; sw < swaps; sw++) {
-            const i = Math.floor(rand() * m)
-            const reach = rand() < 0.7 ? 4 : m
-            const j = Math.min(
-              m - 1,
-              Math.max(0, i + Math.floor((rand() * 2 - 1) * reach)),
-            )
-            const t = o[i]
-            o[i] = o[j]
-            o[j] = t
-            lowest = Math.min(lowest, i, j)
-          }
-        } else if (kind < 0.7) {
-          // 1 個を抜いて、別の位置に入れる
-          const i = Math.floor(rand() * m)
-          const reach = rand() < 0.7 ? 6 : m
-          const j = Math.min(
-            m - 1,
-            Math.max(0, i + Math.floor((rand() * 2 - 1) * reach)),
-          )
-          const v = o[i]
-          if (i < j) o.copyWithin(i, i + 1, j + 1)
-          else if (i > j) o.copyWithin(j + 1, j, i)
-          o[j] = v
-          lowest = Math.min(i, j)
-        } else if (kind < 0.8 || elites.length < 2) {
-          // 一続きの区間を逆順にする
-          const len =
-            2 + Math.floor(rand() * Math.max(1, Math.floor(m / 4) - 1))
-          const i = Math.floor(rand() * Math.max(1, m - len + 1))
-          o.subarray(i, Math.min(m, i + len)).reverse()
-          lowest = i
-        } else {
-          // 2 つの良い並べ順の組み合わせ: 出発点の前半はそのまま、残りはもう片方の順番に並べる
-          const other = elites[Math.floor(rand() * elites.length)]
-          const c = 1 + Math.floor(rand() * (m - 1))
-          used.fill(0)
-          taken.fill(0)
-          for (let q = 0; q < c; q++) used[parentTypes[q]]++
-          for (let q = 0; q < c; q++) {
-            const t = parentTypes[q]
-            o[q] = indicesOfType[t][taken[t]++]
-          }
-          let w = c
-          for (let q = 0; q < m && w < m; q++) {
-            const t = other.types[q]
-            if (used[t] > 0) {
-              used[t]--
-              continue
-            }
-            o[w++] = indicesOfType[t][taken[t]++]
-          }
-          lowest = c
-        }
-        start = lowest
-        while (start < m && types[o[start]] === parentTypes[start]) start++
-      }
-      startOf[r] = start
+      const other =
+        elites.length > 1
+          ? elites[Math.floor(rand() * elites.length)].ids
+          : undefined
+      const next = mutate(parent.ids, parent.rule, rand, table, other)
+      plans[r] = { ids: next.ids, rule: next.rule }
+      startOf[r] = Math.min(next.start, m)
     }
     // 違う位置ごとに数えて、その順の並び位置を決める（数え上げの並べ替え）
     const offset = new Int32Array(m + 2)
     for (let r = 0; r < count; r++) offset[startOf[r] + 1]++
     for (let i = 1; i <= m + 1; i++) offset[i] += offset[i - 1]
-    const orders = new Uint32Array(count * m)
+    const rows = new Uint32Array(count * stride)
+    rows.fill(NONE)
     const starts = new Int32Array(count)
+    const sorted: Plan[] = new Array(count)
+    let length = 0
     for (let r = 0; r < count; r++) {
       const pos = offset[startOf[r]]++
-      orders.set(temp.subarray(r * m, (r + 1) * m), pos * m)
+      const p = plans[r]
+      rows.set(p.ids, pos * stride)
+      for (let i = 0; i < RULE_SIZE; i++)
+        rows[pos * stride + m + i] = weightOf(p.rule[i])
       starts[pos] = startOf[r]
+      sorted[pos] = p
+      if (p.ids.length > length) length = p.ids.length
     }
-    return { orders, starts, trace, count, fromKick }
+    return { rows, starts, plans: sorted, trace, count, fromKick, length }
   }
 
   type Batch = ReturnType<typeof generate>
-  /** GPU の結果の上位を、CPU で正式に評価する */
-  const review = (
-    job: Batch,
-    res: Awaited<ReturnType<GpuEvaluator['evaluate']>>,
-  ) => {
+  /** GPU の見積もりの上位を、CPU で正式に評価する */
+  const review = (job: Batch, res: GpuMetrics) => {
     const k = job.count
     const all = Array.from({ length: k }, (_, i) => i).filter(
       (i) => job.starts[i] < m,
     )
-    const complete = all.filter((i) => res.placed[i] === m)
+    const complete = all.filter((i) => res.placed[i] === table.boxCount)
     const pool = complete.length > 0 ? complete : all
-    const primary =
-      input.objective === 'height'
-        ? (x: number, y: number) =>
-            res.placed[y] - res.placed[x] ||
-            res.height[x] - res.height[y] ||
-            res.floorArea[y] - res.floorArea[x] ||
-            res.cogZ[x] - res.cogZ[y]
-        : (x: number, y: number) =>
-            res.placed[y] - res.placed[x] ||
-            res.floorArea[y] - res.floorArea[x] ||
-            res.height[x] - res.height[y] ||
-            res.cogZ[x] - res.cogZ[y]
+    const top = (cmp: (x: number, y: number) => number, n: number) =>
+      [...pool].sort(cmp).slice(0, n)
+    // 正式な点数に近い見積もりで上位を選び、部門ごとの上位と、ランダムな数通りも混ぜる
     const picks = new Set<number>([
-      ...[...pool].sort(primary).slice(0, 4),
-      ...[...pool]
-        .sort(
-          (x, y) =>
-            res.floorArea[y] - res.floorArea[x] ||
-            res.height[x] - res.height[y],
-        )
-        .slice(0, 3),
-      ...[...pool]
-        .sort(
-          (x, y) => res.cogZ[x] - res.cogZ[y] || res.height[x] - res.height[y],
-        )
-        .slice(0, 3),
+      ...top((x, y) => res.score[x] - res.score[y], 16),
+      ...top(
+        (x, y) => res.height[x] - res.height[y] || res.score[x] - res.score[y],
+        3,
+      ),
+      ...top(
+        (x, y) =>
+          res.floorArea[y] - res.floorArea[x] || res.height[x] - res.height[y],
+        3,
+      ),
+      ...top((x, y) => res.cogZ[x] - res.cogZ[y], 3),
     ])
-    // 見た目の整いは GPU では測りきれないので、横倒しが少ないもの（重視するとき）と、ランダムな数通りも混ぜる
     if (input.tidy.weight > 0) {
-      if (input.tidy.upright) {
-        for (const r of [...pool]
-          .sort(
-            (x, y) =>
-              res.laid[x] - res.laid[y] || res.height[x] - res.height[y],
-          )
-          .slice(0, 3))
-          picks.add(r)
-      }
-      for (let i = 0; i < 3 && pool.length > 0; i++) {
-        picks.add(pool[Math.floor(rand() * pool.length)])
-      }
+      for (const r of top(
+        (x, y) =>
+          res.tidiness[y] - res.tidiness[x] || res.height[x] - res.height[y],
+        3,
+      ))
+        picks.add(r)
+    }
+    for (let i = 0; i < 2 && pool.length > 0; i++) {
+      picks.add(pool[Math.floor(rand() * pool.length)])
     }
     let improved = false
     for (const r of picks) {
-      const order = job.orders.subarray(r * m, (r + 1) * m)
-      const result = evaluateOrder(input, toTypes(order))
+      const plan = job.plans[r]
+      const result = evaluateIds(input, table, plan.ids, plan.rule)
       // 最初の 1 回だけ、GPU と CPU の置き方が同じかを確かめる（違えば計算の食い違い）
       if (
         !checked &&
@@ -429,15 +354,15 @@ async function search(
           start: job.starts[r],
         })
       }
-      addElite(order, result.score)
+      addElite(plan, result.score)
       // 大きく崩した出発点から探しているあいだは、その近くでいちばん良いものを次の出発点にする
       if (job.fromKick && kick && result.score < kick.score) {
-        kick = { ...kick, order: Uint32Array.from(order), score: result.score }
+        kick = { ...kick, ids: plan.ids, rule: plan.rule, score: result.score }
       }
       consider(result)
-      if (result.score < best.score - 1e-9) {
-        best = result
-        bestOrder = Array.from(order)
+      if (result.score < currentBest.score - 1e-9) {
+        currentBest = result
+        current = plan
         pending = true
         improved = true
         lastImproved = Date.now()
@@ -453,10 +378,10 @@ async function search(
         kick.left--
         if (kick.left <= 0) kick = null
       }
-      // しばらく良くならなければ、いちばん良い並べ順の一部を大きく混ぜて、別の場所を探す
+      // しばらく良くならなければ、いちばん良い並べ方の一部を大きく混ぜて、別の場所を探す
       if (!kick && sinceImproved >= STAGNATION) {
         kick = {
-          order: shake(bestOrder),
+          ...shake(current),
           score: Number.POSITIVE_INFINITY,
           left: KICK_BATCHES,
         }
@@ -465,52 +390,63 @@ async function search(
     }
   }
 
-  // GPU が計算している間に、CPU で前の回の上位を正式に評価し、次の次の回の並べ順を作っておく
-  // （GPU は、前の回が終わったらすぐ次の回に取りかかれる）
-  let job = generate(batch)
-  let inFlight: Promise<Awaited<ReturnType<GpuEvaluator['evaluate']>>> | null =
-    ev.evaluate(job.orders, job.starts, job.trace, job.count)
-  let t0 = performance.now()
-  let next = generate(batch)
-  while (inFlight && token === current) {
-    let res: Awaited<ReturnType<GpuEvaluator['evaluate']>>
+  // 2 組の作業用の場所で、2 回分を同時に GPU に渡しておく。片方が終わったら、その結果を CPU で調べ、
+  // 同じ組で次の回を渡す（GPU には、いつも次の計算が待っている）
+  type Flight = { job: Batch; t0: number; result: Promise<GpuMetrics> }
+  const launch = (slot: number): Flight => {
+    const job = generate(batch)
+    return {
+      job,
+      t0: performance.now(),
+      result: evs[slot].evaluate(
+        job.rows,
+        job.starts,
+        job.trace,
+        job.count,
+        job.length,
+      ),
+    }
+  }
+  const flights: (Flight | null)[] = [launch(0), launch(1)]
+  let slot = 0
+  while (token === currentToken) {
+    const flight = flights[slot]
+    if (!flight) break
+    let res: GpuMetrics
     try {
-      res = await inFlight
+      res = await flight.result
     } catch (e) {
       console.error('GPU の計算に失敗しました', e)
       break
     }
-    const ms = performance.now() - t0
-    const done = job
-    tried += done.count
+    const ms = performance.now() - flight.t0
+    tried += flight.job.count
     const keepGoing =
-      token === current &&
+      token === currentToken &&
       Date.now() - started < durationMs &&
       Date.now() - lastImproved <= STALL_MS
-    inFlight = null
-    if (keepGoing) {
-      job = next
-      t0 = performance.now()
-      inFlight = ev.evaluate(job.orders, job.starts, job.trace, job.count)
-    }
-    review(done, res)
-    // 1 回の時間が目安に近づくよう、まとめる数を調整する
+    review(flight.job, res)
+    // 1 回の時間が目安に近づくよう、まとめる数を調整する（2 回分が同時に動くので、そのぶん長くかかる）
     batch = Math.max(
       Math.min(MIN_BATCH, limit),
       Math.min(
         limit,
-        Math.round((done.count * TARGET_BATCH_MS) / Math.max(1, ms) / 64) * 64,
+        Math.round(
+          (flight.job.count * TARGET_BATCH_MS) / Math.max(1, ms) / 64,
+        ) * 64,
       ),
     )
-    if (keepGoing) next = generate(batch)
+    flights[slot] = keepGoing ? launch(slot) : null
+    slot = 1 - slot
     if ((pending || pendingMetrics.size > 0) && Date.now() - lastPosted > 150)
       flush()
     if (Date.now() - lastStats > 500) {
       post({ kind: 'stats', tried, elapsed: Date.now() - started })
       lastStats = Date.now()
     }
+    if (!keepGoing && !flights[slot]) break
   }
-  if (inFlight) await inFlight.catch(() => undefined)
+  for (const f of flights) if (f) await f.result.catch(() => undefined)
   flush()
   post({ kind: 'done', tried, elapsed: Date.now() - started })
 }

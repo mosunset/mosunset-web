@@ -27,6 +27,7 @@ import {
 import {
   type BoxSpec,
   betterFor,
+  type Genome,
   type Metric,
   measureTidiness,
   metricLabels,
@@ -904,6 +905,8 @@ export function BoxPacking() {
     startedAt: number
     /** 「続けて詰める」のときの出発点の並べ順 */
     startOrder?: number[]
+    /** 「続けて詰める」のときの出発点の並べ方（置く単位とルール） */
+    startGenome?: Genome
   }>({ running: false, combos: [], rows: [], startedAt: 0 })
   /** 経過時間の表示を進めるための時計 */
   const [now, setNow] = useState(() => Date.now())
@@ -1014,6 +1017,7 @@ export function BoxPacking() {
       rows: chips.map((c) => ({ chips: c, visits: 0, active: 0 })),
       startedAt: Date.now(),
       startOrder: from?.result.placements.map((p) => p.type),
+      startGenome: from?.result.genome,
     })
   }
 
@@ -1039,6 +1043,8 @@ export function BoxPacking() {
     const bestScore = new Array<number | undefined>(n).fill(undefined)
     const bestOrder = new Array<number[] | undefined>(n).fill(undefined)
     if (search.startOrder) bestOrder[0] = search.startOrder
+    const bestGenome = new Array<Genome | undefined>(n).fill(undefined)
+    if (search.startGenome) bestGenome[0] = search.startGenome
     // 組み合わせとして成り立たないもの（床が端のすき間より狭いなど）は選ばない
     const usable = combos
       .map((c, i) => (validate(c) ? -1 : i))
@@ -1126,6 +1132,7 @@ export function BoxPacking() {
           ...input,
           seed: Math.floor(Math.random() * 1_000_000_000),
           startOrder: bestOrder[i],
+          startGenome: bestGenome[i],
         },
         {
           best: (found) => {
@@ -1133,6 +1140,7 @@ export function BoxPacking() {
             if (prev === undefined || found.score < prev) {
               bestScore[i] = found.score
               bestOrder[i] = found.placements.map((p) => p.type)
+              bestGenome[i] = found.genome
             }
           },
           metric: (metric, found) => {

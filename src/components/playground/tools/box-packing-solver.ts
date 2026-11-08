@@ -63,6 +63,8 @@ export type PackInput = {
    * 箱の数が合わない分は、ふつうの並べ順で補う
    */
   startOrder?: number[]
+  /** 出発点にする並べ方（前に良かった結果の genome）。startOrder より優先する */
+  startGenome?: Genome
 }
 
 /** 箱の面の名前（入力したときの向きが基準。Z が上、Y が奥） */
@@ -103,6 +105,8 @@ export type PackResult = {
   tidiness: number
   /** 小さいほど良い */
   score: number
+  /** この結果になった並べ方（続けて詰めるときの出発点にする） */
+  genome?: Genome
 }
 
 // ---- 箱の向き ----
@@ -194,26 +198,185 @@ export function fitsFloor(
   return orientationsOf(box).some((o) => o.w <= u && o.d <= v)
 }
 
-// ---- 1 つの並べ順で置いていく ----
+// ---- かたまり（同じ寸法の箱をまとめて置く） ----
 
-type Item = { type: number; orientations: Orientation[]; volume: number }
-
-/** 小さい順に比べる（先の要素ほど大事） */
-function compare(a: number[], b: number[]) {
-  for (let i = 0; i < a.length; i++) {
-    if (a[i] !== b[i]) return a[i] - b[i]
-  }
-  return 0
+/**
+ * 同じ寸法の箱のまとまり（タグは問わない。床の上で 90° 回して同じなら同じ寸法、横倒しの許可も同じもの）。
+ * members は、まとまりに入る箱の種類の番号を 1 個ずつ並べたもの
+ */
+type Group = {
+  members: number[]
+  orientations: Orientation[]
 }
 
-/** 置いた箱（u・v は、置き始める角を原点にした座標） */
-type Placed = Orientation & { type: number; u: number; v: number; z: number }
+/**
+ * 置く単位。同じ寸法の箱を、横に a 個 × 奥に b 個 × 上に c 段 並べたかたまり（1×1×1 はばらの箱 1 個）。
+ * 横・奥の箱どうしはすき間をあけ、上下はそのまま積む。
+ * orientations はかたまりの置き方で、base は、それぞれの置き方でのかたまりの中の箱 1 個の置き方（Group の orientations の番号）
+ */
+export type Unit = {
+  group: number
+  a: number
+  b: number
+  c: number
+  size: number
+  code: number
+  orientations: Orientation[]
+  base: number[]
+}
+
+/** かたまりの形の上限（横 × 奥は 8 個まで、1 辺 4 個まで、3 段まで、全部で 12 個まで） */
+const MAX_SIDE = 4
+const MAX_FLOOR = 8
+const MAX_STACK = 3
+const MAX_UNIT = 12
+
+/** かたまりの形の番号（まとまりの番号と a・b・c から決まる。設定が違っても同じ床と箱なら同じ番号） */
+const codeOf = (group: number, a: number, b: number, c: number) =>
+  group * 64 + (c - 1) * 16 + (a - 1) * 4 + (b - 1)
+
+/** まとまり g の a × b × c のかたまりの単位の番号（作れない形なら undefined） */
+function unitAt(table: UnitTable, g: number, a: number, b: number, c: number) {
+  if (a < 1 || b < 1 || c < 1 || a > MAX_SIDE || b > MAX_SIDE || c > MAX_STACK)
+    return undefined
+  return table.byCode.get(codeOf(g, a, b, c))
+}
+
+/**
+ * 置く単位の一覧。まとまりごとに、作れるかたまりの形を全部並べる（床に収まらない形は入れない）。
+ * single[g] は、まとまり g のばらの箱 1 個の単位の番号
+ */
+export function unitsOf(input: PackInput) {
+  const groups: Group[] = []
+  const tooBig: Unplaced[] = []
+  const keyIndex = new Map<string, number>()
+  /** 種類ごとの置き方（かたまりの中の箱の面の名前を決めるのに使う） */
+  const orientsByType: Orientation[][] = []
+  input.boxes.forEach((box, type) => {
+    orientsByType[type] = orientationsOf(box)
+    if (box.count <= 0) return
+    if (!fitsFloor(box, input)) {
+      tooBig.push({ type, count: box.count, reason: 'too-big' })
+      return
+    }
+    const key = `${Math.min(box.x, box.y)}x${Math.max(box.x, box.y)}x${box.z}:${box.canLayDown ? 1 : 0}`
+    let g = keyIndex.get(key)
+    if (g === undefined) {
+      g = groups.length
+      keyIndex.set(key, g)
+      groups.push({ members: [], orientations: orientsByType[type] })
+    }
+    for (let i = 0; i < box.count; i++) groups[g].members.push(type)
+  })
+  const U = input.floorX - 2 * input.edgeGap
+  const V = input.floorY - 2 * input.edgeGap
+  const gap = input.gap
+  const units: Unit[] = []
+  const single: number[] = []
+  const byCode = new Map<number, number>()
+  groups.forEach((g, gi) => {
+    const n = g.members.length
+    for (let c = 1; c <= MAX_STACK; c++) {
+      for (let a = 1; a <= MAX_SIDE; a++) {
+        for (let b = 1; b <= MAX_SIDE; b++) {
+          const size = a * b * c
+          if (size > n || size > MAX_UNIT || a * b > MAX_FLOOR) continue
+          const orientations: Orientation[] = []
+          const base: number[] = []
+          const seen = new Set<string>()
+          g.orientations.forEach((o, oi) => {
+            const w = a * o.w + (a - 1) * gap
+            const d = b * o.d + (b - 1) * gap
+            const h = c * o.h
+            if (w > U || d > V) return
+            const key = `${w}x${d}x${h}`
+            if (seen.has(key)) return
+            seen.add(key)
+            orientations.push({ w, d, h, faces: o.faces, laidDown: o.laidDown })
+            base.push(oi)
+          })
+          if (orientations.length === 0) continue
+          const code = codeOf(gi, a, b, c)
+          if (size === 1) single[gi] = units.length
+          byCode.set(code, units.length)
+          units.push({ group: gi, a, b, c, size, code, orientations, base })
+        }
+      }
+    }
+  })
+  const boxCount = groups.reduce((s, g) => s + g.members.length, 0)
+  return { groups, units, single, byCode, tooBig, boxCount, orientsByType }
+}
+
+export type UnitTable = ReturnType<typeof unitsOf>
+
+// ---- 置き方の決め方（ルール） ----
+
+/**
+ * 置く場所を比べるときに見る点（どれも 0 以上の整数で、小さいほど良い）。
+ * - rise: 全体の高さが上がる分（mm）/ top: 上面の高さ（mm）/ z: 置く高さ（mm）
+ * - laid: 横倒しなら 100 / open: まわりに接していない割合（0〜1000）
+ * - along1・along2: 置き始める角からの距離（壁に沿う向きが先、mm）
+ * - unflush: となりの箱と上面の高さがそろっていない割合（0〜1000）
+ * - unaligned: となりや下の箱と端がそろっていない割合（0〜1000）
+ * - notSame: となりの箱のうち、同じ寸法の箱でない割合（0〜1000）
+ * ルールは見る点ごとの重みの段階（0 は見ない。1 段上がるごとに重みが 2 倍）で、重みを掛けた合計がいちばん小さい場所に置く。
+ * どれを優先するかも決め打ちせず、並べ順と一緒に探す
+ */
+export const ruleKeys = [
+  'rise',
+  'top',
+  'z',
+  'laid',
+  'open',
+  'along1',
+  'along2',
+  'unflush',
+  'unaligned',
+  'notSame',
+] as const
+export const RULE_SIZE = ruleKeys.length
+/** 重みの段階の上限（11 で重み 1024） */
+export const RULE_MAX = 11
+export type Rule = number[]
+export const weightOf = (e: number) => (e <= 0 ? 0 : 2 ** (e - 1))
+
+/** 最初に試すルール（今までの決め方に近いもの・人の積み方に近いもの・接する面を重く見るもの） */
+export function defaultRules(input: PackInput): Rule[] {
+  const t = input.tidy.weight > 0
+  const up = t && input.tidy.upright ? 5 : 0
+  const same = t && input.tidy.group ? 5 : 2
+  return [
+    input.objective === 'height'
+      ? [11, 8, 6, up, 4, 2, 1, 0, 0, same]
+      : [3, 8, 11, up, 5, 2, 1, 0, 0, same],
+    [9, 7, 5, up, 6, 2, 1, 8, 8, same + 2],
+    [8, 6, 4, up, 9, 2, 1, 5, 5, same],
+  ]
+}
+
+/** 並べ方の遺伝子: 置く単位の形の番号の列（code）と、置き方の決め方（rule） */
+export type Genome = { seq: number[]; rule: Rule }
+
+// ---- 1 つの並べ方で置いていく ----
+
+/** 置いた単位（u・v は、置き始める角を原点にした座標） */
+type Placed = Orientation & {
+  unit: number
+  group: number
+  /** かたまりの置き方の番号 */
+  oi: number
+  size: number
+  u: number
+  v: number
+  z: number
+}
 
 /**
  * 置き始める角。奥に壁があれば奥から、右の壁だけなら右から詰める。
  * 壁がない向きは、あとで全体を床の中央へ動かす
  */
-function anchorOf(walls: Walls) {
+export function anchorOf(walls: Walls) {
   return {
     fromRight: walls.right && !walls.left,
     fromBack: walls.back,
@@ -278,18 +441,16 @@ class Grid {
   }
 }
 
-/** 接している面積の上限（調べる前の見積もりに使う。GPU の計算と同じ i32 の最大値） */
-const MAX_CONTACT = 2_147_483_647
-
 /** 置いた箱がこれより少ないうちは、マス目を使わずに全部を調べたほうが速い */
 const SMALL = 40
 
 /**
- * 1 つの並べ順で置いた記録。置いた箱は後ろに足していくだけなので、
+ * 1 つの並べ方で置いた記録。置いた単位は後ろに足していくだけなので、
  * 「i 番目まで置いた時点」の状態は、各時点の個数を覚えておけば取り出せる
  */
 type Trace = {
   placed: Placed[]
+  /** 置けなかった単位の番号 */
   unplaced: number[]
   height: number
   /** 並べ順の i 番目を置き終えた時点での、置いた数・置けなかった数・高さ */
@@ -299,19 +460,23 @@ type Trace = {
 }
 
 /**
- * 並べ順のとおりに 1 個ずつ置いていく。
- * base と from を渡すと、base の並べ順と from 番目より前が同じとみなし、そこから先だけを置き直す
+ * 並べ順（置く単位の番号の列）のとおりに 1 つずつ置いていく。置く場所はルールの重み（weights）で選ぶ。
+ * base と from を渡すと、base の並べ順・ルールと from 番目より前が同じとみなし、そこから先だけを置き直す。
+ * GPU の計算（box-packing-gpu.ts）も同じ決め方をする
  */
 function packInOrder(
-  order: Item[],
+  order: readonly number[],
+  weights: readonly number[],
   input: PackInput,
+  table: UnitTable,
   base?: Trace,
   from = 0,
 ): Trace {
-  const { gap, objective } = input
+  const { gap } = input
   const U = input.floorX - 2 * input.edgeGap
   const V = input.floorY - 2 * input.edgeGap
   const anchor = anchorOf(input.walls)
+  const W = weights
   const start = base ? from : 0
   const placed = base
     ? base.placed.slice(0, start > 0 ? base.placedAfter[start - 1] : 0)
@@ -337,16 +502,17 @@ function packInOrder(
     pointKeys.add(key)
     points.push([u, v])
   }
-  const sides = order.map((it) =>
-    Math.min(it.orientations[0].w, it.orientations[0].d),
-  )
+  const sides = order.map((id) => {
+    const o = table.units[id].orientations[0]
+    return Math.min(o.w, o.d)
+  })
   const grid = new Grid(
     U,
     V,
     order.length,
     sides.reduce((a, b) => a + b, 0) / Math.max(1, sides.length),
   )
-  /** 置いた箱の番号（箱が少ないうちは、マス目を使わずに全部を調べる） */
+  /** 置いた単位の番号（少ないうちは、マス目を使わずに全部を調べる） */
   const all: number[] = []
   const register = (p: Placed, id: number) => {
     us.add(p.u + p.w + gap)
@@ -363,13 +529,10 @@ function packInOrder(
   placed.forEach(register)
 
   const found: number[] = []
-  // 見た目を重視するときの置き方: そのままの向きを優先し、同じ箱どうしの接触を 2 倍に数える
-  const tidyOn = input.tidy.weight > 0
-  const preferUpright = tidyOn && input.tidy.upright
-  const groupBonus = tidyOn && input.tidy.group
   for (let index = start; index < order.length; index++) {
-    const item = order[index]
-    let best: { score: number[]; p: Placed } | null = null
+    const unitId = order[index]
+    const item = table.units[unitId]
+    let best: { score: number; p: Placed } | null = null
     const candidates: Iterable<[number, number]> =
       us.size * vs.size <= 2500
         ? (function* () {
@@ -379,18 +542,20 @@ function packInOrder(
         : points
 
     for (const [u, v] of candidates) {
-      for (const o of item.orientations) {
+      const a1 = anchor.alongSideFirst ? u : v
+      const a2 = anchor.alongSideFirst ? v : u
+      for (let oi = 0; oi < item.orientations.length; oi++) {
+        const o = item.orientations[oi]
         if (u + o.w > U || v + o.d > V) continue
-        // 点数: 全体の高さ → 上面の高さ → 置く高さ →（見た目を重視するなら）そのままの向き →
-        //       まわりに接している面積が大きいほう → 奥・左に近いほう
-        // 床に直接置けて、いちばん接していたとしても今の最良に勝てない場所は、調べるまでもない
-        const along = anchor.alongSideFirst ? [u, v] : [v, u]
-        const laid = preferUpright && o.laidDown ? 1 : 0
-        const scoreAt = (z: number, contact: number) =>
-          objective === 'height'
-            ? [Math.max(height, z + o.h), z + o.h, z, laid, -contact, ...along]
-            : [z, z + o.h, laid, -contact, ...along, 0]
-        if (best && compare(scoreAt(0, MAX_CONTACT), best.score) >= 0) continue
+        // 場所と向きだけで決まる点と、置く高さで決まる点。接する面などの点は 0 以上なので、
+        // ここまでで今の最良に勝てない場所は、調べるまでもない
+        const fixed = W[3] * (o.laidDown ? 100 : 0) + W[5] * a1 + W[6] * a2
+        const at = (z: number) =>
+          W[0] * (Math.max(height, z + o.h) - height) +
+          W[1] * (z + o.h) +
+          W[2] * z +
+          fixed
+        if (best && at(0) >= best.score) continue
         let near = all
         if (all.length > SMALL) {
           grid.query(u, v, u + o.w, v + o.d, found)
@@ -411,8 +576,7 @@ function packInOrder(
             z = b.z + b.h
           }
         }
-        // 置ける高さが決まった時点で勝てないなら、すき間や支えは確かめない
-        if (best && compare(scoreAt(z, MAX_CONTACT), best.score) >= 0) continue
+        if (best && at(z) >= best.score) continue
 
         // 横に並ぶ箱（高さの範囲が重なる箱）とは、すき間をあける
         let blocked = false
@@ -431,7 +595,9 @@ function packInOrder(
         }
         if (blocked) continue
 
-        // 底面がどれだけ支えられているか（ちょうど z の高さに上面がある箱との重なり）
+        // 底面がどれだけ支えられているか（ちょうど z の高さに上面がある箱との重なり）。
+        // 下の箱と端がそろっているかも数える
+        let align = 0
         if (z > 0) {
           let supported = 0
           for (const id of near) {
@@ -439,18 +605,27 @@ function packInOrder(
             if (b.z + b.h !== z) continue
             const ou = Math.min(u + o.w, b.u + b.w) - Math.max(u, b.u)
             const ov = Math.min(v + o.d, b.v + b.d) - Math.max(v, b.v)
-            if (ou > 0 && ov > 0) supported += ou * ov
+            if (ou > 0 && ov > 0) {
+              supported += ou * ov
+              if (b.u === u) align++
+              if (b.u + b.w === u + o.w) align++
+              if (b.v === v) align++
+              if (b.v + b.d === v + o.d) align++
+            }
           }
           if (supported * 100 < input.supportPercent * o.w * o.d) continue
         }
 
-        // まわりに接している面積: 左右前後の面が、床の端（壁）か、ちょうどすき間の分だけ離れて並ぶ箱と向き合う面積
-        // （すき間ができにくい場所ほど大きい）
+        // まわりに接している面積（床の端か、ちょうどすき間の分だけ離れて並ぶ箱と向き合う面積）、
+        // となりの箱との接触のうち同じ寸法の箱の分、上面がそろっているとなりの長さ、端がそろっているか
         let contact = 0
         if (u === 0) contact += o.d * o.h
         if (u + o.w === U) contact += o.d * o.h
         if (v === 0) contact += o.w * o.h
         if (v + o.d === V) contact += o.w * o.h
+        let boxContact = 0
+        let same = 0
+        let flush = 0
         let side = all
         if (all.length > SMALL) {
           // すき間の分だけ離れた箱も入るよう、1 だけ広げて探す
@@ -461,21 +636,67 @@ function packInOrder(
           const b = placed[id]
           const oz = Math.min(z + o.h, b.z + b.h) - Math.max(z, b.z)
           if (oz <= 0) continue
+          const isSame = b.group === item.group
+          const flat = b.z + b.h === z + o.h
           const ov = Math.min(v + o.d, b.v + b.d) - Math.max(v, b.v)
-          // 見た目を重視するなら、同じ箱どうしの接触は 2 倍に数える（同じ箱が隣り合いやすくなる）
-          const same = groupBonus && b.type === item.type ? 2 : 1
           if (ov > 0 && (b.u + b.w + gap === u || u + o.w + gap === b.u)) {
-            contact += ov * oz * same
+            contact += ov * oz
+            boxContact += ov * oz
+            if (isSame) same += ov * oz
+            if (flat) flush += ov
+            if (b.v === v) align++
+            if (b.v + b.d === v + o.d) align++
           }
           const ou = Math.min(u + o.w, b.u + b.w) - Math.max(u, b.u)
           if (ou > 0 && (b.v + b.d + gap === v || v + o.d + gap === b.v)) {
-            contact += ou * oz * same
+            contact += ou * oz
+            boxContact += ou * oz
+            if (isSame) same += ou * oz
+            if (flat) flush += ou
+            if (b.u === u) align++
+            if (b.u + b.w === u + o.w) align++
           }
         }
-        const score = scoreAt(z, contact)
-        if (best && compare(score, best.score) >= 0) continue
+        const open =
+          1000 -
+          Math.min(
+            1000,
+            Math.floor(
+              contact / Math.max(1, Math.floor((2 * (o.w + o.d) * o.h) / 1000)),
+            ),
+          )
+        const unflush =
+          1000 - Math.min(1000, Math.floor((flush * 1000) / (2 * (o.w + o.d))))
+        const unaligned = 1000 - Math.min(8, align) * 125
+        const notSame =
+          boxContact > 0
+            ? 1000 -
+              Math.min(
+                1000,
+                Math.floor(same / Math.max(1, Math.floor(boxContact / 1000))),
+              )
+            : 1000
+        const score =
+          at(z) +
+          W[4] * open +
+          W[7] * unflush +
+          W[8] * unaligned +
+          W[9] * notSame
+        if (best && score >= best.score) continue
 
-        best = { score, p: { ...o, type: item.type, u, v, z } }
+        best = {
+          score,
+          p: {
+            ...o,
+            unit: unitId,
+            group: item.group,
+            oi,
+            size: item.size,
+            u,
+            v,
+            z,
+          },
+        }
       }
     }
 
@@ -484,7 +705,7 @@ function packInOrder(
       register(best.p, placed.length - 1)
       height = Math.max(height, best.p.z + best.p.h)
     } else {
-      unplaced.push(item.type)
+      unplaced.push(unitId)
     }
     placedAfter.push(placed.length)
     unplacedAfter.push(unplaced.length)
@@ -497,23 +718,59 @@ function packInOrder(
 // ---- 結果を床の座標に直して、評価する ----
 
 function finish(
-  packed: ReturnType<typeof packInOrder>,
+  packed: Trace,
   input: PackInput,
-  tooBig: Unplaced[],
+  table: UnitTable,
+  genome?: Genome,
 ): PackResult {
-  const { floorX: X, floorY: Y, edgeGap: e, walls } = input
+  const { floorX: X, floorY: Y, edgeGap: e, walls, gap } = input
   const anchor = anchorOf(walls)
-  let placements: Placement[] = packed.placed.map((p) => ({
-    type: p.type,
-    x: anchor.fromRight ? X - e - p.u - p.w : e + p.u,
-    y: anchor.fromBack ? Y - e - p.v - p.d : e + p.v,
-    z: p.z,
-    w: p.w,
-    d: p.d,
-    h: p.h,
-    faces: p.faces,
-    laidDown: p.laidDown,
-  }))
+  const tooBig = table.tooBig
+  // かたまりを箱 1 個ずつに戻す。まとまりの中の箱の種類は、並べた順に割り当てる
+  const cursor = new Int32Array(table.groups.length)
+  const takeType = (g: number) => table.groups[g].members[cursor[g]++]
+  let placements: Placement[] = []
+  for (const p of packed.placed) {
+    const unit = table.units[p.unit]
+    const bo = table.groups[p.group].orientations[unit.base[p.oi]]
+    for (let ic = 0; ic < unit.c; ic++) {
+      for (let ib = 0; ib < unit.b; ib++) {
+        for (let ia = 0; ia < unit.a; ia++) {
+          const type = takeType(p.group)
+          // 同じ寸法でも入力の向きが違う箱があるので、面の名前はその箱の置き方から取る
+          const own = table.orientsByType[type]
+          const o =
+            own.find(
+              (x) =>
+                x.w === bo.w &&
+                x.d === bo.d &&
+                x.h === bo.h &&
+                x.laidDown === bo.laidDown,
+            ) ??
+            own.find((x) => x.w === bo.w && x.d === bo.d && x.h === bo.h) ??
+            bo
+          const bu = p.u + ia * (bo.w + gap)
+          const bv = p.v + ib * (bo.d + gap)
+          placements.push({
+            type,
+            x: anchor.fromRight ? X - e - bu - bo.w : e + bu,
+            y: anchor.fromBack ? Y - e - bv - bo.d : e + bv,
+            z: p.z + ic * bo.h,
+            w: bo.w,
+            d: bo.d,
+            h: bo.h,
+            faces: o.faces,
+            laidDown: o.laidDown,
+          })
+        }
+      }
+    }
+  }
+  const unplacedTypes: number[] = []
+  for (const id of packed.unplaced) {
+    const unit = table.units[id]
+    for (let i = 0; i < unit.size; i++) unplacedTypes.push(takeType(unit.group))
+  }
 
   // 壁がない向き（と、左右両方に壁がある向き）は、全体を床の中央へ寄せる。
   // 片側だけに壁がある向きは、壁に付けたままにする
@@ -570,7 +827,7 @@ function finish(
 
   const tidy = tidinessOf(placements, input, gapOf(input))
   const score =
-    100 * (packed.unplaced.length + tooBig.reduce((s, u) => s + u.count, 0)) +
+    100 * (unplacedTypes.length + tooBig.reduce((s, u) => s + u.count, 0)) +
     (input.objective === 'height'
       ? height / h0
       : 3 * (1 - floorCoverage) + 0.3 * (height / h0)) +
@@ -581,7 +838,7 @@ function finish(
     (input.tidy.weight / 100) * TIDY_SCALE * tidy.penalty
 
   const counts = new Map<number, number>()
-  for (const type of packed.unplaced)
+  for (const type of unplacedTypes)
     counts.set(type, (counts.get(type) ?? 0) + 1)
 
   return {
@@ -600,6 +857,7 @@ function finish(
     cog,
     tidiness: tidy.value,
     score,
+    genome,
   }
 }
 
@@ -852,66 +1110,158 @@ export function random(seed: number) {
   }
 }
 
-/**
- * 探索を 1 歩ずつ進める。step() は、より良い結果が見つかったら true を返す。
- * まず「大きい箱から」などのよく効く並べ順を試し、そのあとは今いちばん良い並べ順を少しずつ入れ替える
- */
-/**
- * 置く箱の一覧（1 個ずつ）と、どの向きでも床からはみ出す箱。
- * 種類の番号の順に、個数ぶん並べる（GPU の計算でも同じ並びを使う）
- */
-export function itemsOf(input: PackInput) {
-  const items: Item[] = []
-  const tooBig: Unplaced[] = []
-  input.boxes.forEach((box, type) => {
-    if (box.count <= 0) return
-    if (!fitsFloor(box, input)) {
-      tooBig.push({ type, count: box.count, reason: 'too-big' })
-      return
-    }
-    const orientations = orientationsOf(box)
-    for (let i = 0; i < box.count; i++) {
-      items.push({ type, orientations, volume: box.x * box.y * box.z })
-    }
-  })
-  return { items, tooBig }
+/** 形の番号から、かたまりの箱の数 */
+const sizeOfCode = (code: number) => {
+  const r = code % 64
+  return (
+    (Math.floor(r / 16) + 1) * ((Math.floor(r / 4) % 4) + 1) * ((r % 4) + 1)
+  )
 }
 
 /**
- * 並べ順（箱の種類の番号の列）を 1 つ、ふつうの計算で正式に評価する。
- * 同じ種類の箱は入れ替えても同じなので、種類の列だけで並べ順が決まる
+ * 形の番号の列を、置く単位の番号の列に直す。
+ * 合わない分（設定が違って作れない形・数の過不足）は、ばらの箱で直す
  */
-export function evaluateOrder(input: PackInput, types: number[]): PackResult {
-  const { items, tooBig } = itemsOf(input)
-  const rest = [...items]
-  const order: Item[] = []
-  for (const type of types) {
-    const i = rest.findIndex((it) => it.type === type)
-    if (i >= 0) order.push(...rest.splice(i, 1))
+export function unitIdsOf(seq: readonly number[], table: UnitTable) {
+  const need = table.groups.map((g) => g.members.length)
+  const out: number[] = []
+  const pushSingles = (group: number, count: number) => {
+    for (let i = 0; i < count && need[group] > 0; i++) {
+      out.push(table.single[group])
+      need[group]--
+    }
   }
-  order.push(...rest)
-  return finish(packInOrder(order, input), input, tooBig)
+  for (const code of seq) {
+    const group = Math.floor(code / 64)
+    if (group >= table.groups.length) continue
+    const id = table.byCode.get(code)
+    if (id === undefined) {
+      pushSingles(group, sizeOfCode(code))
+      continue
+    }
+    const u = table.units[id]
+    if (u.size <= need[group]) {
+      out.push(id)
+      need[group] -= u.size
+    } else pushSingles(group, need[group])
+  }
+  need.forEach((n, g) => {
+    pushSingles(g, n)
+  })
+  return out
+}
+
+/** ルールの長さと範囲をそろえる */
+function normalizeRule(rule: readonly number[] | undefined, input: PackInput) {
+  const fallback = defaultRules(input)[0]
+  return Array.from({ length: RULE_SIZE }, (_, i) => {
+    const e = rule?.[i]
+    return typeof e === 'number' && Number.isFinite(e)
+      ? Math.max(0, Math.min(RULE_MAX, Math.round(e)))
+      : fallback[i]
+  })
+}
+
+/** 箱の種類の列（前の版の並べ順）を、ばらの箱の単位の番号の列に直す */
+function idsFromTypes(types: readonly number[], table: UnitTable) {
+  const groupOfType = new Map<number, number>()
+  table.groups.forEach((g, gi) => {
+    for (const t of g.members) groupOfType.set(t, gi)
+  })
+  const seq: number[] = []
+  for (const t of types) {
+    const g = groupOfType.get(t)
+    if (g !== undefined) seq.push(codeOf(g, 1, 1, 1))
+  }
+  return unitIdsOf(seq, table)
+}
+
+/** 置く単位の番号の列とルールを、結果に付ける遺伝子にする */
+const genomeOf = (ids: readonly number[], rule: Rule, table: UnitTable) => ({
+  seq: ids.map((id) => table.units[id].code),
+  rule: [...rule],
+})
+
+/** 遺伝子を、置く単位の番号の列とルールに直す（前の版の並べ順 startOrder にも対応） */
+export function decodeStart(
+  input: PackInput,
+  table: UnitTable,
+): { ids: number[]; rule: Rule } | null {
+  if (input.startGenome && input.startGenome.seq.length > 0) {
+    return {
+      ids: unitIdsOf(input.startGenome.seq, table),
+      rule: normalizeRule(input.startGenome.rule, input),
+    }
+  }
+  if (input.startOrder && input.startOrder.length > 0) {
+    return {
+      ids: idsFromTypes(input.startOrder, table),
+      rule: defaultRules(input)[0],
+    }
+  }
+  return null
+}
+
+/** 置く単位の番号の列とルールで置いて、正式に評価する */
+export function evaluateIds(
+  input: PackInput,
+  table: UnitTable,
+  ids: readonly number[],
+  rule: Rule,
+): PackResult {
+  const trace = packInOrder(ids, rule.map(weightOf), input, table)
+  return finish(trace, input, table, genomeOf(ids, rule, table))
+}
+
+/** 遺伝子を正式に評価する */
+export function evaluateGenome(input: PackInput, genome: Genome): PackResult {
+  const table = unitsOf(input)
+  return evaluateIds(
+    input,
+    table,
+    unitIdsOf(genome.seq, table),
+    normalizeRule(genome.rule, input),
+  )
+}
+
+/** かたまりの中の箱どうしの横の接触面積と、箱 1 個の体積（GPU で見た目の整いを見積もるのに使う） */
+export function unitExtras(table: UnitTable, unitId: number, oi: number) {
+  const u = table.units[unitId]
+  const bo = table.groups[u.group].orientations[u.base[oi]]
+  return {
+    internal:
+      (u.a - 1) * u.b * u.c * bo.d * bo.h + u.a * (u.b - 1) * u.c * bo.w * bo.h,
+    boxVolume: bo.w * bo.d * bo.h,
+  }
 }
 
 /**
- * 並べ順を 1 つ積んだ記録（置き始める角を原点にした座標）。GPU の計算で、
+ * 並べ方を 1 つ積んだ記録（置き始める角を原点にした座標）。GPU の計算で、
  * 入れ替えた位置より前の置き方をここから写して、そこから先だけを計算するのに使う
  */
-export function traceOrder(input: PackInput, types: number[]) {
-  const { items } = itemsOf(input)
-  const rest = [...items]
-  const order: Item[] = []
-  for (const type of types) {
-    const i = rest.findIndex((it) => it.type === type)
-    if (i >= 0) order.push(...rest.splice(i, 1))
-  }
-  order.push(...rest)
-  const t = packInOrder(order, input)
+export function traceIds(
+  input: PackInput,
+  table: UnitTable,
+  ids: readonly number[],
+  rule: Rule,
+) {
+  const t = packInOrder(ids, rule.map(weightOf), input, table)
   return {
-    placed: t.placed.map(
-      (p) =>
-        [p.u, p.v, p.z, p.w, p.d, p.h, p.type, p.laidDown ? 1 : 0] as const,
-    ),
+    placed: t.placed.map((p) => {
+      const x = unitExtras(table, p.unit, p.oi)
+      return [
+        p.u,
+        p.v,
+        p.z,
+        p.w,
+        p.d,
+        p.h,
+        p.group,
+        p.size + (p.laidDown ? 256 : 0),
+        x.internal,
+        x.boxVolume,
+      ] as const
+    }),
     placedAfter: t.placedAfter,
     heightAfter: t.heightAfter,
   }
@@ -922,43 +1272,230 @@ export function alongSideFirstOf(walls: Walls) {
   return anchorOf(walls).alongSideFirst
 }
 
+/** 置き始める角（GPU の計算で、壁がどちら側かを知るのに使う） */
+export function wallSidesOf(walls: Walls) {
+  return {
+    /** 置き始める角を原点にしたとき、v の小さい側に壁がある */
+    wallV: walls.back,
+    /** u の小さい側に壁がある（左右の片方だけに壁があるとき） */
+    wallU: walls.left !== walls.right,
+  }
+}
+
+/** 最初に試す並べ方（ばらの箱をいろいろな順に・できるだけ大きなかたまりにして、ルールもいくつか） */
+export function startPlans(input: PackInput, table: UnitTable) {
+  const rules = defaultRules(input)
+  const dims = (g: number) => table.groups[g].orientations[0]
+  const area = (g: number) => dims(g).w * dims(g).d
+  const tall = (g: number) => dims(g).h
+  const long = (g: number) => Math.max(dims(g).w, dims(g).d, dims(g).h)
+  const singles: number[] = []
+  table.groups.forEach((g, gi) => {
+    for (let i = 0; i < g.members.length; i++) singles.push(gi)
+  })
+  const sorts = [
+    (a: number, b: number) => area(b) - area(a) || tall(b) - tall(a),
+    (a: number, b: number) => area(b) * tall(b) - area(a) * tall(a),
+    (a: number, b: number) => tall(b) - tall(a) || area(b) - area(a),
+    (a: number, b: number) => long(b) - long(a) || area(b) - area(a),
+    (a: number, b: number) => tall(a) - tall(b) || area(b) - area(a),
+  ]
+  const singleOrders = sorts.map((sort) =>
+    [...singles]
+      .sort((a, b) => sort(a, b) || a - b)
+      .map((g) => table.single[g]),
+  )
+  // できるだけ大きなかたまりにする（同じ大きさなら段の少ない平たい形）。底面が大きい順に並べる
+  const blocks: number[] = []
+  table.groups.forEach((g, gi) => {
+    let left = g.members.length
+    const shapes = table.units
+      .map((u, id) => ({ u, id }))
+      .filter((x) => x.u.group === gi)
+      .sort((x, y) => y.u.size - x.u.size || x.u.c - y.u.c)
+    while (left > 0) {
+      const s = shapes.find((x) => x.u.size <= left)
+      if (!s) break
+      blocks.push(s.id)
+      left -= s.u.size
+    }
+  })
+  const footprint = (id: number) => {
+    const o = table.units[id].orientations[0]
+    return o.w * o.d
+  }
+  blocks.sort(
+    (a, b) =>
+      footprint(b) - footprint(a) ||
+      table.units[b].orientations[0].h - table.units[a].orientations[0].h,
+  )
+  const plans: { ids: number[]; rule: Rule }[] = []
+  const first = decodeStart(input, table)
+  if (first) plans.push(first)
+  plans.push({ ids: singleOrders[0], rule: rules[0] })
+  plans.push({ ids: blocks, rule: rules[1] })
+  plans.push({ ids: blocks, rule: rules[0] })
+  plans.push({ ids: singleOrders[0], rule: rules[1] })
+  plans.push({ ids: blocks, rule: rules[2] })
+  for (const ids of singleOrders.slice(1)) plans.push({ ids, rule: rules[0] })
+  return plans
+}
+
+/**
+ * 並べ方を少し崩す（CPU の係と GPU の係で同じ崩し方を使う）。
+ * 並べ順の入れ替え・1 つを別の位置へ・区間を逆順に・ルールの重みを変える（2 つの重みを入れ替えると優先する順が変わる）・
+ * かたまりを分ける・2 つのかたまりをつなぐ・2 つの良い並べ方の組み合わせ。
+ * start は、元の並べ方と初めて違う位置（ルールが変わったら 0。何も変わらなければ並べ順の長さ）
+ */
+export function mutate(
+  ids: readonly number[],
+  rule: Rule,
+  rand: () => number,
+  table: UnitTable,
+  other?: readonly number[],
+) {
+  for (let attempt = 0; attempt < 6; attempt++) {
+    const o = [...ids]
+    let r = [...rule]
+    const m = o.length
+    const kind = rand()
+    if (m < 2 && kind < 0.62) continue
+    if (kind < 0.4) {
+      // 2 つの入れ替え（1〜3 回。近くと入れ替えることが多いほうが、良い並びを壊しにくい）
+      const swaps = 1 + Math.floor(rand() * 3)
+      for (let s = 0; s < swaps; s++) {
+        const i = Math.floor(rand() * m)
+        const reach = rand() < 0.7 ? 4 : m
+        const j = Math.min(
+          m - 1,
+          Math.max(0, i + Math.floor((rand() * 2 - 1) * reach)),
+        )
+        const t = o[i]
+        o[i] = o[j]
+        o[j] = t
+      }
+    } else if (kind < 0.55) {
+      // 1 つを抜いて、別の位置に入れる
+      const i = Math.floor(rand() * m)
+      const reach = rand() < 0.7 ? 6 : m
+      const j = Math.min(
+        m - 1,
+        Math.max(0, i + Math.floor((rand() * 2 - 1) * reach)),
+      )
+      const [v] = o.splice(i, 1)
+      o.splice(j, 0, v)
+    } else if (kind < 0.62) {
+      // 一続きの区間を逆順にする
+      const len = 2 + Math.floor(rand() * Math.max(1, Math.floor(m / 4) - 1))
+      const i = Math.floor(rand() * Math.max(1, m - len + 1))
+      const part = o.slice(i, i + len).reverse()
+      o.splice(i, part.length, ...part)
+    } else if (kind < 0.76) {
+      // ルールを変える: 1 つの重みを上げ下げするか、2 つの重みを入れ替える（優先する順が変わる）
+      r = [...rule]
+      if (rand() < 0.5) {
+        const k = Math.floor(rand() * RULE_SIZE)
+        const step = (rand() < 0.5 ? -1 : 1) * (rand() < 0.7 ? 1 : 2)
+        r[k] = Math.max(0, Math.min(RULE_MAX, r[k] + step))
+      } else {
+        const a = Math.floor(rand() * RULE_SIZE)
+        const b = Math.floor(rand() * RULE_SIZE)
+        const t = r[a]
+        r[a] = r[b]
+        r[b] = t
+      }
+    } else if (kind < 0.84) {
+      // かたまりを 2 つに分ける
+      const big = o.map((_, i) => i).filter((i) => table.units[o[i]].size > 1)
+      if (big.length === 0) continue
+      const i = big[Math.floor(rand() * big.length)]
+      const u = table.units[o[i]]
+      const dims = [u.a, u.b, u.c]
+      const axes = [0, 1, 2].filter((x) => dims[x] > 1)
+      const ax = axes[Math.floor(rand() * axes.length)]
+      const s = 1 + Math.floor(rand() * (dims[ax] - 1))
+      const p = [...dims]
+      const q = [...dims]
+      p[ax] = s
+      q[ax] = dims[ax] - s
+      const ip = unitAt(table, u.group, p[0], p[1], p[2])
+      const iq = unitAt(table, u.group, q[0], q[1], q[2])
+      if (ip !== undefined && iq !== undefined) o.splice(i, 1, ip, iq)
+      else o.splice(i, 1, ...new Array(u.size).fill(table.single[u.group]))
+    } else if (kind < 0.92 || !other) {
+      // 同じ寸法の 2 つをつないで、1 つのかたまりにする
+      const i = Math.floor(rand() * m)
+      const u = table.units[o[i]]
+      let done = false
+      for (let t = 0; t < 10 && !done; t++) {
+        const j = Math.floor(rand() * m)
+        if (j === i) continue
+        const w = table.units[o[j]]
+        if (w.group !== u.group) continue
+        const tries: number[][] = []
+        if (u.b === w.b && u.c === w.c) tries.push([u.a + w.a, u.b, u.c])
+        if (u.a === w.a && u.c === w.c) tries.push([u.a, u.b + w.b, u.c])
+        if (u.a === w.a && u.b === w.b) tries.push([u.a, u.b, u.c + w.c])
+        while (tries.length > 0 && !done) {
+          const [x] = tries.splice(Math.floor(rand() * tries.length), 1)
+          const id = unitAt(table, u.group, x[0], x[1], x[2])
+          if (id === undefined) continue
+          const lo = Math.min(i, j)
+          const hi = Math.max(i, j)
+          o.splice(hi, 1)
+          o[lo] = id
+          done = true
+        }
+      }
+      if (!done) continue
+    } else {
+      // 2 つの良い並べ方の組み合わせ: 前半はそのまま、残りはもう片方の順番に並べる
+      const c = 1 + Math.floor(rand() * Math.max(1, m - 1))
+      const rest = new Map<number, number>()
+      for (let q = c; q < m; q++) rest.set(o[q], (rest.get(o[q]) ?? 0) + 1)
+      const tail: number[] = []
+      for (const id of other) {
+        const n = rest.get(id) ?? 0
+        if (n > 0) {
+          rest.set(id, n - 1)
+          tail.push(id)
+        }
+      }
+      for (let q = c; q < m; q++) {
+        const n = rest.get(o[q]) ?? 0
+        if (n > 0) {
+          rest.set(o[q], n - 1)
+          tail.push(o[q])
+        }
+      }
+      o.splice(c, m - c, ...tail)
+    }
+    const ruleChanged = r.some((x, i) => x !== rule[i])
+    let start = 0
+    if (!ruleChanged) {
+      const len = Math.min(o.length, ids.length)
+      while (start < len && o[start] === ids[start]) start++
+      if (start === len && o.length === ids.length) continue
+    }
+    return { ids: o, rule: r, start }
+  }
+  return { ids: [...ids], rule: [...rule], start: ids.length }
+}
+
 export function createSearch(
   input: PackInput,
   /** 評価したすべての結果を受け取る（部門別のいちばんを見張るため） */
   onResult?: (result: PackResult) => void,
 ) {
-  const { items, tooBig } = itemsOf(input)
-
-  const box = (it: Item) => input.boxes[it.type]
-  const area = (it: Item) => box(it).x * box(it).y
-  const tall = (it: Item) => box(it).z
-  const long = (it: Item) => Math.max(box(it).x, box(it).y, box(it).z)
-  const startOrders = [
-    (a: Item, b: Item) => area(b) - area(a) || tall(b) - tall(a),
-    (a: Item, b: Item) => b.volume - a.volume,
-    (a: Item, b: Item) => tall(b) - tall(a) || area(b) - area(a),
-    (a: Item, b: Item) => long(b) - long(a) || area(b) - area(a),
-    (a: Item, b: Item) => tall(a) - tall(b) || area(b) - area(a),
-  ].map((sort) => [...items].sort((a, b) => sort(a, b) || a.type - b.type))
-
-  // 出発点の並べ順があれば、それをいちばん先に試す（そこから少しずつ入れ替えて詰めていく）
-  if (input.startOrder && input.startOrder.length > 0) {
-    const rest = [...startOrders[0]]
-    const seeded: Item[] = []
-    for (const type of input.startOrder) {
-      const i = rest.findIndex((it) => it.type === type)
-      if (i >= 0) seeded.push(...rest.splice(i, 1))
-    }
-    startOrders.unshift([...seeded, ...rest])
-  }
-
-  let bestOrder = startOrders[0]
-  let bestTrace = packInOrder(bestOrder, input)
-  let best = finish(bestTrace, input, tooBig)
+  const table = unitsOf(input)
+  const plans = startPlans(input, table)
+  let bestIds = plans[0].ids
+  let bestRule = plans[0].rule
+  let bestTrace = packInOrder(bestIds, bestRule.map(weightOf), input, table)
+  let best = finish(bestTrace, input, table, genomeOf(bestIds, bestRule, table))
   onResult?.(best)
   let tried = 1
-  const rand = random(input.seed * 7919 + items.length)
-  const typeCount = new Set(items.map((it) => it.type)).size
+  const rand = random(input.seed * 7919 + table.boxCount)
 
   return {
     get best() {
@@ -967,47 +1504,52 @@ export function createSearch(
     get tried() {
       return tried
     },
-    /** これ以上試しても変わらない（箱が 1 種類以下で、最初の並べ順も試し終えた） */
+    /** これ以上試しても変わらない（箱が 1 個以下で、最初の並べ方も試し終えた） */
     get exhausted() {
-      return tried >= startOrders.length && typeCount <= 1
+      return tried >= plans.length && table.boxCount <= 1
     },
     step() {
-      let order: Item[]
-      if (tried < startOrders.length) {
-        order = startOrders[tried]
+      let ids: number[]
+      let rule: Rule
+      let trace: Trace
+      if (tried < plans.length) {
+        ids = plans[tried].ids
+        rule = plans[tried].rule
+        tried++
+        trace = packInOrder(ids, rule.map(weightOf), input, table)
       } else {
-        order = [...bestOrder]
-        const swaps = 1 + Math.floor(rand() * 3)
-        for (let s = 0; s < swaps; s++) {
-          const i = Math.floor(rand() * order.length)
-          // 近くの箱と入れ替えることが多いほうが、良い並びを壊しにくい
-          const reach = rand() < 0.7 ? 4 : order.length
-          const j = Math.min(
-            order.length - 1,
-            Math.max(0, i + Math.floor((rand() * 2 - 1) * reach)),
-          )
-          ;[order[i], order[j]] = [order[j], order[i]]
-        }
+        const next = mutate(bestIds, bestRule, rand, table)
+        tried++
+        if (next.start >= next.ids.length && next.ids.length === bestIds.length)
+          return false
+        ids = next.ids
+        rule = next.rule
+        // 今いちばん良い並べ方と同じところまでは、置き方も同じになるので置き直さない
+        trace =
+          next.start > 0
+            ? packInOrder(
+                ids,
+                rule.map(weightOf),
+                input,
+                table,
+                bestTrace,
+                next.start,
+              )
+            : packInOrder(ids, rule.map(weightOf), input, table)
       }
-      tried++
-      // 今いちばん良い並べ順と同じところまでは、置き方も同じになるので置き直さない
-      // （同じ種類の箱どうしの入れ替えは、並べ順が変わらないのと同じ）
-      let from = 0
-      while (from < order.length && order[from].type === bestOrder[from].type)
-        from++
-      if (from === order.length) return false
-      const trace = packInOrder(order, input, bestTrace, from)
-      const result = finish(trace, input, tooBig)
+      const result = finish(trace, input, table, genomeOf(ids, rule, table))
       onResult?.(result)
       if (result.score < best.score - 1e-9) {
         best = result
-        bestOrder = order
+        bestIds = ids
+        bestRule = rule
         bestTrace = trace
         return true
       }
-      // 同じ点数なら並べ順だけ乗り換える（行き詰まりにくくする）
+      // 同じ点数なら並べ方だけ乗り換える（行き詰まりにくくする）
       if (result.score <= best.score) {
-        bestOrder = order
+        bestIds = ids
+        bestRule = rule
         bestTrace = trace
       }
       return false
