@@ -164,6 +164,18 @@ export const playgroundTools = [
     publishedDate: '2025-09-09',
     thumbnail: '/playground/3dblock/thumbnail.webp',
   },
+  {
+    slug: 'jwt-decoder',
+    name: 'JWT デコード',
+    title:
+      'JWT デコーダー | ヘッダー・ペイロードの表示、有効期限の確認、署名の検証',
+    description:
+      'JWT（JSON Web Token）を貼り付けると、ヘッダーとペイロードを色分けして読みやすく表示します。exp・iat・nbf を日時に直して期限切れかどうかを確かめ、HS256・RS256・ES256 などの署名も検証できます。HS256 で JWT を作ることもできます。トークンや鍵はサーバーに送らず、ブラウザの中だけで処理します。',
+    category: 'ユーティリティ',
+    tags: ['JWT', 'デコード', '署名検証', '認証', 'Web Crypto'],
+    publishedDate: '2026-11-14',
+    thumbnail: '/playground/jwt-decoder/thumbnail.svg',
+  },
 ] as const satisfies readonly (Omit<PlaygroundTool, 'slug'> & {
   slug: string
 })[]
