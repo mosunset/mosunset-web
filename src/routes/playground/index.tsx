@@ -1,5 +1,6 @@
 import { createFileRoute, Link } from '@tanstack/react-router'
 
+import { NewBadge } from '@/components/item-badges'
 import {
   type Facet,
   FilterValue,
@@ -13,7 +14,7 @@ import {
   type ViewMode,
 } from '@/components/list-view'
 import { SectionPage } from '@/components/section-page'
-import { formatDay } from '@/lib/format'
+import { formatDay, isRecent } from '@/lib/format'
 import { listItemId } from '@/lib/list-memory'
 import { getNavItem } from '@/lib/navigation'
 import { playgroundCategories, playgroundTools } from '@/lib/playground'
@@ -142,6 +143,7 @@ function ToolCards({ tools, list }: { tools: Tool[]; list: ListControls }) {
                 <time dateTime={tool.publishedDate}>
                   {formatDay(tool.publishedDate)}
                 </time>
+                {isRecent(tool.publishedDate) && <NewBadge />}
                 {tool.tags.slice(0, 3).map((tag) => (
                   <FilterValue key={tag} list={list} facetKey="tag" value={tag}>
                     #{tag}
@@ -225,6 +227,7 @@ function ToolTable({ tools, list }: { tools: Tool[]; list: ListControls }) {
               </td>
               <td className="px-3 py-2 font-mono text-xs whitespace-nowrap tabular-nums text-muted-foreground">
                 {formatDay(tool.publishedDate)}
+                {isRecent(tool.publishedDate) && <NewBadge className="ml-2" />}
               </td>
             </tr>
           ))}

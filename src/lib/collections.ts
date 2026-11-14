@@ -48,6 +48,14 @@ type CollectionConfig = {
   imageFit?: 'cover' | 'contain'
   /** 一覧に「写真」の表示（名前を小さくして写真を多く並べる）を出す */
   galleryView?: boolean
+  /**
+   * 一覧のカードの写真に状態の印を付ける値（accent は目立たせる、dim はカードを薄く出す）。
+   * ふつうの状態（取得済み・使用中など）には付けない
+   */
+  marks?: {
+    key: string
+    values: Readonly<Record<string, 'accent' | 'dim'>>
+  }
   fields: readonly AttributeField[]
 }
 
@@ -61,6 +69,7 @@ export const collections = {
     subtitleKeys: ['maker', 'model'],
     filterKeys: ['category', 'status', 'maker'],
     groupKey: 'status',
+    marks: { key: 'status', values: { gone: 'dim' } },
     fields: [
       {
         key: 'category',
@@ -93,6 +102,7 @@ export const collections = {
     subtitleKeys: ['issuer'],
     filterKeys: ['status', 'category', 'issuer'],
     groupKey: 'status',
+    marks: { key: 'status', values: { studying: 'accent', planned: 'dim' } },
     fields: [
       {
         key: 'status',
@@ -161,6 +171,7 @@ export const collections = {
     filterKeys: ['readingStatus', 'category', 'publisher'],
     groupKey: 'readingStatus',
     galleryView: true,
+    marks: { key: 'readingStatus', values: { reading: 'accent' } },
     fields: [
       { key: 'author', label: '著者', type: 'text' },
       { key: 'publisher', label: '出版社', type: 'text' },
@@ -213,6 +224,20 @@ export const filterKeysOf = (kind: CollectionKind): readonly string[] =>
 export const facetKeysOf = (kind: CollectionKind): readonly string[] => [
   ...new Set([...filterKeysOf(kind), ...collections[kind].subtitleKeys]),
 ]
+
+/** カードに付ける状態の印（marks に決めた値のときだけ） */
+export function statusMarkOf(
+  kind: CollectionKind,
+  attributes: CollectionAttributes,
+) {
+  const marks = (collections[kind] as Pick<CollectionConfig, 'marks'>).marks
+  const value = marks && attributes[marks.key]
+  const tone = value ? marks.values[value] : undefined
+  if (!marks || !value || !tone) return null
+  const fields: readonly AttributeField[] = collections[kind].fields
+  const field = fields.find((f) => f.key === marks.key)
+  return { tone, label: field ? displayAttribute(field, value) : value }
+}
 
 /** 一覧をまとめて見出しを付ける項目 */
 export const groupFieldOf = (kind: CollectionKind) => {

@@ -2,6 +2,7 @@ import { createFileRoute, Link } from '@tanstack/react-router'
 
 import { DraftBadge } from '@/components/draft-badge'
 import { EmptyState } from '@/components/empty-state'
+import { NewBadge } from '@/components/item-badges'
 import {
   type Group,
   GroupedSections,
@@ -19,7 +20,7 @@ import {
 } from '@/components/list-view'
 import { SectionPage } from '@/components/section-page'
 import { listPublishedPosts } from '@/functions/posts'
-import { formatDate, yearOf } from '@/lib/format'
+import { formatDate, isRecent, yearOf } from '@/lib/format'
 import { imagePath } from '@/lib/images'
 import { listItemId } from '@/lib/list-memory'
 import { getNavItem } from '@/lib/navigation'
@@ -127,14 +128,18 @@ function BlogIndex() {
   )
 }
 
+/** 公開日（下書きなら「下書き」、公開から日が浅ければ「新着」も付ける） */
 function PostDate({ post, className }: { post: Post; className?: string }) {
   if (post.draft) return <DraftBadge />
   if (!post.publishedAt) return null
   const date = new Date(post.publishedAt)
   return (
-    <time dateTime={date.toISOString()} className={className}>
-      {formatDate(date)}
-    </time>
+    <span className="inline-flex items-center gap-2">
+      <time dateTime={date.toISOString()} className={className}>
+        {formatDate(date)}
+      </time>
+      {isRecent(date) && <NewBadge />}
+    </span>
   )
 }
 

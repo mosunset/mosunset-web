@@ -6,6 +6,7 @@ import { BackLinkFooter } from '@/components/back-link-footer'
 import { DraftBadge } from '@/components/draft-badge'
 import { EmptyState } from '@/components/empty-state'
 import { RichTextContent, ZoomableImage } from '@/components/image-viewer'
+import { NewBadge, StatusBadge } from '@/components/item-badges'
 import {
   type Facet,
   FilterValue,
@@ -32,8 +33,9 @@ import {
   facetKeysOf,
   filterKeysOf,
   groupFieldOf,
+  statusMarkOf,
 } from '@/lib/collections'
-import { formatDay } from '@/lib/format'
+import { formatDay, isRecent } from '@/lib/format'
 import { imageUrl } from '@/lib/images'
 import {
   type ListEntry,
@@ -130,6 +132,42 @@ function Subtitle({
     </p>
   )
 }
+
+/** 写真の上に重ねる印（下書き・状態・新着） */
+function ImageBadges({
+  kind,
+  item,
+  small,
+}: {
+  kind: CollectionKind
+  item: ListItem
+  /** 写真の表示の小さなカード用 */
+  small?: boolean
+}) {
+  const mark = statusMarkOf(kind, item.attributes)
+  const recent = isRecent(item.acquiredAt)
+  if (!item.draft && !mark && !recent) return null
+  return (
+    <div
+      className={cn(
+        'absolute flex flex-wrap gap-1',
+        small
+          ? 'top-1 left-1 [&>*]:h-4 [&>*]:px-1 [&>*]:text-[10px]'
+          : 'top-2 left-2',
+      )}
+    >
+      {item.draft && <DraftBadge />}
+      {mark && <StatusBadge tone={mark.tone}>{mark.label}</StatusBadge>}
+      {recent && <NewBadge />}
+    </div>
+  )
+}
+
+/** 手放したもの・まだ取っていないものは、カードを薄く出す */
+const isDimmed = (kind: CollectionKind, item: ListItem) =>
+  statusMarkOf(kind, item.attributes)?.tone === 'dim'
+
+const dimmedClass = 'opacity-55 transition-opacity hover:opacity-100'
 
 /** 表に出す項目（URL は表では長すぎるので出さない） */
 const tableFieldsOf = (kind: CollectionKind) =>
@@ -284,14 +322,14 @@ function CollectionCards({
           <li
             key={item.slug}
             id={listItemId(item.slug)}
-            className="scroll-mt-20"
+            className={cn('scroll-mt-20', isDimmed(kind, item) && dimmedClass)}
           >
             <Link
               to={config.detailPath}
               params={{ slug: item.slug }}
               className="group block"
             >
-              <div className="aspect-square overflow-hidden rounded-lg border bg-muted/30">
+              <div className="relative aspect-square overflow-hidden rounded-lg border bg-muted/30">
                 {src ? (
                   <img
                     src={src}
@@ -307,8 +345,8 @@ function CollectionCards({
                     <ImageOff className="size-6" />
                   </div>
                 )}
+                <ImageBadges kind={kind} item={item} />
               </div>
-              {item.draft && <DraftBadge className="mt-2" />}
               <Title className="mt-2 font-medium leading-snug group-hover:underline">
                 {item.title}
               </Title>
@@ -339,7 +377,7 @@ function CollectionGallery({
           <li
             key={item.slug}
             id={listItemId(item.slug)}
-            className="scroll-mt-20"
+            className={cn('scroll-mt-20', isDimmed(kind, item) && dimmedClass)}
           >
             <Link
               to={config.detailPath}
@@ -363,9 +401,7 @@ function CollectionGallery({
                     <ImageOff className="size-5" />
                   </div>
                 )}
-                {item.draft && (
-                  <DraftBadge className="absolute top-1 left-1 px-1 py-0 text-[10px]" />
-                )}
+                <ImageBadges kind={kind} item={item} small />
               </div>
               <span className="mt-1.5 line-clamp-2 text-xs leading-snug group-hover:underline">
                 {item.title}
@@ -419,7 +455,10 @@ function CollectionTable({
                 <tr
                   key={item.slug}
                   id={listItemId(item.slug)}
-                  className="scroll-mt-20 border-t align-top hover:bg-muted/30"
+                  className={cn(
+                    'scroll-mt-20 border-t align-top hover:bg-muted/30',
+                    isDimmed(kind, item) && dimmedClass,
+                  )}
                 >
                   <td className="px-3 py-2">
                     <Link
@@ -448,6 +487,7 @@ function CollectionTable({
                         {item.title}
                       </span>
                       {item.draft && <DraftBadge />}
+                      {isRecent(item.acquiredAt) && <NewBadge />}
                     </Link>
                   </td>
                   {columns.map((f) => {
