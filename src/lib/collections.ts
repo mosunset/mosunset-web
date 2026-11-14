@@ -38,6 +38,10 @@ type CollectionConfig = {
    */
   filterKeys?: readonly string[]
   /**
+   * 一覧をこの項目（select のもの）の値ごとにまとめ、見出しを付けて並べる（選択肢の順。値が 1 種類なら見出しなし）
+   */
+  groupKey?: string
+  /**
    * 一覧のサムネイルの見せ方。cover は正方形いっぱいに（はみ出したところは切る）、
    * contain は写真全体を見せる（箱を斜めから撮った写真など、縦長で切られると困るもの）
    */
@@ -54,6 +58,7 @@ export const collections = {
     acquiredAtLabel: '入手日',
     subtitleKeys: ['maker', 'model'],
     filterKeys: ['category', 'status', 'maker'],
+    groupKey: 'status',
     fields: [
       {
         key: 'category',
@@ -85,6 +90,7 @@ export const collections = {
     acquiredAtLabel: '取得日',
     subtitleKeys: ['issuer'],
     filterKeys: ['status', 'category', 'issuer'],
+    groupKey: 'status',
     fields: [
       {
         key: 'status',
@@ -150,6 +156,7 @@ export const collections = {
     acquiredAtLabel: '入手日',
     subtitleKeys: ['author'],
     filterKeys: ['readingStatus', 'category', 'publisher'],
+    groupKey: 'readingStatus',
     fields: [
       { key: 'author', label: '著者', type: 'text' },
       { key: 'publisher', label: '出版社', type: 'text' },
@@ -197,3 +204,10 @@ export function itemSubtitle(
 /** 一覧の上に絞り込みの札を出す項目 */
 export const filterKeysOf = (kind: CollectionKind): readonly string[] =>
   (collections[kind] as { filterKeys?: readonly string[] }).filterKeys ?? []
+
+/** 一覧をまとめて見出しを付ける項目 */
+export const groupFieldOf = (kind: CollectionKind) => {
+  const key = (collections[kind] as { groupKey?: string }).groupKey
+  const fields: readonly AttributeField[] = collections[kind].fields
+  return fields.find((f) => f.key === key)
+}

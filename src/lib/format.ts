@@ -27,3 +27,13 @@ export function formatDateTime(date: Date) {
 export function messageTitle(subject: string) {
   return subject || '（件名なし）'
 }
+
+const yearFormat = new Intl.DateTimeFormat('en-US', {
+  year: 'numeric',
+  timeZone: 'Asia/Tokyo',
+})
+
+/** 日本時間の年（"2026"） */
+export function yearOf(date: Date) {
+  return yearFormat.format(date)
+}

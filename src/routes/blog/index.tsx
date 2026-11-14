@@ -3,15 +3,19 @@ import { createFileRoute, Link } from '@tanstack/react-router'
 import { DraftBadge } from '@/components/draft-badge'
 import { EmptyState } from '@/components/empty-state'
 import {
+  type Group,
+  GroupedSections,
+  groupItems,
   ListToolbar,
   listSearchValidator,
   NoMatches,
+  TableGroupRow,
   useList,
   type ViewMode,
 } from '@/components/list-view'
 import { SectionPage } from '@/components/section-page'
 import { listPublishedPosts } from '@/functions/posts'
-import { formatDate } from '@/lib/format'
+import { formatDate, yearOf } from '@/lib/format'
 import { imagePath } from '@/lib/images'
 import { listItemId } from '@/lib/list-memory'
 import { getNavItem } from '@/lib/navigation'
@@ -64,6 +68,15 @@ function BlogIndex() {
     views,
   })
   const { visible, view } = list
+  // 日付の順のときは年ごとに見出しを付ける（公開日のない下書きは「下書き」にまとめる）
+  const groups =
+    list.sort === 'title'
+      ? [{ key: '', label: '', items: visible }]
+      : groupItems(
+          visible,
+          (p) => (p.publishedAt ? yearOf(new Date(p.publishedAt)) : ''),
+          { label: (year) => (year ? `${year} 年` : '下書き') },
+        )
 
   if (posts.length === 0) {
     return (
@@ -78,16 +91,23 @@ function BlogIndex() {
       <ListToolbar list={list} placeholder="タイトルや本文の抜粋で探す" />
       {visible.length === 0 ? (
         <NoMatches onClear={list.clearAll} />
-      ) : view === 'card' ? (
-        <PostCards posts={visible} />
       ) : view === 'table' ? (
-        <PostTable posts={visible} />
+        <PostTable groups={groups} />
       ) : (
-        <PostList posts={visible} />
+        <GroupedSections groups={groups}>
+          {(posts, grouped) =>
+            view === 'card' ? (
+              <PostCards posts={posts} grouped={grouped} />
+            ) : (
+              <PostList posts={posts} grouped={grouped} />
+            )
+          }
+        </GroupedSections>
       )}
     </SectionPage>
   )
 }
+
 function PostDate({ post, className }: { post: Post; className?: string }) {
   if (post.draft) return <DraftBadge />
   if (!post.publishedAt) return null
@@ -99,7 +119,14 @@ function PostDate({ post, className }: { post: Post; className?: string }) {
   )
 }
 
-function PostList({ posts }: { posts: Post[] }) {
+type PostsProps = {
+  posts: Post[]
+  /** まとまりの見出し（h2）の下に並ぶとき */
+  grouped: boolean
+}
+
+function PostList({ posts, grouped }: PostsProps) {
+  const Title = grouped ? 'h3' : 'h2'
   return (
     <ul className="divide-y">
       {posts.map((post) => (
@@ -111,9 +138,9 @@ function PostList({ posts }: { posts: Post[] }) {
           >
             <div className="min-w-0 flex-1">
               <PostDate post={post} className="text-sm text-muted-foreground" />
-              <h2 className="mt-1 text-lg font-semibold group-hover:underline sm:text-xl">
+              <Title className="mt-1 text-lg font-semibold group-hover:underline sm:text-xl">
                 {post.title}
-              </h2>
+              </Title>
               {post.excerpt && (
                 <p className="mt-2 line-clamp-3 text-sm text-muted-foreground sm:text-base">
                   {post.excerpt}
@@ -135,7 +162,8 @@ function PostList({ posts }: { posts: Post[] }) {
   )
 }
 
-function PostCards({ posts }: { posts: Post[] }) {
+function PostCards({ posts, grouped }: PostsProps) {
+  const Title = grouped ? 'h3' : 'h2'
   return (
     <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
       {posts.map((post) => (
@@ -157,9 +185,9 @@ function PostCards({ posts }: { posts: Post[] }) {
             </div>
             <div className="flex flex-1 flex-col gap-1 p-4">
               <PostDate post={post} className="text-xs text-muted-foreground" />
-              <h2 className="font-semibold group-hover:underline">
+              <Title className="font-semibold group-hover:underline">
                 {post.title}
-              </h2>
+              </Title>
               {post.excerpt && (
                 <p className="line-clamp-3 text-sm text-muted-foreground">
                   {post.excerpt}
@@ -173,7 +201,7 @@ function PostCards({ posts }: { posts: Post[] }) {
   )
 }
 
-function PostTable({ posts }: { posts: Post[] }) {
+function PostTable({ groups }: { groups: readonly Group<Post>[] }) {
   return (
     <div className="overflow-x-auto rounded-lg border">
       <table className="w-full min-w-[32rem] text-sm">
@@ -183,33 +211,36 @@ function PostTable({ posts }: { posts: Post[] }) {
             <th className="px-3 py-2 font-normal whitespace-nowrap">公開日</th>
           </tr>
         </thead>
-        <tbody>
-          {posts.map((post) => (
-            <tr
-              key={post.slug}
-              id={listItemId(post.slug)}
-              className="scroll-mt-20 border-t hover:bg-muted/30"
-            >
-              <td className="px-3 py-2">
-                <Link
-                  to="/blog/$slug"
-                  params={{ slug: post.slug }}
-                  className="font-medium hover:underline"
-                >
-                  {post.title}
-                </Link>
-                {post.excerpt && (
-                  <p className="mt-0.5 line-clamp-1 text-xs text-muted-foreground">
-                    {post.excerpt}
-                  </p>
-                )}
-              </td>
-              <td className="px-3 py-2 text-xs whitespace-nowrap text-muted-foreground">
-                <PostDate post={post} />
-              </td>
-            </tr>
-          ))}
-        </tbody>
+        {groups.map((group) => (
+          <tbody key={group.key}>
+            {groups.length > 1 && <TableGroupRow group={group} colSpan={2} />}
+            {group.items.map((post) => (
+              <tr
+                key={post.slug}
+                id={listItemId(post.slug)}
+                className="scroll-mt-20 border-t hover:bg-muted/30"
+              >
+                <td className="px-3 py-2">
+                  <Link
+                    to="/blog/$slug"
+                    params={{ slug: post.slug }}
+                    className="font-medium hover:underline"
+                  >
+                    {post.title}
+                  </Link>
+                  {post.excerpt && (
+                    <p className="mt-0.5 line-clamp-1 text-xs text-muted-foreground">
+                      {post.excerpt}
+                    </p>
+                  )}
+                </td>
+                <td className="px-3 py-2 text-xs whitespace-nowrap text-muted-foreground">
+                  <PostDate post={post} />
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        ))}
       </table>
     </div>
   )

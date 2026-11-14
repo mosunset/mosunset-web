@@ -8,9 +8,13 @@ import { EmptyState } from '@/components/empty-state'
 import { RichTextContent, ZoomableImage } from '@/components/image-viewer'
 import {
   type Facet,
+  type Group,
+  GroupedSections,
+  groupItems,
   type ListSearch,
   ListToolbar,
   NoMatches,
+  TableGroupRow,
   useList,
   type ViewMode,
 } from '@/components/list-view'
@@ -22,6 +26,7 @@ import {
   collections,
   displayAttribute,
   filterKeysOf,
+  groupFieldOf,
   itemSubtitle,
 } from '@/lib/collections'
 import { formatDay } from '@/lib/format'
@@ -123,6 +128,18 @@ export function CollectionGrid({
     return <EmptyState>まだ登録されていません。</EmptyState>
   }
 
+  // 状態などでまとめて、見出しを付けて並べる（並べ替えはまとまりの中で効く）
+  const groupField = groupFieldOf(kind)
+  const groups = groupField
+    ? groupItems(visible, (item) => item.attributes[groupField.key] ?? '', {
+        label: (key) => (key ? displayAttribute(groupField, key) : '未設定'),
+        order:
+          groupField.type === 'select'
+            ? groupField.options.map((o) => o.value)
+            : undefined,
+      })
+    : [{ key: '', label: '', items: visible }]
+
   const hint = fields
     .slice(0, 2)
     .map((f) => f.label)
@@ -133,9 +150,13 @@ export function CollectionGrid({
       {visible.length === 0 ? (
         <NoMatches onClear={list.clearAll} />
       ) : view === 'table' ? (
-        <CollectionTable kind={kind} items={visible} />
+        <CollectionTable kind={kind} groups={groups} />
       ) : (
-        <CollectionCards kind={kind} items={visible} />
+        <GroupedSections groups={groups}>
+          {(items, grouped) => (
+            <CollectionCards kind={kind} items={items} grouped={grouped} />
+          )}
+        </GroupedSections>
       )}
     </>
   )
@@ -144,12 +165,16 @@ export function CollectionGrid({
 function CollectionCards({
   kind,
   items,
+  grouped,
 }: {
   kind: CollectionKind
   items: ListItem[]
+  /** まとまりの見出し（h2）の下に並ぶとき */
+  grouped: boolean
 }) {
   const config = collections[kind]
   const contain = imageFitOf(kind) === 'contain'
+  const Title = grouped ? 'h3' : 'h2'
   return (
     <ul className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
       {items.map((item) => {
@@ -184,9 +209,9 @@ function CollectionCards({
                 )}
               </div>
               {item.draft && <DraftBadge className="mt-2" />}
-              <h2 className="mt-2 font-medium leading-snug group-hover:underline">
+              <Title className="mt-2 font-medium leading-snug group-hover:underline">
                 {item.title}
-              </h2>
+              </Title>
               {subtitle && (
                 <p className="text-sm text-muted-foreground">{subtitle}</p>
               )}
@@ -200,10 +225,10 @@ function CollectionCards({
 
 function CollectionTable({
   kind,
-  items,
+  groups,
 }: {
   kind: CollectionKind
-  items: ListItem[]
+  groups: readonly Group<ListItem>[]
 }) {
   const config = collections[kind]
   const contain = imageFitOf(kind) === 'contain'
@@ -230,66 +255,71 @@ function CollectionTable({
             </th>
           </tr>
         </thead>
-        <tbody>
-          {items.map((item) => {
-            const src = imageUrl(item.imageKey)
-            return (
-              <tr
-                key={item.slug}
-                id={listItemId(item.slug)}
-                className="scroll-mt-20 border-t align-top hover:bg-muted/30"
-              >
-                <td className="px-3 py-2">
-                  <Link
-                    to={config.detailPath}
-                    params={{ slug: item.slug }}
-                    className="group flex items-center gap-2.5"
-                  >
-                    {src ? (
-                      <img
-                        src={src}
-                        alt=""
-                        loading="lazy"
-                        className={cn(
-                          'size-10 shrink-0 rounded border',
-                          contain
-                            ? 'bg-muted/30 object-contain'
-                            : 'object-cover',
-                        )}
-                      />
-                    ) : (
-                      <span className="flex size-10 shrink-0 items-center justify-center rounded border text-muted-foreground">
-                        <ImageOff className="size-4" />
-                      </span>
-                    )}
-                    <span className="font-medium group-hover:underline">
-                      {item.title}
-                    </span>
-                    {item.draft && <DraftBadge />}
-                  </Link>
-                </td>
-                {columns.map((f) => {
-                  const v = item.attributes[f.key]
-                  return (
-                    <td
-                      key={f.key}
-                      className="px-3 py-2 text-xs text-muted-foreground"
+        {groups.map((group) => (
+          <tbody key={group.key}>
+            {groups.length > 1 && (
+              <TableGroupRow group={group} colSpan={columns.length + 2} />
+            )}
+            {group.items.map((item) => {
+              const src = imageUrl(item.imageKey)
+              return (
+                <tr
+                  key={item.slug}
+                  id={listItemId(item.slug)}
+                  className="scroll-mt-20 border-t align-top hover:bg-muted/30"
+                >
+                  <td className="px-3 py-2">
+                    <Link
+                      to={config.detailPath}
+                      params={{ slug: item.slug }}
+                      className="group flex items-center gap-2.5"
                     >
-                      {v
-                        ? f.type === 'date'
-                          ? formatDay(v)
-                          : displayAttribute(f, v)
-                        : '—'}
-                    </td>
-                  )
-                })}
-                <td className="px-3 py-2 text-xs whitespace-nowrap text-muted-foreground">
-                  {item.acquiredAt ? formatDay(item.acquiredAt) : '—'}
-                </td>
-              </tr>
-            )
-          })}
-        </tbody>
+                      {src ? (
+                        <img
+                          src={src}
+                          alt=""
+                          loading="lazy"
+                          className={cn(
+                            'size-10 shrink-0 rounded border',
+                            contain
+                              ? 'bg-muted/30 object-contain'
+                              : 'object-cover',
+                          )}
+                        />
+                      ) : (
+                        <span className="flex size-10 shrink-0 items-center justify-center rounded border text-muted-foreground">
+                          <ImageOff className="size-4" />
+                        </span>
+                      )}
+                      <span className="font-medium group-hover:underline">
+                        {item.title}
+                      </span>
+                      {item.draft && <DraftBadge />}
+                    </Link>
+                  </td>
+                  {columns.map((f) => {
+                    const v = item.attributes[f.key]
+                    return (
+                      <td
+                        key={f.key}
+                        className="px-3 py-2 text-xs text-muted-foreground"
+                      >
+                        {v
+                          ? f.type === 'date'
+                            ? formatDay(v)
+                            : displayAttribute(f, v)
+                          : '—'}
+                      </td>
+                    )
+                  })}
+                  <td className="px-3 py-2 text-xs whitespace-nowrap text-muted-foreground">
+                    {item.acquiredAt ? formatDay(item.acquiredAt) : '—'}
+                  </td>
+                </tr>
+              )
+            })}
+          </tbody>
+        ))}
       </table>
     </div>
   )
