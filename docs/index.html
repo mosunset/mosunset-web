@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="robots" content="noindex" />
     <title>mosunset-web 開発ドキュメント</title>
+    <link rel="icon" type="image/png" href="assets/favicon.png" />
     <!-- テーマ: OS の設定に合わせてライト / ダークを切り替える -->
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/docsify-themeable@0.9.0/dist/css/theme-simple.css" />
     <link
@@ -20,7 +21,25 @@
         --theme-color: #e8742c;
         --code-font-family: ui-monospace, 'Cascadia Code', Consolas, monospace;
         --sidebar-width: 17rem;
+        /* 表紙: 夕焼けの画像の上に白い文字を載せる */
+        --cover-color: #fff;
+        --cover-background-color: #1a1f2e;
+        /* 表紙の背景の画像は下の script で --cover-background-image に入れる */
+        --cover-background-position: center 60%;
+        --cover-heading-color: #fff;
+        --cover-blockquote-color: #ffd9bf;
+        --cover-link-color: #fff;
+        --cover-button-color: #fff;
+        --cover-button-background: #e8742c;
+        --cover-button-border: 1px solid #e8742c;
+        --cover-button-primary-background: #e8742c;
+        --cover-button-primary-color: #fff;
       }
+      section.cover .cover-main { box-sizing: border-box; max-width: 100%; padding: 0 16px; text-shadow: 0 1px 8px rgb(0 0 0 / 0.5); }
+      section.cover .cover-main h1 { margin-bottom: 0.25em; }
+      section.cover .cover-main > ul { list-style: none; padding: 0; opacity: 0.9; }
+      section.cover .cover-main > p:last-child a { border-color: #fff; }
+      .app-name-link img { width: 48px; height: 48px; border-radius: 10px; }
       .markdown-section table { display: table; width: 100%; }
       .markdown-section code, .markdown-section pre { font-variant-ligatures: none; }
       .markdown-section td code, .markdown-section th code { white-space: nowrap; }
@@ -36,9 +55,19 @@
   <body>
     <div id="app">読み込み中…</div>
     <script>
+      // 表紙の背景（テーマが .cover::before に描く）。CSS 変数の中の相対 URL はテーマの CSS（CDN）を基準に
+      // 解決されてしまうので、このページを基準にした絶対 URL にして入れる。文字が読めるよう少しだけ暗くする
+      const coverUrl = new URL('assets/cover.webp', location.href).href
+      document.documentElement.style.setProperty(
+        '--cover-background-image',
+        `linear-gradient(rgb(10 14 24 / 0.35), rgb(10 14 24 / 0.35)), url("${coverUrl}")`,
+      )
+    </script>
+    <script>
       window.$docsify = {
-        name: 'mosunset-web',
-        nameLink: '#/',
+        name: '<img src="assets/logo.webp" alt="" /><br />mosunset-web',
+        nameLink: '#/README',
+        coverpage: true,
         repo: 'mosunset/mosunset-web',
         loadSidebar: true,
         // サブフォルダ（specs/ など）でもルートのサイドバーを使う
