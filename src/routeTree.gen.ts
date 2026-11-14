@@ -54,6 +54,7 @@ import { Route as PlaygroundJwtDecoderRouteImport } from './routes/playground/jw
 import { Route as PlaygroundKuromojiRouteImport } from './routes/playground/kuromoji'
 import { Route as PlaygroundMasonryimageRouteImport } from './routes/playground/masonryimage'
 import { Route as PlaygroundMonitorPairingRouteImport } from './routes/playground/monitor-pairing'
+import { Route as PlaygroundMosaicArtRouteImport } from './routes/playground/mosaic-art'
 import { Route as PlaygroundNgramSimilarityRouteImport } from './routes/playground/ngram-similarity'
 import { Route as PlaygroundNotationVarianceRouteImport } from './routes/playground/notation-variance'
 import { Route as PlaygroundReadabilityCheckRouteImport } from './routes/playground/readability-check'
@@ -306,6 +307,11 @@ const PlaygroundMonitorPairingRoute =
     path: '/monitor-pairing',
     getParentRoute: () => PlaygroundRouteRoute,
   } as any)
+const PlaygroundMosaicArtRoute = PlaygroundMosaicArtRouteImport.update({
+  id: '/mosaic-art',
+  path: '/mosaic-art',
+  getParentRoute: () => PlaygroundRouteRoute,
+} as any)
 const PlaygroundNgramSimilarityRoute =
   PlaygroundNgramSimilarityRouteImport.update({
     id: '/ngram-similarity',
@@ -454,6 +460,7 @@ export interface FileRoutesByFullPath {
   '/playground/kuromoji': typeof PlaygroundKuromojiRoute
   '/playground/masonryimage': typeof PlaygroundMasonryimageRoute
   '/playground/monitor-pairing': typeof PlaygroundMonitorPairingRoute
+  '/playground/mosaic-art': typeof PlaygroundMosaicArtRoute
   '/playground/ngram-similarity': typeof PlaygroundNgramSimilarityRoute
   '/playground/notation-variance': typeof PlaygroundNotationVarianceRoute
   '/playground/readability-check': typeof PlaygroundReadabilityCheckRoute
@@ -511,6 +518,7 @@ export interface FileRoutesByTo {
   '/playground/kuromoji': typeof PlaygroundKuromojiRoute
   '/playground/masonryimage': typeof PlaygroundMasonryimageRoute
   '/playground/monitor-pairing': typeof PlaygroundMonitorPairingRoute
+  '/playground/mosaic-art': typeof PlaygroundMosaicArtRoute
   '/playground/ngram-similarity': typeof PlaygroundNgramSimilarityRoute
   '/playground/notation-variance': typeof PlaygroundNotationVarianceRoute
   '/playground/readability-check': typeof PlaygroundReadabilityCheckRoute
@@ -578,6 +586,7 @@ export interface FileRoutesById {
   '/playground/kuromoji': typeof PlaygroundKuromojiRoute
   '/playground/masonryimage': typeof PlaygroundMasonryimageRoute
   '/playground/monitor-pairing': typeof PlaygroundMonitorPairingRoute
+  '/playground/mosaic-art': typeof PlaygroundMosaicArtRoute
   '/playground/ngram-similarity': typeof PlaygroundNgramSimilarityRoute
   '/playground/notation-variance': typeof PlaygroundNotationVarianceRoute
   '/playground/readability-check': typeof PlaygroundReadabilityCheckRoute
@@ -647,6 +656,7 @@ export interface FileRouteTypes {
     | '/playground/kuromoji'
     | '/playground/masonryimage'
     | '/playground/monitor-pairing'
+    | '/playground/mosaic-art'
     | '/playground/ngram-similarity'
     | '/playground/notation-variance'
     | '/playground/readability-check'
@@ -704,6 +714,7 @@ export interface FileRouteTypes {
     | '/playground/kuromoji'
     | '/playground/masonryimage'
     | '/playground/monitor-pairing'
+    | '/playground/mosaic-art'
     | '/playground/ngram-similarity'
     | '/playground/notation-variance'
     | '/playground/readability-check'
@@ -770,6 +781,7 @@ export interface FileRouteTypes {
     | '/playground/kuromoji'
     | '/playground/masonryimage'
     | '/playground/monitor-pairing'
+    | '/playground/mosaic-art'
     | '/playground/ngram-similarity'
     | '/playground/notation-variance'
     | '/playground/readability-check'
@@ -1135,6 +1147,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PlaygroundMonitorPairingRouteImport
       parentRoute: typeof PlaygroundRouteRoute
     }
+    '/playground/mosaic-art': {
+      id: '/playground/mosaic-art'
+      path: '/mosaic-art'
+      fullPath: '/playground/mosaic-art'
+      preLoaderRoute: typeof PlaygroundMosaicArtRouteImport
+      parentRoute: typeof PlaygroundRouteRoute
+    }
     '/playground/ngram-similarity': {
       id: '/playground/ngram-similarity'
       path: '/ngram-similarity'
@@ -1429,6 +1448,7 @@ interface PlaygroundRouteRouteChildren {
   PlaygroundKuromojiRoute: typeof PlaygroundKuromojiRoute
   PlaygroundMasonryimageRoute: typeof PlaygroundMasonryimageRoute
   PlaygroundMonitorPairingRoute: typeof PlaygroundMonitorPairingRoute
+  PlaygroundMosaicArtRoute: typeof PlaygroundMosaicArtRoute
   PlaygroundNgramSimilarityRoute: typeof PlaygroundNgramSimilarityRoute
   PlaygroundNotationVarianceRoute: typeof PlaygroundNotationVarianceRoute
   PlaygroundReadabilityCheckRoute: typeof PlaygroundReadabilityCheckRoute
@@ -1457,6 +1477,7 @@ const PlaygroundRouteRouteChildren: PlaygroundRouteRouteChildren = {
   PlaygroundKuromojiRoute: PlaygroundKuromojiRoute,
   PlaygroundMasonryimageRoute: PlaygroundMasonryimageRoute,
   PlaygroundMonitorPairingRoute: PlaygroundMonitorPairingRoute,
+  PlaygroundMosaicArtRoute: PlaygroundMosaicArtRoute,
   PlaygroundNgramSimilarityRoute: PlaygroundNgramSimilarityRoute,
   PlaygroundNotationVarianceRoute: PlaygroundNotationVarianceRoute,
   PlaygroundReadabilityCheckRoute: PlaygroundReadabilityCheckRoute,
