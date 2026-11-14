@@ -30,7 +30,8 @@ const TURNSTILE = 'https://challenges.cloudflare.com'
 /**
  * Content-Security-Policy。
  * スクリプトは、サーバーがリクエストごとに作る nonce が付いたものと、そこから読み込まれたもの（strict-dynamic）だけ動かせる。
- * 外部から読み込むもの: Clerk（ログイン）、Turnstile、物体認識のモデル（storage.googleapis.com）
+ * 外部から読み込むもの: Clerk（ログイン）、Turnstile、物体認識のモデル（storage.googleapis.com）、
+ * 文字起こしのモデル（Hugging Face）と ONNX Runtime（cdn.jsdelivr.net）
  */
 function contentSecurityPolicy(nonce: string, local: boolean) {
   const clerk = clerkFrontendOrigin()
@@ -50,6 +51,11 @@ function contentSecurityPolicy(nonce: string, local: boolean) {
       'https://clerk-telemetry.com',
       TURNSTILE,
       'https://storage.googleapis.com',
+      // 文字起こし（Whisper）のモデル（huggingface.co から *.hf.co などへ転送される）と、ONNX Runtime の wasm
+      'https://huggingface.co',
+      'https://*.huggingface.co',
+      'https://*.hf.co',
+      'https://cdn.jsdelivr.net',
     ]
       .filter(Boolean)
       .join(' ')}`,

@@ -51,6 +51,7 @@ import { Route as PlaygroundMonitorPairingRouteImport } from './routes/playgroun
 import { Route as PlaygroundNgramSimilarityRouteImport } from './routes/playground/ngram-similarity'
 import { Route as PlaygroundUnitPriceComparisonRouteImport } from './routes/playground/unit-price-comparison'
 import { Route as PlaygroundWebyoloRouteImport } from './routes/playground/webyolo'
+import { Route as PlaygroundWhisperTranscribeRouteImport } from './routes/playground/whisper-transcribe'
 import { Route as SignInSplatRouteImport } from './routes/sign-in.$'
 import { Route as ToysIndexRouteImport } from './routes/toys/index'
 import { Route as ToysSlugRouteImport } from './routes/toys/$slug'
@@ -282,6 +283,12 @@ const PlaygroundWebyoloRoute = PlaygroundWebyoloRouteImport.update({
   path: '/webyolo',
   getParentRoute: () => PlaygroundRouteRoute,
 } as any)
+const PlaygroundWhisperTranscribeRoute =
+  PlaygroundWhisperTranscribeRouteImport.update({
+    id: '/whisper-transcribe',
+    path: '/whisper-transcribe',
+    getParentRoute: () => PlaygroundRouteRoute,
+  } as any)
 const SignInSplatRoute = SignInSplatRouteImport.update({
   id: '/sign-in/$',
   path: '/sign-in/$',
@@ -387,6 +394,7 @@ export interface FileRoutesByFullPath {
   '/playground/ngram-similarity': typeof PlaygroundNgramSimilarityRoute
   '/playground/unit-price-comparison': typeof PlaygroundUnitPriceComparisonRoute
   '/playground/webyolo': typeof PlaygroundWebyoloRoute
+  '/playground/whisper-transcribe': typeof PlaygroundWhisperTranscribeRoute
   '/sign-in/$': typeof SignInSplatRoute
   '/toys/$slug': typeof ToysSlugRoute
   '/admin/': typeof AdminIndexRoute
@@ -434,6 +442,7 @@ export interface FileRoutesByTo {
   '/playground/ngram-similarity': typeof PlaygroundNgramSimilarityRoute
   '/playground/unit-price-comparison': typeof PlaygroundUnitPriceComparisonRoute
   '/playground/webyolo': typeof PlaygroundWebyoloRoute
+  '/playground/whisper-transcribe': typeof PlaygroundWhisperTranscribeRoute
   '/sign-in/$': typeof SignInSplatRoute
   '/toys/$slug': typeof ToysSlugRoute
   '/admin': typeof AdminIndexRoute
@@ -491,6 +500,7 @@ export interface FileRoutesById {
   '/playground/ngram-similarity': typeof PlaygroundNgramSimilarityRoute
   '/playground/unit-price-comparison': typeof PlaygroundUnitPriceComparisonRoute
   '/playground/webyolo': typeof PlaygroundWebyoloRoute
+  '/playground/whisper-transcribe': typeof PlaygroundWhisperTranscribeRoute
   '/sign-in/$': typeof SignInSplatRoute
   '/toys/$slug': typeof ToysSlugRoute
   '/admin/': typeof AdminIndexRoute
@@ -550,6 +560,7 @@ export interface FileRouteTypes {
     | '/playground/ngram-similarity'
     | '/playground/unit-price-comparison'
     | '/playground/webyolo'
+    | '/playground/whisper-transcribe'
     | '/sign-in/$'
     | '/toys/$slug'
     | '/admin/'
@@ -597,6 +608,7 @@ export interface FileRouteTypes {
     | '/playground/ngram-similarity'
     | '/playground/unit-price-comparison'
     | '/playground/webyolo'
+    | '/playground/whisper-transcribe'
     | '/sign-in/$'
     | '/toys/$slug'
     | '/admin'
@@ -653,6 +665,7 @@ export interface FileRouteTypes {
     | '/playground/ngram-similarity'
     | '/playground/unit-price-comparison'
     | '/playground/webyolo'
+    | '/playground/whisper-transcribe'
     | '/sign-in/$'
     | '/toys/$slug'
     | '/admin/'
@@ -990,6 +1003,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PlaygroundWebyoloRouteImport
       parentRoute: typeof PlaygroundRouteRoute
     }
+    '/playground/whisper-transcribe': {
+      id: '/playground/whisper-transcribe'
+      path: '/whisper-transcribe'
+      fullPath: '/playground/whisper-transcribe'
+      preLoaderRoute: typeof PlaygroundWhisperTranscribeRouteImport
+      parentRoute: typeof PlaygroundRouteRoute
+    }
     '/sign-in/$': {
       id: '/sign-in/$'
       path: '/sign-in/$'
@@ -1232,6 +1252,7 @@ interface PlaygroundRouteRouteChildren {
   PlaygroundNgramSimilarityRoute: typeof PlaygroundNgramSimilarityRoute
   PlaygroundUnitPriceComparisonRoute: typeof PlaygroundUnitPriceComparisonRoute
   PlaygroundWebyoloRoute: typeof PlaygroundWebyoloRoute
+  PlaygroundWhisperTranscribeRoute: typeof PlaygroundWhisperTranscribeRoute
   PlaygroundIndexRoute: typeof PlaygroundIndexRoute
 }
 
@@ -1250,6 +1271,7 @@ const PlaygroundRouteRouteChildren: PlaygroundRouteRouteChildren = {
   PlaygroundNgramSimilarityRoute: PlaygroundNgramSimilarityRoute,
   PlaygroundUnitPriceComparisonRoute: PlaygroundUnitPriceComparisonRoute,
   PlaygroundWebyoloRoute: PlaygroundWebyoloRoute,
+  PlaygroundWhisperTranscribeRoute: PlaygroundWhisperTranscribeRoute,
   PlaygroundIndexRoute: PlaygroundIndexRoute,
 }
 

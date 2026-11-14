@@ -3,3 +3,5 @@ allowBuilds:
   lightningcss: true
   workerd: true
   core-js: false
+  onnxruntime-node: false
+  protobufjs: false

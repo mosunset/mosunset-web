@@ -164,6 +164,18 @@ export const playgroundTools = [
     publishedDate: '2025-09-09',
     thumbnail: '/playground/3dblock/thumbnail.webp',
   },
+  {
+    slug: 'whisper-transcribe',
+    name: 'ブラウザで文字起こし',
+    title:
+      'ブラウザで文字起こし | Whisper で音声・動画を文字に（WebGPU 対応・SRT/VTT 書き出し）',
+    description:
+      '音声・動画ファイルやマイクの録音を、OpenAI の Whisper でブラウザの中だけで文字にします。日本語をはじめ多くの言語に対応し、タイムスタンプ付きで表示、テキスト・SRT・VTT でコピーやダウンロードができます。WebGPU が使えるブラウザでは GPU で速く動きます。音声はサーバーに送りません。',
+    category: 'AI・人工知能',
+    tags: ['AI', '文字起こし', 'Whisper', '音声認識', 'ブラウザ AI'],
+    publishedDate: '2026-11-14',
+    thumbnail: '/playground/whisper-transcribe/thumbnail.svg',
+  },
 ] as const satisfies readonly (Omit<PlaygroundTool, 'slug'> & {
   slug: string
 })[]
