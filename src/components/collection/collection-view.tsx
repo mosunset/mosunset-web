@@ -1,6 +1,6 @@
-import { Link } from '@tanstack/react-router'
-import { ExternalLink, ImageOff } from 'lucide-react'
-import type * as React from 'react'
+import { Link, useNavigate } from '@tanstack/react-router'
+import { ChevronLeft, ChevronRight, ExternalLink, ImageOff } from 'lucide-react'
+import * as React from 'react'
 
 import { BackLinkFooter } from '@/components/back-link-footer'
 import { DraftBadge } from '@/components/draft-badge'
@@ -31,7 +31,12 @@ import {
 } from '@/lib/collections'
 import { formatDay } from '@/lib/format'
 import { imageUrl } from '@/lib/images'
-import { listItemId } from '@/lib/list-memory'
+import {
+  type ListEntry,
+  listItemId,
+  rememberListOrder,
+  useRememberedListOrder,
+} from '@/lib/list-memory'
 import { cn } from '@/lib/utils'
 
 type ListItem = {
@@ -124,10 +129,6 @@ export function CollectionGrid({
   })
   const { visible, view } = list
 
-  if (items.length === 0) {
-    return <EmptyState>まだ登録されていません。</EmptyState>
-  }
-
   // 状態などでまとめて、見出しを付けて並べる（並べ替えはまとまりの中で効く）
   const groupField = groupFieldOf(kind)
   const groups = groupField
@@ -139,6 +140,20 @@ export function CollectionGrid({
             : undefined,
       })
     : [{ key: '', label: '', items: visible }]
+
+  // 出ている並びを覚えて、詳しいページの「前へ／次へ」をこの順で動けるようにする
+  const orderJson = JSON.stringify(
+    groups.flatMap((g) =>
+      g.items.map((i): ListEntry => ({ slug: i.slug, title: i.title })),
+    ),
+  )
+  React.useEffect(() => {
+    rememberListOrder(config.path, orderJson)
+  }, [config.path, orderJson])
+
+  if (items.length === 0) {
+    return <EmptyState>まだ登録されていません。</EmptyState>
+  }
 
   const hint = fields
     .slice(0, 2)
@@ -325,7 +340,168 @@ function CollectionTable({
   )
 }
 
-type DetailItem = ListItem & { html: string }
+type DetailItem = ListItem & {
+  html: string
+  /** 同じ種類のもの全部の、一覧のふだんの並び */
+  siblings: readonly ListEntry[]
+}
+
+/**
+ * 詳しいページの前後のもの。一覧から来たときはその一覧に出ていた並び（絞り込み・並べ替えのあと）、
+ * そうでなければ一覧のふだんの並びで決める
+ */
+function useNeighbors(
+  kind: CollectionKind,
+  slug: string,
+  siblings: readonly ListEntry[],
+) {
+  const remembered = useRememberedListOrder(collections[kind].path)
+  const order = remembered?.some((e) => e.slug === slug) ? remembered : siblings
+  const index = order.findIndex((e) => e.slug === slug)
+  return {
+    prev: index > 0 ? order[index - 1] : undefined,
+    next: index >= 0 ? order[index + 1] : undefined,
+    /** 何番目か（並びの中にないときは 0） */
+    position: index + 1,
+    total: order.length,
+  }
+}
+
+type Neighbors = ReturnType<typeof useNeighbors>
+
+/** ← → のキーで前後のものへ（入力欄にいるときや、画像の拡大表示を開いているときは動かない） */
+function useArrowKeys(kind: CollectionKind, { prev, next }: Neighbors) {
+  const navigate = useNavigate()
+  const detailPath = collections[kind].detailPath
+  const prevSlug = prev?.slug
+  const nextSlug = next?.slug
+  React.useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (
+        e.defaultPrevented ||
+        e.altKey ||
+        e.ctrlKey ||
+        e.metaKey ||
+        e.shiftKey
+      )
+        return
+      const target = e.target as HTMLElement | null
+      if (target?.closest('input, textarea, select, [contenteditable="true"]'))
+        return
+      if (document.querySelector('[role="dialog"]')) return
+      const slug =
+        e.key === 'ArrowLeft'
+          ? prevSlug
+          : e.key === 'ArrowRight'
+            ? nextSlug
+            : undefined
+      if (!slug) return
+      e.preventDefault()
+      navigate({ to: detailPath, params: { slug } })
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [navigate, detailPath, prevSlug, nextSlug])
+}
+
+/** 名前の上に置く、小さな「‹ 3 / 40 ›」 */
+function PagerCompact({
+  kind,
+  neighbors,
+}: {
+  kind: CollectionKind
+  neighbors: Neighbors
+}) {
+  const { prev, next, position, total } = neighbors
+  if (total <= 1 || position === 0) return null
+  const detailPath = collections[kind].detailPath
+  const button =
+    'inline-flex size-7 items-center justify-center rounded-md border hover:bg-muted hover:text-foreground'
+  const disabled = cn(button, 'pointer-events-none opacity-40')
+  return (
+    <nav aria-label="前後のもの" className="ml-auto flex items-center gap-1.5">
+      {prev ? (
+        <Link
+          to={detailPath}
+          params={{ slug: prev.slug }}
+          className={button}
+          title={`前へ: ${prev.title}（← キー）`}
+        >
+          <ChevronLeft className="size-4" />
+          <span className="sr-only">前へ</span>
+        </Link>
+      ) : (
+        <span className={disabled} aria-hidden>
+          <ChevronLeft className="size-4" />
+        </span>
+      )}
+      <span className="min-w-12 text-center text-xs tabular-nums">
+        {position} / {total}
+      </span>
+      {next ? (
+        <Link
+          to={detailPath}
+          params={{ slug: next.slug }}
+          className={button}
+          title={`次へ: ${next.title}（→ キー）`}
+        >
+          <ChevronRight className="size-4" />
+          <span className="sr-only">次へ</span>
+        </Link>
+      ) : (
+        <span className={disabled} aria-hidden>
+          <ChevronRight className="size-4" />
+        </span>
+      )}
+    </nav>
+  )
+}
+
+/** ページの終わりに置く、前後のものの名前つきのリンク */
+function PagerFull({
+  kind,
+  neighbors: { prev, next },
+}: {
+  kind: CollectionKind
+  neighbors: Neighbors
+}) {
+  if (!prev && !next) return null
+  const detailPath = collections[kind].detailPath
+  const box =
+    'group flex min-w-0 flex-col gap-0.5 rounded-lg border p-3 hover:bg-muted/40'
+  return (
+    <nav aria-label="前後のもの" className="grid grid-cols-2 gap-3">
+      {prev ? (
+        <Link to={detailPath} params={{ slug: prev.slug }} className={box}>
+          <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
+            <ChevronLeft className="size-3.5" />
+            前へ
+          </span>
+          <span className="truncate text-sm font-medium group-hover:underline">
+            {prev.title}
+          </span>
+        </Link>
+      ) : (
+        <span />
+      )}
+      {next && (
+        <Link
+          to={detailPath}
+          params={{ slug: next.slug }}
+          className={cn(box, 'items-end text-right')}
+        >
+          <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
+            次へ
+            <ChevronRight className="size-3.5" />
+          </span>
+          <span className="max-w-full truncate text-sm font-medium group-hover:underline">
+            {next.title}
+          </span>
+        </Link>
+      )}
+    </nav>
+  )
+}
 
 /** コレクションの詳細 */
 export function CollectionDetail({
@@ -337,6 +513,8 @@ export function CollectionDetail({
 }) {
   const config = collections[kind]
   const src = imageUrl(item.imageKey)
+  const neighbors = useNeighbors(kind, item.slug, item.siblings)
+  useArrowKeys(kind, neighbors)
 
   const fields: readonly AttributeField[] = config.fields
   const rows: { label: string; value: React.ReactNode }[] = [
@@ -394,10 +572,11 @@ export function CollectionDetail({
         )}
 
         <div>
-          <p className="flex items-center gap-2 text-sm text-muted-foreground">
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
             {config.label}
             {item.draft && <DraftBadge />}
-          </p>
+            <PagerCompact kind={kind} neighbors={neighbors} />
+          </div>
           <h1 className="mt-1 text-3xl font-bold leading-tight">
             {item.title}
           </h1>
@@ -418,7 +597,11 @@ export function CollectionDetail({
         </div>
       </div>
 
-      <BackLinkFooter to={config.path} slug={item.slug}>
+      <BackLinkFooter
+        to={config.path}
+        slug={item.slug}
+        before={<PagerFull kind={kind} neighbors={neighbors} />}
+      >
         {config.label}の一覧へ
       </BackLinkFooter>
     </article>

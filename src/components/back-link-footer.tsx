@@ -11,16 +11,20 @@ import { listItemId, useRememberedListSearch } from '@/lib/list-memory'
 export function BackLinkFooter({
   to,
   slug,
+  before,
   children,
 }: {
   to: LinkProps['to'] & string
   /** 今見ているもの。一覧でその位置まで戻る */
   slug?: string
+  /** リンクの上に置くもの（前後のものへのリンクなど） */
+  before?: React.ReactNode
   children: React.ReactNode
 }) {
   const search = useRememberedListSearch(to)
   return (
-    <footer className="mt-12 border-t pt-6">
+    <footer className="mt-12 space-y-6 border-t pt-6">
+      {before}
       <Link
         to={to}
         search={search ?? {}}

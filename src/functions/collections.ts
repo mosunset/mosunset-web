@@ -8,6 +8,7 @@ import {
   type AttributeField,
   type CollectionAttributes,
   collections,
+  groupFieldOf,
 } from '@/lib/collections'
 import { isAdminRequest } from '@/server/auth'
 import { getDb, publishedItems, schema } from '@/server/db'
@@ -104,20 +105,56 @@ export const listPublishedItems = createServerFn({ method: 'GET' })
     }))
   })
 
+/**
+ * 公開側の一覧に出る順に並べる。一覧は状態などでまとめて見出しを付けるので（groupKey）、
+ * まとまりの順（選択肢の順、値のないものは最後）に並べ直す。まとまりの中は届いた順のまま
+ */
+function inListOrder<T extends { attributes: unknown }>(
+  kind: keyof typeof collections,
+  rows: T[],
+) {
+  const field = groupFieldOf(kind)
+  if (field?.type !== 'select') return rows
+  const order = field.options.map((o) => o.value as string)
+  const rank = (row: T) => {
+    const value = toAttributes(row.attributes)[field.key] ?? ''
+    const i = order.indexOf(value)
+    return i >= 0 ? i : value === '' ? order.length + 1 : order.length
+  }
+  return [...rows].sort((a, b) => rank(a) - rank(b))
+}
+
 export const getPublishedItem = createServerFn({ method: 'GET' })
   .validator((data: unknown) =>
     z.object({ kind: kindSchema, slug: z.string() }).parse(data),
   )
   .handler(async ({ data }) => {
     const admin = await isAdminRequest()
-    const item = await getDb().query.collectionItems.findFirst({
-      where: and(
-        eq(items.kind, data.kind),
-        eq(items.slug, data.slug),
-        admin ? undefined : publishedItems,
-      ),
-    })
+    const visible = admin ? undefined : publishedItems
+    const db = getDb()
+    const [item, siblingRows] = await Promise.all([
+      db.query.collectionItems.findFirst({
+        where: and(
+          eq(items.kind, data.kind),
+          eq(items.slug, data.slug),
+          visible,
+        ),
+      }),
+      // 「前へ／次へ」に使う、一覧と同じ並び（一覧から来ていないときに使う）
+      db
+        .select({
+          slug: items.slug,
+          title: items.title,
+          attributes: items.attributes,
+        })
+        .from(items)
+        .where(and(eq(items.kind, data.kind), visible))
+        .orderBy(...listOrder),
+    ])
     if (!item) throw notFound()
+    const siblings = inListOrder(data.kind, siblingRows).map(
+      ({ slug, title }) => ({ slug, title }),
+    )
     const html = item.description ? renderRichText(item.description) : ''
     return {
       slug: item.slug,
@@ -131,6 +168,8 @@ export const getPublishedItem = createServerFn({ method: 'GET' })
       summary: htmlToSummary(html),
       /** 非公開（管理者のログイン中だけ見える） */
       draft: !item.published,
+      /** 同じ種類のもの全部の、一覧のふだんの並び（slug と名前だけ） */
+      siblings,
     }
   })
 

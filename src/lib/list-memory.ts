@@ -6,6 +6,7 @@ import { normalizePath } from '@/lib/seo'
  * 一覧ページの状態を、ブラウザに覚えておく。
  * - 最後に使った絞り込み（タブを閉じるまで）: 詳しいページの「← 一覧へ」やパンくずで、同じ一覧に戻れるように
  * - 選んだ表示のしかた（ずっと）: メニューから入り直しても、前に選んだカード・表などで出るように
+ * - 一覧に出ていた並び（タブを閉じるまで）: 詳しいページの「前へ／次へ」を、絞り込んだ一覧の順で動けるように
  *
  * サーバーではブラウザの保存場所を読めないので、最初の描画では「覚えていない」として扱い、
  * 画面が動き出してから覚えている値に切り替わる（useSyncExternalStore のサーバー用の値）
@@ -95,6 +96,28 @@ export function rememberListView(path: string, view: string) {
 /** その一覧で前に選んだ表示のしかた（覚えていなければ null） */
 export function useRememberedListView(path: string) {
   return useStored('local', viewKey(path))
+}
+
+/** 一覧に出ていたものの並び（詳しいページの「前へ／次へ」に使う） */
+export type ListEntry = { slug: string; title: string }
+
+const orderKey = (path: string) => `list-order:${normalizePath(path)}`
+
+/** 一覧に今出ている並び（絞り込み・並べ替えのあと）を覚える */
+export function rememberListOrder(path: string, entriesJson: string) {
+  write('session', orderKey(path), entriesJson)
+}
+
+/** その一覧で最後に出ていた並び（覚えていなければ undefined） */
+export function useRememberedListOrder(path: string): ListEntry[] | undefined {
+  const json = useStored('session', orderKey(path))
+  if (!json) return undefined
+  try {
+    const value: unknown = JSON.parse(json)
+    return Array.isArray(value) ? (value as ListEntry[]) : undefined
+  } catch {
+    return undefined
+  }
 }
 
 /** 一覧の中の 1 件の要素の id（詳しいページから戻ったとき、そこまでスクロールする） */
