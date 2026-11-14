@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="800" height="600" viewBox="0 0 800 600">
+  <rect width="800" height="600" fill="#111827"/>
+  <!-- token: header.payload.signature -->
+  <text x="400" y="150" text-anchor="middle" font-family="monospace" font-size="30" font-weight="bold">
+    <tspan fill="#fb7185">eyJhbGci</tspan><tspan fill="#9ca3af">.</tspan><tspan fill="#a78bfa">eyJzdWIi</tspan><tspan fill="#9ca3af">.</tspan><tspan fill="#38bdf8">SflKxwRJ</tspan>
+  </text>
+  <!-- header panel -->
+  <rect x="80" y="200" width="300" height="200" rx="16" fill="#1f2937" stroke="#fb7185" stroke-width="3"/>
+  <text x="104" y="240" font-family="sans-serif" font-size="20" font-weight="bold" fill="#fb7185">HEADER</text>
+  <text x="104" y="285" font-family="monospace" font-size="20" fill="#e5e7eb">{</text>
+  <text x="124" y="315" font-family="monospace" font-size="20"><tspan fill="#e5e7eb">"alg": </tspan><tspan fill="#34d399">"HS256"</tspan></text>
+  <text x="124" y="345" font-family="monospace" font-size="20"><tspan fill="#e5e7eb">"typ": </tspan><tspan fill="#34d399">"JWT"</tspan></text>
+  <text x="104" y="375" font-family="monospace" font-size="20" fill="#e5e7eb">}</text>
+  <!-- payload panel -->
+  <rect x="420" y="200" width="300" height="200" rx="16" fill="#1f2937" stroke="#a78bfa" stroke-width="3"/>
+  <text x="444" y="240" font-family="sans-serif" font-size="20" font-weight="bold" fill="#a78bfa">PAYLOAD</text>
+  <text x="444" y="285" font-family="monospace" font-size="20" fill="#e5e7eb">{</text>
+  <text x="464" y="315" font-family="monospace" font-size="20"><tspan fill="#e5e7eb">"sub": </tspan><tspan fill="#34d399">"1234"</tspan></text>
+  <text x="464" y="345" font-family="monospace" font-size="20"><tspan fill="#e5e7eb">"exp": </tspan><tspan fill="#fbbf24">17631…</tspan></text>
+  <text x="444" y="375" font-family="monospace" font-size="20" fill="#e5e7eb">}</text>
+  <!-- verified badge -->
+  <circle cx="300" cy="460" r="18" fill="none" stroke="#38bdf8" stroke-width="3"/>
+  <path d="M291 460 l6 6 l12 -12" fill="none" stroke="#38bdf8" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+  <text x="330" y="467" font-family="sans-serif" font-size="20" fill="#38bdf8">signature verified</text>
+  <!-- title -->
+  <text x="400" y="545" text-anchor="middle" font-family="sans-serif" font-size="28" font-weight="bold" fill="#a78bfa">JWT デコード</text>
+</svg>
