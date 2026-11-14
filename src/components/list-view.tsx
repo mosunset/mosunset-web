@@ -8,11 +8,23 @@ import {
   List,
   Rows3,
   Search,
+  SlidersHorizontal,
   X,
 } from 'lucide-react'
 import * as React from 'react'
 
+import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import {
+  Sheet,
+  SheetClose,
+  SheetContent,
+  SheetDescription,
+  SheetFooter,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from '@/components/ui/sheet'
 import {
   rememberListSearch,
   rememberListView,
@@ -336,7 +348,8 @@ export function useList<T>({
       set({ [key]: next.join(',') })
       // 一覧の下のほうで押したときは、絞り込んだ一覧の頭（操作の欄）まで戻る
       const top = document.getElementById(LIST_TOP_ID)
-      if (top && top.getBoundingClientRect().top < 0) {
+      // ヘッダー（3.5rem）の下に隠れていたら
+      if (top && top.getBoundingClientRect().top < 56) {
         top.scrollIntoView({ block: 'start' })
       }
     },
@@ -395,10 +408,31 @@ export function ListToolbar({
   list: ListControls
   placeholder?: string
 }) {
+  const stuck = useStuck(LIST_TOP_ID)
+  const facets = list.facets.filter(
+    // 選べる値が 1 つしかない列は、絞り込む意味がないので出さない
+    (f) => f.chips && (f.options.length > 1 || f.selected.length > 0),
+  )
+  const facetRows = facets.map((facet) => (
+    <FilterChips
+      key={facet.key}
+      facet={facet}
+      onToggle={(v) => list.toggle(facet.key, v)}
+      onAll={facet.multiple ? undefined : () => list.clearFacet(facet.key)}
+    />
+  ))
+  // 一覧の中で上に貼り付くよう、外側を包まずに返す（貼り付く範囲は親＝一覧全体）
   return (
-    <div id={LIST_TOP_ID} className="mb-6 scroll-mt-20 space-y-3">
-      <div className="flex flex-wrap items-center gap-2">
-        <div className="relative min-w-48 flex-1">
+    <>
+      <div id={LIST_TOP_ID} className="scroll-mt-14" />
+      {/* 検索欄の段は、スクロールしても画面の上に貼り付ける */}
+      <div
+        className={cn(
+          'sticky top-14 z-20 -mx-6 flex items-center gap-2 border-b border-transparent bg-background/95 px-6 py-2 transition-[border-color,box-shadow] supports-backdrop-filter:bg-background/80 supports-backdrop-filter:backdrop-blur',
+          stuck && 'border-border shadow-sm',
+        )}
+      >
+        <div className="relative min-w-0 flex-1">
           <Search className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" />
           <SearchInput
             value={list.query}
@@ -406,63 +440,179 @@ export function ListToolbar({
             placeholder={placeholder}
           />
         </div>
-        <label className="flex items-center gap-1.5 text-sm text-muted-foreground">
-          <span className="sr-only sm:not-sr-only">並べ替え</span>
-          <select
-            aria-label="並べ替え"
-            value={list.sort}
-            onChange={(e) => list.setSort(e.target.value)}
-            className="h-9 rounded-md border bg-background px-2 text-sm text-foreground"
-          >
-            {list.sortOptions.map((o) => (
-              <option key={o.value} value={o.value}>
-                {o.label}
-              </option>
-            ))}
-          </select>
-        </label>
-        {list.views.length > 1 && (
-          <fieldset className="inline-flex rounded-md border p-0.5">
-            <legend className="sr-only">表示のしかた</legend>
-            {list.views.map((v) => {
-              const Icon = viewIcons[v]
-              return (
-                <button
-                  key={v}
-                  type="button"
-                  aria-pressed={list.view === v}
-                  title={`${viewLabels[v]}で表示`}
-                  onClick={() => list.setView(v)}
-                  className={cn(
-                    'inline-flex h-7 items-center gap-1 rounded px-2 text-xs text-muted-foreground',
-                    list.view === v && 'bg-muted text-foreground',
-                  )}
-                >
-                  <Icon className="size-3.5" />
-                  <span className="hidden sm:inline">{viewLabels[v]}</span>
-                </button>
-              )
-            })}
-          </fieldset>
-        )}
+        <SortSelect list={list} className="hidden text-sm sm:flex" />
+        <ViewSwitch list={list} />
+        <MobileFilters list={list} facetCount={facets.length}>
+          {facetRows}
+        </MobileFilters>
       </div>
-      {list.facets
-        // 選べる値が 1 つしかない列は、絞り込む意味がないので出さない
-        .filter(
-          (f) => f.chips && (f.options.length > 1 || f.selected.length > 0),
-        )
-        .map((facet) => (
-          <FilterChips
-            key={facet.key}
-            facet={facet}
-            onToggle={(v) => list.toggle(facet.key, v)}
-            onAll={
-              facet.multiple ? undefined : () => list.clearFacet(facet.key)
-            }
-          />
+      <div className="mt-2 mb-6 space-y-3">
+        {/* スマホでは札の列を「絞り込み」のボタンの中にしまう */}
+        {facetRows.length > 0 && (
+          <div className="hidden space-y-3 sm:block">{facetRows}</div>
+        )}
+        <ActiveFilters list={list} />
+      </div>
+    </>
+  )
+}
+
+/**
+ * id の要素が画面の上（ヘッダーの下）より上に出たか。
+ * 検索欄の段が貼り付いているときだけ、下に線と影を付けるのに使う
+ */
+function useStuck(id: string) {
+  const [stuck, setStuck] = React.useState(false)
+  React.useEffect(() => {
+    const target = document.getElementById(id)
+    if (!target || typeof IntersectionObserver === 'undefined') return
+    const observer = new IntersectionObserver(
+      ([entry]) =>
+        setStuck(!entry.isIntersecting && entry.boundingClientRect.top < 60),
+      // ヘッダー（3.5rem）の下の線を境にする
+      { rootMargin: '-57px 0px 0px 0px' },
+    )
+    observer.observe(target)
+    return () => observer.disconnect()
+  }, [id])
+  return stuck
+}
+
+/** 並べ替えの選択欄（見出しの「並べ替え」付き） */
+function SortSelect({
+  list,
+  className,
+  selectClassName,
+}: {
+  list: ListControls
+  /** 外側（見出しと選択欄を並べる label）の見た目 */
+  className?: string
+  selectClassName?: string
+}) {
+  return (
+    <label
+      className={cn('items-center gap-2 text-muted-foreground', className)}
+    >
+      並べ替え
+      <select
+        value={list.sort}
+        onChange={(e) => list.setSort(e.target.value)}
+        className={cn(
+          'h-9 rounded-md border bg-background px-2 text-sm text-foreground',
+          selectClassName,
+        )}
+      >
+        {list.sortOptions.map((o) => (
+          <option key={o.value} value={o.value}>
+            {o.label}
+          </option>
         ))}
-      <ActiveFilters list={list} />
-    </div>
+      </select>
+    </label>
+  )
+}
+
+function ViewSwitch({ list }: { list: ListControls }) {
+  if (list.views.length <= 1) return null
+  return (
+    <fieldset className="inline-flex shrink-0 rounded-md border p-0.5">
+      <legend className="sr-only">表示のしかた</legend>
+      {list.views.map((v) => {
+        const Icon = viewIcons[v]
+        return (
+          <button
+            key={v}
+            type="button"
+            aria-pressed={list.view === v}
+            title={`${viewLabels[v]}で表示`}
+            onClick={() => list.setView(v)}
+            className={cn(
+              'inline-flex h-7 items-center gap-1 rounded px-2 text-xs text-muted-foreground',
+              list.view === v && 'bg-muted text-foreground',
+            )}
+          >
+            <Icon className="size-3.5" />
+            <span className="sr-only sm:not-sr-only">{viewLabels[v]}</span>
+          </button>
+        )
+      })}
+    </fieldset>
+  )
+}
+
+/**
+ * スマホ用の「絞り込み」ボタンと、押すと下から出てくる並べ替え・絞り込みの欄。
+ * 札の列が何段もあると一覧が下に押し出されるので、スマホではここにしまう
+ */
+function MobileFilters({
+  list,
+  facetCount,
+  children,
+}: {
+  list: ListControls
+  facetCount: number
+  children: React.ReactNode
+}) {
+  const selected = list.facets.reduce((n, f) => n + f.selected.length, 0)
+  const sorted = list.sort !== list.sortOptions[0].value
+  return (
+    <Sheet>
+      <SheetTrigger asChild>
+        <button
+          type="button"
+          className={cn(
+            'relative inline-flex h-9 shrink-0 items-center gap-1 rounded-md border px-2.5 text-xs sm:hidden',
+            selected > 0 || sorted
+              ? 'text-foreground'
+              : 'text-muted-foreground',
+          )}
+        >
+          <SlidersHorizontal className="size-4" />
+          <span className="sr-only">
+            {facetCount > 0 ? '絞り込み・並べ替え' : '並べ替え'}
+          </span>
+          {selected > 0 && (
+            <span className="inline-flex size-4 items-center justify-center rounded-full bg-primary text-[10px] text-primary-foreground tabular-nums">
+              {selected}
+            </span>
+          )}
+        </button>
+      </SheetTrigger>
+      <SheetContent side="bottom" className="max-h-[85svh] gap-0 rounded-t-xl">
+        <SheetHeader className="border-b">
+          <SheetTitle>
+            {facetCount > 0 ? '絞り込み・並べ替え' : '並べ替え'}
+          </SheetTitle>
+          <SheetDescription className="sr-only">
+            一覧の並べ替えと絞り込みを選びます
+          </SheetDescription>
+        </SheetHeader>
+        <div className="space-y-4 overflow-y-auto p-4">
+          <SortSelect
+            list={list}
+            className="flex text-xs"
+            selectClassName="flex-1"
+          />
+          {children}
+        </div>
+        <SheetFooter className="flex-row items-center justify-between border-t">
+          {selected > 0 ? (
+            <button
+              type="button"
+              onClick={list.clearAll}
+              className="text-sm text-muted-foreground underline-offset-2 hover:underline"
+            >
+              すべて外す
+            </button>
+          ) : (
+            <span />
+          )}
+          <SheetClose asChild>
+            <Button>{list.shown} 件を見る</Button>
+          </SheetClose>
+        </SheetFooter>
+      </SheetContent>
+    </Sheet>
   )
 }
 

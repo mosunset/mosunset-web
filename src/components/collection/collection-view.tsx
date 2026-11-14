@@ -322,7 +322,7 @@ function CollectionCards({
           <li
             key={item.slug}
             id={listItemId(item.slug)}
-            className={cn('scroll-mt-20', isDimmed(kind, item) && dimmedClass)}
+            className={cn('scroll-mt-32', isDimmed(kind, item) && dimmedClass)}
           >
             <Link
               to={config.detailPath}
@@ -377,7 +377,7 @@ function CollectionGallery({
           <li
             key={item.slug}
             id={listItemId(item.slug)}
-            className={cn('scroll-mt-20', isDimmed(kind, item) && dimmedClass)}
+            className={cn('scroll-mt-32', isDimmed(kind, item) && dimmedClass)}
           >
             <Link
               to={config.detailPath}
@@ -456,7 +456,7 @@ function CollectionTable({
                   key={item.slug}
                   id={listItemId(item.slug)}
                   className={cn(
-                    'scroll-mt-20 border-t align-top hover:bg-muted/30',
+                    'scroll-mt-32 border-t align-top hover:bg-muted/30',
                     isDimmed(kind, item) && dimmedClass,
                   )}
                 >

@@ -109,7 +109,7 @@ function ToolCards({ tools, list }: { tools: Tool[]; list: ListControls }) {
   return (
     <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
       {tools.map((tool) => (
-        <li key={tool.slug} id={listItemId(tool.slug)} className="scroll-mt-20">
+        <li key={tool.slug} id={listItemId(tool.slug)} className="scroll-mt-32">
           <div className="group relative flex h-full flex-col overflow-hidden rounded-lg border transition-colors hover:bg-muted/40">
             <div className="aspect-[1200/630] overflow-hidden border-b bg-muted/30">
               <img
@@ -182,7 +182,7 @@ function ToolTable({ tools, list }: { tools: Tool[]; list: ListControls }) {
             <tr
               key={tool.slug}
               id={listItemId(tool.slug)}
-              className="scroll-mt-20 border-t align-top hover:bg-muted/30"
+              className="scroll-mt-32 border-t align-top hover:bg-muted/30"
             >
               <td className="px-3 py-2">
                 <Link

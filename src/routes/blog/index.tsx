@@ -154,7 +154,7 @@ function PostList({ posts, grouped }: PostsProps) {
   return (
     <ul className="divide-y">
       {posts.map((post) => (
-        <li key={post.slug} id={listItemId(post.slug)} className="scroll-mt-20">
+        <li key={post.slug} id={listItemId(post.slug)} className="scroll-mt-32">
           <Link
             to="/blog/$slug"
             params={{ slug: post.slug }}
@@ -191,7 +191,7 @@ function PostCards({ posts, grouped }: PostsProps) {
   return (
     <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
       {posts.map((post) => (
-        <li key={post.slug} id={listItemId(post.slug)} className="scroll-mt-20">
+        <li key={post.slug} id={listItemId(post.slug)} className="scroll-mt-32">
           <Link
             to="/blog/$slug"
             params={{ slug: post.slug }}
@@ -252,7 +252,7 @@ function PostTable({
               <tr
                 key={post.slug}
                 id={listItemId(post.slug)}
-                className="scroll-mt-20 border-t hover:bg-muted/30"
+                className="scroll-mt-32 border-t hover:bg-muted/30"
               >
                 <td className="px-3 py-2">
                   <Link
