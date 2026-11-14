@@ -164,6 +164,18 @@ export const playgroundTools = [
     publishedDate: '2025-09-09',
     thumbnail: '/playground/3dblock/thumbnail.webp',
   },
+  {
+    slug: 'readability-check',
+    name: '文章の読みやすさチェック',
+    title:
+      '文章の読みやすさチェック | 長い文・漢字の多さ・同じ語尾・二重否定を色分け',
+    description:
+      '日本語の文章を貼るだけで、長すぎる文、漢字の多さ、同じ語尾の連続、二重否定、読点の多すぎ・少なすぎ、「の」の連続などを見つけて色分けします。読みやすさのスコアと、文の数・平均の文の長さ・漢字率も表示。文章はブラウザの中だけで調べ、サーバーには送りません。',
+    category: '自然言語処理',
+    tags: ['文章校正', '読みやすさ', '日本語', '形態素解析', 'テキスト解析'],
+    publishedDate: '2026-11-14',
+    thumbnail: '/playground/readability-check/thumbnail.svg',
+  },
 ] as const satisfies readonly (Omit<PlaygroundTool, 'slug'> & {
   slug: string
 })[]

@@ -49,6 +49,7 @@ import { Route as PlaygroundKuromojiRouteImport } from './routes/playground/kuro
 import { Route as PlaygroundMasonryimageRouteImport } from './routes/playground/masonryimage'
 import { Route as PlaygroundMonitorPairingRouteImport } from './routes/playground/monitor-pairing'
 import { Route as PlaygroundNgramSimilarityRouteImport } from './routes/playground/ngram-similarity'
+import { Route as PlaygroundReadabilityCheckRouteImport } from './routes/playground/readability-check'
 import { Route as PlaygroundUnitPriceComparisonRouteImport } from './routes/playground/unit-price-comparison'
 import { Route as PlaygroundWebyoloRouteImport } from './routes/playground/webyolo'
 import { Route as SignInSplatRouteImport } from './routes/sign-in.$'
@@ -271,6 +272,12 @@ const PlaygroundNgramSimilarityRoute =
     path: '/ngram-similarity',
     getParentRoute: () => PlaygroundRouteRoute,
   } as any)
+const PlaygroundReadabilityCheckRoute =
+  PlaygroundReadabilityCheckRouteImport.update({
+    id: '/readability-check',
+    path: '/readability-check',
+    getParentRoute: () => PlaygroundRouteRoute,
+  } as any)
 const PlaygroundUnitPriceComparisonRoute =
   PlaygroundUnitPriceComparisonRouteImport.update({
     id: '/unit-price-comparison',
@@ -385,6 +392,7 @@ export interface FileRoutesByFullPath {
   '/playground/masonryimage': typeof PlaygroundMasonryimageRoute
   '/playground/monitor-pairing': typeof PlaygroundMonitorPairingRoute
   '/playground/ngram-similarity': typeof PlaygroundNgramSimilarityRoute
+  '/playground/readability-check': typeof PlaygroundReadabilityCheckRoute
   '/playground/unit-price-comparison': typeof PlaygroundUnitPriceComparisonRoute
   '/playground/webyolo': typeof PlaygroundWebyoloRoute
   '/sign-in/$': typeof SignInSplatRoute
@@ -432,6 +440,7 @@ export interface FileRoutesByTo {
   '/playground/masonryimage': typeof PlaygroundMasonryimageRoute
   '/playground/monitor-pairing': typeof PlaygroundMonitorPairingRoute
   '/playground/ngram-similarity': typeof PlaygroundNgramSimilarityRoute
+  '/playground/readability-check': typeof PlaygroundReadabilityCheckRoute
   '/playground/unit-price-comparison': typeof PlaygroundUnitPriceComparisonRoute
   '/playground/webyolo': typeof PlaygroundWebyoloRoute
   '/sign-in/$': typeof SignInSplatRoute
@@ -489,6 +498,7 @@ export interface FileRoutesById {
   '/playground/masonryimage': typeof PlaygroundMasonryimageRoute
   '/playground/monitor-pairing': typeof PlaygroundMonitorPairingRoute
   '/playground/ngram-similarity': typeof PlaygroundNgramSimilarityRoute
+  '/playground/readability-check': typeof PlaygroundReadabilityCheckRoute
   '/playground/unit-price-comparison': typeof PlaygroundUnitPriceComparisonRoute
   '/playground/webyolo': typeof PlaygroundWebyoloRoute
   '/sign-in/$': typeof SignInSplatRoute
@@ -548,6 +558,7 @@ export interface FileRouteTypes {
     | '/playground/masonryimage'
     | '/playground/monitor-pairing'
     | '/playground/ngram-similarity'
+    | '/playground/readability-check'
     | '/playground/unit-price-comparison'
     | '/playground/webyolo'
     | '/sign-in/$'
@@ -595,6 +606,7 @@ export interface FileRouteTypes {
     | '/playground/masonryimage'
     | '/playground/monitor-pairing'
     | '/playground/ngram-similarity'
+    | '/playground/readability-check'
     | '/playground/unit-price-comparison'
     | '/playground/webyolo'
     | '/sign-in/$'
@@ -651,6 +663,7 @@ export interface FileRouteTypes {
     | '/playground/masonryimage'
     | '/playground/monitor-pairing'
     | '/playground/ngram-similarity'
+    | '/playground/readability-check'
     | '/playground/unit-price-comparison'
     | '/playground/webyolo'
     | '/sign-in/$'
@@ -976,6 +989,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PlaygroundNgramSimilarityRouteImport
       parentRoute: typeof PlaygroundRouteRoute
     }
+    '/playground/readability-check': {
+      id: '/playground/readability-check'
+      path: '/readability-check'
+      fullPath: '/playground/readability-check'
+      preLoaderRoute: typeof PlaygroundReadabilityCheckRouteImport
+      parentRoute: typeof PlaygroundRouteRoute
+    }
     '/playground/unit-price-comparison': {
       id: '/playground/unit-price-comparison'
       path: '/unit-price-comparison'
@@ -1230,6 +1250,7 @@ interface PlaygroundRouteRouteChildren {
   PlaygroundMasonryimageRoute: typeof PlaygroundMasonryimageRoute
   PlaygroundMonitorPairingRoute: typeof PlaygroundMonitorPairingRoute
   PlaygroundNgramSimilarityRoute: typeof PlaygroundNgramSimilarityRoute
+  PlaygroundReadabilityCheckRoute: typeof PlaygroundReadabilityCheckRoute
   PlaygroundUnitPriceComparisonRoute: typeof PlaygroundUnitPriceComparisonRoute
   PlaygroundWebyoloRoute: typeof PlaygroundWebyoloRoute
   PlaygroundIndexRoute: typeof PlaygroundIndexRoute
@@ -1248,6 +1269,7 @@ const PlaygroundRouteRouteChildren: PlaygroundRouteRouteChildren = {
   PlaygroundMasonryimageRoute: PlaygroundMasonryimageRoute,
   PlaygroundMonitorPairingRoute: PlaygroundMonitorPairingRoute,
   PlaygroundNgramSimilarityRoute: PlaygroundNgramSimilarityRoute,
+  PlaygroundReadabilityCheckRoute: PlaygroundReadabilityCheckRoute,
   PlaygroundUnitPriceComparisonRoute: PlaygroundUnitPriceComparisonRoute,
   PlaygroundWebyoloRoute: PlaygroundWebyoloRoute,
   PlaygroundIndexRoute: PlaygroundIndexRoute,
