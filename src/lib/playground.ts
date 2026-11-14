@@ -235,6 +235,24 @@ export const playgroundTools = [
     publishedDate: '2026-11-14',
     thumbnail: '/playground/jwt-decoder/thumbnail.svg',
   },
+  {
+    slug: 'encode-decode',
+    name: 'エンコード・デコード',
+    title:
+      'Base64・URL エンコード・デコード | HTML エンティティ・Unicode エスケープ・16 進数にも対応',
+    description:
+      'テキストを Base64（標準 / URL-safe）・URL エンコード・HTML エンティティ・Unicode エスケープ・16 進数に変換し、逆に元へ戻します。UTF-8 と Shift_JIS を選べ、ファイルの Base64・data URL 化や画像のプレビューにも対応。入力した内容はサーバーに送りません。',
+    category: 'ユーティリティ',
+    tags: [
+      'Base64',
+      'URL エンコード',
+      'デコード',
+      'HTML エンティティ',
+      '文字コード',
+    ],
+    publishedDate: '2026-11-14',
+    thumbnail: '/playground/encode-decode/thumbnail.svg',
+  },
 ] as const satisfies readonly (Omit<PlaygroundTool, 'slug'> & {
   slug: string
 })[]
