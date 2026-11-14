@@ -1,0 +1,37 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="800" height="600" viewBox="0 0 800 600">
+  <defs>
+    <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#22d3ee"/>
+      <stop offset="1" stop-color="#a855f7"/>
+    </linearGradient>
+    <linearGradient id="t" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#4ade80"/>
+      <stop offset="1" stop-color="#2dd4bf"/>
+    </linearGradient>
+  </defs>
+  <rect width="800" height="600" fill="#0f172a"/>
+  <!-- 元のテキスト -->
+  <rect x="90" y="150" width="250" height="260" rx="20" fill="#111c34" stroke="url(#t)" stroke-width="4"/>
+  <text x="215" y="270" text-anchor="middle" font-family="'Noto Sans JP','Hiragino Sans','Yu Gothic',sans-serif" font-size="72" font-weight="700" fill="#4ade80">あア</text>
+  <text x="215" y="350" text-anchor="middle" font-family="monospace" font-size="40" fill="#5eead4">Abc</text>
+  <!-- エンコード結果 -->
+  <rect x="460" y="150" width="250" height="260" rx="20" fill="#111c34" stroke="url(#g)" stroke-width="4"/>
+  <g font-family="Consolas,'DejaVu Sans Mono',Menlo,'Courier New',monospace" font-size="28" fill="#93c5fd">
+    <text x="485" y="210">44GC44Ki</text>
+    <text x="485" y="255" fill="#a5b4fc">%E3%81%82</text>
+    <text x="485" y="300" fill="#c4b5fd">&#92;u3042</text>
+    <text x="485" y="345" fill="#d8b4fe">&amp;#x3042;</text>
+    <text x="485" y="385" fill="#e9d5ff">e3 81 82</text>
+  </g>
+  <!-- 双方向の矢印 -->
+  <g stroke-width="6" stroke-linecap="round" stroke-linejoin="round" fill="none">
+    <path d="M360 255 H440 M420 235 L440 255 L420 275" stroke="#22d3ee"/>
+    <path d="M440 310 H360 M380 290 L360 310 L380 330" stroke="#a855f7"/>
+  </g>
+  <g fill="#22d3ee" opacity="0.6">
+    <circle cx="150" cy="95" r="4"/><circle cx="650" cy="85" r="4"/>
+    <circle cx="400" cy="120" r="3"/><circle cx="120" cy="450" r="3"/>
+    <circle cx="680" cy="445" r="4"/><circle cx="400" cy="440" r="3"/>
+  </g>
+  <text x="400" y="510" text-anchor="middle" font-family="sans-serif" font-size="40" font-weight="700" fill="#e2e8f0">Encode ⇄ Decode</text>
+</svg>
