@@ -32,8 +32,11 @@ type CollectionConfig = {
   acquiredAtLabel: string
   /** 一覧のカードで名前の下に出す項目 */
   subtitleKeys: readonly string[]
-  /** 一覧の上に「すべて / フィギュア / ぬいぐるみ…」の絞り込みを出す項目 */
-  filterKey?: string
+  /**
+   * 一覧の上に「すべて / フィギュア / ぬいぐるみ…」の絞り込みの札を出す項目（上から順に）。
+   * 札は登録されている値から作り、値が 1 種類しかない項目は出さない
+   */
+  filterKeys?: readonly string[]
   /**
    * 一覧のサムネイルの見せ方。cover は正方形いっぱいに（はみ出したところは切る）、
    * contain は写真全体を見せる（箱を斜めから撮った写真など、縦長で切られると困るもの）
@@ -50,7 +53,7 @@ export const collections = {
     label: '楽器',
     acquiredAtLabel: '入手日',
     subtitleKeys: ['maker', 'model'],
-    filterKey: 'category',
+    filterKeys: ['category'],
     fields: [
       {
         key: 'category',
@@ -81,7 +84,7 @@ export const collections = {
     label: '資格',
     acquiredAtLabel: '取得日',
     subtitleKeys: ['issuer'],
-    filterKey: 'status',
+    filterKeys: ['status'],
     fields: [
       {
         key: 'status',
@@ -108,7 +111,7 @@ export const collections = {
     label: 'おもちゃ',
     acquiredAtLabel: '入手日',
     subtitleKeys: ['series', 'maker'],
-    filterKey: 'category',
+    filterKeys: ['category'],
     imageFit: 'contain',
     fields: [
       {
@@ -189,3 +192,7 @@ export function itemSubtitle(
     .filter(Boolean)
     .join(' / ')
 }
+
+/** 一覧の上に絞り込みの札を出す項目 */
+export const filterKeysOf = (kind: CollectionKind): readonly string[] =>
+  (collections[kind] as { filterKeys?: readonly string[] }).filterKeys ?? []

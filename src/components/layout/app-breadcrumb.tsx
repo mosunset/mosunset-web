@@ -16,7 +16,8 @@ import { useRememberedListSearch } from '@/lib/list-memory'
 /** 一覧ページへのパンくずは、その一覧で最後に使った絞り込みを付けて戻る */
 function CrumbLink({ to, ...props }: { to: string } & ComponentProps<'a'>) {
   const search = useRememberedListSearch(to)
-  return <Link to={to} search={search ?? {}} {...props} />
+  // 行き先はどの一覧か決まっていないので、search の型は見ない
+  return <Link to={to} search={(search ?? {}) as never} {...props} />
 }
 
 export function AppBreadcrumb({ className }: { className?: string }) {

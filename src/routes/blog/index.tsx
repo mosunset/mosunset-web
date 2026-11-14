@@ -1,14 +1,12 @@
 import { createFileRoute, Link } from '@tanstack/react-router'
-import { useMemo } from 'react'
 
 import { DraftBadge } from '@/components/draft-badge'
 import { EmptyState } from '@/components/empty-state'
 import {
   ListToolbar,
-  matchesQuery,
+  listSearchValidator,
   NoMatches,
-  parseListSearch,
-  useListSearch,
+  useList,
   type ViewMode,
 } from '@/components/list-view'
 import { SectionPage } from '@/components/section-page'
@@ -23,7 +21,7 @@ const item = getNavItem('/blog')
 
 export const Route = createFileRoute('/blog/')({
   head: () => sectionHead(item),
-  validateSearch: parseListSearch,
+  validateSearch: listSearchValidator(),
   loader: () => listPublishedPosts(),
   component: BlogIndex,
 })
@@ -37,29 +35,35 @@ const views: readonly ViewMode[] = ['list', 'card', 'table']
 
 type Post = Awaited<ReturnType<typeof listPublishedPosts>>[number]
 
+const postText = (p: Post) => [p.title, p.excerpt]
+
+// 公開日のない下書きは、いちばん新しいものとして扱う
+const postTime = (p: Post) =>
+  p.publishedAt ? +new Date(p.publishedAt) : Number.MAX_SAFE_INTEGER
+
+function sortPosts(posts: Post[], sort: string) {
+  return posts.sort((a, b) =>
+    sort === 'title'
+      ? a.title.localeCompare(b.title, 'ja')
+      : sort === 'old'
+        ? postTime(a) - postTime(b)
+        : postTime(b) - postTime(a),
+  )
+}
+
 function BlogIndex() {
   const posts = Route.useLoaderData()
   const search = Route.useSearch()
-  const list = useListSearch('/blog', search, views)
-  const sort = sortOptions.some((o) => o.value === search.sort)
-    ? (search.sort as string)
-    : 'new'
-  const view = list.view
-
-  const visible = useMemo(() => {
-    // 公開日のない下書きは、いちばん新しいものとして扱う
-    const time = (p: Post) =>
-      p.publishedAt ? +new Date(p.publishedAt) : Number.MAX_SAFE_INTEGER
-    return posts
-      .filter((p) => matchesQuery(list.query, p.title, p.excerpt))
-      .sort((a, b) =>
-        sort === 'title'
-          ? a.title.localeCompare(b.title, 'ja')
-          : sort === 'old'
-            ? time(a) - time(b)
-            : time(b) - time(a),
-      )
-  }, [posts, list.query, sort])
+  const list = useList({
+    path: '/blog',
+    search,
+    items: posts,
+    text: postText,
+    sortOptions,
+    sort: sortPosts,
+    views,
+  })
+  const { visible, view } = list
 
   if (posts.length === 0) {
     return (
@@ -71,20 +75,7 @@ function BlogIndex() {
 
   return (
     <SectionPage item={item}>
-      <ListToolbar
-        query={list.query}
-        onQuery={list.setQuery}
-        placeholder="タイトルや本文の抜粋で探す"
-        sortOptions={sortOptions}
-        sort={sort}
-        onSort={(s) => list.set({ sort: s === 'new' ? undefined : s })}
-        views={views}
-        view={view}
-        onView={list.setView}
-        shown={visible.length}
-        total={posts.length}
-        onClear={list.query ? list.clearAll : undefined}
-      />
+      <ListToolbar list={list} placeholder="タイトルや本文の抜粋で探す" />
       {visible.length === 0 ? (
         <NoMatches onClear={list.clearAll} />
       ) : view === 'card' ? (
@@ -97,7 +88,6 @@ function BlogIndex() {
     </SectionPage>
   )
 }
-
 function PostDate({ post, className }: { post: Post; className?: string }) {
   if (post.draft) return <DraftBadge />
   if (!post.publishedAt) return null

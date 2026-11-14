@@ -1,18 +1,17 @@
 import { Link } from '@tanstack/react-router'
 import { ExternalLink, ImageOff } from 'lucide-react'
-import * as React from 'react'
+import type * as React from 'react'
 
 import { BackLinkFooter } from '@/components/back-link-footer'
 import { DraftBadge } from '@/components/draft-badge'
 import { EmptyState } from '@/components/empty-state'
 import { RichTextContent, ZoomableImage } from '@/components/image-viewer'
 import {
-  FilterChips,
+  type Facet,
   type ListSearch,
   ListToolbar,
-  matchesQuery,
   NoMatches,
-  useListSearch,
+  useList,
   type ViewMode,
 } from '@/components/list-view'
 import { NotFoundPage } from '@/components/not-found-page'
@@ -22,6 +21,7 @@ import {
   type CollectionKind,
   collections,
   displayAttribute,
+  filterKeysOf,
   itemSubtitle,
 } from '@/lib/collections'
 import { formatDay } from '@/lib/format'
@@ -51,6 +51,43 @@ const sortOptions = [
 ] as const
 const views: readonly ViewMode[] = ['card', 'table']
 
+const fieldsOf = (kind: CollectionKind): readonly AttributeField[] =>
+  collections[kind].fields
+
+/** 絞り込みの札の列（選択肢の決まった項目はその順に全部、文字の項目は多い順に 8 個まで見せる） */
+function facetsOf(kind: CollectionKind): Facet<ListItem>[] {
+  const fields = fieldsOf(kind)
+  return filterKeysOf(kind).flatMap((key) => {
+    const field = fields.find((f) => f.key === key)
+    if (!field) return []
+    const select = field.type === 'select'
+    return [
+      {
+        key,
+        label: field.label,
+        values: (item: ListItem) =>
+          item.attributes[key] ? [item.attributes[key]] : [],
+        display: (value: string) => displayAttribute(field, value),
+        order: select ? field.options.map((o) => o.value) : undefined,
+        limit: select ? undefined : 8,
+      },
+    ]
+  })
+}
+
+/** 並べ替え（おすすめ順は、管理画面で決めた並び＝サーバーから届いた順のまま） */
+function sortItems(items: ListItem[], sort: string) {
+  if (sort === 'order') return items
+  const date = (i: ListItem) => i.acquiredAt ?? ''
+  return items.sort((x, y) =>
+    sort === 'name'
+      ? x.title.localeCompare(y.title, 'ja')
+      : sort === 'old'
+        ? date(x).localeCompare(date(y))
+        : date(y).localeCompare(date(x)),
+  )
+}
+
 /** コレクションの一覧（検索・絞り込み・並べ替えと、カードか表） */
 export function CollectionGrid({
   kind,
@@ -62,99 +99,37 @@ export function CollectionGrid({
   search: ListSearch
 }) {
   const config = collections[kind]
-  const fields: readonly AttributeField[] = config.fields
-  const filterField: AttributeField | undefined = fields.find(
-    (f) => 'filterKey' in config && f.key === config.filterKey,
-  )
-  const list = useListSearch(config.path, search, views)
-  const sort = sortOptions.some((o) => o.value === search.sort)
-    ? (search.sort as string)
-    : 'order'
-  const view = list.view
-
-  // 絞り込みの候補（登録されている値だけ、項目定義の順に並べる）
-  const filterOptions = React.useMemo(() => {
-    if (!filterField) return []
-    const counts = new Map<string, number>()
-    for (const item of items) {
-      const value = item.attributes[filterField.key]
-      if (value) counts.set(value, (counts.get(value) ?? 0) + 1)
-    }
-    const order =
-      filterField.type === 'select'
-        ? filterField.options.map((o) => o.value)
-        : [...counts.keys()]
-    return order
-      .filter((value) => counts.has(value))
-      .map((value) => ({
-        value,
-        label: displayAttribute(filterField, value),
-        count: counts.get(value) ?? 0,
-      }))
-  }, [filterField, items])
-
-  const visible = React.useMemo(() => {
-    const filtered = items.filter(
-      (item) =>
-        (!list.cat ||
-          !filterField ||
-          item.attributes[filterField.key] === list.cat) &&
-        matchesQuery(
-          list.query,
-          item.title,
-          ...fields.map((f) => {
-            const v = item.attributes[f.key]
-            return v && f.type !== 'url' ? displayAttribute(f, v) : null
-          }),
-        ),
-    )
-    // おすすめ順は、管理画面で決めた並び（サーバーから届いた順）のまま
-    if (sort === 'order') return filtered
-    const date = (i: ListItem) => i.acquiredAt ?? ''
-    return [...filtered].sort((x, y) =>
-      sort === 'name'
-        ? x.title.localeCompare(y.title, 'ja')
-        : sort === 'old'
-          ? date(x).localeCompare(date(y))
-          : date(y).localeCompare(date(x)),
-    )
-  }, [items, list.cat, list.query, sort, filterField, fields])
+  const fields = fieldsOf(kind)
+  const list = useList({
+    path: config.path,
+    search,
+    items,
+    // URL は検索の対象にしない
+    text: (item) => [
+      item.title,
+      ...fields.map((f) => {
+        const v = item.attributes[f.key]
+        return v && f.type !== 'url' ? displayAttribute(f, v) : null
+      }),
+    ],
+    facets: facetsOf(kind),
+    sortOptions,
+    sort: sortItems,
+    views,
+  })
+  const { visible, view } = list
 
   if (items.length === 0) {
     return <EmptyState>まだ登録されていません。</EmptyState>
   }
 
-  const filtering = list.query !== '' || list.cat !== null
   const hint = fields
     .slice(0, 2)
     .map((f) => f.label)
     .join('・')
   return (
     <>
-      <ListToolbar
-        query={list.query}
-        onQuery={list.setQuery}
-        placeholder={`名前や${hint}で探す`}
-        sortOptions={sortOptions}
-        sort={sort}
-        onSort={(v) => list.set({ sort: v === 'order' ? undefined : v })}
-        views={views}
-        view={view}
-        onView={list.setView}
-        shown={visible.length}
-        total={items.length}
-        onClear={filtering ? list.clearAll : undefined}
-      >
-        {filterField && filterOptions.length > 1 && (
-          <FilterChips
-            label={filterField.label}
-            options={filterOptions}
-            selected={list.cat ? [list.cat] : []}
-            onToggle={(v) => list.setCat(list.cat === v ? null : v)}
-            onAll={() => list.setCat(null)}
-          />
-        )}
-      </ListToolbar>
+      <ListToolbar list={list} placeholder={`名前や${hint}で探す`} />
       {visible.length === 0 ? (
         <NoMatches onClear={list.clearAll} />
       ) : view === 'table' ? (

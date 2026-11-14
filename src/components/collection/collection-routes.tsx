@@ -5,11 +5,15 @@ import {
   CollectionGrid,
   CollectionNotFound,
 } from '@/components/collection/collection-view'
-import { type ListSearch, parseListSearch } from '@/components/list-view'
+import { type ListSearch, listSearchValidator } from '@/components/list-view'
 import { SectionPage } from '@/components/section-page'
 import { getPublishedItem, listPublishedItems } from '@/functions/collections'
 import { collectionDetailHead } from '@/lib/collection-seo'
-import { type CollectionKind, collections } from '@/lib/collections'
+import {
+  type CollectionKind,
+  collections,
+  filterKeysOf,
+} from '@/lib/collections'
 import { getNavItem } from '@/lib/navigation'
 import { sectionHead } from '@/lib/seo'
 
@@ -34,7 +38,7 @@ export function collectionIndexRoute(kind: CollectionKind) {
 
   return {
     head: () => sectionHead(item),
-    validateSearch: parseListSearch,
+    validateSearch: listSearchValidator(filterKeysOf(kind)),
     loader: () => listPublishedItems({ data: { kind } }),
     component: Page,
   }

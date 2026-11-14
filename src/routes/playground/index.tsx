@@ -1,14 +1,11 @@
 import { createFileRoute, Link } from '@tanstack/react-router'
-import { useMemo } from 'react'
 
 import {
-  countValues,
-  FilterChips,
+  type Facet,
   ListToolbar,
-  matchesQuery,
+  listSearchValidator,
   NoMatches,
-  parseListSearch,
-  useListSearch,
+  useList,
   type ViewMode,
 } from '@/components/list-view'
 import { SectionPage } from '@/components/section-page'
@@ -20,9 +17,27 @@ import { sectionHead } from '@/lib/seo'
 
 const item = getNavItem('/playground')
 
+type Tool = (typeof playgroundTools)[number]
+
+const facets: readonly Facet<Tool>[] = [
+  {
+    key: 'cat',
+    label: 'カテゴリ',
+    values: (t) => [t.category],
+    order: playgroundCategories,
+  },
+  {
+    key: 'tag',
+    label: 'タグ',
+    values: (t) => t.tags,
+    multiple: true,
+    limit: 16,
+  },
+]
+
 export const Route = createFileRoute('/playground/')({
   head: () => sectionHead(item),
-  validateSearch: parseListSearch,
+  validateSearch: listSearchValidator(facets.map((f) => f.key)),
   component: PlaygroundIndex,
 })
 
@@ -33,85 +48,39 @@ const sortOptions = [
 ] as const
 const views: readonly ViewMode[] = ['card', 'table']
 
-type Tool = (typeof playgroundTools)[number]
+const toolText = (t: Tool) => [t.name, t.description, t.category, ...t.tags]
+
+function sortTools(tools: Tool[], sort: string) {
+  return tools.sort((a, b) =>
+    sort === 'name'
+      ? a.name.localeCompare(b.name, 'ja')
+      : sort === 'old'
+        ? a.publishedDate.localeCompare(b.publishedDate)
+        : b.publishedDate.localeCompare(a.publishedDate),
+  )
+}
 
 function PlaygroundIndex() {
   const search = Route.useSearch()
-  const list = useListSearch('/playground', search, views)
-  const sort = sortOptions.some((o) => o.value === search.sort)
-    ? (search.sort as string)
-    : 'new'
-  const view = list.view
-
-  const categoryOptions = useMemo(
-    () =>
-      playgroundCategories.map((c) => ({
-        value: c,
-        label: c,
-        count: playgroundTools.filter((t) => t.category === c).length,
-      })),
-    [],
-  )
-  const tagOptions = useMemo(
-    () => countValues(playgroundTools.map((t) => t.tags)),
-    [],
-  )
-
-  const tools = useMemo(() => {
-    const filtered = playgroundTools.filter(
-      (t) =>
-        (list.cat === null || t.category === list.cat) &&
-        list.tags.every((tag) => (t.tags as readonly string[]).includes(tag)) &&
-        matchesQuery(list.query, t.name, t.description, t.category, ...t.tags),
-    )
-    return [...filtered].sort((a, b) =>
-      sort === 'name'
-        ? a.name.localeCompare(b.name, 'ja')
-        : sort === 'old'
-          ? a.publishedDate.localeCompare(b.publishedDate)
-          : b.publishedDate.localeCompare(a.publishedDate),
-    )
-  }, [list.cat, list.tags, list.query, sort])
-
-  const filtering =
-    list.query !== '' || list.cat !== null || list.tags.length > 0
+  const list = useList({
+    path: '/playground',
+    search,
+    items: playgroundTools,
+    text: toolText,
+    facets,
+    sortOptions,
+    sort: sortTools,
+    views,
+  })
+  const tools = list.visible
 
   return (
     <SectionPage item={item}>
-      <ListToolbar
-        query={list.query}
-        onQuery={list.setQuery}
-        placeholder="ツールの名前・説明・タグで探す"
-        sortOptions={sortOptions}
-        sort={sort}
-        onSort={(s) => list.set({ sort: s === 'new' ? undefined : s })}
-        views={views}
-        view={view}
-        onView={list.setView}
-        shown={tools.length}
-        total={playgroundTools.length}
-        onClear={filtering ? list.clearAll : undefined}
-      >
-        <FilterChips
-          label="カテゴリ"
-          options={categoryOptions}
-          selected={list.cat ? [list.cat] : []}
-          onToggle={(c) => list.setCat(list.cat === c ? null : c)}
-          onAll={() => list.setCat(null)}
-        />
-        <FilterChips
-          label="タグ"
-          options={tagOptions}
-          selected={list.tags}
-          onToggle={list.toggleTag}
-          limit={16}
-        />
-      </ListToolbar>
-
+      <ListToolbar list={list} placeholder="ツールの名前・説明・タグで探す" />
       {tools.length === 0 ? (
         <NoMatches onClear={list.clearAll} />
-      ) : view === 'table' ? (
-        <ToolTable tools={tools} onTag={list.toggleTag} />
+      ) : list.view === 'table' ? (
+        <ToolTable tools={tools} onTag={(tag) => list.toggle('tag', tag)} />
       ) : (
         <ToolCards tools={tools} />
       )}
