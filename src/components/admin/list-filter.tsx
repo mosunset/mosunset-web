@@ -1,6 +1,7 @@
 import { Search, X } from 'lucide-react'
 
 import { Input } from '@/components/ui/input'
+import { normalizeForSearch } from '@/lib/search-text'
 import { cn } from '@/lib/utils'
 
 type FilterOption<T extends string> = { value: T; label: string }
@@ -64,12 +65,12 @@ export function ListFilter<T extends string>({
   )
 }
 
-/** 検索語がどれかの文字列に含まれるか（大文字小文字・全角半角の違いはある程度無視する） */
+/** 検索語がどれかの文字列に含まれるか（大文字・小文字、全角・半角、カタカナ・ひらがなの違いは無視する） */
 export function matchesQuery(
   query: string,
   ...values: (string | null | undefined)[]
 ) {
-  const q = query.trim().normalize('NFKC').toLowerCase()
+  const q = normalizeForSearch(query.trim())
   if (!q) return true
-  return values.some((v) => v?.normalize('NFKC').toLowerCase().includes(q))
+  return values.some((v) => v && normalizeForSearch(v).includes(q))
 }

@@ -3,6 +3,7 @@ import { LayoutGrid, List, Rows3, Search, X } from 'lucide-react'
 import type * as React from 'react'
 
 import { Input } from '@/components/ui/input'
+import { normalizeForSearch } from '@/lib/search-text'
 import { cn } from '@/lib/utils'
 
 /**
@@ -74,18 +75,19 @@ export function useListSearch(search: ListSearch) {
   }
 }
 
-/** 検索語で絞り込む（空白で区切った語が全部、どこかに含まれるもの。大文字・小文字、全角・半角を区別しない） */
+/**
+ * 検索語で絞り込む（空白で区切った語が全部、どこかに含まれるもの。
+ * 大文字・小文字、全角・半角、カタカナ・ひらがなを区別しない）
+ */
 export function matchesQuery(
   query: string,
   ...texts: (string | null | undefined)[]
 ) {
-  const words = normalize(query).split(/\s+/).filter(Boolean)
+  const words = normalizeForSearch(query).split(/\s+/).filter(Boolean)
   if (words.length === 0) return true
-  const haystack = normalize(texts.filter(Boolean).join(' '))
+  const haystack = normalizeForSearch(texts.filter(Boolean).join(' '))
   return words.every((w) => haystack.includes(w))
 }
-
-const normalize = (s: string) => s.normalize('NFKC').toLowerCase()
 
 const viewIcons = { card: LayoutGrid, list: Rows3, table: List } as const
 const viewLabels = { card: 'カード', list: 'リスト', table: '表' } as const
