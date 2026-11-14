@@ -45,6 +45,7 @@ import { Route as PlaygroundCharacterCountRouteImport } from './routes/playgroun
 import { Route as PlaygroundFuriganaRouteImport } from './routes/playground/furigana'
 import { Route as PlaygroundHashGeneratorRouteImport } from './routes/playground/hash-generator'
 import { Route as PlaygroundIdGeneratorsRouteImport } from './routes/playground/id-generators'
+import { Route as PlaygroundImageCompressRouteImport } from './routes/playground/image-compress'
 import { Route as PlaygroundInteractiveBmiCalculatorGraphRouteImport } from './routes/playground/interactive-bmi-calculator-graph'
 import { Route as PlaygroundJwtDecoderRouteImport } from './routes/playground/jwt-decoder'
 import { Route as PlaygroundKuromojiRouteImport } from './routes/playground/kuromoji'
@@ -251,6 +252,11 @@ const PlaygroundIdGeneratorsRoute = PlaygroundIdGeneratorsRouteImport.update({
   path: '/id-generators',
   getParentRoute: () => PlaygroundRouteRoute,
 } as any)
+const PlaygroundImageCompressRoute = PlaygroundImageCompressRouteImport.update({
+  id: '/image-compress',
+  path: '/image-compress',
+  getParentRoute: () => PlaygroundRouteRoute,
+} as any)
 const PlaygroundInteractiveBmiCalculatorGraphRoute =
   PlaygroundInteractiveBmiCalculatorGraphRouteImport.update({
     id: '/interactive-bmi-calculator-graph',
@@ -400,6 +406,7 @@ export interface FileRoutesByFullPath {
   '/playground/furigana': typeof PlaygroundFuriganaRoute
   '/playground/hash-generator': typeof PlaygroundHashGeneratorRoute
   '/playground/id-generators': typeof PlaygroundIdGeneratorsRoute
+  '/playground/image-compress': typeof PlaygroundImageCompressRoute
   '/playground/interactive-bmi-calculator-graph': typeof PlaygroundInteractiveBmiCalculatorGraphRoute
   '/playground/jwt-decoder': typeof PlaygroundJwtDecoderRoute
   '/playground/kuromoji': typeof PlaygroundKuromojiRoute
@@ -450,6 +457,7 @@ export interface FileRoutesByTo {
   '/playground/furigana': typeof PlaygroundFuriganaRoute
   '/playground/hash-generator': typeof PlaygroundHashGeneratorRoute
   '/playground/id-generators': typeof PlaygroundIdGeneratorsRoute
+  '/playground/image-compress': typeof PlaygroundImageCompressRoute
   '/playground/interactive-bmi-calculator-graph': typeof PlaygroundInteractiveBmiCalculatorGraphRoute
   '/playground/jwt-decoder': typeof PlaygroundJwtDecoderRoute
   '/playground/kuromoji': typeof PlaygroundKuromojiRoute
@@ -510,6 +518,7 @@ export interface FileRoutesById {
   '/playground/furigana': typeof PlaygroundFuriganaRoute
   '/playground/hash-generator': typeof PlaygroundHashGeneratorRoute
   '/playground/id-generators': typeof PlaygroundIdGeneratorsRoute
+  '/playground/image-compress': typeof PlaygroundImageCompressRoute
   '/playground/interactive-bmi-calculator-graph': typeof PlaygroundInteractiveBmiCalculatorGraphRoute
   '/playground/jwt-decoder': typeof PlaygroundJwtDecoderRoute
   '/playground/kuromoji': typeof PlaygroundKuromojiRoute
@@ -572,6 +581,7 @@ export interface FileRouteTypes {
     | '/playground/furigana'
     | '/playground/hash-generator'
     | '/playground/id-generators'
+    | '/playground/image-compress'
     | '/playground/interactive-bmi-calculator-graph'
     | '/playground/jwt-decoder'
     | '/playground/kuromoji'
@@ -622,6 +632,7 @@ export interface FileRouteTypes {
     | '/playground/furigana'
     | '/playground/hash-generator'
     | '/playground/id-generators'
+    | '/playground/image-compress'
     | '/playground/interactive-bmi-calculator-graph'
     | '/playground/jwt-decoder'
     | '/playground/kuromoji'
@@ -681,6 +692,7 @@ export interface FileRouteTypes {
     | '/playground/furigana'
     | '/playground/hash-generator'
     | '/playground/id-generators'
+    | '/playground/image-compress'
     | '/playground/interactive-bmi-calculator-graph'
     | '/playground/jwt-decoder'
     | '/playground/kuromoji'
@@ -985,6 +997,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PlaygroundIdGeneratorsRouteImport
       parentRoute: typeof PlaygroundRouteRoute
     }
+    '/playground/image-compress': {
+      id: '/playground/image-compress'
+      path: '/image-compress'
+      fullPath: '/playground/image-compress'
+      preLoaderRoute: typeof PlaygroundImageCompressRouteImport
+      parentRoute: typeof PlaygroundRouteRoute
+    }
     '/playground/interactive-bmi-calculator-graph': {
       id: '/playground/interactive-bmi-calculator-graph'
       path: '/interactive-bmi-calculator-graph'
@@ -1284,6 +1303,7 @@ interface PlaygroundRouteRouteChildren {
   PlaygroundFuriganaRoute: typeof PlaygroundFuriganaRoute
   PlaygroundHashGeneratorRoute: typeof PlaygroundHashGeneratorRoute
   PlaygroundIdGeneratorsRoute: typeof PlaygroundIdGeneratorsRoute
+  PlaygroundImageCompressRoute: typeof PlaygroundImageCompressRoute
   PlaygroundInteractiveBmiCalculatorGraphRoute: typeof PlaygroundInteractiveBmiCalculatorGraphRoute
   PlaygroundJwtDecoderRoute: typeof PlaygroundJwtDecoderRoute
   PlaygroundKuromojiRoute: typeof PlaygroundKuromojiRoute
@@ -1304,6 +1324,7 @@ const PlaygroundRouteRouteChildren: PlaygroundRouteRouteChildren = {
   PlaygroundFuriganaRoute: PlaygroundFuriganaRoute,
   PlaygroundHashGeneratorRoute: PlaygroundHashGeneratorRoute,
   PlaygroundIdGeneratorsRoute: PlaygroundIdGeneratorsRoute,
+  PlaygroundImageCompressRoute: PlaygroundImageCompressRoute,
   PlaygroundInteractiveBmiCalculatorGraphRoute:
     PlaygroundInteractiveBmiCalculatorGraphRoute,
   PlaygroundJwtDecoderRoute: PlaygroundJwtDecoderRoute,

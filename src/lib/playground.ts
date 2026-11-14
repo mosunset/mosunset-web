@@ -253,6 +253,18 @@ export const playgroundTools = [
     publishedDate: '2026-11-14',
     thumbnail: '/playground/encode-decode/thumbnail.svg',
   },
+  {
+    slug: 'image-compress',
+    name: '画像の圧縮・変換',
+    title:
+      '画像の圧縮・WebP 変換・EXIF 削除 | 複数の画像をまとめてブラウザで変換',
+    description:
+      '複数の画像をまとめて圧縮し、WebP・JPEG・PNG に変換します。画質と最大サイズを選べて、元と変換後の大きさ・削減率を比べられます。撮影位置（GPS）やカメラの機種などの EXIF を表示し、書き出した画像からは消します。画像はサーバーに送りません。',
+    category: '画像・ギャラリー',
+    tags: ['画像圧縮', 'WebP', 'EXIF 削除', '画像変換', 'リサイズ'],
+    publishedDate: '2026-11-14',
+    thumbnail: '/playground/image-compress/thumbnail.svg',
+  },
 ] as const satisfies readonly (Omit<PlaygroundTool, 'slug'> & {
   slug: string
 })[]
