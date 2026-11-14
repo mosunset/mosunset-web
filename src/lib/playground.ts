@@ -164,6 +164,18 @@ export const playgroundTools = [
     publishedDate: '2025-09-09',
     thumbnail: '/playground/3dblock/thumbnail.webp',
   },
+  {
+    slug: 'notation-variance',
+    name: '表記ゆれチェック',
+    title:
+      '表記ゆれチェック | 「行う／おこなう」「サーバ／サーバー」をまとめて一括でそろえる',
+    description:
+      '文章の中の表記ゆれ（行う／おこなう、子供／子ども、取り扱い／取扱い、サーバ／サーバー、全角・半角の英数字やカッコ）を見つけて、出てくる回数と場所を一覧にします。そろえる表記を選ぶと、一括で置き換えた文章をコピーできます。入力した文章はサーバーに送らず、ブラウザの中だけで調べます。',
+    category: '自然言語処理',
+    tags: ['表記ゆれ', '校正', '形態素解析', '日本語', 'テキスト解析'],
+    publishedDate: '2026-11-14',
+    thumbnail: '/playground/notation-variance/thumbnail.webp',
+  },
 ] as const satisfies readonly (Omit<PlaygroundTool, 'slug'> & {
   slug: string
 })[]
