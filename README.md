@@ -37,6 +37,7 @@ TURNSTILE_SITE_KEY=1x00000000000000000000AA   # 開発中は Cloudflare のテ�
 | `pnpm db:generate` | `src/server/db/schema.ts` を変えたあと、マイグレーションを作る |
 | `pnpm db:migrate:local` / `db:migrate:remote` | マイグレーションを開発用 / 本番の D1 に当てる |
 | `pnpm run deploy` | ビルドして本番（Cloudflare Workers）に出す（`pnpm deploy` は pnpm の別のコマンドなので `run` を付ける） |
+| `pnpm docs:dev` | 開発用ドキュメント（仕様・設計メモ、`docs/`）を http://localhost:3001 で見る |
 | `pnpm cf-typegen` | `wrangler.jsonc` のバインディングを変えたあと、型を作り直す |
 
 ## ファイルの置き場所

@@ -5,3 +5,4 @@ allowBuilds:
   core-js: false
   onnxruntime-node: false
   protobufjs: false
+  docsify: false
