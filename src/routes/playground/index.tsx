@@ -2,6 +2,7 @@ import { createFileRoute, Link } from '@tanstack/react-router'
 
 import {
   type Facet,
+  FilterValue,
   type ListControls,
   ListToolbar,
   listSearchValidator,
@@ -93,21 +94,22 @@ function PlaygroundIndex() {
       ) : list.view === 'table' ? (
         <ToolTable tools={tools} list={list} />
       ) : (
-        <ToolCards tools={tools} />
+        <ToolCards tools={tools} list={list} />
       )}
     </SectionPage>
   )
 }
 
-function ToolCards({ tools }: { tools: Tool[] }) {
+/**
+ * カード全体を押すとツールへ。名前のリンクをカードいっぱいに広げ（after:inset-0）、
+ * カテゴリとタグはその上に重ねたボタンにして、押すとそれで絞り込む
+ */
+function ToolCards({ tools, list }: { tools: Tool[]; list: ListControls }) {
   return (
     <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
       {tools.map((tool) => (
         <li key={tool.slug} id={listItemId(tool.slug)} className="scroll-mt-20">
-          <Link
-            to={`/playground/${tool.slug}`}
-            className="group flex h-full flex-col overflow-hidden rounded-lg border transition-colors hover:bg-muted/40"
-          >
+          <div className="group relative flex h-full flex-col overflow-hidden rounded-lg border transition-colors hover:bg-muted/40">
             <div className="aspect-[1200/630] overflow-hidden border-b bg-muted/30">
               <img
                 src={tool.thumbnail}
@@ -117,11 +119,21 @@ function ToolCards({ tools }: { tools: Tool[] }) {
               />
             </div>
             <div className="flex flex-1 flex-col gap-1 p-4">
-              <span className="text-xs text-muted-foreground">
+              <FilterValue
+                list={list}
+                facetKey="cat"
+                value={tool.category}
+                className="self-start text-xs text-muted-foreground"
+              >
                 {tool.category}
-              </span>
+              </FilterValue>
               <h2 className="font-semibold group-hover:underline">
-                {tool.name}
+                <Link
+                  to={`/playground/${tool.slug}`}
+                  className="after:absolute after:inset-0 after:content-['']"
+                >
+                  {tool.name}
+                </Link>
               </h2>
               <p className="line-clamp-2 text-sm text-muted-foreground">
                 {tool.description}
@@ -131,11 +143,13 @@ function ToolCards({ tools }: { tools: Tool[] }) {
                   {formatDay(tool.publishedDate)}
                 </time>
                 {tool.tags.slice(0, 3).map((tag) => (
-                  <span key={tag}>#{tag}</span>
+                  <FilterValue key={tag} list={list} facetKey="tag" value={tag}>
+                    #{tag}
+                  </FilterValue>
                 ))}
               </div>
             </div>
-          </Link>
+          </div>
         </li>
       ))}
     </ul>
@@ -190,7 +204,9 @@ function ToolTable({ tools, list }: { tools: Tool[]; list: ListControls }) {
                 </Link>
               </td>
               <td className="px-3 py-2 text-xs whitespace-nowrap text-muted-foreground">
-                {tool.category}
+                <FilterValue list={list} facetKey="cat" value={tool.category}>
+                  {tool.category}
+                </FilterValue>
               </td>
               <td className="px-3 py-2">
                 <div className="flex flex-wrap gap-1">

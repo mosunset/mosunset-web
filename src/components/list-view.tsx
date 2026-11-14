@@ -81,6 +81,11 @@ export type Facet<T> = {
   order?: readonly string[]
   /** 最初に見せる札の数（それより多ければ「ほか N 個」） */
   limit?: number
+  /**
+   * 一覧の上に札の列を出すか（ふだんは出す）。出さない列も、カードの中の値を押して絞り込める
+   * （著者のように値の種類が多く、札にすると並びすぎるもの）
+   */
+  chips?: boolean
 }
 
 export type FacetOption = {
@@ -88,6 +93,8 @@ export type FacetOption = {
   label: string
   /** それを選んだら（または足したら）何件になるか */
   count: number
+  /** 全体で何件が持っているか */
+  total: number
 }
 
 /** 札の並び 1 列ぶんの今の状態 */
@@ -96,6 +103,7 @@ export type FacetState = {
   label: string
   multiple: boolean
   limit?: number
+  chips: boolean
   selected: readonly string[]
   options: readonly FacetOption[]
 }
@@ -147,6 +155,10 @@ export type ListControls = {
   toggle: (key: string, value: string) => void
   /** その列の選択を外す（「すべて」） */
   clearFacet: (key: string) => void
+  /** カードや表の中の値を押したとき、その値で絞り込む（もう選んでいれば何もしない） */
+  filterBy: (key: string, value: string) => void
+  /** その値を押して絞り込めるか（ほかにも同じ値を持つものがあり、全部が同じ値ではなく、まだ選んでいない） */
+  filterable: (key: string, value: string | null | undefined) => boolean
   clearAll: () => void
   shown: number
   total: number
@@ -270,11 +282,13 @@ export function useList<T>({
       label: facet.label,
       multiple: facet.multiple ?? false,
       limit: facet.limit,
+      chips: facet.chips ?? true,
       selected: selected[f],
       options: order.map((value) => ({
         value,
         label: facet.display?.(value) ?? value,
         count: counts.get(value) ?? 0,
+        total: totals.get(value) ?? 0,
       })),
     }
   })
@@ -315,6 +329,24 @@ export function useList<T>({
       set({ [key]: next.join(',') || undefined })
     },
     clearFacet: (key) => set({ [key]: undefined }),
+    filterBy: (key, value) => {
+      const f = facets.findIndex((facet) => facet.key === key)
+      if (f < 0 || selected[f].includes(value)) return
+      const next = facets[f].multiple ? [...selected[f], value] : [value]
+      set({ [key]: next.join(',') })
+      // 一覧の下のほうで押したときは、絞り込んだ一覧の頭（操作の欄）まで戻る
+      const top = document.getElementById(LIST_TOP_ID)
+      if (top && top.getBoundingClientRect().top < 0) {
+        top.scrollIntoView({ block: 'start' })
+      }
+    },
+    filterable: (key, value) => {
+      if (!value) return false
+      const facet = facetStates.find((fs) => fs.key === key)
+      if (!facet || facet.selected.includes(value)) return false
+      const total = facet.options.find((o) => o.value === value)?.total ?? 0
+      return total > 1 && total < items.length
+    },
     clearAll: () =>
       set({
         q: undefined,
@@ -352,6 +384,9 @@ const viewLabels = {
   table: '表',
 } as const
 
+/** 一覧の上の操作の欄の id（カードの中の値で絞り込んだとき、ここまで戻る） */
+const LIST_TOP_ID = 'list-top'
+
 /** 一覧の上の操作の欄（検索・並べ替え・表示・絞り込みの札・件数） */
 export function ListToolbar({
   list,
@@ -361,7 +396,7 @@ export function ListToolbar({
   placeholder?: string
 }) {
   return (
-    <div className="mb-6 space-y-3">
+    <div id={LIST_TOP_ID} className="mb-6 scroll-mt-20 space-y-3">
       <div className="flex flex-wrap items-center gap-2">
         <div className="relative min-w-48 flex-1">
           <Search className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" />
@@ -413,7 +448,9 @@ export function ListToolbar({
       </div>
       {list.facets
         // 選べる値が 1 つしかない列は、絞り込む意味がないので出さない
-        .filter((f) => f.options.length > 1 || f.selected.length > 0)
+        .filter(
+          (f) => f.chips && (f.options.length > 1 || f.selected.length > 0),
+        )
         .map((facet) => (
           <FilterChips
             key={facet.key}
@@ -635,6 +672,44 @@ function Chip({
           ? 'border-primary bg-primary text-primary-foreground'
           : 'text-muted-foreground hover:bg-muted hover:text-foreground',
         disabled && 'pointer-events-none opacity-40',
+      )}
+    >
+      {children}
+    </button>
+  )
+}
+
+/**
+ * カードや表の中の値。押すとその値で絞り込める（ほかに同じ値を持つものがなければただの文字）。
+ * リンクの中には置けないので、カードではリンクの外に置く
+ */
+export function FilterValue({
+  list,
+  facetKey,
+  value,
+  children,
+  className,
+}: {
+  list: ListControls
+  facetKey: string
+  value: string | null | undefined
+  children: React.ReactNode
+  className?: string
+}) {
+  if (!list.filterable(facetKey, value)) {
+    return <span className={className}>{children}</span>
+  }
+  const facet = list.facets.find((f) => f.key === facetKey)
+  const valueLabel =
+    facet?.options.find((o) => o.value === value)?.label ?? value
+  return (
+    <button
+      type="button"
+      onClick={() => value && list.filterBy(facetKey, value)}
+      title={`${facet?.label ?? ''}「${valueLabel}」で絞り込む`}
+      className={cn(
+        'relative z-10 cursor-pointer text-left underline-offset-2 hover:text-foreground hover:underline',
+        className,
       )}
     >
       {children}

@@ -209,6 +209,11 @@ export function itemSubtitle(
 export const filterKeysOf = (kind: CollectionKind): readonly string[] =>
   (collections[kind] as { filterKeys?: readonly string[] }).filterKeys ?? []
 
+/** 一覧で絞り込める項目（札を出す項目と、カードの名前の下に出して押せる項目） */
+export const facetKeysOf = (kind: CollectionKind): readonly string[] => [
+  ...new Set([...filterKeysOf(kind), ...collections[kind].subtitleKeys]),
+]
+
 /** 一覧をまとめて見出しを付ける項目 */
 export const groupFieldOf = (kind: CollectionKind) => {
   const key = (collections[kind] as { groupKey?: string }).groupKey

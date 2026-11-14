@@ -12,7 +12,7 @@ import { collectionDetailHead } from '@/lib/collection-seo'
 import {
   type CollectionKind,
   collections,
-  filterKeysOf,
+  facetKeysOf,
 } from '@/lib/collections'
 import { getNavItem } from '@/lib/navigation'
 import { sectionHead } from '@/lib/seo'
@@ -38,7 +38,7 @@ export function collectionIndexRoute(kind: CollectionKind) {
 
   return {
     head: () => sectionHead(item),
-    validateSearch: listSearchValidator(filterKeysOf(kind)),
+    validateSearch: listSearchValidator(facetKeysOf(kind)),
     loader: () => listPublishedItems({ data: { kind } }),
     component: Page,
   }

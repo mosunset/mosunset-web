@@ -8,6 +8,7 @@ import { EmptyState } from '@/components/empty-state'
 import { RichTextContent, ZoomableImage } from '@/components/image-viewer'
 import {
   type Facet,
+  FilterValue,
   type Group,
   GroupedSections,
   groupItems,
@@ -28,9 +29,9 @@ import {
   type CollectionKind,
   collections,
   displayAttribute,
+  facetKeysOf,
   filterKeysOf,
   groupFieldOf,
-  itemSubtitle,
 } from '@/lib/collections'
 import { formatDay } from '@/lib/format'
 import { imageUrl } from '@/lib/images'
@@ -71,10 +72,14 @@ const viewsOf = (kind: CollectionKind): readonly ViewMode[] =>
 const fieldsOf = (kind: CollectionKind): readonly AttributeField[] =>
   collections[kind].fields
 
-/** 絞り込みの札の列（選択肢の決まった項目はその順に全部、文字の項目は多い順に 8 個まで見せる） */
+/**
+ * 絞り込みの列（選択肢の決まった項目はその順に全部、文字の項目は多い順に 8 個まで札を見せる）。
+ * カードの名前の下に出す項目（著者など）は、札は出さずにカードの値を押して絞り込めるようにする
+ */
 function facetsOf(kind: CollectionKind): Facet<ListItem>[] {
   const fields = fieldsOf(kind)
-  return filterKeysOf(kind).flatMap((key) => {
+  const chipKeys = filterKeysOf(kind)
+  return facetKeysOf(kind).flatMap((key) => {
     const field = fields.find((f) => f.key === key)
     if (!field) return []
     const select = field.type === 'select'
@@ -87,9 +92,43 @@ function facetsOf(kind: CollectionKind): Facet<ListItem>[] {
         display: (value: string) => displayAttribute(field, value),
         order: select ? field.options.map((o) => o.value) : undefined,
         limit: select ? undefined : 8,
+        chips: chipKeys.includes(key),
       },
     ]
   })
+}
+
+/** カードの名前の下に出す値（メーカー / モデル など）。押すとその値で絞り込める */
+function Subtitle({
+  kind,
+  item,
+  list,
+}: {
+  kind: CollectionKind
+  item: ListItem
+  list: ListControls
+}) {
+  const fields = fieldsOf(kind)
+  const parts = collections[kind].subtitleKeys.flatMap((key) => {
+    const value = item.attributes[key]
+    const field = fields.find((f) => f.key === key)
+    return value && field
+      ? [{ key, value, label: displayAttribute(field, value) }]
+      : []
+  })
+  if (parts.length === 0) return null
+  return (
+    <p className="text-sm text-muted-foreground">
+      {parts.map((part, i) => (
+        <React.Fragment key={part.key}>
+          {i > 0 && ' / '}
+          <FilterValue list={list} facetKey={part.key} value={part.value}>
+            {part.label}
+          </FilterValue>
+        </React.Fragment>
+      ))}
+    </p>
+  )
 }
 
 /** 表に出す項目（URL は表では長すぎるので出さない） */
@@ -209,7 +248,12 @@ export function CollectionGrid({
       ) : (
         <GroupedSections groups={groups}>
           {(items, grouped) => (
-            <CollectionCards kind={kind} items={items} grouped={grouped} />
+            <CollectionCards
+              kind={kind}
+              items={items}
+              grouped={grouped}
+              list={list}
+            />
           )}
         </GroupedSections>
       )}
@@ -221,11 +265,13 @@ function CollectionCards({
   kind,
   items,
   grouped,
+  list,
 }: {
   kind: CollectionKind
   items: ListItem[]
   /** まとまりの見出し（h2）の下に並ぶとき */
   grouped: boolean
+  list: ListControls
 }) {
   const config = collections[kind]
   const contain = imageFitOf(kind) === 'contain'
@@ -234,7 +280,6 @@ function CollectionCards({
     <ul className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
       {items.map((item) => {
         const src = imageUrl(item.imageKey)
-        const subtitle = itemSubtitle(kind, item.attributes)
         return (
           <li
             key={item.slug}
@@ -267,10 +312,8 @@ function CollectionCards({
               <Title className="mt-2 font-medium leading-snug group-hover:underline">
                 {item.title}
               </Title>
-              {subtitle && (
-                <p className="text-sm text-muted-foreground">{subtitle}</p>
-              )}
             </Link>
+            <Subtitle kind={kind} item={item} list={list} />
           </li>
         )
       })}
@@ -414,11 +457,15 @@ function CollectionTable({
                         key={f.key}
                         className="px-3 py-2 text-xs text-muted-foreground"
                       >
-                        {v
-                          ? f.type === 'date'
-                            ? formatDay(v)
-                            : displayAttribute(f, v)
-                          : '—'}
+                        {!v ? (
+                          '—'
+                        ) : f.type === 'date' ? (
+                          formatDay(v)
+                        ) : (
+                          <FilterValue list={list} facetKey={f.key} value={v}>
+                            {displayAttribute(f, v)}
+                          </FilterValue>
+                        )}
                       </td>
                     )
                   })}
