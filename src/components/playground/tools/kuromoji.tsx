@@ -36,7 +36,8 @@ let tokenizerPromise: Promise<Tokenizer> | null = null
 
 /**
  * スクリプトと辞書（約 17MB）は、このページを開いたときに 1 度だけ読み込む。
- * 文章の読みやすさチェック（readability-check）でも使う
+ * 文章の読みやすさチェック（readability-check）・ふりがな付け（furigana）・
+ * 表記ゆれチェック（notation-variance）でも使う
  */
 export function loadTokenizer() {
   tokenizerPromise ??= new Promise<Tokenizer>((resolve, reject) => {
@@ -71,7 +72,7 @@ const posColors: Record<string, string> = {
   記号: 'bg-transparent border-dashed border-border',
 }
 
-const kataToHira = (s: string) =>
+export const kataToHira = (s: string) =>
   s.replace(/[ァ-ヶ]/g, (c) => String.fromCharCode(c.charCodeAt(0) - 0x60))
 
 const columns: { key: keyof Token; label: string }[] = [
