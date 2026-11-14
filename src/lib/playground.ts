@@ -164,6 +164,18 @@ export const playgroundTools = [
     publishedDate: '2025-09-09',
     thumbnail: '/playground/3dblock/thumbnail.webp',
   },
+  {
+    slug: 'furigana',
+    name: 'ふりがな付け',
+    title:
+      'ふりがな付け | 漢字に読みを付けてルビ付き HTML・括弧・青空文庫形式で出力',
+    description:
+      '日本語の文章の漢字に、形態素解析（Kuromoji）で読みを付けます。送り仮名はルビから外し、ルビ付き HTML・「漢字(かんじ)」・青空文庫形式で出力できます。学年でルビを付ける漢字をしぼったり、読みを手で直したりもできます。入力した文章はサーバーに送りません。',
+    category: '自然言語処理',
+    tags: ['ふりがな', 'ルビ', '日本語', 'Kuromoji', 'HTML'],
+    publishedDate: '2026-11-14',
+    thumbnail: '/playground/furigana/thumbnail.webp',
+  },
 ] as const satisfies readonly (Omit<PlaygroundTool, 'slug'> & {
   slug: string
 })[]

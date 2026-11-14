@@ -10,7 +10,7 @@ import { cn } from '@/lib/utils'
 const SCRIPT = '/playground/kuromoji/kuromoji.js'
 const DICT = '/playground/kuromoji/dict'
 
-type Token = {
+export type Token = {
   word_position: number
   surface_form: string
   pos: string
@@ -25,7 +25,7 @@ type Token = {
   word_id: number
   word_type: string
 }
-type Tokenizer = { tokenize: (text: string) => Token[] }
+export type Tokenizer = { tokenize: (text: string) => Token[] }
 type KuromojiGlobal = {
   builder: (o: { dicPath: string }) => {
     build: (cb: (err: Error | null, t: Tokenizer) => void) => void
@@ -34,8 +34,8 @@ type KuromojiGlobal = {
 
 let tokenizerPromise: Promise<Tokenizer> | null = null
 
-/** スクリプトと辞書（約 17MB）は、このページを開いたときに 1 度だけ読み込む */
-function loadTokenizer() {
+/** スクリプトと辞書（約 17MB）は、このページを開いたときに 1 度だけ読み込む（ふりがなツールでも使う） */
+export function loadTokenizer() {
   tokenizerPromise ??= new Promise<Tokenizer>((resolve, reject) => {
     const build = () => {
       const k = (window as unknown as { kuromoji?: KuromojiGlobal }).kuromoji
@@ -68,7 +68,7 @@ const posColors: Record<string, string> = {
   記号: 'bg-transparent border-dashed border-border',
 }
 
-const kataToHira = (s: string) =>
+export const kataToHira = (s: string) =>
   s.replace(/[ァ-ヶ]/g, (c) => String.fromCharCode(c.charCodeAt(0) - 0x60))
 
 const columns: { key: keyof Token; label: string }[] = [
