@@ -143,6 +143,17 @@ export const playgroundTools = [
     thumbnail: '/playground/masonryimage/thumbnail.webp',
   },
   {
+    slug: 'mosaic-art',
+    name: 'モザイクアート',
+    title: 'モザイクアート作成ツール | たくさんの写真を並べて 1 枚の絵にする',
+    description:
+      '元の画像と素材の写真を選ぶと、色の近い写真をタイルにして並べたモザイクアート（フォトモザイク）を作ります。写真がなくても、元の画像そのものや単色のタイルで作れます。タイルの数・色の補正・すき間を変えて、PNG・JPEG で書き出せます。画像はサーバーに送りません。',
+    category: '画像・ギャラリー',
+    tags: ['モザイクアート', 'フォトモザイク', '画像加工', 'Canvas'],
+    publishedDate: '2026-11-14',
+    thumbnail: '/playground/mosaic-art/thumbnail.webp',
+  },
+  {
     slug: 'box-packing',
     name: '箱詰めシミュレーター',
     title: '箱詰めシミュレーター | 段ボール箱を床に低く積む並べ方を 3D で計算',

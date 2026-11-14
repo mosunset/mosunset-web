@@ -48,6 +48,7 @@ import { Route as PlaygroundInteractiveBmiCalculatorGraphRouteImport } from './r
 import { Route as PlaygroundKuromojiRouteImport } from './routes/playground/kuromoji'
 import { Route as PlaygroundMasonryimageRouteImport } from './routes/playground/masonryimage'
 import { Route as PlaygroundMonitorPairingRouteImport } from './routes/playground/monitor-pairing'
+import { Route as PlaygroundMosaicArtRouteImport } from './routes/playground/mosaic-art'
 import { Route as PlaygroundNgramSimilarityRouteImport } from './routes/playground/ngram-similarity'
 import { Route as PlaygroundUnitPriceComparisonRouteImport } from './routes/playground/unit-price-comparison'
 import { Route as PlaygroundWebyoloRouteImport } from './routes/playground/webyolo'
@@ -265,6 +266,11 @@ const PlaygroundMonitorPairingRoute =
     path: '/monitor-pairing',
     getParentRoute: () => PlaygroundRouteRoute,
   } as any)
+const PlaygroundMosaicArtRoute = PlaygroundMosaicArtRouteImport.update({
+  id: '/mosaic-art',
+  path: '/mosaic-art',
+  getParentRoute: () => PlaygroundRouteRoute,
+} as any)
 const PlaygroundNgramSimilarityRoute =
   PlaygroundNgramSimilarityRouteImport.update({
     id: '/ngram-similarity',
@@ -384,6 +390,7 @@ export interface FileRoutesByFullPath {
   '/playground/kuromoji': typeof PlaygroundKuromojiRoute
   '/playground/masonryimage': typeof PlaygroundMasonryimageRoute
   '/playground/monitor-pairing': typeof PlaygroundMonitorPairingRoute
+  '/playground/mosaic-art': typeof PlaygroundMosaicArtRoute
   '/playground/ngram-similarity': typeof PlaygroundNgramSimilarityRoute
   '/playground/unit-price-comparison': typeof PlaygroundUnitPriceComparisonRoute
   '/playground/webyolo': typeof PlaygroundWebyoloRoute
@@ -431,6 +438,7 @@ export interface FileRoutesByTo {
   '/playground/kuromoji': typeof PlaygroundKuromojiRoute
   '/playground/masonryimage': typeof PlaygroundMasonryimageRoute
   '/playground/monitor-pairing': typeof PlaygroundMonitorPairingRoute
+  '/playground/mosaic-art': typeof PlaygroundMosaicArtRoute
   '/playground/ngram-similarity': typeof PlaygroundNgramSimilarityRoute
   '/playground/unit-price-comparison': typeof PlaygroundUnitPriceComparisonRoute
   '/playground/webyolo': typeof PlaygroundWebyoloRoute
@@ -488,6 +496,7 @@ export interface FileRoutesById {
   '/playground/kuromoji': typeof PlaygroundKuromojiRoute
   '/playground/masonryimage': typeof PlaygroundMasonryimageRoute
   '/playground/monitor-pairing': typeof PlaygroundMonitorPairingRoute
+  '/playground/mosaic-art': typeof PlaygroundMosaicArtRoute
   '/playground/ngram-similarity': typeof PlaygroundNgramSimilarityRoute
   '/playground/unit-price-comparison': typeof PlaygroundUnitPriceComparisonRoute
   '/playground/webyolo': typeof PlaygroundWebyoloRoute
@@ -547,6 +556,7 @@ export interface FileRouteTypes {
     | '/playground/kuromoji'
     | '/playground/masonryimage'
     | '/playground/monitor-pairing'
+    | '/playground/mosaic-art'
     | '/playground/ngram-similarity'
     | '/playground/unit-price-comparison'
     | '/playground/webyolo'
@@ -594,6 +604,7 @@ export interface FileRouteTypes {
     | '/playground/kuromoji'
     | '/playground/masonryimage'
     | '/playground/monitor-pairing'
+    | '/playground/mosaic-art'
     | '/playground/ngram-similarity'
     | '/playground/unit-price-comparison'
     | '/playground/webyolo'
@@ -650,6 +661,7 @@ export interface FileRouteTypes {
     | '/playground/kuromoji'
     | '/playground/masonryimage'
     | '/playground/monitor-pairing'
+    | '/playground/mosaic-art'
     | '/playground/ngram-similarity'
     | '/playground/unit-price-comparison'
     | '/playground/webyolo'
@@ -969,6 +981,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PlaygroundMonitorPairingRouteImport
       parentRoute: typeof PlaygroundRouteRoute
     }
+    '/playground/mosaic-art': {
+      id: '/playground/mosaic-art'
+      path: '/mosaic-art'
+      fullPath: '/playground/mosaic-art'
+      preLoaderRoute: typeof PlaygroundMosaicArtRouteImport
+      parentRoute: typeof PlaygroundRouteRoute
+    }
     '/playground/ngram-similarity': {
       id: '/playground/ngram-similarity'
       path: '/ngram-similarity'
@@ -1229,6 +1248,7 @@ interface PlaygroundRouteRouteChildren {
   PlaygroundKuromojiRoute: typeof PlaygroundKuromojiRoute
   PlaygroundMasonryimageRoute: typeof PlaygroundMasonryimageRoute
   PlaygroundMonitorPairingRoute: typeof PlaygroundMonitorPairingRoute
+  PlaygroundMosaicArtRoute: typeof PlaygroundMosaicArtRoute
   PlaygroundNgramSimilarityRoute: typeof PlaygroundNgramSimilarityRoute
   PlaygroundUnitPriceComparisonRoute: typeof PlaygroundUnitPriceComparisonRoute
   PlaygroundWebyoloRoute: typeof PlaygroundWebyoloRoute
@@ -1247,6 +1267,7 @@ const PlaygroundRouteRouteChildren: PlaygroundRouteRouteChildren = {
   PlaygroundKuromojiRoute: PlaygroundKuromojiRoute,
   PlaygroundMasonryimageRoute: PlaygroundMasonryimageRoute,
   PlaygroundMonitorPairingRoute: PlaygroundMonitorPairingRoute,
+  PlaygroundMosaicArtRoute: PlaygroundMosaicArtRoute,
   PlaygroundNgramSimilarityRoute: PlaygroundNgramSimilarityRoute,
   PlaygroundUnitPriceComparisonRoute: PlaygroundUnitPriceComparisonRoute,
   PlaygroundWebyoloRoute: PlaygroundWebyoloRoute,
