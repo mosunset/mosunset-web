@@ -13,6 +13,7 @@ import {
 } from '@/components/list-view'
 import { SectionPage } from '@/components/section-page'
 import { formatDay } from '@/lib/format'
+import { listItemId } from '@/lib/list-memory'
 import { getNavItem } from '@/lib/navigation'
 import { playgroundCategories, playgroundTools } from '@/lib/playground'
 import { sectionHead } from '@/lib/seo'
@@ -36,7 +37,7 @@ type Tool = (typeof playgroundTools)[number]
 
 function PlaygroundIndex() {
   const search = Route.useSearch()
-  const list = useListSearch(search)
+  const list = useListSearch('/playground', search)
   const sort = sortOptions.some((o) => o.value === search.sort)
     ? (search.sort as string)
     : 'new'
@@ -122,7 +123,7 @@ function ToolCards({ tools }: { tools: Tool[] }) {
   return (
     <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
       {tools.map((tool) => (
-        <li key={tool.slug}>
+        <li key={tool.slug} id={listItemId(tool.slug)} className="scroll-mt-20">
           <Link
             to={`/playground/${tool.slug}`}
             className="group flex h-full flex-col overflow-hidden rounded-lg border transition-colors hover:bg-muted/40"
@@ -183,7 +184,8 @@ function ToolTable({
           {tools.map((tool) => (
             <tr
               key={tool.slug}
-              className="border-t align-top hover:bg-muted/30"
+              id={listItemId(tool.slug)}
+              className="scroll-mt-20 border-t align-top hover:bg-muted/30"
             >
               <td className="px-3 py-2">
                 <Link

@@ -98,7 +98,9 @@ export function ToolPage({
 
       {after}
 
-      <BackLinkFooter to="/playground">プレイグラウンドの一覧へ</BackLinkFooter>
+      <BackLinkFooter to="/playground" slug={slug}>
+        プレイグラウンドの一覧へ
+      </BackLinkFooter>
     </div>
   )
 }

@@ -15,6 +15,7 @@ import { SectionPage } from '@/components/section-page'
 import { listPublishedPosts } from '@/functions/posts'
 import { formatDate } from '@/lib/format'
 import { imagePath } from '@/lib/images'
+import { listItemId } from '@/lib/list-memory'
 import { getNavItem } from '@/lib/navigation'
 import { sectionHead } from '@/lib/seo'
 
@@ -39,7 +40,7 @@ type Post = Awaited<ReturnType<typeof listPublishedPosts>>[number]
 function BlogIndex() {
   const posts = Route.useLoaderData()
   const search = Route.useSearch()
-  const list = useListSearch(search)
+  const list = useListSearch('/blog', search)
   const sort = sortOptions.some((o) => o.value === search.sort)
     ? (search.sort as string)
     : 'new'
@@ -112,7 +113,7 @@ function PostList({ posts }: { posts: Post[] }) {
   return (
     <ul className="divide-y">
       {posts.map((post) => (
-        <li key={post.slug}>
+        <li key={post.slug} id={listItemId(post.slug)} className="scroll-mt-20">
           <Link
             to="/blog/$slug"
             params={{ slug: post.slug }}
@@ -148,7 +149,7 @@ function PostCards({ posts }: { posts: Post[] }) {
   return (
     <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
       {posts.map((post) => (
-        <li key={post.slug}>
+        <li key={post.slug} id={listItemId(post.slug)} className="scroll-mt-20">
           <Link
             to="/blog/$slug"
             params={{ slug: post.slug }}
@@ -194,7 +195,11 @@ function PostTable({ posts }: { posts: Post[] }) {
         </thead>
         <tbody>
           {posts.map((post) => (
-            <tr key={post.slug} className="border-t hover:bg-muted/30">
+            <tr
+              key={post.slug}
+              id={listItemId(post.slug)}
+              className="scroll-mt-20 border-t hover:bg-muted/30"
+            >
               <td className="px-3 py-2">
                 <Link
                   to="/blog/$slug"

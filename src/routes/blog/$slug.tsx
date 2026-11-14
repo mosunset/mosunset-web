@@ -128,7 +128,9 @@ function BlogPost() {
 
       <RichTextContent html={post.html} className="mt-8" />
 
-      <BackLinkFooter to="/blog">記事一覧へ</BackLinkFooter>
+      <BackLinkFooter to="/blog" slug={post.slug}>
+        記事一覧へ
+      </BackLinkFooter>
     </article>
   )
 }

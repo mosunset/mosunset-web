@@ -1,5 +1,5 @@
 import { Link, useMatches } from '@tanstack/react-router'
-import { Fragment } from 'react'
+import { type ComponentProps, Fragment } from 'react'
 
 import {
   Breadcrumb,
@@ -11,6 +11,13 @@ import {
 } from '@/components/ui/breadcrumb'
 
 import { resolveBreadcrumbs } from '@/lib/breadcrumbs'
+import { useRememberedListSearch } from '@/lib/list-memory'
+
+/** 一覧ページへのパンくずは、その一覧で最後に使った絞り込みを付けて戻る */
+function CrumbLink({ to, ...props }: { to: string } & ComponentProps<'a'>) {
+  const search = useRememberedListSearch(to)
+  return <Link to={to} search={search ?? {}} {...props} />
+}
 
 export function AppBreadcrumb({ className }: { className?: string }) {
   const crumbs = resolveBreadcrumbs(useMatches())
@@ -30,7 +37,7 @@ export function AppBreadcrumb({ className }: { className?: string }) {
                   <BreadcrumbPage>{crumb.label}</BreadcrumbPage>
                 ) : (
                   <BreadcrumbLink asChild>
-                    <Link to={crumb.pathname}>{crumb.label}</Link>
+                    <CrumbLink to={crumb.pathname}>{crumb.label}</CrumbLink>
                   </BreadcrumbLink>
                 )}
               </BreadcrumbItem>

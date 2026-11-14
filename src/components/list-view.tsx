@@ -1,8 +1,9 @@
 import { useNavigate } from '@tanstack/react-router'
 import { LayoutGrid, List, Rows3, Search, X } from 'lucide-react'
-import type * as React from 'react'
+import * as React from 'react'
 
 import { Input } from '@/components/ui/input'
+import { rememberListSearch } from '@/lib/list-memory'
 import { normalizeForSearch } from '@/lib/search-text'
 import { cn } from '@/lib/utils'
 
@@ -40,9 +41,17 @@ export function parseListSearch(search: Record<string, unknown>): ListSearch {
   }
 }
 
-/** 一覧の状態を読み書きする。書くときは履歴を増やさない（戻るボタンで 1 文字ずつ戻らないように） */
-export function useListSearch(search: ListSearch) {
+/**
+ * 一覧の状態を読み書きする。書くときは履歴を増やさない（戻るボタンで 1 文字ずつ戻らないように）。
+ * 今の状態はブラウザにも覚えておき、詳しいページの「← 一覧へ」やパンくずで同じ一覧に戻れるようにする
+ * @param path 一覧ページのパス（/toys など）
+ */
+export function useListSearch(path: string, search: ListSearch) {
   const navigate = useNavigate()
+  const searchJson = JSON.stringify(search)
+  React.useEffect(() => {
+    rememberListSearch(path, searchJson)
+  }, [path, searchJson])
   const set = (patch: Partial<ListSearch>) =>
     navigate({
       to: '.',

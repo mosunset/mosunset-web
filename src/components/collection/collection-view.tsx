@@ -26,6 +26,7 @@ import {
 } from '@/lib/collections'
 import { formatDay } from '@/lib/format'
 import { imageUrl } from '@/lib/images'
+import { listItemId } from '@/lib/list-memory'
 import { cn } from '@/lib/utils'
 
 type ListItem = {
@@ -65,7 +66,7 @@ export function CollectionGrid({
   const filterField: AttributeField | undefined = fields.find(
     (f) => 'filterKey' in config && f.key === config.filterKey,
   )
-  const list = useListSearch(search)
+  const list = useListSearch(config.path, search)
   const sort = sortOptions.some((o) => o.value === search.sort)
     ? (search.sort as string)
     : 'order'
@@ -180,7 +181,11 @@ function CollectionCards({
         const src = imageUrl(item.imageKey)
         const subtitle = itemSubtitle(kind, item.attributes)
         return (
-          <li key={item.slug}>
+          <li
+            key={item.slug}
+            id={listItemId(item.slug)}
+            className="scroll-mt-20"
+          >
             <Link
               to={config.detailPath}
               params={{ slug: item.slug }}
@@ -256,7 +261,8 @@ function CollectionTable({
             return (
               <tr
                 key={item.slug}
-                className="border-t align-top hover:bg-muted/30"
+                id={listItemId(item.slug)}
+                className="scroll-mt-20 border-t align-top hover:bg-muted/30"
               >
                 <td className="px-3 py-2">
                   <Link
@@ -407,7 +413,9 @@ export function CollectionDetail({
         </div>
       </div>
 
-      <BackLinkFooter to={config.path}>{config.label}の一覧へ</BackLinkFooter>
+      <BackLinkFooter to={config.path} slug={item.slug}>
+        {config.label}の一覧へ
+      </BackLinkFooter>
     </article>
   )
 }
