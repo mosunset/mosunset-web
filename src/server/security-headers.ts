@@ -37,7 +37,8 @@ function contentSecurityPolicy(nonce: string, local: boolean) {
   return [
     "default-src 'self'",
     // https: と 'unsafe-inline' は、strict-dynamic に対応していない古いブラウザ向け（新しいブラウザは無視する）
-    `script-src 'nonce-${nonce}' 'strict-dynamic' https: 'unsafe-inline'`,
+    // 'wasm-unsafe-eval' は WebAssembly を動かすため（背景除去・顔のぼかしの MediaPipe。JavaScript の eval は許さない）
+    `script-src 'nonce-${nonce}' 'strict-dynamic' https: 'unsafe-inline' 'wasm-unsafe-eval'`,
     // Tailwind や Clerk が style 属性・<style> を使う
     "style-src 'self' 'unsafe-inline'",
     // 本文には https の外部画像も置ける。ファイルを選んだときのプレビューは blob: / data:
