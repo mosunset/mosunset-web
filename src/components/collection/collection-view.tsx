@@ -5,6 +5,15 @@ import * as React from 'react'
 import { BackLinkFooter } from '@/components/back-link-footer'
 import { EmptyState } from '@/components/empty-state'
 import { RichTextContent, ZoomableImage } from '@/components/image-viewer'
+import {
+  FilterChips,
+  type ListSearch,
+  ListToolbar,
+  matchesQuery,
+  NoMatches,
+  useListSearch,
+  type ViewMode,
+} from '@/components/list-view'
 import { NotFoundPage } from '@/components/not-found-page'
 import {
   type AttributeField,
@@ -25,19 +34,34 @@ type ListItem = {
   acquiredAt: string | null
 }
 
-/** コレクションの一覧（カードのグリッド） */
+const sortOptions = [
+  { value: 'order', label: 'おすすめ順' },
+  { value: 'new', label: '日付の新しい順' },
+  { value: 'old', label: '日付の古い順' },
+  { value: 'name', label: '名前順' },
+] as const
+const views: readonly ViewMode[] = ['card', 'table']
+
+/** コレクションの一覧（検索・絞り込み・並べ替えと、カードか表） */
 export function CollectionGrid({
   kind,
   items,
+  search,
 }: {
   kind: CollectionKind
   items: ListItem[]
+  search: ListSearch
 }) {
   const config = collections[kind]
-  const filterField: AttributeField | undefined = (
-    config.fields as readonly AttributeField[]
-  ).find((f) => 'filterKey' in config && f.key === config.filterKey)
-  const [filter, setFilter] = React.useState<string | null>(null)
+  const fields: readonly AttributeField[] = config.fields
+  const filterField: AttributeField | undefined = fields.find(
+    (f) => 'filterKey' in config && f.key === config.filterKey,
+  )
+  const list = useListSearch(search)
+  const sort = sortOptions.some((o) => o.value === search.sort)
+    ? (search.sort as string)
+    : 'order'
+  const view: ViewMode = search.view === 'table' ? 'table' : 'card'
 
   // 絞り込みの候補（登録されている値だけ、項目定義の順に並べる）
   const filterOptions = React.useMemo(() => {
@@ -60,81 +84,213 @@ export function CollectionGrid({
       }))
   }, [filterField, items])
 
-  const visible =
-    filter && filterField
-      ? items.filter((item) => item.attributes[filterField.key] === filter)
-      : items
+  const visible = React.useMemo(() => {
+    const filtered = items.filter(
+      (item) =>
+        (!list.cat ||
+          !filterField ||
+          item.attributes[filterField.key] === list.cat) &&
+        matchesQuery(
+          list.query,
+          item.title,
+          ...fields.map((f) => {
+            const v = item.attributes[f.key]
+            return v && f.type !== 'url' ? displayAttribute(f, v) : null
+          }),
+        ),
+    )
+    // おすすめ順は、管理画面で決めた並び（サーバーから届いた順）のまま
+    if (sort === 'order') return filtered
+    const date = (i: ListItem) => i.acquiredAt ?? ''
+    return [...filtered].sort((x, y) =>
+      sort === 'name'
+        ? x.title.localeCompare(y.title, 'ja')
+        : sort === 'old'
+          ? date(x).localeCompare(date(y))
+          : date(y).localeCompare(date(x)),
+    )
+  }, [items, list.cat, list.query, sort, filterField, fields])
 
   if (items.length === 0) {
     return <EmptyState>まだ登録されていません。</EmptyState>
   }
 
+  const filtering = list.query !== '' || list.cat !== null
+  const hint = fields
+    .slice(0, 2)
+    .map((f) => f.label)
+    .join('・')
   return (
     <>
-      {filterOptions.length > 1 && (
-        <fieldset className="mb-6 flex flex-wrap gap-2">
-          <legend className="sr-only">{filterField?.label}で絞り込む</legend>
-          {[
-            { value: null, label: 'すべて', count: items.length },
-            ...filterOptions,
-          ].map((option) => {
-            const active = filter === option.value
-            return (
-              <button
-                key={option.value ?? 'all'}
-                type="button"
-                aria-pressed={active}
-                onClick={() => setFilter(option.value)}
-                className={
-                  active
-                    ? 'rounded-full border border-foreground bg-foreground px-3 py-1 text-sm text-background'
-                    : 'rounded-full border px-3 py-1 text-sm text-muted-foreground transition-colors hover:bg-muted hover:text-foreground'
-                }
+      <ListToolbar
+        query={list.query}
+        onQuery={list.setQuery}
+        placeholder={`名前や${hint}で探す`}
+        sortOptions={sortOptions}
+        sort={sort}
+        onSort={(v) => list.set({ sort: v === 'order' ? undefined : v })}
+        views={views}
+        view={view}
+        onView={(v) => list.set({ view: v === 'card' ? undefined : v })}
+        shown={visible.length}
+        total={items.length}
+        onClear={filtering ? list.clearAll : undefined}
+      >
+        {filterField && filterOptions.length > 1 && (
+          <FilterChips
+            label={filterField.label}
+            options={filterOptions}
+            selected={list.cat ? [list.cat] : []}
+            onToggle={(v) => list.setCat(list.cat === v ? null : v)}
+            onAll={() => list.setCat(null)}
+          />
+        )}
+      </ListToolbar>
+      {visible.length === 0 ? (
+        <NoMatches onClear={list.clearAll} />
+      ) : view === 'table' ? (
+        <CollectionTable kind={kind} items={visible} />
+      ) : (
+        <CollectionCards kind={kind} items={visible} />
+      )}
+    </>
+  )
+}
+
+function CollectionCards({
+  kind,
+  items,
+}: {
+  kind: CollectionKind
+  items: ListItem[]
+}) {
+  const config = collections[kind]
+  return (
+    <ul className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
+      {items.map((item) => {
+        const src = imageUrl(item.imageKey)
+        const subtitle = itemSubtitle(kind, item.attributes)
+        return (
+          <li key={item.slug}>
+            <Link
+              to={config.detailPath}
+              params={{ slug: item.slug }}
+              className="group block"
+            >
+              <div className="aspect-square overflow-hidden rounded-lg border bg-muted/30">
+                {src ? (
+                  <img
+                    src={src}
+                    alt=""
+                    loading="lazy"
+                    className="size-full object-cover transition-transform duration-300 group-hover:scale-105"
+                  />
+                ) : (
+                  <div className="flex size-full items-center justify-center text-muted-foreground">
+                    <ImageOff className="size-6" />
+                  </div>
+                )}
+              </div>
+              <h2 className="mt-2 font-medium leading-snug group-hover:underline">
+                {item.title}
+              </h2>
+              {subtitle && (
+                <p className="text-sm text-muted-foreground">{subtitle}</p>
+              )}
+            </Link>
+          </li>
+        )
+      })}
+    </ul>
+  )
+}
+
+function CollectionTable({
+  kind,
+  items,
+}: {
+  kind: CollectionKind
+  items: ListItem[]
+}) {
+  const config = collections[kind]
+  // URL は表では長すぎるので出さない
+  const columns = (config.fields as readonly AttributeField[]).filter(
+    (f) => f.type !== 'url',
+  )
+  return (
+    <div className="overflow-x-auto rounded-lg border">
+      <table className="w-full min-w-[40rem] text-sm">
+        <thead className="bg-muted/40 text-left text-xs text-muted-foreground">
+          <tr>
+            <th className="px-3 py-2 font-normal">名前</th>
+            {columns.map((f) => (
+              <th
+                key={f.key}
+                className="px-3 py-2 font-normal whitespace-nowrap"
               >
-                {option.label}
-                <span className="ml-1 text-xs opacity-70">{option.count}</span>
-              </button>
+                {f.label}
+              </th>
+            ))}
+            <th className="px-3 py-2 font-normal whitespace-nowrap">
+              {config.acquiredAtLabel}
+            </th>
+          </tr>
+        </thead>
+        <tbody>
+          {items.map((item) => {
+            const src = imageUrl(item.imageKey)
+            return (
+              <tr
+                key={item.slug}
+                className="border-t align-top hover:bg-muted/30"
+              >
+                <td className="px-3 py-2">
+                  <Link
+                    to={config.detailPath}
+                    params={{ slug: item.slug }}
+                    className="group flex items-center gap-2.5"
+                  >
+                    {src ? (
+                      <img
+                        src={src}
+                        alt=""
+                        loading="lazy"
+                        className="size-10 shrink-0 rounded border object-cover"
+                      />
+                    ) : (
+                      <span className="flex size-10 shrink-0 items-center justify-center rounded border text-muted-foreground">
+                        <ImageOff className="size-4" />
+                      </span>
+                    )}
+                    <span className="font-medium group-hover:underline">
+                      {item.title}
+                    </span>
+                  </Link>
+                </td>
+                {columns.map((f) => {
+                  const v = item.attributes[f.key]
+                  return (
+                    <td
+                      key={f.key}
+                      className="px-3 py-2 text-xs text-muted-foreground"
+                    >
+                      {v
+                        ? f.type === 'date'
+                          ? formatDay(v)
+                          : displayAttribute(f, v)
+                        : '—'}
+                    </td>
+                  )
+                })}
+                <td className="px-3 py-2 text-xs whitespace-nowrap text-muted-foreground">
+                  {item.acquiredAt ? formatDay(item.acquiredAt) : '—'}
+                </td>
+              </tr>
             )
           })}
-        </fieldset>
-      )}
-      <ul className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
-        {visible.map((item) => {
-          const src = imageUrl(item.imageKey)
-          const subtitle = itemSubtitle(kind, item.attributes)
-          return (
-            <li key={item.slug}>
-              <Link
-                to={config.detailPath}
-                params={{ slug: item.slug }}
-                className="group block"
-              >
-                <div className="aspect-square overflow-hidden rounded-lg border bg-muted/30">
-                  {src ? (
-                    <img
-                      src={src}
-                      alt=""
-                      loading="lazy"
-                      className="size-full object-cover transition-transform duration-300 group-hover:scale-105"
-                    />
-                  ) : (
-                    <div className="flex size-full items-center justify-center text-muted-foreground">
-                      <ImageOff className="size-6" />
-                    </div>
-                  )}
-                </div>
-                <h2 className="mt-2 font-medium leading-snug group-hover:underline">
-                  {item.title}
-                </h2>
-                {subtitle && (
-                  <p className="text-sm text-muted-foreground">{subtitle}</p>
-                )}
-              </Link>
-            </li>
-          )
-        })}
-      </ul>
-    </>
+        </tbody>
+      </table>
+    </div>
   )
 }
 
