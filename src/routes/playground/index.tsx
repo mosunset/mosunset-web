@@ -2,9 +2,12 @@ import { createFileRoute, Link } from '@tanstack/react-router'
 
 import {
   type Facet,
+  type ListControls,
   ListToolbar,
   listSearchValidator,
   NoMatches,
+  SortableHeader,
+  type SortColumn,
   useList,
   type ViewMode,
 } from '@/components/list-view'
@@ -48,6 +51,13 @@ const sortOptions = [
 ] as const
 const views: readonly ViewMode[] = ['card', 'table']
 
+/** 表の見出しを押して並べ替えられる列 */
+const columns: readonly SortColumn<Tool>[] = [
+  { key: 'name', label: 'ツール', value: (t) => t.name },
+  { key: 'category', label: 'カテゴリ', value: (t) => t.category },
+  { key: 'date', label: '公開日', value: (t) => t.publishedDate },
+]
+
 const toolText = (t: Tool) => [t.name, t.description, t.category, ...t.tags]
 
 function sortTools(tools: Tool[], sort: string) {
@@ -70,6 +80,7 @@ function PlaygroundIndex() {
     facets,
     sortOptions,
     sort: sortTools,
+    columns,
     views,
   })
   const tools = list.visible
@@ -80,7 +91,7 @@ function PlaygroundIndex() {
       {tools.length === 0 ? (
         <NoMatches onClear={list.clearAll} />
       ) : list.view === 'table' ? (
-        <ToolTable tools={tools} onTag={(tag) => list.toggle('tag', tag)} />
+        <ToolTable tools={tools} list={list} />
       ) : (
         <ToolCards tools={tools} />
       )}
@@ -131,22 +142,23 @@ function ToolCards({ tools }: { tools: Tool[] }) {
   )
 }
 
-function ToolTable({
-  tools,
-  onTag,
-}: {
-  tools: Tool[]
-  onTag: (tag: string) => void
-}) {
+function ToolTable({ tools, list }: { tools: Tool[]; list: ListControls }) {
+  const onTag = (tag: string) => list.toggle('tag', tag)
   return (
     <div className="overflow-x-auto rounded-lg border">
       <table className="w-full min-w-[40rem] text-sm">
         <thead className="bg-muted/40 text-left text-xs text-muted-foreground">
           <tr>
-            <th className="px-3 py-2 font-normal">ツール</th>
-            <th className="px-3 py-2 font-normal">カテゴリ</th>
+            <SortableHeader list={list} column="name">
+              ツール
+            </SortableHeader>
+            <SortableHeader list={list} column="category">
+              カテゴリ
+            </SortableHeader>
             <th className="px-3 py-2 font-normal">タグ</th>
-            <th className="px-3 py-2 font-normal whitespace-nowrap">公開日</th>
+            <SortableHeader list={list} column="date">
+              公開日
+            </SortableHeader>
           </tr>
         </thead>
         <tbody>

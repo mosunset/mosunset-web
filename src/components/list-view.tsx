@@ -1,5 +1,15 @@
 import { useNavigate } from '@tanstack/react-router'
-import { Grid3x3, LayoutGrid, List, Rows3, Search, X } from 'lucide-react'
+import {
+  ArrowDown,
+  ArrowUp,
+  ChevronsUpDown,
+  Grid3x3,
+  LayoutGrid,
+  List,
+  Rows3,
+  Search,
+  X,
+} from 'lucide-react'
 import * as React from 'react'
 
 import { Input } from '@/components/ui/input'
@@ -92,10 +102,40 @@ export type FacetState = {
 
 export type SortOption = { value: string; label: string }
 
+/** 表の見出しを押して並べ替えられる列 */
+export type SortColumn<T> = {
+  key: string
+  label: string
+  /** 並べ替えに使う値（空のものは、上り・下りどちらでも最後に回す） */
+  value: (item: T) => string | null | undefined
+}
+
+/** 表の列での並べ替えは URL に sort=asc:<列> / desc:<列> で入れる */
+export function parseColumnSort(sort: string) {
+  const match = /^(asc|desc):(.+)$/.exec(sort)
+  return match ? { dir: match[1] as 'asc' | 'desc', key: match[2] } : null
+}
+
+/** 列の値で並べ替える（数字は数として比べる。空のものは最後） */
+function sortByColumn<T>(
+  items: T[],
+  dir: 'asc' | 'desc',
+  value: (item: T) => string | null | undefined,
+) {
+  const sign = dir === 'asc' ? 1 : -1
+  return items.sort((a, b) => {
+    const x = value(a) || ''
+    const y = value(b) || ''
+    if (!x || !y) return (x ? 0 : 1) - (y ? 0 : 1)
+    return sign * x.localeCompare(y, 'ja', { numeric: true })
+  })
+}
+
 /** 一覧の上の操作の欄に渡す、一覧の今の状態と操作 */
 export type ListControls = {
   query: string
   setQuery: (q: string) => void
+  /** 並べ替えの選択欄の選択肢（表の列で並べ替えているときは、その並びも入る） */
   sortOptions: readonly SortOption[]
   sort: string
   setSort: (sort: string) => void
@@ -126,6 +166,7 @@ export function useList<T>({
   facets = [],
   sortOptions,
   sort: sortItems,
+  columns = [],
   views,
 }: {
   /** 一覧ページのパス（/toys など） */
@@ -139,6 +180,8 @@ export function useList<T>({
   sortOptions: readonly SortOption[]
   /** 並べ替えた新しい配列を返す */
   sort: (items: T[], sort: string) => T[]
+  /** 表の見出しを押して並べ替えられる列 */
+  columns?: readonly SortColumn<T>[]
   /** 選べる表示のしかた（最初のものがふだんの表示） */
   views: readonly ViewMode[]
 }): ListControls & { visible: T[] } {
@@ -168,8 +211,11 @@ export function useList<T>({
     views.find((v) => v === search.view) ??
     views.find((v) => v === savedView) ??
     views[0]
+  const columnSort = parseColumnSort(search.sort ?? '')
+  const sortColumn = columns.find((c) => c.key === columnSort?.key)
   const sort =
     sortOptions.find((o) => o.value === search.sort)?.value ??
+    (sortColumn && search.sort) ??
     sortOptions[0].value
   const query = search.q ?? ''
 
@@ -192,10 +238,11 @@ export function useList<T>({
         selected[f].every((v) => valuesOf[f][i].includes(v)),
     )
 
-  const visible = sortItems(
-    items.filter((_, i) => passes(i)),
-    sort,
-  )
+  const filtered = items.filter((_, i) => passes(i))
+  const visible =
+    sortColumn && columnSort
+      ? sortByColumn(filtered, columnSort.dir, sortColumn.value)
+      : sortItems(filtered, sort)
 
   const facetStates = facets.map((facet, f): FacetState => {
     const totals = new Map<string, number>()
@@ -236,7 +283,16 @@ export function useList<T>({
     visible,
     query,
     setQuery: (q) => set({ q: q || undefined }),
-    sortOptions,
+    sortOptions:
+      sortColumn && columnSort
+        ? [
+            ...sortOptions,
+            {
+              value: sort,
+              label: `${sortColumn.label}の${columnSort.dir === 'asc' ? '昇順' : '降順'}`,
+            },
+          ]
+        : sortOptions,
     sort,
     setSort: (s) => set({ sort: s === sortOptions[0].value ? undefined : s }),
     views,
@@ -665,6 +721,55 @@ function GroupHeading({ group }: { group: Group<unknown> }) {
         {group.items.length} 件
       </span>
     </h2>
+  )
+}
+
+/**
+ * 押すと並べ替わる表の見出し。押すたびに 昇順 → 降順 → ふだんの並び と変わる
+ * @param column useList に渡した columns の key
+ */
+export function SortableHeader({
+  list,
+  column,
+  children,
+  className,
+}: {
+  list: ListControls
+  column: string
+  children: React.ReactNode
+  className?: string
+}) {
+  const current = parseColumnSort(list.sort)
+  const dir = current?.key === column ? current.dir : null
+  const Icon =
+    dir === 'asc' ? ArrowUp : dir === 'desc' ? ArrowDown : ChevronsUpDown
+  return (
+    <th
+      aria-sort={
+        dir === 'asc' ? 'ascending' : dir === 'desc' ? 'descending' : undefined
+      }
+      className={cn('px-1.5 py-1 font-normal whitespace-nowrap', className)}
+    >
+      <button
+        type="button"
+        onClick={() =>
+          list.setSort(
+            dir === null
+              ? `asc:${column}`
+              : dir === 'asc'
+                ? `desc:${column}`
+                : list.sortOptions[0].value,
+          )
+        }
+        className={cn(
+          'inline-flex items-center gap-1 rounded px-1.5 py-1 hover:bg-muted hover:text-foreground',
+          dir && 'text-foreground',
+        )}
+      >
+        {children}
+        <Icon className={cn('size-3', !dir && 'opacity-40')} />
+      </button>
+    </th>
   )
 }
 

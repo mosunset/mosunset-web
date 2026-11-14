@@ -6,9 +6,13 @@ import {
   type Group,
   GroupedSections,
   groupItems,
+  type ListControls,
   ListToolbar,
   listSearchValidator,
   NoMatches,
+  parseColumnSort,
+  SortableHeader,
+  type SortColumn,
   TableGroupRow,
   useList,
   type ViewMode,
@@ -39,6 +43,17 @@ const views: readonly ViewMode[] = ['list', 'card', 'table']
 
 type Post = Awaited<ReturnType<typeof listPublishedPosts>>[number]
 
+/** 表の見出しを押して並べ替えられる列 */
+const columns: readonly SortColumn<Post>[] = [
+  { key: 'title', label: 'タイトル', value: (p) => p.title },
+  {
+    key: 'date',
+    label: '公開日',
+    value: (p) =>
+      p.publishedAt ? new Date(p.publishedAt).toISOString() : null,
+  },
+]
+
 const postText = (p: Post) => [p.title, p.excerpt]
 
 // 公開日のない下書きは、いちばん新しいものとして扱う
@@ -65,18 +80,22 @@ function BlogIndex() {
     text: postText,
     sortOptions,
     sort: sortPosts,
+    columns,
     views,
   })
   const { visible, view } = list
   // 日付の順のときは年ごとに見出しを付ける（公開日のない下書きは「下書き」にまとめる）
-  const groups =
-    list.sort === 'title'
-      ? [{ key: '', label: '', items: visible }]
-      : groupItems(
-          visible,
-          (p) => (p.publishedAt ? yearOf(new Date(p.publishedAt)) : ''),
-          { label: (year) => (year ? `${year} 年` : '下書き') },
-        )
+  const byDate =
+    list.sort === 'new' ||
+    list.sort === 'old' ||
+    parseColumnSort(list.sort)?.key === 'date'
+  const groups = !byDate
+    ? [{ key: '', label: '', items: visible }]
+    : groupItems(
+        visible,
+        (p) => (p.publishedAt ? yearOf(new Date(p.publishedAt)) : ''),
+        { label: (year) => (year ? `${year} 年` : '下書き') },
+      )
 
   if (posts.length === 0) {
     return (
@@ -92,7 +111,7 @@ function BlogIndex() {
       {visible.length === 0 ? (
         <NoMatches onClear={list.clearAll} />
       ) : view === 'table' ? (
-        <PostTable groups={groups} />
+        <PostTable groups={groups} list={list} />
       ) : (
         <GroupedSections groups={groups}>
           {(posts, grouped) =>
@@ -201,14 +220,24 @@ function PostCards({ posts, grouped }: PostsProps) {
   )
 }
 
-function PostTable({ groups }: { groups: readonly Group<Post>[] }) {
+function PostTable({
+  groups,
+  list,
+}: {
+  groups: readonly Group<Post>[]
+  list: ListControls
+}) {
   return (
     <div className="overflow-x-auto rounded-lg border">
       <table className="w-full min-w-[32rem] text-sm">
         <thead className="bg-muted/40 text-left text-xs text-muted-foreground">
           <tr>
-            <th className="px-3 py-2 font-normal">タイトル</th>
-            <th className="px-3 py-2 font-normal whitespace-nowrap">公開日</th>
+            <SortableHeader list={list} column="title">
+              タイトル
+            </SortableHeader>
+            <SortableHeader list={list} column="date">
+              公開日
+            </SortableHeader>
           </tr>
         </thead>
         {groups.map((group) => (

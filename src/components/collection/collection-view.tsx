@@ -11,9 +11,12 @@ import {
   type Group,
   GroupedSections,
   groupItems,
+  type ListControls,
   type ListSearch,
   ListToolbar,
   NoMatches,
+  SortableHeader,
+  type SortColumn,
   TableGroupRow,
   useList,
   type ViewMode,
@@ -89,6 +92,34 @@ function facetsOf(kind: CollectionKind): Facet<ListItem>[] {
   })
 }
 
+/** 表に出す項目（URL は表では長すぎるので出さない） */
+const tableFieldsOf = (kind: CollectionKind) =>
+  fieldsOf(kind).filter((f) => f.type !== 'url')
+
+/** 表の見出しを押して並べ替えられる列（選択肢の決まった項目は選択肢の順に並べる） */
+function columnsOf(kind: CollectionKind): SortColumn<ListItem>[] {
+  return [
+    { key: 'title', label: '名前', value: (item) => item.title },
+    ...tableFieldsOf(kind).map(
+      (field): SortColumn<ListItem> => ({
+        key: field.key,
+        label: field.label,
+        value: (item) => {
+          const v = item.attributes[field.key]
+          if (!v || field.type !== 'select') return v
+          const i = field.options.findIndex((o) => o.value === v)
+          return i >= 0 ? String(i).padStart(3, '0') : v
+        },
+      }),
+    ),
+    {
+      key: 'acquiredAt',
+      label: collections[kind].acquiredAtLabel,
+      value: (item) => item.acquiredAt,
+    },
+  ]
+}
+
 /** 並べ替え（おすすめ順は、管理画面で決めた並び＝サーバーから届いた順のまま） */
 function sortItems(items: ListItem[], sort: string) {
   if (sort === 'order') return items
@@ -129,6 +160,7 @@ export function CollectionGrid({
     facets: facetsOf(kind),
     sortOptions,
     sort: sortItems,
+    columns: columnsOf(kind),
     views: viewsOf(kind),
   })
   const { visible, view } = list
@@ -169,7 +201,7 @@ export function CollectionGrid({
       {visible.length === 0 ? (
         <NoMatches onClear={list.clearAll} />
       ) : view === 'table' ? (
-        <CollectionTable kind={kind} groups={groups} />
+        <CollectionTable kind={kind} groups={groups} list={list} />
       ) : view === 'gallery' ? (
         <GroupedSections groups={groups}>
           {(items) => <CollectionGallery kind={kind} items={items} />}
@@ -306,33 +338,31 @@ function CollectionGallery({
 function CollectionTable({
   kind,
   groups,
+  list,
 }: {
   kind: CollectionKind
   groups: readonly Group<ListItem>[]
+  list: ListControls
 }) {
   const config = collections[kind]
   const contain = imageFitOf(kind) === 'contain'
-  // URL は表では長すぎるので出さない
-  const columns = (config.fields as readonly AttributeField[]).filter(
-    (f) => f.type !== 'url',
-  )
+  const columns = tableFieldsOf(kind)
   return (
     <div className="overflow-x-auto rounded-lg border">
       <table className="w-full min-w-[40rem] text-sm">
         <thead className="bg-muted/40 text-left text-xs text-muted-foreground">
           <tr>
-            <th className="px-3 py-2 font-normal">名前</th>
+            <SortableHeader list={list} column="title">
+              名前
+            </SortableHeader>
             {columns.map((f) => (
-              <th
-                key={f.key}
-                className="px-3 py-2 font-normal whitespace-nowrap"
-              >
+              <SortableHeader key={f.key} list={list} column={f.key}>
                 {f.label}
-              </th>
+              </SortableHeader>
             ))}
-            <th className="px-3 py-2 font-normal whitespace-nowrap">
+            <SortableHeader list={list} column="acquiredAt">
               {config.acquiredAtLabel}
-            </th>
+            </SortableHeader>
           </tr>
         </thead>
         {groups.map((group) => (
