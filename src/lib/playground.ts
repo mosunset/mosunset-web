@@ -164,6 +164,18 @@ export const playgroundTools = [
     publishedDate: '2025-09-09',
     thumbnail: '/playground/3dblock/thumbnail.webp',
   },
+  {
+    slug: 'image-privacy',
+    name: '背景除去・顔のぼかし',
+    title:
+      '背景除去・顔のぼかし | 画像を送らずにブラウザだけで背景を消す・顔を隠す',
+    description:
+      '写真の背景を消して透過 PNG にしたり、色や別の画像に差し替えたりできます。顔を自動で見つけて、ぼかし・モザイク・塗りつぶしで隠すこともできます。画像はサーバーに送らず、ブラウザの中だけで処理します。保存した画像には位置情報などのメタデータ（EXIF）が残りません。',
+    category: 'AI・人工知能',
+    tags: ['AI', '背景除去', '顔ぼかし', 'MediaPipe', 'プライバシー'],
+    publishedDate: '2026-11-14',
+    thumbnail: '/playground/image-privacy/thumbnail.svg',
+  },
 ] as const satisfies readonly (Omit<PlaygroundTool, 'slug'> & {
   slug: string
 })[]
