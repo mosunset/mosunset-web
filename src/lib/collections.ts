@@ -130,6 +130,7 @@ export const collections = {
         type: 'text',
         placeholder: '1998',
       },
+      { key: 'officialUrl', label: '公式の商品ページ', type: 'url' },
     ],
   },
   book: {
