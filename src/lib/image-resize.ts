@@ -10,8 +10,13 @@ const QUALITY = 0.85
  * ブラウザで画像を縮小して WebP にする。
  * - GIF はアニメーションが消えるのでそのまま
  * - 変換しても小さくならないときは元のファイルを使う
+ * - WebP に書き出せないブラウザでは、ブラウザが書き出した形式（PNG など）になる
+ * @param maxSize 長い辺の最大値（px）。一覧用の小さい画像を作るときは THUMBNAIL_SIZE
  */
-export async function resizeImage(file: File): Promise<File> {
+export async function resizeImage(
+  file: File,
+  { maxSize = MAX_SIZE, quality = QUALITY } = {},
+): Promise<File> {
   if (!file.type.startsWith('image/') || file.type === 'image/gif') return file
 
   let bitmap: ImageBitmap
@@ -22,7 +27,7 @@ export async function resizeImage(file: File): Promise<File> {
     return file
   }
 
-  const scale = Math.min(1, MAX_SIZE / Math.max(bitmap.width, bitmap.height))
+  const scale = Math.min(1, maxSize / Math.max(bitmap.width, bitmap.height))
   const width = Math.round(bitmap.width * scale)
   const height = Math.round(bitmap.height * scale)
 
@@ -35,12 +40,13 @@ export async function resizeImage(file: File): Promise<File> {
   bitmap.close()
 
   const blob = await new Promise<Blob | null>((resolve) =>
-    canvas.toBlob(resolve, 'image/webp', QUALITY),
+    canvas.toBlob(resolve, 'image/webp', quality),
   )
   if (!blob || (scale === 1 && blob.size >= file.size)) return file
 
   const name = file.name.replace(/\.[^.]+$/, '') || 'image'
-  return new File([blob], `${name}.webp`, { type: 'image/webp' })
+  const ext = blob.type.replace('image/', '').replace('jpeg', 'jpg')
+  return new File([blob], `${name}.${ext}`, { type: blob.type })
 }
 
 /** ドラッグ＆ドロップや貼り付けから画像ファイルだけを取り出す */

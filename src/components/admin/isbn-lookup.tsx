@@ -2,11 +2,11 @@ import { useServerFn } from '@tanstack/react-start'
 import { Loader2, Search } from 'lucide-react'
 import { useState } from 'react'
 import { toast } from 'sonner'
-
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { lookupIsbn } from '@/functions/isbn'
+import { useThumbnailMaker } from '@/hooks/use-image-upload'
 import type { CollectionAttributes } from '@/lib/collections'
 import { errorMessage } from '@/lib/errors'
 
@@ -66,6 +66,7 @@ export function IsbnInput({
   onFound: (result: IsbnResult) => void
 }) {
   const lookup = useServerFn(lookupIsbn)
+  const makeThumbnail = useThumbnailMaker()
   const [pending, setPending] = useState(false)
 
   const search = async () => {
@@ -79,6 +80,9 @@ export function IsbnInput({
         data: { isbn: value, withCover: needCover },
       })
       onFound(result)
+      // 取ってきた表紙はサーバーで保存されるので、一覧用の小さい画像はここで作る
+      // （作れなくても一覧には元の画像が出るので、失敗は知らせない）
+      if (result.imageKey) makeThumbnail(result.imageKey).catch(() => {})
     } catch (e) {
       toast.error(errorMessage(e, '本の情報を取得できませんでした'))
     } finally {

@@ -20,3 +20,17 @@ export function imagePath(key: string) {
 export function imageUrl(key: string | null | undefined) {
   return key ? imagePath(key) : null
 }
+
+/** 一覧用の小さい画像の長い辺（px）。一覧のカードの、画面の画素の 2 倍くらい */
+export const THUMBNAIL_SIZE = 640
+
+/** 一覧用の小さい画像の R2 のキー（元の画像のキーの前に thumbs/ を付ける） */
+export const thumbnailKey = (key: string) => `thumbs/${key}`
+
+/**
+ * 一覧用の小さい画像の URL。キーがないときは null。
+ * まだ作っていない画像は、配信するときに元の画像で代わりに返す（src/server/r2.ts）
+ */
+export function thumbnailUrl(key: string | null | undefined) {
+  return key ? imagePath(thumbnailKey(key)) : null
+}

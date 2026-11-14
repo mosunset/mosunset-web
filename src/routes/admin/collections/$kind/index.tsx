@@ -35,7 +35,7 @@ import {
   itemSubtitle,
 } from '@/lib/collections'
 import { errorMessage } from '@/lib/errors'
-import { imageUrl } from '@/lib/images'
+import { thumbnailUrl } from '@/lib/images'
 import { cn } from '@/lib/utils'
 
 export const Route = createFileRoute('/admin/collections/$kind/')({
@@ -198,7 +198,7 @@ function SortableRow({
     transition,
     isDragging,
   } = useSortable({ id: item.id, disabled: !draggable })
-  const src = imageUrl(item.imageKey)
+  const src = thumbnailUrl(item.imageKey)
   const subtitle = itemSubtitle(kind, item.attributes)
 
   return (

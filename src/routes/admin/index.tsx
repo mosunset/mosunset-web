@@ -2,6 +2,7 @@ import { createFileRoute, getRouteApi, Link } from '@tanstack/react-router'
 import { ArrowRight, Inbox, NotebookPen, SquarePen } from 'lucide-react'
 import type * as React from 'react'
 
+import { ThumbnailBackfill } from '@/components/admin/thumbnail-backfill'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { getDashboard } from '@/functions/dashboard'
@@ -156,6 +157,10 @@ function AdminHome() {
             </Link>
           </Button>
         ))}
+      </div>
+
+      <div className="mt-8">
+        <ThumbnailBackfill />
       </div>
     </div>
   )

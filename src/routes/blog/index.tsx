@@ -21,7 +21,7 @@ import {
 import { SectionPage } from '@/components/section-page'
 import { listPublishedPosts } from '@/functions/posts'
 import { formatDate, isRecent, yearOf } from '@/lib/format'
-import { imagePath } from '@/lib/images'
+import { thumbnailUrl } from '@/lib/images'
 import { listItemId } from '@/lib/list-memory'
 import { getNavItem } from '@/lib/navigation'
 import { sectionHead } from '@/lib/seo'
@@ -173,7 +173,7 @@ function PostList({ posts, grouped }: PostsProps) {
             </div>
             {post.coverImageKey && (
               <img
-                src={imagePath(post.coverImageKey)}
+                src={thumbnailUrl(post.coverImageKey) ?? undefined}
                 alt=""
                 loading="lazy"
                 className="aspect-[4/3] w-24 shrink-0 self-start rounded-md border object-cover sm:w-40"
@@ -200,7 +200,7 @@ function PostCards({ posts, grouped }: PostsProps) {
             <div className="aspect-[4/3] overflow-hidden border-b bg-muted/30">
               {post.coverImageKey && (
                 <img
-                  src={imagePath(post.coverImageKey)}
+                  src={thumbnailUrl(post.coverImageKey) ?? undefined}
                   alt=""
                   loading="lazy"
                   className="size-full object-cover transition-transform duration-300 group-hover:scale-105"

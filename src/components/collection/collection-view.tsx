@@ -36,7 +36,7 @@ import {
   statusMarkOf,
 } from '@/lib/collections'
 import { formatDay, isRecent } from '@/lib/format'
-import { imageUrl } from '@/lib/images'
+import { imageUrl, thumbnailUrl } from '@/lib/images'
 import {
   type ListEntry,
   listItemId,
@@ -317,7 +317,7 @@ function CollectionCards({
   return (
     <ul className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
       {items.map((item) => {
-        const src = imageUrl(item.imageKey)
+        const src = thumbnailUrl(item.imageKey)
         return (
           <li
             key={item.slug}
@@ -372,7 +372,7 @@ function CollectionGallery({
   return (
     <ul className="grid grid-cols-3 gap-x-3 gap-y-4 sm:grid-cols-4 md:grid-cols-6">
       {items.map((item) => {
-        const src = imageUrl(item.imageKey)
+        const src = thumbnailUrl(item.imageKey)
         return (
           <li
             key={item.slug}
@@ -450,7 +450,7 @@ function CollectionTable({
               <TableGroupRow group={group} colSpan={columns.length + 2} />
             )}
             {group.items.map((item) => {
-              const src = imageUrl(item.imageKey)
+              const src = thumbnailUrl(item.imageKey)
               return (
                 <tr
                   key={item.slug}

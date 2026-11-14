@@ -11,6 +11,7 @@ pnpm db:migrate:remote # 本番の D1 に当てる（デプロイの前に）
 - `id` はすべて UUID、`created_at` / `updated_at` はミリ秒の UNIX 時間
 - 本文（`content` / `description`）は Tiptap の JSON。保存前と表示前に `sanitizeDoc`（`src/server/rich-text.ts`）を通す
 - 画像は R2 のキーだけを持ち、URL は `src/lib/images.ts` で作る
+- 一覧用の小さい画像（長い辺 640px）は R2 の `thumbs/<元のキー>` に置く。コレクションの写真と記事の表紙のアップロード時にブラウザで作り、ないときは配信で元の画像を代わりに返す（前からある画像の分は、管理画面のトップでまとめて作れる）
 - `schema.ts` は drizzle-kit からも読まれるので、値の import は `@/` ではなく相対パスにする
 
 ```mermaid

@@ -21,7 +21,8 @@ type Props = {
  * 保存ボタンを押すまでアイテムには反映されない。
  */
 export function ImageUpload({ value, onChange, folder }: Props) {
-  const uploadFile = useImageUpload(folder)
+  // 一覧に出る画像なので、一覧用の小さい画像も作る
+  const uploadFile = useImageUpload(folder, { thumbnail: true })
   const inputRef = useRef<HTMLInputElement>(null)
   const cameraRef = useRef<HTMLInputElement>(null)
   const [pending, setPending] = useState(false)
