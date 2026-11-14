@@ -1,6 +1,7 @@
 import { createFileRoute } from '@tanstack/react-router'
 
 import { BackLinkFooter } from '@/components/back-link-footer'
+import { DraftBadge } from '@/components/draft-badge'
 import { RichTextContent, ZoomableImage } from '@/components/image-viewer'
 import { NotFoundPage } from '@/components/not-found-page'
 import { getPublishedPost } from '@/functions/posts'
@@ -27,6 +28,8 @@ export const Route = createFileRoute('/blog/$slug')({
             ...seo({
               title: loaderData.title,
               description: loaderData.excerpt || undefined,
+              // 下書き（管理者のログイン中だけ見える）は検索に載せない
+              noindex: loaderData.draft,
             }),
             { property: 'og:type', content: 'article' },
             ...(loaderData.publishedAt
@@ -96,6 +99,7 @@ function BlogPost() {
             imgClassName="aspect-[1200/630] w-full object-cover"
           />
         )}
+        {post.draft && <DraftBadge className="mr-3 align-middle" />}
         {post.publishedAt && (
           <time
             dateTime={post.publishedAt.toISOString()}

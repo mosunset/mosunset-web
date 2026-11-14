@@ -3,6 +3,7 @@ import { createServerFn } from '@tanstack/react-start'
 import { and, desc, eq, ne } from 'drizzle-orm'
 import { z } from 'zod'
 import { adminMiddleware } from '@/functions/auth'
+import { isAdminRequest } from '@/server/auth'
 import { getDb, publishedPosts, schema } from '@/server/db'
 import { deleteImagesOf, deleteReplacedImage } from '@/server/r2'
 import {
@@ -18,29 +19,36 @@ const { posts } = schema
 // 公開側
 // ---------------------------------------------------------------------------
 
-/** 公開済みの記事一覧（新しい順） */
+/** 公開済みの記事一覧（新しい順）。管理者のログイン中は下書きも入れる */
 export const listPublishedPosts = createServerFn({ method: 'GET' }).handler(
   async () => {
-    return getDb()
+    const admin = await isAdminRequest()
+    const rows = await getDb()
       .select({
         slug: posts.slug,
         title: posts.title,
         excerpt: posts.excerpt,
         coverImageKey: posts.coverImageKey,
         publishedAt: posts.publishedAt,
+        status: posts.status,
       })
       .from(posts)
-      .where(publishedPosts)
+      .where(admin ? undefined : publishedPosts)
       .orderBy(desc(posts.publishedAt))
+    return rows.map(({ status, ...row }) => ({
+      ...row,
+      draft: status !== 'published',
+    }))
   },
 )
 
-/** 公開済みの記事 1 件。本文は HTML にして返す */
+/** 公開済みの記事 1 件。本文は HTML にして返す。管理者のログイン中は下書きも返す */
 export const getPublishedPost = createServerFn({ method: 'GET' })
   .validator((data: unknown) => z.object({ slug: z.string() }).parse(data))
   .handler(async ({ data }) => {
+    const admin = await isAdminRequest()
     const post = await getDb().query.posts.findFirst({
-      where: and(eq(posts.slug, data.slug), publishedPosts),
+      where: and(eq(posts.slug, data.slug), admin ? undefined : publishedPosts),
     })
     if (!post) throw notFound()
 
@@ -52,6 +60,7 @@ export const getPublishedPost = createServerFn({ method: 'GET' })
       publishedAt: post.publishedAt,
       updatedAt: post.updatedAt,
       html: renderRichText(post.content),
+      draft: post.status !== 'published',
     }
   })
 

@@ -13,6 +13,7 @@ type DetailForSeo = {
   imageKey: string | null
   attributes: CollectionAttributes
   summary: string
+  draft?: boolean
 }
 
 /** 種類ごとの構造化データ（検索エンジン・AI が「何のページか」を読み取れるようにする） */
@@ -87,7 +88,12 @@ export function collectionDetailHead(
 
   return {
     meta: [
-      ...seo({ title: `${item.title}（${config.label}）`, description }),
+      ...seo({
+        title: `${item.title}（${config.label}）`,
+        description,
+        // 非公開（管理者のログイン中だけ見える）は検索に載せない
+        noindex: item.draft,
+      }),
       ...(image ? ogImage(image, item.title, false) : []),
       structuredData(kind, item),
     ],

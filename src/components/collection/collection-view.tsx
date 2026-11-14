@@ -3,6 +3,7 @@ import { ExternalLink, ImageOff } from 'lucide-react'
 import * as React from 'react'
 
 import { BackLinkFooter } from '@/components/back-link-footer'
+import { DraftBadge } from '@/components/draft-badge'
 import { EmptyState } from '@/components/empty-state'
 import { RichTextContent, ZoomableImage } from '@/components/image-viewer'
 import {
@@ -32,6 +33,8 @@ type ListItem = {
   imageKey: string | null
   attributes: CollectionAttributes
   acquiredAt: string | null
+  /** 非公開（管理者のログイン中だけ届く） */
+  draft?: boolean
 }
 
 const sortOptions = [
@@ -191,6 +194,7 @@ function CollectionCards({
                   </div>
                 )}
               </div>
+              {item.draft && <DraftBadge className="mt-2" />}
               <h2 className="mt-2 font-medium leading-snug group-hover:underline">
                 {item.title}
               </h2>
@@ -265,6 +269,7 @@ function CollectionTable({
                     <span className="font-medium group-hover:underline">
                       {item.title}
                     </span>
+                    {item.draft && <DraftBadge />}
                   </Link>
                 </td>
                 {columns.map((f) => {
@@ -363,7 +368,10 @@ export function CollectionDetail({
         )}
 
         <div>
-          <p className="text-sm text-muted-foreground">{config.label}</p>
+          <p className="flex items-center gap-2 text-sm text-muted-foreground">
+            {config.label}
+            {item.draft && <DraftBadge />}
+          </p>
           <h1 className="mt-1 text-3xl font-bold leading-tight">
             {item.title}
           </h1>

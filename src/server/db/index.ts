@@ -11,7 +11,8 @@ export function getDb() {
 
 export { schema }
 
-// 公開側の取得では必ずこの条件を付ける（下書き・非公開のものを出さないように）
+// 公開側の取得では必ずこの条件を付ける（下書き・非公開のものを出さないように）。
+// 管理者のログイン中だけは外して、下書きも見えるようにする（isAdminRequest）
 
 /** 公開済みの記事 */
 export const publishedPosts = eq(schema.posts.status, 'published')

@@ -21,3 +21,8 @@ export async function resolveAdminStatus(): Promise<AdminStatus> {
     return { status: 'forbidden', userId }
   return { status: 'admin', userId }
 }
+
+/** 今のリクエストが管理者のログイン中か（公開側のページで、管理者にだけ下書きも見せるのに使う） */
+export async function isAdminRequest() {
+  return (await resolveAdminStatus()).status === 'admin'
+}

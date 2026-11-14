@@ -1,6 +1,7 @@
 import { createFileRoute, Link } from '@tanstack/react-router'
 import { useMemo } from 'react'
 
+import { DraftBadge } from '@/components/draft-badge'
 import { EmptyState } from '@/components/empty-state'
 import {
   ListToolbar,
@@ -45,7 +46,9 @@ function BlogIndex() {
   const view: ViewMode = search.view ?? 'list'
 
   const visible = useMemo(() => {
-    const time = (p: Post) => (p.publishedAt ? +new Date(p.publishedAt) : 0)
+    // 公開日のない下書きは、いちばん新しいものとして扱う
+    const time = (p: Post) =>
+      p.publishedAt ? +new Date(p.publishedAt) : Number.MAX_SAFE_INTEGER
     return posts
       .filter((p) => matchesQuery(list.query, p.title, p.excerpt))
       .sort((a, b) =>
@@ -95,6 +98,7 @@ function BlogIndex() {
 }
 
 function PostDate({ post, className }: { post: Post; className?: string }) {
+  if (post.draft) return <DraftBadge />
   if (!post.publishedAt) return null
   const date = new Date(post.publishedAt)
   return (

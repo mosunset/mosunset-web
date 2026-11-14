@@ -9,6 +9,7 @@ import {
   type CollectionAttributes,
   collections,
 } from '@/lib/collections'
+import { isAdminRequest } from '@/server/auth'
 import { getDb, publishedItems, schema } from '@/server/db'
 import { deleteImagesOf, deleteReplacedImage } from '@/server/r2'
 import {
@@ -83,6 +84,8 @@ function withAttributes<T extends { attributes: unknown }>(row: T) {
 export const listPublishedItems = createServerFn({ method: 'GET' })
   .validator((data: unknown) => z.object({ kind: kindSchema }).parse(data))
   .handler(async ({ data }) => {
+    // 管理者のログイン中は非公開（下書き）のものも入れる
+    const admin = await isAdminRequest()
     const rows = await getDb()
       .select({
         slug: items.slug,
@@ -90,11 +93,15 @@ export const listPublishedItems = createServerFn({ method: 'GET' })
         imageKey: items.imageKey,
         attributes: items.attributes,
         acquiredAt: items.acquiredAt,
+        published: items.published,
       })
       .from(items)
-      .where(and(eq(items.kind, data.kind), publishedItems))
+      .where(and(eq(items.kind, data.kind), admin ? undefined : publishedItems))
       .orderBy(...listOrder)
-    return rows.map(withAttributes)
+    return rows.map(({ published, ...row }) => ({
+      ...withAttributes(row),
+      draft: !published,
+    }))
   })
 
 export const getPublishedItem = createServerFn({ method: 'GET' })
@@ -102,11 +109,12 @@ export const getPublishedItem = createServerFn({ method: 'GET' })
     z.object({ kind: kindSchema, slug: z.string() }).parse(data),
   )
   .handler(async ({ data }) => {
+    const admin = await isAdminRequest()
     const item = await getDb().query.collectionItems.findFirst({
       where: and(
         eq(items.kind, data.kind),
         eq(items.slug, data.slug),
-        publishedItems,
+        admin ? undefined : publishedItems,
       ),
     })
     if (!item) throw notFound()
@@ -121,6 +129,8 @@ export const getPublishedItem = createServerFn({ method: 'GET' })
       html,
       /** description や SNS のカードに使う、本文の最初の一部 */
       summary: htmlToSummary(html),
+      /** 非公開（管理者のログイン中だけ見える） */
+      draft: !item.published,
     }
   })
 
