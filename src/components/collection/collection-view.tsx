@@ -26,6 +26,7 @@ import {
 } from '@/lib/collections'
 import { formatDay } from '@/lib/format'
 import { imageUrl } from '@/lib/images'
+import { cn } from '@/lib/utils'
 
 type ListItem = {
   slug: string
@@ -36,6 +37,10 @@ type ListItem = {
   /** 非公開（管理者のログイン中だけ届く） */
   draft?: boolean
 }
+
+/** 一覧のサムネイルの見せ方（決めていない種類は cover） */
+const imageFitOf = (kind: CollectionKind) =>
+  (collections[kind] as { imageFit?: 'cover' | 'contain' }).imageFit ?? 'cover'
 
 const sortOptions = [
   { value: 'order', label: 'おすすめ順' },
@@ -168,6 +173,7 @@ function CollectionCards({
   items: ListItem[]
 }) {
   const config = collections[kind]
+  const contain = imageFitOf(kind) === 'contain'
   return (
     <ul className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
       {items.map((item) => {
@@ -186,7 +192,10 @@ function CollectionCards({
                     src={src}
                     alt=""
                     loading="lazy"
-                    className="size-full object-cover transition-transform duration-300 group-hover:scale-105"
+                    className={cn(
+                      'size-full transition-transform duration-300 group-hover:scale-105',
+                      contain ? 'object-contain p-2' : 'object-cover',
+                    )}
                   />
                 ) : (
                   <div className="flex size-full items-center justify-center text-muted-foreground">
@@ -217,6 +226,7 @@ function CollectionTable({
   items: ListItem[]
 }) {
   const config = collections[kind]
+  const contain = imageFitOf(kind) === 'contain'
   // URL は表では長すぎるので出さない
   const columns = (config.fields as readonly AttributeField[]).filter(
     (f) => f.type !== 'url',
@@ -259,7 +269,12 @@ function CollectionTable({
                         src={src}
                         alt=""
                         loading="lazy"
-                        className="size-10 shrink-0 rounded border object-cover"
+                        className={cn(
+                          'size-10 shrink-0 rounded border',
+                          contain
+                            ? 'bg-muted/30 object-contain'
+                            : 'object-cover',
+                        )}
                       />
                     ) : (
                       <span className="flex size-10 shrink-0 items-center justify-center rounded border text-muted-foreground">

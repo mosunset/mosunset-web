@@ -34,6 +34,11 @@ type CollectionConfig = {
   subtitleKeys: readonly string[]
   /** 一覧の上に「すべて / フィギュア / ぬいぐるみ…」の絞り込みを出す項目 */
   filterKey?: string
+  /**
+   * 一覧のサムネイルの見せ方。cover は正方形いっぱいに（はみ出したところは切る）、
+   * contain は写真全体を見せる（箱を斜めから撮った写真など、縦長で切られると困るもの）
+   */
+  imageFit?: 'cover' | 'contain'
   fields: readonly AttributeField[]
 }
 
@@ -104,6 +109,7 @@ export const collections = {
     acquiredAtLabel: '入手日',
     subtitleKeys: ['series', 'maker'],
     filterKey: 'category',
+    imageFit: 'contain',
     fields: [
       {
         key: 'category',
