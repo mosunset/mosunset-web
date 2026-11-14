@@ -309,13 +309,10 @@ export function ListToolbar({
       <div className="flex flex-wrap items-center gap-2">
         <div className="relative min-w-48 flex-1">
           <Search className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            type="search"
-            aria-label="探す"
+          <SearchInput
             value={list.query}
+            onCommit={list.setQuery}
             placeholder={placeholder}
-            onChange={(e) => list.setQuery(e.target.value)}
-            className="h-9 pl-8"
           />
         </div>
         <label className="flex items-center gap-1.5 text-sm text-muted-foreground">
@@ -432,6 +429,66 @@ function ActiveFilters({ list }: { list: ListControls }) {
         </button>
       )}
     </div>
+  )
+}
+
+/**
+ * 検索欄。打った文字はまず手元に持ち、打つ手が少し止まってから URL に書く。
+ * 日本語の変換中は書かず、確定したときに書く（変換中の文字で一覧が動いたり、1 文字ごとに URL を書き換えたりしないように）
+ */
+function SearchInput({
+  value,
+  onCommit,
+  placeholder,
+}: {
+  value: string
+  onCommit: (q: string) => void
+  placeholder: string
+}) {
+  const [draft, setDraft] = React.useState(value)
+  const composing = React.useRef(false)
+  /** 最後に URL に書いた（または URL から受け取った）検索語 */
+  const committed = React.useRef(value)
+  const commit = React.useEffectEvent((q: string) => {
+    if (q === committed.current) return
+    committed.current = q
+    onCommit(q)
+  })
+
+  // 外で変わったとき（条件の札の × で検索語を外したときなど）は、入力欄も合わせる
+  React.useEffect(() => {
+    if (value !== committed.current) {
+      committed.current = value
+      setDraft(value)
+    }
+  }, [value])
+
+  React.useEffect(() => {
+    if (composing.current) return
+    const timer = setTimeout(() => commit(draft), 250)
+    return () => clearTimeout(timer)
+  }, [draft])
+
+  return (
+    <Input
+      type="search"
+      aria-label="探す"
+      value={draft}
+      placeholder={placeholder}
+      onChange={(e) => setDraft(e.target.value)}
+      onCompositionStart={() => {
+        composing.current = true
+      }}
+      onCompositionEnd={(e) => {
+        composing.current = false
+        commit(e.currentTarget.value)
+      }}
+      onKeyDown={(e) => {
+        // Enter ではすぐに探す（変換の確定の Enter は除く）
+        if (e.key === 'Enter' && !e.nativeEvent.isComposing) commit(draft)
+      }}
+      className="h-9 pl-8"
+    />
   )
 }
 
