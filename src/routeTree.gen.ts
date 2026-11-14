@@ -42,17 +42,22 @@ import { Route as Playground3dblockRouteImport } from './routes/playground/3dblo
 import { Route as PlaygroundAutophagyClockRouteImport } from './routes/playground/autophagy-clock'
 import { Route as PlaygroundBoxPackingRouteImport } from './routes/playground/box-packing'
 import { Route as PlaygroundCharacterCountRouteImport } from './routes/playground/character-count'
+import { Route as PlaygroundCronExpressionRouteImport } from './routes/playground/cron-expression'
+import { Route as PlaygroundEncodeDecodeRouteImport } from './routes/playground/encode-decode'
 import { Route as PlaygroundFuriganaRouteImport } from './routes/playground/furigana'
 import { Route as PlaygroundHashGeneratorRouteImport } from './routes/playground/hash-generator'
 import { Route as PlaygroundIdGeneratorsRouteImport } from './routes/playground/id-generators'
 import { Route as PlaygroundImageCompressRouteImport } from './routes/playground/image-compress'
+import { Route as PlaygroundImagePrivacyRouteImport } from './routes/playground/image-privacy'
 import { Route as PlaygroundInteractiveBmiCalculatorGraphRouteImport } from './routes/playground/interactive-bmi-calculator-graph'
 import { Route as PlaygroundJwtDecoderRouteImport } from './routes/playground/jwt-decoder'
 import { Route as PlaygroundKuromojiRouteImport } from './routes/playground/kuromoji'
 import { Route as PlaygroundMasonryimageRouteImport } from './routes/playground/masonryimage'
 import { Route as PlaygroundMonitorPairingRouteImport } from './routes/playground/monitor-pairing'
 import { Route as PlaygroundNgramSimilarityRouteImport } from './routes/playground/ngram-similarity'
+import { Route as PlaygroundNotationVarianceRouteImport } from './routes/playground/notation-variance'
 import { Route as PlaygroundReadabilityCheckRouteImport } from './routes/playground/readability-check'
+import { Route as PlaygroundRegexTesterRouteImport } from './routes/playground/regex-tester'
 import { Route as PlaygroundUnitPriceComparisonRouteImport } from './routes/playground/unit-price-comparison'
 import { Route as PlaygroundWebyoloRouteImport } from './routes/playground/webyolo'
 import { Route as PlaygroundWhisperTranscribeRouteImport } from './routes/playground/whisper-transcribe'
@@ -238,6 +243,17 @@ const PlaygroundCharacterCountRoute =
     path: '/character-count',
     getParentRoute: () => PlaygroundRouteRoute,
   } as any)
+const PlaygroundCronExpressionRoute =
+  PlaygroundCronExpressionRouteImport.update({
+    id: '/cron-expression',
+    path: '/cron-expression',
+    getParentRoute: () => PlaygroundRouteRoute,
+  } as any)
+const PlaygroundEncodeDecodeRoute = PlaygroundEncodeDecodeRouteImport.update({
+  id: '/encode-decode',
+  path: '/encode-decode',
+  getParentRoute: () => PlaygroundRouteRoute,
+} as any)
 const PlaygroundFuriganaRoute = PlaygroundFuriganaRouteImport.update({
   id: '/furigana',
   path: '/furigana',
@@ -256,6 +272,11 @@ const PlaygroundIdGeneratorsRoute = PlaygroundIdGeneratorsRouteImport.update({
 const PlaygroundImageCompressRoute = PlaygroundImageCompressRouteImport.update({
   id: '/image-compress',
   path: '/image-compress',
+  getParentRoute: () => PlaygroundRouteRoute,
+} as any)
+const PlaygroundImagePrivacyRoute = PlaygroundImagePrivacyRouteImport.update({
+  id: '/image-privacy',
+  path: '/image-privacy',
   getParentRoute: () => PlaygroundRouteRoute,
 } as any)
 const PlaygroundInteractiveBmiCalculatorGraphRoute =
@@ -291,12 +312,23 @@ const PlaygroundNgramSimilarityRoute =
     path: '/ngram-similarity',
     getParentRoute: () => PlaygroundRouteRoute,
   } as any)
+const PlaygroundNotationVarianceRoute =
+  PlaygroundNotationVarianceRouteImport.update({
+    id: '/notation-variance',
+    path: '/notation-variance',
+    getParentRoute: () => PlaygroundRouteRoute,
+  } as any)
 const PlaygroundReadabilityCheckRoute =
   PlaygroundReadabilityCheckRouteImport.update({
     id: '/readability-check',
     path: '/readability-check',
     getParentRoute: () => PlaygroundRouteRoute,
   } as any)
+const PlaygroundRegexTesterRoute = PlaygroundRegexTesterRouteImport.update({
+  id: '/regex-tester',
+  path: '/regex-tester',
+  getParentRoute: () => PlaygroundRouteRoute,
+} as any)
 const PlaygroundUnitPriceComparisonRoute =
   PlaygroundUnitPriceComparisonRouteImport.update({
     id: '/unit-price-comparison',
@@ -410,17 +442,22 @@ export interface FileRoutesByFullPath {
   '/playground/autophagy-clock': typeof PlaygroundAutophagyClockRoute
   '/playground/box-packing': typeof PlaygroundBoxPackingRoute
   '/playground/character-count': typeof PlaygroundCharacterCountRoute
+  '/playground/cron-expression': typeof PlaygroundCronExpressionRoute
+  '/playground/encode-decode': typeof PlaygroundEncodeDecodeRoute
   '/playground/furigana': typeof PlaygroundFuriganaRoute
   '/playground/hash-generator': typeof PlaygroundHashGeneratorRoute
   '/playground/id-generators': typeof PlaygroundIdGeneratorsRoute
   '/playground/image-compress': typeof PlaygroundImageCompressRoute
+  '/playground/image-privacy': typeof PlaygroundImagePrivacyRoute
   '/playground/interactive-bmi-calculator-graph': typeof PlaygroundInteractiveBmiCalculatorGraphRoute
   '/playground/jwt-decoder': typeof PlaygroundJwtDecoderRoute
   '/playground/kuromoji': typeof PlaygroundKuromojiRoute
   '/playground/masonryimage': typeof PlaygroundMasonryimageRoute
   '/playground/monitor-pairing': typeof PlaygroundMonitorPairingRoute
   '/playground/ngram-similarity': typeof PlaygroundNgramSimilarityRoute
+  '/playground/notation-variance': typeof PlaygroundNotationVarianceRoute
   '/playground/readability-check': typeof PlaygroundReadabilityCheckRoute
+  '/playground/regex-tester': typeof PlaygroundRegexTesterRoute
   '/playground/unit-price-comparison': typeof PlaygroundUnitPriceComparisonRoute
   '/playground/webyolo': typeof PlaygroundWebyoloRoute
   '/playground/whisper-transcribe': typeof PlaygroundWhisperTranscribeRoute
@@ -462,17 +499,22 @@ export interface FileRoutesByTo {
   '/playground/autophagy-clock': typeof PlaygroundAutophagyClockRoute
   '/playground/box-packing': typeof PlaygroundBoxPackingRoute
   '/playground/character-count': typeof PlaygroundCharacterCountRoute
+  '/playground/cron-expression': typeof PlaygroundCronExpressionRoute
+  '/playground/encode-decode': typeof PlaygroundEncodeDecodeRoute
   '/playground/furigana': typeof PlaygroundFuriganaRoute
   '/playground/hash-generator': typeof PlaygroundHashGeneratorRoute
   '/playground/id-generators': typeof PlaygroundIdGeneratorsRoute
   '/playground/image-compress': typeof PlaygroundImageCompressRoute
+  '/playground/image-privacy': typeof PlaygroundImagePrivacyRoute
   '/playground/interactive-bmi-calculator-graph': typeof PlaygroundInteractiveBmiCalculatorGraphRoute
   '/playground/jwt-decoder': typeof PlaygroundJwtDecoderRoute
   '/playground/kuromoji': typeof PlaygroundKuromojiRoute
   '/playground/masonryimage': typeof PlaygroundMasonryimageRoute
   '/playground/monitor-pairing': typeof PlaygroundMonitorPairingRoute
   '/playground/ngram-similarity': typeof PlaygroundNgramSimilarityRoute
+  '/playground/notation-variance': typeof PlaygroundNotationVarianceRoute
   '/playground/readability-check': typeof PlaygroundReadabilityCheckRoute
+  '/playground/regex-tester': typeof PlaygroundRegexTesterRoute
   '/playground/unit-price-comparison': typeof PlaygroundUnitPriceComparisonRoute
   '/playground/webyolo': typeof PlaygroundWebyoloRoute
   '/playground/whisper-transcribe': typeof PlaygroundWhisperTranscribeRoute
@@ -524,17 +566,22 @@ export interface FileRoutesById {
   '/playground/autophagy-clock': typeof PlaygroundAutophagyClockRoute
   '/playground/box-packing': typeof PlaygroundBoxPackingRoute
   '/playground/character-count': typeof PlaygroundCharacterCountRoute
+  '/playground/cron-expression': typeof PlaygroundCronExpressionRoute
+  '/playground/encode-decode': typeof PlaygroundEncodeDecodeRoute
   '/playground/furigana': typeof PlaygroundFuriganaRoute
   '/playground/hash-generator': typeof PlaygroundHashGeneratorRoute
   '/playground/id-generators': typeof PlaygroundIdGeneratorsRoute
   '/playground/image-compress': typeof PlaygroundImageCompressRoute
+  '/playground/image-privacy': typeof PlaygroundImagePrivacyRoute
   '/playground/interactive-bmi-calculator-graph': typeof PlaygroundInteractiveBmiCalculatorGraphRoute
   '/playground/jwt-decoder': typeof PlaygroundJwtDecoderRoute
   '/playground/kuromoji': typeof PlaygroundKuromojiRoute
   '/playground/masonryimage': typeof PlaygroundMasonryimageRoute
   '/playground/monitor-pairing': typeof PlaygroundMonitorPairingRoute
   '/playground/ngram-similarity': typeof PlaygroundNgramSimilarityRoute
+  '/playground/notation-variance': typeof PlaygroundNotationVarianceRoute
   '/playground/readability-check': typeof PlaygroundReadabilityCheckRoute
+  '/playground/regex-tester': typeof PlaygroundRegexTesterRoute
   '/playground/unit-price-comparison': typeof PlaygroundUnitPriceComparisonRoute
   '/playground/webyolo': typeof PlaygroundWebyoloRoute
   '/playground/whisper-transcribe': typeof PlaygroundWhisperTranscribeRoute
@@ -588,17 +635,22 @@ export interface FileRouteTypes {
     | '/playground/autophagy-clock'
     | '/playground/box-packing'
     | '/playground/character-count'
+    | '/playground/cron-expression'
+    | '/playground/encode-decode'
     | '/playground/furigana'
     | '/playground/hash-generator'
     | '/playground/id-generators'
     | '/playground/image-compress'
+    | '/playground/image-privacy'
     | '/playground/interactive-bmi-calculator-graph'
     | '/playground/jwt-decoder'
     | '/playground/kuromoji'
     | '/playground/masonryimage'
     | '/playground/monitor-pairing'
     | '/playground/ngram-similarity'
+    | '/playground/notation-variance'
     | '/playground/readability-check'
+    | '/playground/regex-tester'
     | '/playground/unit-price-comparison'
     | '/playground/webyolo'
     | '/playground/whisper-transcribe'
@@ -640,17 +692,22 @@ export interface FileRouteTypes {
     | '/playground/autophagy-clock'
     | '/playground/box-packing'
     | '/playground/character-count'
+    | '/playground/cron-expression'
+    | '/playground/encode-decode'
     | '/playground/furigana'
     | '/playground/hash-generator'
     | '/playground/id-generators'
     | '/playground/image-compress'
+    | '/playground/image-privacy'
     | '/playground/interactive-bmi-calculator-graph'
     | '/playground/jwt-decoder'
     | '/playground/kuromoji'
     | '/playground/masonryimage'
     | '/playground/monitor-pairing'
     | '/playground/ngram-similarity'
+    | '/playground/notation-variance'
     | '/playground/readability-check'
+    | '/playground/regex-tester'
     | '/playground/unit-price-comparison'
     | '/playground/webyolo'
     | '/playground/whisper-transcribe'
@@ -701,17 +758,22 @@ export interface FileRouteTypes {
     | '/playground/autophagy-clock'
     | '/playground/box-packing'
     | '/playground/character-count'
+    | '/playground/cron-expression'
+    | '/playground/encode-decode'
     | '/playground/furigana'
     | '/playground/hash-generator'
     | '/playground/id-generators'
     | '/playground/image-compress'
+    | '/playground/image-privacy'
     | '/playground/interactive-bmi-calculator-graph'
     | '/playground/jwt-decoder'
     | '/playground/kuromoji'
     | '/playground/masonryimage'
     | '/playground/monitor-pairing'
     | '/playground/ngram-similarity'
+    | '/playground/notation-variance'
     | '/playground/readability-check'
+    | '/playground/regex-tester'
     | '/playground/unit-price-comparison'
     | '/playground/webyolo'
     | '/playground/whisper-transcribe'
@@ -989,6 +1051,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PlaygroundCharacterCountRouteImport
       parentRoute: typeof PlaygroundRouteRoute
     }
+    '/playground/cron-expression': {
+      id: '/playground/cron-expression'
+      path: '/cron-expression'
+      fullPath: '/playground/cron-expression'
+      preLoaderRoute: typeof PlaygroundCronExpressionRouteImport
+      parentRoute: typeof PlaygroundRouteRoute
+    }
+    '/playground/encode-decode': {
+      id: '/playground/encode-decode'
+      path: '/encode-decode'
+      fullPath: '/playground/encode-decode'
+      preLoaderRoute: typeof PlaygroundEncodeDecodeRouteImport
+      parentRoute: typeof PlaygroundRouteRoute
+    }
     '/playground/furigana': {
       id: '/playground/furigana'
       path: '/furigana'
@@ -1015,6 +1091,13 @@ declare module '@tanstack/react-router' {
       path: '/image-compress'
       fullPath: '/playground/image-compress'
       preLoaderRoute: typeof PlaygroundImageCompressRouteImport
+      parentRoute: typeof PlaygroundRouteRoute
+    }
+    '/playground/image-privacy': {
+      id: '/playground/image-privacy'
+      path: '/image-privacy'
+      fullPath: '/playground/image-privacy'
+      preLoaderRoute: typeof PlaygroundImagePrivacyRouteImport
       parentRoute: typeof PlaygroundRouteRoute
     }
     '/playground/interactive-bmi-calculator-graph': {
@@ -1059,11 +1142,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PlaygroundNgramSimilarityRouteImport
       parentRoute: typeof PlaygroundRouteRoute
     }
+    '/playground/notation-variance': {
+      id: '/playground/notation-variance'
+      path: '/notation-variance'
+      fullPath: '/playground/notation-variance'
+      preLoaderRoute: typeof PlaygroundNotationVarianceRouteImport
+      parentRoute: typeof PlaygroundRouteRoute
+    }
     '/playground/readability-check': {
       id: '/playground/readability-check'
       path: '/readability-check'
       fullPath: '/playground/readability-check'
       preLoaderRoute: typeof PlaygroundReadabilityCheckRouteImport
+      parentRoute: typeof PlaygroundRouteRoute
+    }
+    '/playground/regex-tester': {
+      id: '/playground/regex-tester'
+      path: '/regex-tester'
+      fullPath: '/playground/regex-tester'
+      preLoaderRoute: typeof PlaygroundRegexTesterRouteImport
       parentRoute: typeof PlaygroundRouteRoute
     }
     '/playground/unit-price-comparison': {
@@ -1320,17 +1417,22 @@ interface PlaygroundRouteRouteChildren {
   PlaygroundAutophagyClockRoute: typeof PlaygroundAutophagyClockRoute
   PlaygroundBoxPackingRoute: typeof PlaygroundBoxPackingRoute
   PlaygroundCharacterCountRoute: typeof PlaygroundCharacterCountRoute
+  PlaygroundCronExpressionRoute: typeof PlaygroundCronExpressionRoute
+  PlaygroundEncodeDecodeRoute: typeof PlaygroundEncodeDecodeRoute
   PlaygroundFuriganaRoute: typeof PlaygroundFuriganaRoute
   PlaygroundHashGeneratorRoute: typeof PlaygroundHashGeneratorRoute
   PlaygroundIdGeneratorsRoute: typeof PlaygroundIdGeneratorsRoute
   PlaygroundImageCompressRoute: typeof PlaygroundImageCompressRoute
+  PlaygroundImagePrivacyRoute: typeof PlaygroundImagePrivacyRoute
   PlaygroundInteractiveBmiCalculatorGraphRoute: typeof PlaygroundInteractiveBmiCalculatorGraphRoute
   PlaygroundJwtDecoderRoute: typeof PlaygroundJwtDecoderRoute
   PlaygroundKuromojiRoute: typeof PlaygroundKuromojiRoute
   PlaygroundMasonryimageRoute: typeof PlaygroundMasonryimageRoute
   PlaygroundMonitorPairingRoute: typeof PlaygroundMonitorPairingRoute
   PlaygroundNgramSimilarityRoute: typeof PlaygroundNgramSimilarityRoute
+  PlaygroundNotationVarianceRoute: typeof PlaygroundNotationVarianceRoute
   PlaygroundReadabilityCheckRoute: typeof PlaygroundReadabilityCheckRoute
+  PlaygroundRegexTesterRoute: typeof PlaygroundRegexTesterRoute
   PlaygroundUnitPriceComparisonRoute: typeof PlaygroundUnitPriceComparisonRoute
   PlaygroundWebyoloRoute: typeof PlaygroundWebyoloRoute
   PlaygroundWhisperTranscribeRoute: typeof PlaygroundWhisperTranscribeRoute
@@ -1342,10 +1444,13 @@ const PlaygroundRouteRouteChildren: PlaygroundRouteRouteChildren = {
   PlaygroundAutophagyClockRoute: PlaygroundAutophagyClockRoute,
   PlaygroundBoxPackingRoute: PlaygroundBoxPackingRoute,
   PlaygroundCharacterCountRoute: PlaygroundCharacterCountRoute,
+  PlaygroundCronExpressionRoute: PlaygroundCronExpressionRoute,
+  PlaygroundEncodeDecodeRoute: PlaygroundEncodeDecodeRoute,
   PlaygroundFuriganaRoute: PlaygroundFuriganaRoute,
   PlaygroundHashGeneratorRoute: PlaygroundHashGeneratorRoute,
   PlaygroundIdGeneratorsRoute: PlaygroundIdGeneratorsRoute,
   PlaygroundImageCompressRoute: PlaygroundImageCompressRoute,
+  PlaygroundImagePrivacyRoute: PlaygroundImagePrivacyRoute,
   PlaygroundInteractiveBmiCalculatorGraphRoute:
     PlaygroundInteractiveBmiCalculatorGraphRoute,
   PlaygroundJwtDecoderRoute: PlaygroundJwtDecoderRoute,
@@ -1353,7 +1458,9 @@ const PlaygroundRouteRouteChildren: PlaygroundRouteRouteChildren = {
   PlaygroundMasonryimageRoute: PlaygroundMasonryimageRoute,
   PlaygroundMonitorPairingRoute: PlaygroundMonitorPairingRoute,
   PlaygroundNgramSimilarityRoute: PlaygroundNgramSimilarityRoute,
+  PlaygroundNotationVarianceRoute: PlaygroundNotationVarianceRoute,
   PlaygroundReadabilityCheckRoute: PlaygroundReadabilityCheckRoute,
+  PlaygroundRegexTesterRoute: PlaygroundRegexTesterRoute,
   PlaygroundUnitPriceComparisonRoute: PlaygroundUnitPriceComparisonRoute,
   PlaygroundWebyoloRoute: PlaygroundWebyoloRoute,
   PlaygroundWhisperTranscribeRoute: PlaygroundWhisperTranscribeRoute,
