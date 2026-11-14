@@ -42,6 +42,7 @@ import { Route as Playground3dblockRouteImport } from './routes/playground/3dblo
 import { Route as PlaygroundAutophagyClockRouteImport } from './routes/playground/autophagy-clock'
 import { Route as PlaygroundBoxPackingRouteImport } from './routes/playground/box-packing'
 import { Route as PlaygroundCharacterCountRouteImport } from './routes/playground/character-count'
+import { Route as PlaygroundCronExpressionRouteImport } from './routes/playground/cron-expression'
 import { Route as PlaygroundHashGeneratorRouteImport } from './routes/playground/hash-generator'
 import { Route as PlaygroundIdGeneratorsRouteImport } from './routes/playground/id-generators'
 import { Route as PlaygroundInteractiveBmiCalculatorGraphRouteImport } from './routes/playground/interactive-bmi-calculator-graph'
@@ -233,6 +234,12 @@ const PlaygroundCharacterCountRoute =
     path: '/character-count',
     getParentRoute: () => PlaygroundRouteRoute,
   } as any)
+const PlaygroundCronExpressionRoute =
+  PlaygroundCronExpressionRouteImport.update({
+    id: '/cron-expression',
+    path: '/cron-expression',
+    getParentRoute: () => PlaygroundRouteRoute,
+  } as any)
 const PlaygroundHashGeneratorRoute = PlaygroundHashGeneratorRouteImport.update({
   id: '/hash-generator',
   path: '/hash-generator',
@@ -378,6 +385,7 @@ export interface FileRoutesByFullPath {
   '/playground/autophagy-clock': typeof PlaygroundAutophagyClockRoute
   '/playground/box-packing': typeof PlaygroundBoxPackingRoute
   '/playground/character-count': typeof PlaygroundCharacterCountRoute
+  '/playground/cron-expression': typeof PlaygroundCronExpressionRoute
   '/playground/hash-generator': typeof PlaygroundHashGeneratorRoute
   '/playground/id-generators': typeof PlaygroundIdGeneratorsRoute
   '/playground/interactive-bmi-calculator-graph': typeof PlaygroundInteractiveBmiCalculatorGraphRoute
@@ -425,6 +433,7 @@ export interface FileRoutesByTo {
   '/playground/autophagy-clock': typeof PlaygroundAutophagyClockRoute
   '/playground/box-packing': typeof PlaygroundBoxPackingRoute
   '/playground/character-count': typeof PlaygroundCharacterCountRoute
+  '/playground/cron-expression': typeof PlaygroundCronExpressionRoute
   '/playground/hash-generator': typeof PlaygroundHashGeneratorRoute
   '/playground/id-generators': typeof PlaygroundIdGeneratorsRoute
   '/playground/interactive-bmi-calculator-graph': typeof PlaygroundInteractiveBmiCalculatorGraphRoute
@@ -482,6 +491,7 @@ export interface FileRoutesById {
   '/playground/autophagy-clock': typeof PlaygroundAutophagyClockRoute
   '/playground/box-packing': typeof PlaygroundBoxPackingRoute
   '/playground/character-count': typeof PlaygroundCharacterCountRoute
+  '/playground/cron-expression': typeof PlaygroundCronExpressionRoute
   '/playground/hash-generator': typeof PlaygroundHashGeneratorRoute
   '/playground/id-generators': typeof PlaygroundIdGeneratorsRoute
   '/playground/interactive-bmi-calculator-graph': typeof PlaygroundInteractiveBmiCalculatorGraphRoute
@@ -541,6 +551,7 @@ export interface FileRouteTypes {
     | '/playground/autophagy-clock'
     | '/playground/box-packing'
     | '/playground/character-count'
+    | '/playground/cron-expression'
     | '/playground/hash-generator'
     | '/playground/id-generators'
     | '/playground/interactive-bmi-calculator-graph'
@@ -588,6 +599,7 @@ export interface FileRouteTypes {
     | '/playground/autophagy-clock'
     | '/playground/box-packing'
     | '/playground/character-count'
+    | '/playground/cron-expression'
     | '/playground/hash-generator'
     | '/playground/id-generators'
     | '/playground/interactive-bmi-calculator-graph'
@@ -644,6 +656,7 @@ export interface FileRouteTypes {
     | '/playground/autophagy-clock'
     | '/playground/box-packing'
     | '/playground/character-count'
+    | '/playground/cron-expression'
     | '/playground/hash-generator'
     | '/playground/id-generators'
     | '/playground/interactive-bmi-calculator-graph'
@@ -925,6 +938,13 @@ declare module '@tanstack/react-router' {
       path: '/character-count'
       fullPath: '/playground/character-count'
       preLoaderRoute: typeof PlaygroundCharacterCountRouteImport
+      parentRoute: typeof PlaygroundRouteRoute
+    }
+    '/playground/cron-expression': {
+      id: '/playground/cron-expression'
+      path: '/cron-expression'
+      fullPath: '/playground/cron-expression'
+      preLoaderRoute: typeof PlaygroundCronExpressionRouteImport
       parentRoute: typeof PlaygroundRouteRoute
     }
     '/playground/hash-generator': {
@@ -1223,6 +1243,7 @@ interface PlaygroundRouteRouteChildren {
   PlaygroundAutophagyClockRoute: typeof PlaygroundAutophagyClockRoute
   PlaygroundBoxPackingRoute: typeof PlaygroundBoxPackingRoute
   PlaygroundCharacterCountRoute: typeof PlaygroundCharacterCountRoute
+  PlaygroundCronExpressionRoute: typeof PlaygroundCronExpressionRoute
   PlaygroundHashGeneratorRoute: typeof PlaygroundHashGeneratorRoute
   PlaygroundIdGeneratorsRoute: typeof PlaygroundIdGeneratorsRoute
   PlaygroundInteractiveBmiCalculatorGraphRoute: typeof PlaygroundInteractiveBmiCalculatorGraphRoute
@@ -1240,6 +1261,7 @@ const PlaygroundRouteRouteChildren: PlaygroundRouteRouteChildren = {
   PlaygroundAutophagyClockRoute: PlaygroundAutophagyClockRoute,
   PlaygroundBoxPackingRoute: PlaygroundBoxPackingRoute,
   PlaygroundCharacterCountRoute: PlaygroundCharacterCountRoute,
+  PlaygroundCronExpressionRoute: PlaygroundCronExpressionRoute,
   PlaygroundHashGeneratorRoute: PlaygroundHashGeneratorRoute,
   PlaygroundIdGeneratorsRoute: PlaygroundIdGeneratorsRoute,
   PlaygroundInteractiveBmiCalculatorGraphRoute:

@@ -164,6 +164,17 @@ export const playgroundTools = [
     publishedDate: '2025-09-09',
     thumbnail: '/playground/3dblock/thumbnail.webp',
   },
+  {
+    slug: 'cron-expression',
+    name: 'cron 式の確認',
+    title: 'cron 式の確認 | 意味を日本語で説明し、次に動く日時を一覧に',
+    description:
+      'cron 式を入れると、「平日の 9:00 に」のように意味を日本語で説明し、次に動く日時を 10〜20 回分並べます。Linux crontab・GitHub Actions・Cloudflare Workers・秒付きの書き方とタイムゾーンを切り替えられ、おかしいところも示します。入力した式はサーバーに送りません。',
+    category: 'ユーティリティ',
+    tags: ['cron', 'crontab', 'スケジュール', 'GitHub Actions', 'Cloudflare'],
+    publishedDate: '2026-11-14',
+    thumbnail: '/playground/cron-expression/thumbnail.webp',
+  },
 ] as const satisfies readonly (Omit<PlaygroundTool, 'slug'> & {
   slug: string
 })[]
