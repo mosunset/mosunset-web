@@ -4,8 +4,10 @@ import type * as React from 'react'
 import { lazy, type ReactNode, Suspense } from 'react'
 
 import { BackLinkFooter } from '@/components/back-link-footer'
+import { UsageButton } from '@/components/playground/usage-panel'
 import { Badge } from '@/components/ui/badge'
 import { getPlaygroundTool, type PlaygroundSlug } from '@/lib/playground'
+import { playgroundUsage } from '@/lib/playground-usage'
 import { seo } from '@/lib/seo'
 import { cn } from '@/lib/utils'
 
@@ -76,7 +78,10 @@ export function ToolPage({
             </span>
           ))}
         </div>
-        <h1 className="text-2xl font-bold sm:text-3xl">{tool.name}</h1>
+        <div className="flex items-start justify-between gap-3">
+          <h1 className="text-2xl font-bold sm:text-3xl">{tool.name}</h1>
+          <UsageButton toolName={tool.name} usage={playgroundUsage[slug]} />
+        </div>
         <p className="text-muted-foreground">{tool.description}</p>
       </header>
 
