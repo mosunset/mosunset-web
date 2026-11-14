@@ -164,6 +164,18 @@ export const playgroundTools = [
     publishedDate: '2025-09-09',
     thumbnail: '/playground/3dblock/thumbnail.webp',
   },
+  {
+    slug: 'regex-tester',
+    name: '正規表現チェッカー',
+    title:
+      '正規表現チェッカー | JavaScript の正規表現のマッチ・置換・split を色分けで確認',
+    description:
+      'JavaScript の正規表現と文章を入れると、マッチした場所とキャプチャグループ（名前付きも）を色分けして表示します。置換と split の結果、パターンの日本語の解説も。重いパターンは時間切れで止まります。入力した内容はサーバーに送りません。',
+    category: 'ユーティリティ',
+    tags: ['正規表現', 'RegExp', 'JavaScript', '置換', 'テキスト処理'],
+    publishedDate: '2026-11-14',
+    thumbnail: '/playground/regex-tester/thumbnail.webp',
+  },
 ] as const satisfies readonly (Omit<PlaygroundTool, 'slug'> & {
   slug: string
 })[]
