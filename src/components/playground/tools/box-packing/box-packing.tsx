@@ -22,6 +22,14 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { cn } from '@/lib/utils'
 import type { GpuReply, GpuRequest } from './gpu.worker'
+import {
+  comboImproved,
+  createLines,
+  endLine,
+  type Line,
+  type Lines,
+  pickLine,
+} from './lines'
 import { BestResults, SavedResults, type SettingsSummary } from './saved'
 import type { SearchRequest, WorkerMessage } from './search.worker'
 import {
@@ -1226,8 +1234,14 @@ export function BoxPacking() {
     const gained = new Array<boolean>(n).fill(true)
     /** 組み合わせごとに、ほかの係へ良い並べ方を最後に渡した時刻（渡しすぎないよう間引く） */
     const lastShared = new Array<number>(n).fill(0)
-    /** 組み合わせごとに、これまでにかけた計算の時間（係ごとの合計。ルールを固める頃合いを決めるのに渡す） */
+    /** 組み合わせごとに、これまでにかけた計算の時間（いつもの筋の係ごとの合計。ルールを固める頃合いを決めるのに渡す） */
     const workMs = new Array<number>(n).fill(0)
+    /** 組み合わせごとの別の筋（ほかの係と並べ方をやり取りせず、離れた場所を探し続ける。lines.ts） */
+    const lines: Lines[] = Array.from({ length: n }, createLines)
+    /** 組み合わせごとに、いつもの筋を受け持っている係の数 */
+    const mainActive = new Array<number>(n).fill(0)
+    /** 係ごとに、受け持っている別の筋（いつもの筋なら null） */
+    const slotLine = new Array<Line | null>(workerCount).fill(null)
     // GPU を使うときは、計算係のうち 1 つ（0 番）を GPU 係にする
     const gpuWorker = gpuOn ? gpuWorkerRef.current : null
     const runGpu = (
@@ -1360,6 +1374,19 @@ export function BoxPacking() {
       if (i < 0) return
       active[i]++
       slotCombo[slot] = i
+      // CPU の係は、ときどき別の筋を受け持つ（いつもの筋がまだ一度も動いていない組み合わせでは、いつもの筋から）
+      const isGpuSlot = slot === 0 && !!gpuWorker
+      const picked =
+        !isGpuSlot &&
+        combos[i].method !== 'columns' &&
+        (bestGenome[i] !== undefined || mainActive[i] > 0)
+          ? pickLine(lines[i], bestGenome[i], Math.random)
+          : null
+      const line = picked?.line ?? null
+      slotLine[slot] = line
+      if (!line) mainActive[i]++
+      /** 別の筋のとき、この受け持ちで見つけたいちばん良い結果 */
+      let lineFound: PackResult | undefined
       const scoreAtStart = bestScore[i]
       // 計算し始めたら「変化なし」の時間を数え始める（ほかの係がすでに計算中なら、そのまま）
       const startedAtSlot = Date.now()
@@ -1378,7 +1405,21 @@ export function BoxPacking() {
         stops[slot]?.()
         stops[slot] = null
         slotCombo[slot] = -1
-        workMs[i] += Date.now() - startedAtSlot
+        slotLine[slot] = null
+        const sliceMs = Date.now() - startedAtSlot
+        if (line) {
+          endLine(
+            lines[i],
+            line,
+            lineFound,
+            sliceMs,
+            slotTried[slot],
+            bestScore[i],
+          )
+        } else {
+          mainActive[i]--
+          workMs[i] += sliceMs
+        }
         gained[i] =
           bestScore[i] !== undefined &&
           (scoreAtStart === undefined || bestScore[i] < scoreAtStart - 1e-9)
@@ -1413,14 +1454,18 @@ export function BoxPacking() {
           startOrder: bestOrder[i],
           startGenome: bestGenome[i],
           searchedMs: workMs[i],
+          ...picked?.patch,
         },
         {
           best: (found) => {
+            if (line && (!lineFound || found.score < lineFound.score))
+              lineFound = found
             const prev = bestScore[i]
             if (prev === undefined || found.score < prev) {
               bestScore[i] = found.score
               bestOrder[i] = found.placements.map((p) => p.type)
               bestGenome[i] = found.genome
+              comboImproved(lines[i])
               // 良くなったので「変化なし」を 0 に戻す
               const improvedAt = Date.now()
               patchRow(i, (r) => ({
@@ -1428,12 +1473,14 @@ export function BoxPacking() {
                 stallMs: 0,
                 stallFrom: active[i] > 0 ? improvedAt : undefined,
               }))
-              // 同じ組み合わせを受け持っているほかの係にも、すぐ教える（1 秒に 1 回まで）
+              // 同じ組み合わせのいつもの筋を受け持っているほかの係にも、すぐ教える（1 秒に 1 回まで）。
+              // 別の筋の係には教えない（離れた場所を探し続けてもらう）
               const genome = found.genome
               if (genome && Date.now() - lastShared[i] > 1000) {
                 lastShared[i] = Date.now()
                 stops.forEach((other, s) => {
-                  if (s !== slot && slotCombo[s] === i) other?.adopt(genome)
+                  if (s !== slot && slotCombo[s] === i && !slotLine[s])
+                    other?.adopt(genome)
                 })
               }
             }

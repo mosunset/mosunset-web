@@ -18,6 +18,8 @@ import {
   betterFor,
   createKindStats,
   evaluateIds,
+  FRESH_EVERY,
+  freshPlan,
   type Genome,
   type Metric,
   MUTATION_KINDS,
@@ -30,6 +32,7 @@ import {
   type Rule,
   random,
   rulesFrozen,
+  shakeLevelOf,
   shakePlan,
   startPlans,
   temperatureAt,
@@ -72,8 +75,10 @@ const REVIEW_TOP_ALONE = 16
 const GPU_HALF_LIFE = 30
 /** 何回続けて良くならなければ、大きく崩して別の場所を探すか */
 const STAGNATION = 4
-/** 大きく崩した出発点の近くを、何回探すか */
+/** 大きく崩した出発点の近くを、何回探すか（その近くのいちばんが良くなったら、数え直す） */
 const KICK_BATCHES = 6
+/** 大きく崩した出発点の近くを探す回数の上限（良くなり続けても、ここで出発点を選び直す） */
+const KICK_MAX_BATCHES = 24
 
 // tsconfig は DOM の型なので、Worker の self として使う分だけ型を付ける
 const worker = self as unknown as {
@@ -271,6 +276,7 @@ async function search(
   // 1. 良い並べ方を上位 ELITES 通り覚えておき、出発点を「いちばん良いもの」だけでなく、ほかの良いものからも選ぶ
   // 2. 崩し方を混ぜる（solver の mutate）: 並べ順・ルールの重み・かたまりの分け方とつなぎ方・2 つの組み合わせ
   // 3. しばらく良くならないときは、いちばん良い並べ方の一部を大きく混ぜた並べ方を出発点にして、別の場所を探す
+  //    （続けて良くならないほど広く混ぜ（一巡したら狭く戻る）、何回かに 1 回は新しい並べ方から始める）
 
   /** 良い並べ方の控え（点数の良い順。同じものは 1 つだけ） */
   type Elite = Plan & { score: number; key: string }
@@ -327,10 +333,12 @@ async function search(
   let batch = Math.min(MIN_BATCH, limit)
   let checked = false
 
-  /** 大きく崩した出発点から探しているあいだの状態（その近くで見つけたいちばん良い並べ方と、残りの回数） */
-  let kick: (Plan & { score: number; left: number }) | null = null
+  /** 大きく崩した出発点から探しているあいだの状態（その近くで見つけたいちばん良い並べ方と、残りの回数・探した回数） */
+  let kick: (Plan & { score: number; left: number; used: number }) | null = null
   /** いちばん良い結果が、何回続けて良くならなかったか */
   let sinceImproved = 0
+  /** 続けて何回大きく崩しても、いちばん良い結果が良くならなかったか（多いほど広く崩す） */
+  let kicks = 0
   const frozen = () => rulesFrozen(input, Date.now() - started)
   /** 焼きなまし: 今歩いている並べ方（いちばん良いものより少し悪いこともある）と、温度を決める回数 */
   let walk: Plan & { score: number } = { ...bestPlan, score: best.score }
@@ -450,6 +458,8 @@ async function search(
     const kindWins = new Array<number>(MUTATION_KINDS).fill(0)
     /** この回でいちばん良かった並べ方（焼きなましで、乗り換えるか決める） */
     let batchBest: (Plan & { score: number }) | null = null
+    /** 大きく崩した出発点の近くのいちばんが、この回で良くなったか */
+    let kickImproved = false
     for (let q = 0; q < pickList.length; q++) {
       const r = pickList[q]
       const plan = job.plans[r]
@@ -471,6 +481,7 @@ async function search(
       // 大きく崩した出発点から探しているあいだは、その近くでいちばん良いものを次の出発点にする
       if (job.fromKick && kick && result.score < kick.score) {
         kick = { ...kick, ids: plan.ids, rule: plan.rule, score: result.score }
+        kickImproved = true
       }
       consider(result)
       if (!job.fromKick && (!batchBest || result.score < batchBest.score))
@@ -502,18 +513,34 @@ async function search(
     if (improved) {
       sinceImproved = 0
       kick = null
+      kicks = 0
     } else {
       sinceImproved++
+      // 崩した出発点の近くが良くなり続けているあいだは、そこを探し続ける（上限まで）
       if (kick && job.fromKick) {
-        kick.left--
-        if (kick.left <= 0) kick = null
+        kick.used++
+        kick.left = kickImproved ? KICK_BATCHES : kick.left - 1
+        if (kick.left <= 0 || kick.used >= KICK_MAX_BATCHES) kick = null
       }
       // しばらく良くならなければ、いちばん良い並べ方の一部を大きく混ぜて、別の場所を探す
+      // （続けて良くならないほど広く混ぜ（一巡したら狭く戻る）、何回かに 1 回は新しい並べ方から始める）
       if (!kick && sinceImproved >= STAGNATION) {
+        kicks++
+        const plan =
+          kicks % FRESH_EVERY === 0
+            ? freshPlan(input, table, rand, frozen() ? current.rule : undefined)
+            : shakePlan(
+                current.ids,
+                current.rule,
+                rand,
+                frozen(),
+                shakeLevelOf(kicks - 1),
+              )
         kick = {
-          ...shakePlan(current.ids, current.rule, rand, frozen()),
+          ...plan,
           score: Number.POSITIVE_INFINITY,
           left: KICK_BATCHES,
+          used: 0,
         }
         sinceImproved = 0
         annealBatches = 0
@@ -575,6 +602,7 @@ async function search(
         currentBest = r
         current = plan
         walk = { ...plan, score: r.score }
+        kicks = 0
         pending = true
         lastImproved = Date.now()
       }

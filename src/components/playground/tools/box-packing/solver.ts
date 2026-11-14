@@ -73,6 +73,13 @@ export type PackInput = {
   startGenome?: Genome
   /** この組み合わせに前にかけた計算の時間（ミリ秒）。ルールを固める頃合いを決めるのに使う */
   searchedMs?: number
+  /**
+   * 別の筋として探す（いちばん良い並べ方から離れた場所を、ほかの係と並べ方をやり取りせずに探す）。
+   * 最初に試す並べ方は 1 つだけ: startGenome（shake があれば、それを大きく崩したもの）、なければ新しい並べ方
+   */
+  explore?: boolean
+  /** explore のとき、startGenome をこの強さで大きく崩してから探す（0 がいちばん弱い。shakePlan） */
+  shake?: number
   /** 計算方法。order: 並べ順で探す（最初の方式）/ columns: 柱で積む（columns.ts） */
   method?: Method
 }
@@ -1758,33 +1765,109 @@ export function acceptWorse(
   return rand() < Math.exp(-delta / temperature)
 }
 
-/** 大きく崩す: 並び順の 5 分の 1 ほどの区間を混ぜる（ルールを固める前なら、ルールの重みも 2 か所変える） */
+/** 大きく崩す強さの上限（shakePlan の level） */
+export const SHAKE_MAX = 3
+
+/**
+ * 続けて良くならなかった回数（0 から）に応じた、大きく崩す強さ。だんだん広く崩し、いちばん広く崩しても駄目なら
+ * また狭い崩し方に戻る（一巡する）。広く崩したままにすると、いちばん良い並べ方の近くを探さなくなり、かえって悪くなった
+ */
+export const shakeLevelOf = (count: number) => count % (SHAKE_MAX + 1)
+
+/** 並び順の区間 [from, from + len) を混ぜる */
+function shuffleSpan(
+  o: number[],
+  from: number,
+  len: number,
+  rand: () => number,
+) {
+  for (let a = Math.min(o.length, from + len) - 1; a > from; a--) {
+    const b = from + Math.floor(rand() * (a - from + 1))
+    const t = o[a]
+    o[a] = o[b]
+    o[b] = t
+  }
+}
+
+/** ルールの重みを count か所、でたらめな値にする */
+function scrambleRule(rule: Rule, count: number, rand: () => number) {
+  const r = [...rule]
+  for (let t = 0; t < count; t++) {
+    r[Math.floor(rand() * RULE_SIZE)] = Math.floor(rand() * (RULE_MAX + 1))
+  }
+  return r
+}
+
+/**
+ * 大きく崩す: 並び順の一部の区間を混ぜる（ルールを固める前なら、ルールの重みも何か所か変える）。
+ * level が上がるほど広く崩す（区間は並び順の 0.2・0.3・0.45・0.675。ルールは 2 か所から 1 か所ずつ増やして 5 か所まで）。
+ * 何度崩しても良くならないときに、より遠くを探すため
+ */
 export function shakePlan(
   ids: readonly number[],
   rule: Rule,
   rand: () => number,
   frozen: boolean,
+  level = 0,
 ) {
+  const lv = Math.max(0, Math.min(SHAKE_MAX, Math.floor(level)))
   const o = [...ids]
-  const len = Math.max(3, Math.floor(o.length / 5))
+  const len = Math.max(3, Math.floor(o.length * 0.2 * 1.5 ** lv))
   const i = Math.floor(rand() * Math.max(1, o.length - len + 1))
-  for (let a = Math.min(o.length, i + len) - 1; a > i; a--) {
-    const b = i + Math.floor(rand() * (a - i + 1))
-    const t = o[a]
-    o[a] = o[b]
-    o[b] = t
-  }
-  const r = [...rule]
-  if (!frozen) {
-    for (let t = 0; t < 2; t++) {
-      r[Math.floor(rand() * RULE_SIZE)] = Math.floor(rand() * (RULE_MAX + 1))
-    }
-  }
+  shuffleSpan(o, i, len, rand)
+  const r = frozen ? [...rule] : scrambleRule(rule, 2 + lv, rand)
   return { ids: o, rule: r }
+}
+
+/**
+ * 新しい並べ方: 最初に試す並べ方（ばらの箱のいろいろな順・大きなかたまり）から 1 つ選び、全部か半分を混ぜる。
+ * ルールは rule を渡せばそのまま（ルールを固めたあと）、なければ選んだ並べ方のルールを 3 か所変える。
+ * いちばん良い並べ方から離れた場所を、一から探すのに使う
+ */
+export function freshPlan(
+  input: PackInput,
+  table: UnitTable,
+  rand: () => number,
+  rule?: Rule,
+) {
+  const bases = startPlans(
+    { ...input, startGenome: undefined, startOrder: undefined },
+    table,
+  )
+  const base = bases[Math.floor(rand() * bases.length)]
+  const o = [...base.ids]
+  if (rand() < 0.5) shuffleSpan(o, 0, o.length, rand)
+  else {
+    const len = Math.max(3, Math.floor(o.length / 2))
+    shuffleSpan(
+      o,
+      Math.floor(rand() * Math.max(1, o.length - len + 1)),
+      len,
+      rand,
+    )
+  }
+  return { ids: o, rule: rule ? [...rule] : scrambleRule(base.rule, 3, rand) }
+}
+
+/**
+ * 別の筋（explore）の出発点: startGenome の続きから・startGenome を大きく崩してから・新しい並べ方から
+ */
+export function lineStart(
+  input: PackInput,
+  table: UnitTable,
+  rand: () => number,
+) {
+  const frozen = rulesFrozen(input, 0)
+  const from = decodeStart(input, table)
+  if (!from) return freshPlan(input, table, rand)
+  if (input.shake === undefined) return from
+  return shakePlan(from.ids, from.rule, rand, frozen, input.shake)
 }
 
 /** CPU 係の焼きなましの温度が半分になるまでの試行回数 */
 const CPU_HALF_LIFE = 20_000
+/** 探し直すとき、何回に 1 回は、いちばん良い並べ方を崩すのではなく新しい並べ方から始めるか（CPU の係と GPU の係で同じ） */
+export const FRESH_EVERY = 3
 
 export function createSearch(
   input: PackInput,
@@ -1792,46 +1875,57 @@ export function createSearch(
   onResult?: (result: PackResult) => void,
 ) {
   const table = unitsOf(input)
-  const plans = startPlans(input, table)
+  const rand = random(input.seed * 7919 + table.boxCount)
+  // 別の筋なら、出発点は 1 つだけ（続き・大きく崩したもの・新しい並べ方）
+  const plans = input.explore
+    ? [lineStart(input, table, rand)]
+    : startPlans(input, table)
   const startedAt = Date.now()
   let bestIds = plans[0].ids
   let bestRule = plans[0].rule
   let bestTrace = packInOrder(bestIds, bestRule.map(weightOf), input, table)
   let best = finish(bestTrace, input, table, genomeOf(bestIds, bestRule, table))
-  // 今歩いている並べ方（焼きなましで、いちばん良いものより少し悪いこともある）
+  // 今の筋（探し直してから次に探し直すまでの、ひと続きの探索）でいちばん良い並べ方。
+  // 探し直した直後は、いちばん良いものより悪いところから始まる
+  let runIds = bestIds
+  let runRule = bestRule
+  let runTrace = bestTrace
+  let runScore = best.score
+  // 今歩いている並べ方（焼きなましで、今の筋のいちばんより少し悪いこともある）
   let curIds = bestIds
   let curRule = bestRule
   let curTrace = bestTrace
   let curScore = best.score
   onResult?.(best)
   let tried = 1
-  /** 焼きなましの温度を決める試行回数（大きく崩したときは戻して、温度を上げ直す） */
+  /** 焼きなましの温度を決める試行回数（探し直したときは戻して、温度を上げ直す） */
   let annealSteps = 0
-  const rand = random(input.seed * 7919 + table.boxCount)
   const stats = createKindStats()
-  /** 良くならなかった回数と、丁寧な仕上げで次に試す手（近くの入れ替えと、ルールの重みを 1 段ずつ） */
+  /** 今の筋のいちばんが良くならなかった回数と、丁寧な仕上げで次に試す手（近くの入れ替えと、ルールの重みを 1 段ずつ） */
   let fails = 0
   let polish: { ids: number[]; rule: Rule }[] = []
   let polishing = false
+  /** 続けて何回探し直しても、いちばん良い結果が良くならなかったか（多いほど大きく崩す。shakeLevelOf） */
+  let kicks = 0
   const polishMoves = (frozen: boolean) => {
     const moves: { ids: number[]; rule: Rule }[] = []
-    for (let i = 0; i < bestIds.length; i++) {
-      for (let d = 1; d <= 3 && i + d < bestIds.length; d++) {
-        if (bestIds[i] === bestIds[i + d]) continue
-        const o = [...bestIds]
-        o[i] = bestIds[i + d]
-        o[i + d] = bestIds[i]
-        moves.push({ ids: o, rule: bestRule })
+    for (let i = 0; i < runIds.length; i++) {
+      for (let d = 1; d <= 3 && i + d < runIds.length; d++) {
+        if (runIds[i] === runIds[i + d]) continue
+        const o = [...runIds]
+        o[i] = runIds[i + d]
+        o[i + d] = runIds[i]
+        moves.push({ ids: o, rule: runRule })
       }
     }
     if (!frozen) {
       for (let k = 0; k < RULE_SIZE; k++) {
         for (const step of [-1, 1]) {
-          const e = bestRule[k] + step
+          const e = runRule[k] + step
           if (e < 0 || e > RULE_MAX) continue
-          const r = [...bestRule]
+          const r = [...runRule]
           r[k] = e
-          moves.push({ ids: bestIds, rule: r })
+          moves.push({ ids: runIds, rule: r })
         }
       }
     }
@@ -1848,6 +1942,27 @@ export function createSearch(
     curTrace = trace
     curScore = score
   }
+  /** 今の筋のいちばんにする。いちばん良い結果より良ければ、それも更新して true */
+  const setRun = (
+    ids: number[],
+    rule: Rule,
+    trace: Trace,
+    result: PackResult,
+  ) => {
+    runIds = ids
+    runRule = rule
+    runTrace = trace
+    runScore = result.score
+    if (result.score < best.score - 1e-9) {
+      best = result
+      bestIds = ids
+      bestRule = rule
+      bestTrace = trace
+      kicks = 0
+      return true
+    }
+    return false
+  }
   /** 今歩いている並べ方と初めて違う位置（ルールが違えば 0） */
   const startFrom = (ids: number[], rule: Rule) => {
     if (!rule.every((x, i) => x === curRule[i])) return 0
@@ -1855,6 +1970,33 @@ export function createSearch(
     let start = 0
     while (start < len && ids[start] === curIds[start]) start++
     return start === len && ids.length === curIds.length ? -1 : start
+  }
+  /**
+   * 仕上げても良くならなかった: 新しい筋を始める（温度も上げ直す）。
+   * ふだんはいちばん良い並べ方を大きく崩し、続けて良くならないほど広く崩す（一巡したら狭く戻る）。
+   * 何回かに 1 回は新しい並べ方から始める
+   */
+  const restart = (frozen: boolean) => {
+    polishing = false
+    polish = []
+    fails = 0
+    annealSteps = 0
+    kicks++
+    const plan =
+      kicks % FRESH_EVERY === 0
+        ? freshPlan(input, table, rand, frozen ? bestRule : undefined)
+        : shakePlan(bestIds, bestRule, rand, frozen, shakeLevelOf(kicks - 1))
+    const trace = packInOrder(plan.ids, plan.rule.map(weightOf), input, table)
+    const result = finish(
+      trace,
+      input,
+      table,
+      genomeOf(plan.ids, plan.rule, table),
+    )
+    tried++
+    onResult?.(result)
+    setCurrent(plan.ids, plan.rule, trace, result.score)
+    return setRun(plan.ids, plan.rule, trace, result)
   }
 
   return {
@@ -1879,13 +2021,9 @@ export function createSearch(
       if (result.score < best.score - 1e-9) {
         polish = []
         polishing = false
-        best = result
-        bestIds = ids
-        bestRule = rule
-        bestTrace = trace
-        setCurrent(ids, rule, trace, result.score)
         fails = 0
-        return true
+        setCurrent(ids, rule, trace, result.score)
+        return setRun(ids, rule, trace, result)
       }
       return false
     },
@@ -1898,43 +2036,14 @@ export function createSearch(
         ids = plans[tried].ids
         rule = plans[tried].rule
       } else {
-        // しばらく良くならなければ、いちばん良い並べ方の近く（近くの入れ替え・ルールの重みを 1 段）を順に全部試す
+        // しばらく良くならなければ、今の筋のいちばんの近く（近くの入れ替え・ルールの重みを 1 段）を順に全部試す
         if (!polishing && fails >= POLISH_AFTER) {
           polish = polishMoves(frozen)
           polishing = true
-          setCurrent(bestIds, bestRule, bestTrace, best.score)
+          setCurrent(runIds, runRule, runTrace, runScore)
         }
         const move = polishing ? polish.pop() : undefined
-        if (polishing && !move) {
-          // 仕上げても良くならなかった: いちばん良い並べ方を大きく崩して、別の場所から探し直す（温度も上げ直す）
-          polishing = false
-          fails = 0
-          const shaken = shakePlan(bestIds, bestRule, rand, frozen)
-          const trace = packInOrder(
-            shaken.ids,
-            shaken.rule.map(weightOf),
-            input,
-            table,
-          )
-          const result = finish(
-            trace,
-            input,
-            table,
-            genomeOf(shaken.ids, shaken.rule, table),
-          )
-          tried++
-          onResult?.(result)
-          setCurrent(shaken.ids, shaken.rule, trace, result.score)
-          annealSteps = 0
-          if (result.score < best.score - 1e-9) {
-            best = result
-            bestIds = shaken.ids
-            bestRule = shaken.rule
-            bestTrace = trace
-            return true
-          }
-          return false
-        }
+        if (polishing && !move) return restart(frozen)
         if (move) {
           ids = move.ids
           rule = move.rule
@@ -1966,21 +2075,17 @@ export function createSearch(
       const result = finish(trace, input, table, genomeOf(ids, rule, table))
       onResult?.(result)
       annealSteps++
-      const improved = result.score < best.score - 1e-9
       stats.record(kind, 1, result.score < curScore - 1e-9 ? 1 : 0)
-      if (improved) {
-        best = result
-        bestIds = ids
-        bestRule = rule
-        bestTrace = trace
+      if (result.score < runScore - 1e-9) {
+        // 今の筋のいちばんが良くなった（仕上げの途中なら、そこから崩し直す）
         setCurrent(ids, rule, trace, result.score)
         fails = 0
         polish = []
         polishing = false
-        return true
+        return setRun(ids, rule, trace, result)
       }
       fails++
-      // 仕上げのあいだは、いちばん良い並べ方から動かない。それ以外は、少し悪い並べ方にもときどき乗り換える
+      // 仕上げのあいだは、今の筋のいちばんから動かない。それ以外は、少し悪い並べ方にもときどき乗り換える
       if (
         !polishing &&
         acceptWorse(
