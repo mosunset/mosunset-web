@@ -37,11 +37,11 @@ type Tool = (typeof playgroundTools)[number]
 
 function PlaygroundIndex() {
   const search = Route.useSearch()
-  const list = useListSearch('/playground', search)
+  const list = useListSearch('/playground', search, views)
   const sort = sortOptions.some((o) => o.value === search.sort)
     ? (search.sort as string)
     : 'new'
-  const view: ViewMode = search.view === 'table' ? 'table' : 'card'
+  const view = list.view
 
   const categoryOptions = useMemo(
     () =>
@@ -87,7 +87,7 @@ function PlaygroundIndex() {
         onSort={(s) => list.set({ sort: s === 'new' ? undefined : s })}
         views={views}
         view={view}
-        onView={(v) => list.set({ view: v === 'card' ? undefined : v })}
+        onView={list.setView}
         shown={tools.length}
         total={playgroundTools.length}
         onClear={filtering ? list.clearAll : undefined}

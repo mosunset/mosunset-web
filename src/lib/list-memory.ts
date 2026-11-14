@@ -5,6 +5,7 @@ import { normalizePath } from '@/lib/seo'
 /**
  * 一覧ページの状態を、ブラウザに覚えておく。
  * - 最後に使った絞り込み（タブを閉じるまで）: 詳しいページの「← 一覧へ」やパンくずで、同じ一覧に戻れるように
+ * - 選んだ表示のしかた（ずっと）: メニューから入り直しても、前に選んだカード・表などで出るように
  *
  * サーバーではブラウザの保存場所を読めないので、最初の描画では「覚えていない」として扱い、
  * 画面が動き出してから覚えている値に切り替わる（useSyncExternalStore のサーバー用の値）
@@ -82,6 +83,18 @@ export function useRememberedListSearch(
   } catch {
     return undefined
   }
+}
+
+const viewKey = (path: string) => `list-view:${normalizePath(path)}`
+
+/** 一覧で選んだ表示のしかた（カード・表など）を、次に来たときのために覚える */
+export function rememberListView(path: string, view: string) {
+  write('local', viewKey(path), view)
+}
+
+/** その一覧で前に選んだ表示のしかた（覚えていなければ null） */
+export function useRememberedListView(path: string) {
+  return useStored('local', viewKey(path))
 }
 
 /** 一覧の中の 1 件の要素の id（詳しいページから戻ったとき、そこまでスクロールする） */

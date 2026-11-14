@@ -3,7 +3,11 @@ import { LayoutGrid, List, Rows3, Search, X } from 'lucide-react'
 import * as React from 'react'
 
 import { Input } from '@/components/ui/input'
-import { rememberListSearch } from '@/lib/list-memory'
+import {
+  rememberListSearch,
+  rememberListView,
+  useRememberedListView,
+} from '@/lib/list-memory'
 import { normalizeForSearch } from '@/lib/search-text'
 import { cn } from '@/lib/utils'
 
@@ -45,13 +49,24 @@ export function parseListSearch(search: Record<string, unknown>): ListSearch {
  * 一覧の状態を読み書きする。書くときは履歴を増やさない（戻るボタンで 1 文字ずつ戻らないように）。
  * 今の状態はブラウザにも覚えておき、詳しいページの「← 一覧へ」やパンくずで同じ一覧に戻れるようにする
  * @param path 一覧ページのパス（/toys など）
+ * @param views 選べる表示のしかた（最初のものがふだんの表示）
  */
-export function useListSearch(path: string, search: ListSearch) {
+export function useListSearch(
+  path: string,
+  search: ListSearch,
+  views: readonly ViewMode[],
+) {
   const navigate = useNavigate()
   const searchJson = JSON.stringify(search)
   React.useEffect(() => {
     rememberListSearch(path, searchJson)
   }, [path, searchJson])
+  // 表示のしかたは URL の指定 → 前に選んだもの → ふだんの表示 の順に決める
+  const savedView = useRememberedListView(path)
+  const view =
+    views.find((v) => v === search.view) ??
+    views.find((v) => v === savedView) ??
+    views[0]
   const set = (patch: Partial<ListSearch>) =>
     navigate({
       to: '.',
@@ -70,6 +85,12 @@ export function useListSearch(path: string, search: ListSearch) {
     query: search.q ?? '',
     tags,
     cat: search.cat ?? null,
+    view,
+    /** 選んだ表示は次に来たときのために覚え、人に送れるよう URL にも入れる（ふだんの表示なら省く） */
+    setView: (v: ViewMode) => {
+      rememberListView(path, v)
+      set({ view: v === views[0] ? undefined : v })
+    },
     set,
     setQuery: (q: string) => set({ q: q || undefined }),
     toggleTag: (tag: string) => {

@@ -40,11 +40,11 @@ type Post = Awaited<ReturnType<typeof listPublishedPosts>>[number]
 function BlogIndex() {
   const posts = Route.useLoaderData()
   const search = Route.useSearch()
-  const list = useListSearch('/blog', search)
+  const list = useListSearch('/blog', search, views)
   const sort = sortOptions.some((o) => o.value === search.sort)
     ? (search.sort as string)
     : 'new'
-  const view: ViewMode = search.view ?? 'list'
+  const view = list.view
 
   const visible = useMemo(() => {
     // 公開日のない下書きは、いちばん新しいものとして扱う
@@ -80,7 +80,7 @@ function BlogIndex() {
         onSort={(s) => list.set({ sort: s === 'new' ? undefined : s })}
         views={views}
         view={view}
-        onView={(v) => list.set({ view: v === 'list' ? undefined : v })}
+        onView={list.setView}
         shown={visible.length}
         total={posts.length}
         onClear={list.query ? list.clearAll : undefined}

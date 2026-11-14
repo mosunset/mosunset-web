@@ -66,11 +66,11 @@ export function CollectionGrid({
   const filterField: AttributeField | undefined = fields.find(
     (f) => 'filterKey' in config && f.key === config.filterKey,
   )
-  const list = useListSearch(config.path, search)
+  const list = useListSearch(config.path, search, views)
   const sort = sortOptions.some((o) => o.value === search.sort)
     ? (search.sort as string)
     : 'order'
-  const view: ViewMode = search.view === 'table' ? 'table' : 'card'
+  const view = list.view
 
   // 絞り込みの候補（登録されている値だけ、項目定義の順に並べる）
   const filterOptions = React.useMemo(() => {
@@ -140,7 +140,7 @@ export function CollectionGrid({
         onSort={(v) => list.set({ sort: v === 'order' ? undefined : v })}
         views={views}
         view={view}
-        onView={(v) => list.set({ view: v === 'card' ? undefined : v })}
+        onView={list.setView}
         shown={visible.length}
         total={items.length}
         onClear={filtering ? list.clearAll : undefined}
