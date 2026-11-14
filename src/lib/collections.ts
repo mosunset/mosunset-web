@@ -53,7 +53,7 @@ export const collections = {
     label: '楽器',
     acquiredAtLabel: '入手日',
     subtitleKeys: ['maker', 'model'],
-    filterKeys: ['category'],
+    filterKeys: ['category', 'status', 'maker'],
     fields: [
       {
         key: 'category',
@@ -84,7 +84,7 @@ export const collections = {
     label: '資格',
     acquiredAtLabel: '取得日',
     subtitleKeys: ['issuer'],
-    filterKeys: ['status'],
+    filterKeys: ['status', 'category', 'issuer'],
     fields: [
       {
         key: 'status',
@@ -111,7 +111,7 @@ export const collections = {
     label: 'おもちゃ',
     acquiredAtLabel: '入手日',
     subtitleKeys: ['series', 'maker'],
-    filterKeys: ['category'],
+    filterKeys: ['category', 'series', 'maker'],
     imageFit: 'contain',
     fields: [
       {
@@ -149,6 +149,7 @@ export const collections = {
     label: '本',
     acquiredAtLabel: '入手日',
     subtitleKeys: ['author'],
+    filterKeys: ['readingStatus', 'category', 'publisher'],
     fields: [
       { key: 'author', label: '著者', type: 'text' },
       { key: 'publisher', label: '出版社', type: 'text' },

@@ -106,8 +106,6 @@ export type ListControls = {
   toggle: (key: string, value: string) => void
   /** その列の選択を外す（「すべて」） */
   clearFacet: (key: string) => void
-  /** 検索語か絞り込みがかかっているか */
-  filtering: boolean
   clearAll: () => void
   shown: number
   total: number
@@ -260,7 +258,6 @@ export function useList<T>({
       set({ [key]: next.join(',') || undefined })
     },
     clearFacet: (key) => set({ [key]: undefined }),
-    filtering: query.trim() !== '' || selected.some((s) => s.length > 0),
     clearAll: () =>
       set({
         q: undefined,
@@ -363,23 +360,66 @@ export function ListToolbar({
             }
           />
         ))}
-      <p className="flex items-center gap-2 text-xs text-muted-foreground">
-        <span aria-live="polite">
-          {list.shown === list.total
-            ? `${list.total} 件`
-            : `${list.total} 件中 ${list.shown} 件`}
-        </span>
-        {list.filtering && (
-          <button
-            type="button"
-            onClick={list.clearAll}
-            className="inline-flex items-center gap-0.5 rounded px-1 hover:text-foreground"
-          >
-            <X className="size-3" />
-            絞り込みを外す
-          </button>
-        )}
-      </p>
+      <ActiveFilters list={list} />
+    </div>
+  )
+}
+
+/**
+ * 件数と、今かかっている条件の札（× で 1 つずつ外せる）。
+ * 札の列の「ほか N 個」に隠れた選択や検索語も、ここを見ればわかる
+ */
+function ActiveFilters({ list }: { list: ListControls }) {
+  const query = list.query.trim()
+  const active = [
+    ...(query
+      ? [
+          {
+            id: 'q',
+            prefix: '検索',
+            label: `「${query}」`,
+            remove: () => list.setQuery(''),
+          },
+        ]
+      : []),
+    ...list.facets.flatMap((facet) =>
+      facet.selected.map((value) => ({
+        id: `${facet.key}:${value}`,
+        prefix: facet.label,
+        label: facet.options.find((o) => o.value === value)?.label ?? value,
+        remove: () => list.toggle(facet.key, value),
+      })),
+    ),
+  ]
+  return (
+    <div className="flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
+      <span aria-live="polite" className="mr-1">
+        {list.shown === list.total
+          ? `${list.total} 件`
+          : `${list.total} 件中 ${list.shown} 件`}
+      </span>
+      {active.map((a) => (
+        <button
+          key={a.id}
+          type="button"
+          onClick={a.remove}
+          aria-label={`${a.prefix}「${a.label}」の条件を外す`}
+          className="inline-flex items-center gap-1 rounded-full border bg-muted/60 py-0.5 pr-1.5 pl-2.5 text-foreground hover:bg-muted"
+        >
+          <span className="text-muted-foreground">{a.prefix}:</span>
+          {a.label}
+          <X className="size-3 text-muted-foreground" />
+        </button>
+      ))}
+      {active.length > 1 && (
+        <button
+          type="button"
+          onClick={list.clearAll}
+          className="rounded px-1 underline-offset-2 hover:text-foreground hover:underline"
+        >
+          すべて外す
+        </button>
+      )}
     </div>
   )
 }
