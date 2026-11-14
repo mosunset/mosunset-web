@@ -59,7 +59,11 @@ const sortOptions = [
   { value: 'old', label: '日付の古い順' },
   { value: 'name', label: '名前順' },
 ] as const
-const views: readonly ViewMode[] = ['card', 'table']
+/** 選べる表示のしかた（写真が主役の種類には「写真」も出す） */
+const viewsOf = (kind: CollectionKind): readonly ViewMode[] =>
+  (collections[kind] as { galleryView?: boolean }).galleryView
+    ? ['card', 'gallery', 'table']
+    : ['card', 'table']
 
 const fieldsOf = (kind: CollectionKind): readonly AttributeField[] =>
   collections[kind].fields
@@ -125,7 +129,7 @@ export function CollectionGrid({
     facets: facetsOf(kind),
     sortOptions,
     sort: sortItems,
-    views,
+    views: viewsOf(kind),
   })
   const { visible, view } = list
 
@@ -166,6 +170,10 @@ export function CollectionGrid({
         <NoMatches onClear={list.clearAll} />
       ) : view === 'table' ? (
         <CollectionTable kind={kind} groups={groups} />
+      ) : view === 'gallery' ? (
+        <GroupedSections groups={groups}>
+          {(items) => <CollectionGallery kind={kind} items={items} />}
+        </GroupedSections>
       ) : (
         <GroupedSections groups={groups}>
           {(items, grouped) => (
@@ -230,6 +238,63 @@ function CollectionCards({
               {subtitle && (
                 <p className="text-sm text-muted-foreground">{subtitle}</p>
               )}
+            </Link>
+          </li>
+        )
+      })}
+    </ul>
+  )
+}
+
+/** 写真を小さく多く並べる（名前は小さく 2 行まで） */
+function CollectionGallery({
+  kind,
+  items,
+}: {
+  kind: CollectionKind
+  items: ListItem[]
+}) {
+  const config = collections[kind]
+  const contain = imageFitOf(kind) === 'contain'
+  return (
+    <ul className="grid grid-cols-3 gap-x-3 gap-y-4 sm:grid-cols-4 md:grid-cols-6">
+      {items.map((item) => {
+        const src = imageUrl(item.imageKey)
+        return (
+          <li
+            key={item.slug}
+            id={listItemId(item.slug)}
+            className="scroll-mt-20"
+          >
+            <Link
+              to={config.detailPath}
+              params={{ slug: item.slug }}
+              title={item.title}
+              className="group block"
+            >
+              <div className="relative aspect-square overflow-hidden rounded-md border bg-muted/30">
+                {src ? (
+                  <img
+                    src={src}
+                    alt=""
+                    loading="lazy"
+                    className={cn(
+                      'size-full transition-transform duration-300 group-hover:scale-105',
+                      contain ? 'object-contain p-1' : 'object-cover',
+                    )}
+                  />
+                ) : (
+                  <div className="flex size-full items-center justify-center text-muted-foreground">
+                    <ImageOff className="size-5" />
+                  </div>
+                )}
+                {item.draft && (
+                  <DraftBadge className="absolute top-1 left-1 px-1 py-0 text-[10px]" />
+                )}
+              </div>
+              <span className="mt-1.5 line-clamp-2 text-xs leading-snug group-hover:underline">
+                {item.title}
+              </span>
             </Link>
           </li>
         )

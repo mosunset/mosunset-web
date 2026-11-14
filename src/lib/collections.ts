@@ -46,6 +46,8 @@ type CollectionConfig = {
    * contain は写真全体を見せる（箱を斜めから撮った写真など、縦長で切られると困るもの）
    */
   imageFit?: 'cover' | 'contain'
+  /** 一覧に「写真」の表示（名前を小さくして写真を多く並べる）を出す */
+  galleryView?: boolean
   fields: readonly AttributeField[]
 }
 
@@ -119,6 +121,7 @@ export const collections = {
     subtitleKeys: ['series', 'maker'],
     filterKeys: ['category', 'series', 'maker'],
     imageFit: 'contain',
+    galleryView: true,
     fields: [
       {
         key: 'category',
@@ -157,6 +160,7 @@ export const collections = {
     subtitleKeys: ['author'],
     filterKeys: ['readingStatus', 'category', 'publisher'],
     groupKey: 'readingStatus',
+    galleryView: true,
     fields: [
       { key: 'author', label: '著者', type: 'text' },
       { key: 'publisher', label: '出版社', type: 'text' },

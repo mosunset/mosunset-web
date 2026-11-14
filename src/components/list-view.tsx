@@ -1,5 +1,5 @@
 import { useNavigate } from '@tanstack/react-router'
-import { LayoutGrid, List, Rows3, Search, X } from 'lucide-react'
+import { Grid3x3, LayoutGrid, List, Rows3, Search, X } from 'lucide-react'
 import * as React from 'react'
 
 import { Input } from '@/components/ui/input'
@@ -17,8 +17,9 @@ import { cn } from '@/lib/utils'
  * リンクを人に送っても、同じ一覧が出る
  */
 
-export type ViewMode = 'card' | 'list' | 'table'
-const viewModes: readonly ViewMode[] = ['card', 'list', 'table']
+/** card: 大きめのカード、list: 縦に並べる、gallery: 写真を小さく多く並べる、table: 表 */
+export type ViewMode = 'card' | 'list' | 'gallery' | 'table'
+const viewModes: readonly ViewMode[] = ['card', 'list', 'gallery', 'table']
 
 /** URL の一覧の状態。q・sort・view のほかは絞り込み（複数選んだものはカンマ区切り） */
 export type ListSearch = {
@@ -282,8 +283,18 @@ export function matchesQuery(
   return words.every((w) => haystack.includes(w))
 }
 
-const viewIcons = { card: LayoutGrid, list: Rows3, table: List } as const
-const viewLabels = { card: 'カード', list: 'リスト', table: '表' } as const
+const viewIcons = {
+  card: LayoutGrid,
+  list: Rows3,
+  gallery: Grid3x3,
+  table: List,
+} as const
+const viewLabels = {
+  card: 'カード',
+  list: 'リスト',
+  gallery: '写真',
+  table: '表',
+} as const
 
 /** 一覧の上の操作の欄（検索・並べ替え・表示・絞り込みの札・件数） */
 export function ListToolbar({
