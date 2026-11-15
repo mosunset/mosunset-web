@@ -8,7 +8,14 @@ export {
 
 /** 種類ごとの追加項目の定義。管理画面の入力欄・サーバーの検証・公開ページの表示に使う */
 export type AttributeField =
-  | { key: string; label: string; type: 'text'; placeholder?: string }
+  | {
+      key: string
+      label: string
+      type: 'text'
+      placeholder?: string
+      /** 管理画面だけで使い、公開側（ページ・検索）には送らない */
+      adminOnly?: true
+    }
   | { key: string; label: string; type: 'url' }
   | { key: string; label: string; type: 'date' }
   | {
@@ -80,7 +87,13 @@ export const collections = {
       { key: 'maker', label: 'メーカー', type: 'text' },
       { key: 'model', label: 'モデル', type: 'text' },
       { key: 'year', label: '製造年', type: 'text', placeholder: '2020' },
-      { key: 'serialNumber', label: '製造番号', type: 'text' },
+      // 盗まれたときの照合などに使う番号なので、公開しない
+      {
+        key: 'serialNumber',
+        label: '製造番号',
+        type: 'text',
+        adminOnly: true,
+      },
       {
         key: 'status',
         label: '状態',
@@ -244,4 +257,18 @@ export const groupFieldOf = (kind: CollectionKind) => {
   const key = (collections[kind] as { groupKey?: string }).groupKey
   const fields: readonly AttributeField[] = collections[kind].fields
   return fields.find((f) => f.key === key)
+}
+
+/** 公開側に送る項目だけを残す（管理画面だけで使う項目 adminOnly を除く） */
+export function publicAttributes<T extends Record<string, unknown>>(
+  kind: CollectionKind,
+  attributes: T,
+): T {
+  const hidden = (collections[kind].fields as readonly AttributeField[])
+    .filter((f) => f.type === 'text' && f.adminOnly)
+    .map((f) => f.key)
+  if (hidden.length === 0) return attributes
+  return Object.fromEntries(
+    Object.entries(attributes).filter(([key]) => !hidden.includes(key)),
+  ) as T
 }

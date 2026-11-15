@@ -1,6 +1,7 @@
 import { createServerFn } from '@tanstack/react-start'
 import { asc, desc } from 'drizzle-orm'
 
+import { publicAttributes } from '@/lib/collections'
 import { isAdminRequest } from '@/server/auth'
 import { getDb, publishedItems, publishedPosts, schema } from '@/server/db'
 
@@ -53,10 +54,12 @@ export const getSiteIndex = createServerFn({ method: 'GET' }).handler(
       })),
       items: itemRows.map(({ published, attributes, ...row }) => ({
         ...row,
-        attributes:
+        attributes: publicAttributes(
+          row.kind,
           attributes && typeof attributes === 'object'
             ? (attributes as Record<string, string>)
             : {},
+        ),
         draft: !published,
       })),
     }

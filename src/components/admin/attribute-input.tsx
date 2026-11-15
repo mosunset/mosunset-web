@@ -37,7 +37,14 @@ export function AttributeInput({
 
   return (
     <div className="space-y-2">
-      <Label htmlFor={id}>{field.label}</Label>
+      <Label htmlFor={id}>
+        {field.label}
+        {field.type === 'text' && field.adminOnly && (
+          <span className="text-xs font-normal text-muted-foreground">
+            （公開しない）
+          </span>
+        )}
+      </Label>
       <Input
         id={id}
         type={field.type === 'text' ? 'text' : field.type}

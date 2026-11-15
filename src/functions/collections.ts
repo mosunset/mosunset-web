@@ -9,6 +9,7 @@ import {
   type CollectionAttributes,
   collections,
   groupFieldOf,
+  publicAttributes,
 } from '@/lib/collections'
 import { isAdminRequest } from '@/server/auth'
 import { getDb, publishedItems, schema } from '@/server/db'
@@ -101,6 +102,7 @@ export const listPublishedItems = createServerFn({ method: 'GET' })
       .orderBy(...listOrder)
     return rows.map(({ published, ...row }) => ({
       ...withAttributes(row),
+      attributes: publicAttributes(data.kind, toAttributes(row.attributes)),
       draft: !published,
     }))
   })
@@ -160,7 +162,7 @@ export const getPublishedItem = createServerFn({ method: 'GET' })
       slug: item.slug,
       title: item.title,
       imageKey: item.imageKey,
-      attributes: toAttributes(item.attributes),
+      attributes: publicAttributes(data.kind, toAttributes(item.attributes)),
       acquiredAt: item.acquiredAt,
       updatedAt: item.updatedAt,
       html,
