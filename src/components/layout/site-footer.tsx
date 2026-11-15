@@ -35,6 +35,10 @@ export function SiteFooter() {
             <Link to={contactNav.to} className="hover:text-foreground">
               {contactNav.title}
             </Link>
+            <span aria-hidden="true"> · </span>
+            <a href="/rss.xml" className="hover:text-foreground">
+              RSS
+            </a>
           </p>
         </div>
 

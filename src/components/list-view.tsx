@@ -401,14 +401,31 @@ const viewLabels = {
 const LIST_TOP_ID = 'list-top'
 
 /** 一覧の上の操作の欄（検索・並べ替え・表示・絞り込みの札・件数） */
+/** 狭い画面（sm より狭い）か。サーバーと最初の描画では広い画面として扱う */
+function useNarrowScreen() {
+  return React.useSyncExternalStore(
+    (onChange) => {
+      const mql = window.matchMedia('(max-width: 639px)')
+      mql.addEventListener('change', onChange)
+      return () => mql.removeEventListener('change', onChange)
+    },
+    () => window.matchMedia('(max-width: 639px)').matches,
+    () => false,
+  )
+}
+
 export function ListToolbar({
   list,
   placeholder = '名前や説明で探す',
+  shortPlaceholder = '探す',
 }: {
   list: ListControls
   placeholder?: string
+  /** スマホで使う短い案内（長い案内は途中で切れてしまうため） */
+  shortPlaceholder?: string
 }) {
   const stuck = useStuck(LIST_TOP_ID)
+  const narrow = useNarrowScreen()
   const facets = list.facets.filter(
     // 選べる値が 1 つしかない列は、絞り込む意味がないので出さない
     (f) => f.chips && (f.options.length > 1 || f.selected.length > 0),
@@ -438,7 +455,7 @@ export function ListToolbar({
           <SearchInput
             value={list.query}
             onCommit={list.setQuery}
-            placeholder={placeholder}
+            placeholder={narrow ? shortPlaceholder : placeholder}
           />
         </div>
         <SortSelect list={list} className="hidden text-sm sm:flex" />

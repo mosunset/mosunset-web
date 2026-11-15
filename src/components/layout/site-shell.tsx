@@ -2,6 +2,7 @@ import type * as React from 'react'
 
 import { AppBreadcrumb } from '@/components/layout/app-breadcrumb'
 import { AppSidebar } from '@/components/layout/app-sidebar'
+import { BackToTop } from '@/components/layout/back-to-top'
 import { SiteFooter } from '@/components/layout/site-footer'
 import { SiteHeader } from '@/components/layout/site-header'
 import { SiteSearchDialog } from '@/components/layout/site-search'
@@ -40,6 +41,7 @@ export function SiteShell({ children }: { children: React.ReactNode }) {
           </SidebarInset>
         </div>
         <SiteSearchDialog />
+        <BackToTop />
       </SidebarProvider>
     </div>
   )

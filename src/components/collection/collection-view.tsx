@@ -274,7 +274,11 @@ export function CollectionGrid({
     .join('・')
   return (
     <>
-      <ListToolbar list={list} placeholder={`名前や${hint}で探す`} />
+      <ListToolbar
+        list={list}
+        placeholder={`名前や${hint}で探す`}
+        shortPlaceholder={`${config.label}を探す`}
+      />
       {visible.length === 0 ? (
         <NoMatches onClear={list.clearAll} />
       ) : view === 'table' ? (

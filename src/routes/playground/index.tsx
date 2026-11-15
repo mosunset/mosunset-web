@@ -89,7 +89,11 @@ function PlaygroundIndex() {
 
   return (
     <SectionPage item={item}>
-      <ListToolbar list={list} placeholder="ツールの名前・説明・タグで探す" />
+      <ListToolbar
+        list={list}
+        placeholder="ツールの名前・説明・タグで探す"
+        shortPlaceholder="ツールを探す"
+      />
       {tools.length === 0 ? (
         <NoMatches onClear={list.clearAll} />
       ) : list.view === 'table' ? (

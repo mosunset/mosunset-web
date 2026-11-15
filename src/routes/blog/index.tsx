@@ -1,4 +1,5 @@
 import { createFileRoute, Link } from '@tanstack/react-router'
+import { Rss } from 'lucide-react'
 
 import { DraftBadge } from '@/components/draft-badge'
 import { EmptyState } from '@/components/empty-state'
@@ -100,15 +101,19 @@ function BlogIndex() {
 
   if (posts.length === 0) {
     return (
-      <SectionPage item={item}>
+      <SectionPage item={item} actions={<RssLink />}>
         <EmptyState>まだ記事はありません。</EmptyState>
       </SectionPage>
     )
   }
 
   return (
-    <SectionPage item={item}>
-      <ListToolbar list={list} placeholder="タイトルや本文の抜粋で探す" />
+    <SectionPage item={item} actions={<RssLink />}>
+      <ListToolbar
+        list={list}
+        placeholder="タイトルや本文の抜粋で探す"
+        shortPlaceholder="記事を探す"
+      />
       {visible.length === 0 ? (
         <NoMatches onClear={list.clearAll} />
       ) : view === 'table' ? (
@@ -125,6 +130,19 @@ function BlogIndex() {
         </GroupedSections>
       )}
     </SectionPage>
+  )
+}
+
+/** RSS（新しい記事をフィードリーダーで受け取る） */
+function RssLink() {
+  return (
+    <a
+      href="/rss.xml"
+      className="inline-flex items-center gap-1.5 rounded-md border px-2.5 py-1 text-sm text-muted-foreground transition-colors hover:bg-muted/50 hover:text-foreground"
+    >
+      <Rss className="size-4" />
+      RSS
+    </a>
   )
 }
 
