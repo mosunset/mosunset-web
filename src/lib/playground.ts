@@ -289,6 +289,18 @@ export const playgroundTools = [
     thumbnail: '/playground/image-privacy/thumbnail.svg',
   },
   {
+    slug: 'perspective-correction',
+    name: '射影変換（台形補正）',
+    title:
+      '射影変換・台形補正 | 斜めから撮った書類や看板を正面から見た形に（辺のうねりもベジエで補正）',
+    description:
+      '斜めから撮った書類・ホワイトボード・看板・画面・箱の写真から四角いものを自動で見つけ、射影変換で正面から見た長方形に直します。紙の反りなどで辺が少しうねっていても、辺をベジエ曲線で曲げて合わせ、自動でも合わせ込みます。縦横比は写真から推定でき、A判・名刺などにも合わせられます。PNG・JPEG・WebP で書き出せ、画像はサーバーに送りません。',
+    category: '画像・ギャラリー',
+    tags: ['射影変換', '台形補正', 'ホモグラフィー', 'ベジエ曲線', 'Canvas'],
+    publishedDate: '2026-11-15',
+    thumbnail: '/playground/perspective-correction/thumbnail.svg',
+  },
+  {
     slug: 'whisper-transcribe',
     name: 'ブラウザで文字起こし',
     title:
