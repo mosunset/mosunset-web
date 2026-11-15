@@ -69,6 +69,8 @@ function UsagePanel({
   const startDrag = (e: React.PointerEvent<HTMLDivElement>) => {
     // スマホ（下に出す形）では動かさない
     if (window.innerWidth < 640) return
+    // × ボタンの上で押したときはドラッグしない（ポインタを帯が捕まえると、クリックが × に届かず閉じられない）
+    if ((e.target as HTMLElement).closest('button')) return
     const rect = panelRef.current?.getBoundingClientRect()
     if (!rect) return
     e.currentTarget.setPointerCapture(e.pointerId)
