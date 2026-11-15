@@ -1,6 +1,10 @@
-import { createFileRoute } from '@tanstack/react-router'
+import { createFileRoute, Link } from '@tanstack/react-router'
 
 import { BackLinkFooter } from '@/components/back-link-footer'
+import {
+  ArticleTocAside,
+  ArticleTocDisclosure,
+} from '@/components/blog/article-toc'
 import { DraftBadge } from '@/components/draft-badge'
 import { RichTextContent, ZoomableImage } from '@/components/image-viewer'
 import { NotFoundPage } from '@/components/not-found-page'
@@ -89,52 +93,114 @@ export const Route = createFileRoute('/blog/$slug')({
   ),
 })
 
+/** 目次を出すのは、見出しがこれだけ以上ある記事 */
+const TOC_MIN_HEADINGS = 3
+
 function BlogPost() {
   const post = Route.useLoaderData()
+  const showToc = post.toc.length >= TOC_MIN_HEADINGS
 
   return (
-    <article className="mx-auto w-full max-w-3xl px-6 py-8">
-      <header className="border-b pb-6">
-        {post.coverImageKey && (
-          <ZoomableImage
-            src={imagePath(post.coverImageKey)}
-            alt={post.title}
-            className="mb-6 rounded-lg border"
-            imgClassName="aspect-[1200/630] w-full object-cover"
-          />
-        )}
-        {post.draft && <DraftBadge className="mr-3 align-middle" />}
-        {post.publishedAt && (
-          <time
-            dateTime={post.publishedAt.toISOString()}
-            className="text-sm text-muted-foreground"
-          >
-            {formatDate(post.publishedAt)}
-          </time>
-        )}
-        {post.publishedAt &&
-          formatDate(post.updatedAt) !== formatDate(post.publishedAt) && (
-            <span className="ml-3 text-sm text-muted-foreground">
-              （更新：
-              <time dateTime={post.updatedAt.toISOString()}>
-                {formatDate(post.updatedAt)}
-              </time>
-              ）
-            </span>
+    <div
+      className={
+        showToc
+          ? 'mx-auto w-full max-w-3xl px-6 py-8 xl:grid xl:max-w-none xl:grid-cols-[minmax(0,48rem)_14rem] xl:justify-center xl:gap-12'
+          : 'mx-auto w-full max-w-3xl px-6 py-8'
+      }
+    >
+      <article className="min-w-0">
+        <header className="border-b pb-6">
+          {post.coverImageKey && (
+            <ZoomableImage
+              src={imagePath(post.coverImageKey)}
+              alt={post.title}
+              className="mb-6 rounded-lg border"
+              imgClassName="aspect-[1200/630] w-full object-cover"
+            />
           )}
-        <h1 className="mt-2 text-3xl font-bold leading-tight sm:text-4xl">
-          {post.title}
-        </h1>
-        {post.excerpt && (
-          <p className="mt-3 text-lg text-muted-foreground">{post.excerpt}</p>
+          <p className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted-foreground">
+            {post.draft && <DraftBadge />}
+            {post.publishedAt && (
+              <time dateTime={post.publishedAt.toISOString()}>
+                {formatDate(post.publishedAt)}
+              </time>
+            )}
+            {post.publishedAt &&
+              formatDate(post.updatedAt) !== formatDate(post.publishedAt) && (
+                <span>
+                  （更新：
+                  <time dateTime={post.updatedAt.toISOString()}>
+                    {formatDate(post.updatedAt)}
+                  </time>
+                  ）
+                </span>
+              )}
+            <span>約 {post.readingMinutes} 分で読めます</span>
+          </p>
+          <h1 className="mt-2 text-3xl font-bold leading-tight sm:text-4xl">
+            {post.title}
+          </h1>
+          {post.excerpt && (
+            <p className="mt-3 text-lg text-muted-foreground">{post.excerpt}</p>
+          )}
+        </header>
+
+        {showToc && (
+          <ArticleTocDisclosure toc={post.toc} className="mt-6 xl:hidden" />
         )}
-      </header>
 
-      <RichTextContent html={post.html} className="mt-8" />
+        <RichTextContent html={post.html} className="mt-8" />
 
-      <BackLinkFooter to="/blog" slug={post.slug}>
-        記事一覧へ
-      </BackLinkFooter>
-    </article>
+        <BackLinkFooter
+          to="/blog"
+          slug={post.slug}
+          before={
+            (post.newer || post.older) && (
+              <nav
+                aria-label="前後の記事"
+                className="grid gap-3 sm:grid-cols-2"
+              >
+                {post.older && (
+                  <Link
+                    to="/blog/$slug"
+                    params={{ slug: post.older.slug }}
+                    className="rounded-lg border p-4 transition-colors hover:bg-muted/50"
+                  >
+                    <span className="text-xs text-muted-foreground">
+                      ← 前の記事
+                    </span>
+                    <span className="mt-1 block font-medium leading-snug">
+                      {post.older.title}
+                    </span>
+                  </Link>
+                )}
+                {post.newer && (
+                  <Link
+                    to="/blog/$slug"
+                    params={{ slug: post.newer.slug }}
+                    className="rounded-lg border p-4 transition-colors hover:bg-muted/50 sm:col-start-2 sm:text-right"
+                  >
+                    <span className="text-xs text-muted-foreground">
+                      次の記事 →
+                    </span>
+                    <span className="mt-1 block font-medium leading-snug">
+                      {post.newer.title}
+                    </span>
+                  </Link>
+                )}
+              </nav>
+            )
+          }
+        >
+          記事一覧へ
+        </BackLinkFooter>
+      </article>
+
+      {showToc && (
+        <aside className="hidden xl:block">
+          <ArticleTocAside toc={post.toc} />
+        </aside>
+      )}
+    </div>
   )
 }

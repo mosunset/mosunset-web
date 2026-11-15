@@ -1,15 +1,18 @@
 import { notFound } from '@tanstack/react-router'
 import { createServerFn } from '@tanstack/react-start'
-import { and, desc, eq, ne } from 'drizzle-orm'
+import { and, asc, desc, eq, gt, lt, ne } from 'drizzle-orm'
 import { z } from 'zod'
 import { adminMiddleware } from '@/functions/auth'
 import { isAdminRequest } from '@/server/auth'
 import { getDb, publishedPosts, schema } from '@/server/db'
 import { deleteImagesOf, deleteReplacedImage } from '@/server/r2'
 import {
+  readingMinutes,
   renderRichText,
   richTextDocSchema,
   sanitizeDoc,
+  withCodeBlockToolbar,
+  withHeadingAnchors,
 } from '@/server/rich-text'
 import { idInput, slugSchema } from '@/server/validation'
 
@@ -31,13 +34,15 @@ export const listPublishedPosts = createServerFn({ method: 'GET' }).handler(
         coverImageKey: posts.coverImageKey,
         publishedAt: posts.publishedAt,
         status: posts.status,
+        content: posts.content,
       })
       .from(posts)
       .where(admin ? undefined : publishedPosts)
       .orderBy(desc(posts.publishedAt))
-    return rows.map(({ status, ...row }) => ({
+    return rows.map(({ status, content, ...row }) => ({
       ...row,
       draft: status !== 'published',
+      readingMinutes: readingMinutes(content),
     }))
   },
 )
@@ -52,6 +57,29 @@ export const getPublishedPost = createServerFn({ method: 'GET' })
     })
     if (!post) throw notFound()
 
+    // 前後の記事（公開済みのものだけ。公開日の順）
+    const neighbor = (newer: boolean) =>
+      post.publishedAt
+        ? getDb()
+            .select({ slug: posts.slug, title: posts.title })
+            .from(posts)
+            .where(
+              and(
+                publishedPosts,
+                newer
+                  ? gt(posts.publishedAt, post.publishedAt)
+                  : lt(posts.publishedAt, post.publishedAt),
+              ),
+            )
+            .orderBy(newer ? asc(posts.publishedAt) : desc(posts.publishedAt))
+            .limit(1)
+            .then((rows) => rows[0] ?? null)
+        : Promise.resolve(null)
+    const [newer, older] = await Promise.all([neighbor(true), neighbor(false)])
+    const { html, toc } = withHeadingAnchors(
+      withCodeBlockToolbar(renderRichText(post.content)),
+    )
+
     return {
       slug: post.slug,
       title: post.title,
@@ -59,7 +87,11 @@ export const getPublishedPost = createServerFn({ method: 'GET' })
       coverImageKey: post.coverImageKey,
       publishedAt: post.publishedAt,
       updatedAt: post.updatedAt,
-      html: renderRichText(post.content),
+      html,
+      toc,
+      readingMinutes: readingMinutes(post.content),
+      newer,
+      older,
       draft: post.status !== 'published',
       /** 管理者のログイン中だけ入れる（ヘッダーの「編集」の行き先） */
       editId: admin ? post.id : undefined,

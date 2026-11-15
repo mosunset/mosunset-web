@@ -127,3 +127,81 @@ body {
   pointer-events: none;
   color: var(--muted-foreground);
 }
+
+/* ---------------------------------------------------------------------------
+ * 本文（記事・コレクションの説明）。中身は src/server/rich-text.ts が作る
+ * ------------------------------------------------------------------------- */
+
+/* 文中のコード: 前後の ` を出さず、薄い背景で囲む */
+.prose :where(code):not(:where(pre code))::before,
+.prose :where(code):not(:where(pre code))::after {
+  content: none;
+}
+.prose :where(code):not(:where(pre code)) {
+  border-radius: 0.25rem;
+  background-color: var(--muted);
+  padding: 0.125em 0.375em;
+  font-weight: 500;
+}
+
+/* 見出し: 目次から飛んだときにヘッダーの下に隠れないように。「#」はマウスを乗せたときだけ */
+.prose :is(h2, h3, h4)[id] {
+  scroll-margin-top: calc(var(--header-height, 3.5rem) + 1rem);
+}
+.prose .heading-anchor {
+  margin-left: 0.4em;
+  color: var(--muted-foreground);
+  font-weight: 400;
+  text-decoration: none;
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+.prose :is(h2, h3, h4):hover .heading-anchor,
+.prose .heading-anchor:focus-visible {
+  opacity: 1;
+}
+@media (hover: none) {
+  .prose .heading-anchor {
+    opacity: 0.4;
+  }
+}
+
+/* コードの塊: 上の帯に言語名と「コピー」 */
+.prose .code-block {
+  margin-block: 1.7142857em;
+  overflow: hidden;
+  border-radius: 0.375rem;
+  background-color: var(--tw-prose-pre-bg);
+}
+.prose .code-block pre {
+  margin: 0;
+  border-radius: 0;
+  background-color: transparent;
+}
+.prose .code-block-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  border-bottom: 1px solid rgb(255 255 255 / 0.08);
+  padding: 0.25rem 0.375rem 0.25rem 1rem;
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  line-height: 1.5rem;
+  color: var(--tw-prose-pre-code);
+}
+.prose .code-block-lang {
+  opacity: 0.6;
+}
+.prose .code-block-copy {
+  cursor: pointer;
+  border-radius: 0.25rem;
+  padding: 0 0.5rem;
+  opacity: 0.75;
+}
+.prose .code-block-copy:hover,
+.prose .code-block-copy:focus-visible,
+.prose .code-block-copy[data-done] {
+  background-color: rgb(255 255 255 / 0.1);
+  opacity: 1;
+}

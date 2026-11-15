@@ -128,17 +128,20 @@ function BlogIndex() {
   )
 }
 
-/** 公開日（下書きなら「下書き」、公開から日が浅ければ「新着」も付ける） */
+/** 公開日（下書きなら「下書き」、公開から日が浅ければ「新着」も付ける）と、読む時間の目安 */
 function PostDate({ post, className }: { post: Post; className?: string }) {
-  if (post.draft) return <DraftBadge />
-  if (!post.publishedAt) return null
-  const date = new Date(post.publishedAt)
+  const date =
+    !post.draft && post.publishedAt ? new Date(post.publishedAt) : null
   return (
-    <span className="inline-flex items-center gap-2">
-      <time dateTime={date.toISOString()} className={className}>
-        {formatDate(date)}
-      </time>
-      {isRecent(date) && <NewBadge />}
+    <span className="inline-flex flex-wrap items-center gap-x-2">
+      {post.draft && <DraftBadge />}
+      {date && (
+        <time dateTime={date.toISOString()} className={className}>
+          {formatDate(date)}
+        </time>
+      )}
+      {date && isRecent(date) && <NewBadge />}
+      <span className={className}>約 {post.readingMinutes} 分</span>
     </span>
   )
 }
