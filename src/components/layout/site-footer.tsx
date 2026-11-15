@@ -42,7 +42,10 @@ export function SiteFooter() {
           </p>
         </div>
 
-        <nav className="grid grid-cols-2 content-start gap-x-8 gap-y-2 sm:grid-cols-3">
+        <nav
+          aria-label="フッターのメニュー"
+          className="grid grid-cols-2 content-start gap-x-8 gap-y-2 sm:grid-cols-3"
+        >
           {mainNav.map((item) => (
             <Link key={item.to} to={item.to} className="hover:text-foreground">
               {item.title}

@@ -567,9 +567,15 @@ export function RegexTester() {
               {result ? 'マッチしませんでした。' : 'まだ結果がありません。'}
             </p>
           ) : (
-            <div className="max-h-[32rem] overflow-auto rounded-lg border">
+            // 長いときは枠の中でスクロールするので、キーボードでも動かせるようにフォーカスを受ける
+            <section
+              aria-label="マッチの一覧"
+              // biome-ignore lint/a11y/noNoninteractiveTabindex: スクロールする枠はキーボードで動かせる必要がある
+              tabIndex={0}
+              className="max-h-[32rem] overflow-auto rounded-lg border"
+            >
               <table className="w-full text-sm">
-                <thead className="sticky top-0 border-b bg-muted text-left text-muted-foreground">
+                <thead className="sticky top-0 border-b bg-muted text-left text-foreground/75">
                   <tr>
                     <th className="px-3 py-2 font-medium">#</th>
                     <th className="px-3 py-2 font-medium whitespace-nowrap">
@@ -630,7 +636,7 @@ export function RegexTester() {
                   一覧は最初の 500 件だけ出しています。
                 </p>
               )}
-            </div>
+            </section>
           )}
         </Section>
 
@@ -661,9 +667,14 @@ export function RegexTester() {
               g フラグがないので、最初の 1 か所だけ置き換えます。
             </p>
           )}
-          <div className="max-h-72 overflow-auto rounded-lg border bg-muted/30 p-3 font-mono text-sm leading-relaxed break-all whitespace-pre-wrap">
+          <section
+            aria-label="置き換えた結果"
+            // biome-ignore lint/a11y/noNoninteractiveTabindex: スクロールする枠はキーボードで動かせる必要がある
+            tabIndex={0}
+            className="max-h-72 overflow-auto rounded-lg border bg-muted/30 p-3 font-mono text-sm leading-relaxed break-all whitespace-pre-wrap"
+          >
             {result ? result.replaced : ''}
-          </div>
+          </section>
         </Section>
 
         {/* split */}
@@ -672,7 +683,12 @@ export function RegexTester() {
           help="text.split(パターン) で分けた結果です。パターンにグループがあると、グループの中身も結果に入ります。"
         >
           {result && (
-            <ol className="max-h-72 divide-y overflow-auto rounded-lg border text-sm">
+            <ol
+              aria-label="split の結果"
+              // biome-ignore lint/a11y/noNoninteractiveTabindex: スクロールする枠はキーボードで動かせる必要がある
+              tabIndex={0}
+              className="max-h-72 divide-y overflow-auto rounded-lg border text-sm"
+            >
               {result.split.map((s, k) => (
                 <li
                   // 同じ文字列がくり返し出てくるので、順番で区別する

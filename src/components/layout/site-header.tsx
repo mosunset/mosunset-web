@@ -73,7 +73,10 @@ export function SiteHeader() {
         タブレットの幅（md〜lg）では、コレクションの 4 つを「コレクション」1 つにまとめて並べる。
         それより広ければ全部を横に並べ、スマホでは ☰ のメニューにしまう
       */}
-      <nav className="ml-auto hidden self-stretch md:flex">
+      <nav
+        aria-label="メインメニュー"
+        className="ml-auto hidden self-stretch md:flex"
+      >
         {mainNav.map((item) => (
           <Link
             key={item.to}

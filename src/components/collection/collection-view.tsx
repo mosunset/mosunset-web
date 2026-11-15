@@ -160,11 +160,15 @@ function ImageBadges({
   )
 }
 
-/** 手放したもの・まだ取っていないものは、カードを薄く出す */
+/**
+ * 手放したもの・まだ取っていないものは、写真を薄く出す。
+ * 文字まで薄くすると読みにくい（コントラストが足りない）ので、文字はそのまま
+ */
 const isDimmed = (kind: CollectionKind, item: ListItem) =>
   statusMarkOf(kind, item.attributes)?.tone === 'dim'
 
-const dimmedClass = 'opacity-55 transition-opacity hover:opacity-100'
+const dimmedClass =
+  '[&_img]:opacity-50 [&_img]:transition-opacity hover:[&_img]:opacity-100'
 
 /** 表に出す項目（URL は表では長すぎるので出さない） */
 const tableFieldsOf = (kind: CollectionKind) =>
@@ -653,7 +657,7 @@ function PagerFull({
   const box =
     'group flex min-w-0 flex-col gap-0.5 rounded-lg border p-3 hover:bg-muted/40'
   return (
-    <nav aria-label="前後のもの" className="grid grid-cols-2 gap-3">
+    <nav aria-label="前後のもの（名前つき）" className="grid grid-cols-2 gap-3">
       {prev ? (
         <Link to={detailPath} params={{ slug: prev.slug }} className={box}>
           <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">

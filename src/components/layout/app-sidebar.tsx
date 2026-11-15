@@ -30,7 +30,7 @@ export function AppSidebar(props: React.ComponentProps<typeof Sidebar>) {
   const close = () => (isMobile ? setOpenMobile(false) : setOpen(false))
 
   return (
-    <Sidebar {...props}>
+    <Sidebar role="navigation" aria-label="サイトのメニュー" {...props}>
       {/* スマホでは画面の端から端まで覆うので、ヘッダーの代わりに名前を出す（それより広いとヘッダーの下に出る） */}
       <SidebarHeader className="md:hidden">
         <Link

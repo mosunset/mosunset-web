@@ -786,9 +786,7 @@ function FilterChips({
         onClick={() => onToggle(o.value)}
       >
         {o.label}
-        <span className="ml-1 text-[10px] tabular-nums opacity-60">
-          {o.count}
-        </span>
+        <span className="ml-1 text-[10px] tabular-nums">{o.count}</span>
       </Chip>
     )
   }

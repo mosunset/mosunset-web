@@ -34,7 +34,8 @@ export function StatusBadge({
   return (
     <Badge
       variant={tone === 'accent' ? 'default' : 'secondary'}
-      className={cn(tone === 'dim' && 'text-muted-foreground', className)}
+      // 薄い灰色の地に灰色の文字だとコントラストが足りないので、少しだけ濃くする
+      className={cn(tone === 'dim' && 'text-foreground/70', className)}
     >
       {children}
     </Badge>

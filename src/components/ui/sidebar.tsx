@@ -261,6 +261,8 @@ function Sidebar({
             : "group-data-[collapsible=icon]:w-(--sidebar-width-icon) group-data-[side=left]:border-r group-data-[side=right]:border-l",
           className
         )}
+        // 画面の外へ畳んでいるあいだは、Tab キーで中のリンクに入らないようにする（見えない場所にフォーカスが行かないように）
+        inert={state === "collapsed" && collapsible === "offcanvas" ? true : undefined}
         {...props}
       >
         <div
