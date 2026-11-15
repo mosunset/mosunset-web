@@ -1,6 +1,6 @@
 import { useServerFn } from '@tanstack/react-start'
 import { Loader2, Search } from 'lucide-react'
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -9,6 +9,7 @@ import { lookupIsbn } from '@/functions/isbn'
 import { useThumbnailMaker } from '@/hooks/use-image-upload'
 import type { CollectionAttributes } from '@/lib/collections'
 import { errorMessage } from '@/lib/errors'
+import type { RichTextDoc } from '@/lib/tiptap'
 
 export type IsbnResult = Awaited<ReturnType<typeof lookupIsbn>>
 
@@ -17,6 +18,34 @@ type IsbnTarget = {
   title: string
   imageKey: string | null
   attributes: CollectionAttributes
+  description: RichTextDoc
+}
+
+/** 文字が 1 つもない本文か（画像などの中身もないもの） */
+function isBlankDoc(node: RichTextDoc): boolean {
+  if (node.text?.trim()) return false
+  if (
+    node.type &&
+    !['doc', 'paragraph', 'hardBreak', 'text'].includes(node.type)
+  ) {
+    return false
+  }
+  return (node.content ?? []).every(isBlankDoc)
+}
+
+/** 内容紹介のテキストを、段落ごとに分けた本文にする */
+function textToDoc(text: string): RichTextDoc {
+  return {
+    type: 'doc',
+    content: text
+      .split(/\n+/)
+      .map((line) => line.trim())
+      .filter(Boolean)
+      .map((line) => ({
+        type: 'paragraph',
+        content: [{ type: 'text', text: line }],
+      })),
+  }
 }
 
 /**
@@ -45,6 +74,14 @@ export function mergeIsbnResult<T extends IsbnTarget>(
     attributes.publisher = result.publisher
     filled.push('出版社')
   }
+  if (!attributes.publishedDate && result.publishedDate) {
+    attributes.publishedDate = result.publishedDate
+    filled.push('発行日')
+  }
+  if (isBlankDoc(fields.description) && result.description) {
+    next.description = textToDoc(result.description)
+    filled.push('内容紹介')
+  }
   if (!fields.imageKey && result.imageKey) {
     next.imageKey = result.imageKey
     filled.push('表紙')
@@ -58,12 +95,15 @@ export function IsbnInput({
   onChange,
   needCover,
   onFound,
+  autoSearch = false,
 }: {
   value: string
   onChange: (value: string) => void
   /** まだ写真がないときだけ表紙を取りにいく */
   needCover: boolean
   onFound: (result: IsbnResult) => void
+  /** 画面を開いたときに 1 度だけ検索する（バーコードで読んだ本を登録するとき） */
+  autoSearch?: boolean
 }) {
   const lookup = useServerFn(lookupIsbn)
   const makeThumbnail = useThumbnailMaker()
@@ -89,6 +129,14 @@ export function IsbnInput({
       setPending(false)
     }
   }
+
+  const autoSearched = useRef(false)
+  // biome-ignore lint/correctness/useExhaustiveDependencies: 開いたときの 1 回だけ
+  useEffect(() => {
+    if (!autoSearch || autoSearched.current) return
+    autoSearched.current = true
+    search()
+  }, [])
 
   return (
     <div className="space-y-2">
@@ -120,7 +168,8 @@ export function IsbnInput({
         </Button>
       </div>
       <p className="text-xs text-muted-foreground">
-        検索すると、空いている項目に書名・著者・出版社・表紙を入れます
+        検索すると、空いている項目に書名・著者・出版社・発行日・内容紹介・表紙を入れます（openBD・楽天ブックス・Google
+        Books）
       </p>
     </div>
   )
