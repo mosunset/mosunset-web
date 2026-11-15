@@ -14,6 +14,7 @@ import {
 } from '@tanstack/react-router'
 import { TanStackRouterDevtoolsPanel } from '@tanstack/react-router-devtools'
 import { useEffect } from 'react'
+import { NavigationProgress } from '@/components/layout/navigation-progress'
 import { SiteShell } from '@/components/layout/site-shell'
 import { NotFoundPage } from '@/components/not-found-page'
 import { Toaster } from '@/components/ui/sonner'
@@ -187,6 +188,7 @@ function RootDocument({ children }: { children: React.ReactNode }) {
             {/* 管理画面は /admin のルートで専用のレイアウトを使う */}
             {isAdmin ? children : <SiteShell>{children}</SiteShell>}
             <Toaster theme={theme} richColors position="top-center" />
+            <NavigationProgress />
           </TooltipProvider>
         </ClerkProvider>
         <TanStackDevtools

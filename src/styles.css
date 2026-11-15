@@ -205,3 +205,13 @@ body {
   background-color: rgb(255 255 255 / 0.1);
   opacity: 1;
 }
+
+/* ページを移るときの読み込みの線（src/components/layout/navigation-progress.tsx） */
+@keyframes nav-progress {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(300%);
+  }
+}
