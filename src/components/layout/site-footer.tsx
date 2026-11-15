@@ -14,7 +14,8 @@ export function SiteFooter() {
           <Link to="/" className="font-semibold text-foreground">
             {site.name}
           </Link>
-          <div className="flex items-center gap-3">
+          {/* 押せる範囲は 32px（アイコンは 16px のまま。スマホで押しやすく、Lighthouse のタップの大きさの基準も満たす） */}
+          <div className="-ml-2 flex items-center gap-1">
             {site.social.map((s) => (
               <a
                 key={s.name}
@@ -22,7 +23,7 @@ export function SiteFooter() {
                 target="_blank"
                 rel="noopener noreferrer me"
                 aria-label={s.name}
-                className="hover:text-foreground"
+                className="inline-flex size-8 items-center justify-center rounded-md hover:bg-muted hover:text-foreground"
               >
                 <SocialIcon name={s.name} className="size-4" />
               </a>

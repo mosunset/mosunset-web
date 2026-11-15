@@ -188,7 +188,8 @@ export function FilterValue({
       onClick={() => value && list.filterBy(facetKey, value)}
       title={`${facet?.label ?? ''}「${valueLabel}」で絞り込む`}
       className={cn(
-        'relative z-10 cursor-pointer text-left underline-offset-2 hover:text-foreground hover:underline',
+        // 押せる範囲の高さは 24px 以上（カードの中で小さい文字でも押しやすいように）
+        'relative z-10 inline-flex min-h-6 cursor-pointer items-center text-left underline-offset-2 hover:text-foreground hover:underline',
         className,
       )}
     >

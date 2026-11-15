@@ -55,7 +55,8 @@ export function HelpTip({ children }: { children: React.ReactNode }) {
           e.preventDefault()
           setOpen((v) => !v)
         }}
-        className="inline-flex size-4 shrink-0 items-center justify-center align-middle text-muted-foreground hover:text-foreground"
+        // 押せる範囲は 24px（-m-1 で並びの幅は 16px のまま。小さすぎるとスマホで押しにくい）
+        className="-m-1 inline-flex size-6 shrink-0 items-center justify-center align-middle text-muted-foreground hover:text-foreground"
       >
         <CircleHelp className="size-3.5" />
       </TooltipTrigger>
