@@ -272,3 +272,7 @@ export function publicAttributes<T extends Record<string, unknown>>(
     Object.entries(attributes).filter(([key]) => !hidden.includes(key)),
   ) as T
 }
+
+/** 一覧のサムネイルの見せ方（決めていない種類は cover） */
+export const imageFitOf = (kind: CollectionKind) =>
+  (collections[kind] as { imageFit?: 'cover' | 'contain' }).imageFit ?? 'cover'

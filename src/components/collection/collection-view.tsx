@@ -33,6 +33,7 @@ import {
   facetKeysOf,
   filterKeysOf,
   groupFieldOf,
+  imageFitOf,
   statusMarkOf,
 } from '@/lib/collections'
 import { formatDay, isRecent } from '@/lib/format'
@@ -54,10 +55,6 @@ type ListItem = {
   /** 非公開（管理者のログイン中だけ届く） */
   draft?: boolean
 }
-
-/** 一覧のサムネイルの見せ方（決めていない種類は cover） */
-const imageFitOf = (kind: CollectionKind) =>
-  (collections[kind] as { imageFit?: 'cover' | 'contain' }).imageFit ?? 'cover'
 
 const sortOptions = [
   { value: 'order', label: 'おすすめ順' },

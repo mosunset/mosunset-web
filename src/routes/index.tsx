@@ -1,5 +1,6 @@
 import { createFileRoute, Link } from '@tanstack/react-router'
-import { ArrowRight } from 'lucide-react'
+import { ArrowRight, ImageOff } from 'lucide-react'
+import type * as React from 'react'
 
 import { SocialIcon } from '@/components/layout/social-icons'
 import { Button } from '@/components/ui/button'
@@ -9,12 +10,19 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card'
+import { getHomeFeed } from '@/functions/home'
+import { collections, imageFitOf } from '@/lib/collections'
+import { formatDate, formatDay } from '@/lib/format'
+import { thumbnailUrl } from '@/lib/images'
 import { mainNav } from '@/lib/navigation'
+import { playgroundTools } from '@/lib/playground'
 import { seo } from '@/lib/seo'
 import { site } from '@/lib/site'
+import { cn } from '@/lib/utils'
 
 export const Route = createFileRoute('/')({
   head: () => ({ meta: seo({ description: site.description }) }),
+  loader: () => getHomeFeed(),
   component: Home,
 })
 
@@ -22,6 +30,7 @@ function Home() {
   return (
     <div className="mx-auto w-full max-w-5xl px-6">
       <Hero />
+      <Latest />
       <About />
       <Contents />
       <Links />
@@ -55,6 +64,195 @@ function Hero() {
         </Button>
       </div>
     </section>
+  )
+}
+
+/** 新しいツール（公開日の新しい順。同じ日は登録した順） */
+const latestTools = [...playgroundTools]
+  .sort((a, b) => b.publishedDate.localeCompare(a.publishedDate))
+  .slice(0, 3)
+
+/** 新しいもの（最新の記事・新しいツール・最近登録したもの）。来るたびに変わるところ */
+function Latest() {
+  const feed = Route.useLoaderData()
+  return (
+    <section id="latest" className="scroll-mt-20 border-t py-16">
+      <h2 className="text-2xl font-bold">Latest</h2>
+      <div className="mt-6 grid gap-10 md:grid-cols-2">
+        {feed.posts.length > 0 && (
+          <LatestColumn
+            title="最新の記事"
+            moreTo="/blog"
+            moreLabel="記事の一覧へ"
+          >
+            {feed.posts.map((post) => (
+              <LatestRow
+                key={post.slug}
+                link={
+                  <Link
+                    to="/blog/$slug"
+                    params={{ slug: post.slug }}
+                    className="after:absolute after:inset-0 after:content-['']"
+                  >
+                    {post.title}
+                  </Link>
+                }
+                image={thumbnailUrl(post.coverImageKey)}
+                meta={
+                  post.publishedAt && (
+                    <time dateTime={new Date(post.publishedAt).toISOString()}>
+                      {formatDate(new Date(post.publishedAt))}
+                    </time>
+                  )
+                }
+              />
+            ))}
+          </LatestColumn>
+        )}
+        <LatestColumn
+          title="新しいツール"
+          moreTo="/playground"
+          moreLabel="ツールの一覧へ"
+        >
+          {latestTools.map((tool) => (
+            <LatestRow
+              key={tool.slug}
+              link={
+                <Link
+                  to={`/playground/${tool.slug}`}
+                  className="after:absolute after:inset-0 after:content-['']"
+                >
+                  {tool.name}
+                </Link>
+              }
+              image={tool.thumbnail}
+              meta={
+                <time dateTime={tool.publishedDate}>
+                  {formatDay(tool.publishedDate)}
+                </time>
+              }
+            />
+          ))}
+        </LatestColumn>
+      </div>
+
+      {feed.items.length > 0 && (
+        <div className="mt-10">
+          <h3 className="text-sm font-medium text-muted-foreground">
+            最近登録したもの
+          </h3>
+          <ul className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-4">
+            {feed.items.map((item) => {
+              const config = collections[item.kind]
+              const src = thumbnailUrl(item.imageKey)
+              return (
+                <li key={`${item.kind}/${item.slug}`}>
+                  <Link
+                    to={config.detailPath}
+                    params={{ slug: item.slug }}
+                    className="group block overflow-hidden rounded-lg border transition-colors hover:bg-muted/40"
+                  >
+                    <div className="flex aspect-square items-center justify-center overflow-hidden border-b bg-muted/30">
+                      {src ? (
+                        <img
+                          src={src}
+                          alt=""
+                          loading="lazy"
+                          // 一覧のカードと同じ見せ方（箱の写真などは切らずに全体を見せる）
+                          className={cn(
+                            'size-full',
+                            imageFitOf(item.kind) === 'contain'
+                              ? 'object-contain'
+                              : 'object-cover',
+                          )}
+                        />
+                      ) : (
+                        <ImageOff className="size-6 text-muted-foreground" />
+                      )}
+                    </div>
+                    <div className="p-2.5">
+                      <p className="text-xs text-muted-foreground">
+                        {config.label}
+                      </p>
+                      <p className="truncate text-sm font-medium group-hover:underline">
+                        {item.title}
+                      </p>
+                    </div>
+                  </Link>
+                </li>
+              )
+            })}
+          </ul>
+        </div>
+      )}
+    </section>
+  )
+}
+
+function LatestColumn({
+  title,
+  moreTo,
+  moreLabel,
+  children,
+}: {
+  title: string
+  moreTo: '/blog' | '/playground'
+  moreLabel: string
+  children: React.ReactNode
+}) {
+  return (
+    <div>
+      <h3 className="text-sm font-medium text-muted-foreground">{title}</h3>
+      <ul className="mt-3 space-y-3">{children}</ul>
+      <Link
+        to={moreTo}
+        className="mt-3 inline-flex items-center gap-1 text-sm font-medium underline-offset-4 hover:underline"
+      >
+        {moreLabel}
+        <ArrowRight className="size-4" />
+      </Link>
+    </div>
+  )
+}
+
+/** 新しいものの 1 行。名前のリンクを行いっぱいに広げて、どこを押しても開けるようにする */
+function LatestRow({
+  link,
+  image,
+  meta,
+}: {
+  link: React.ReactNode
+  image: string | null
+  meta: React.ReactNode
+}) {
+  return (
+    <li className="group relative flex gap-3 rounded-lg border p-2.5 transition-colors hover:bg-muted/40">
+      <div className="flex aspect-[1200/630] w-24 shrink-0 items-center justify-center self-start overflow-hidden rounded-md border bg-muted/30">
+        {/* 表紙のない記事は、サイトのアイコンを小さく出す */}
+        {image ? (
+          <img
+            src={image}
+            alt=""
+            loading="lazy"
+            className="size-full object-cover"
+          />
+        ) : (
+          <img
+            src={site.icon.small}
+            alt=""
+            width={28}
+            height={28}
+            className="size-7 rounded-full opacity-80"
+          />
+        )}
+      </div>
+      <div className="min-w-0">
+        <p className="line-clamp-2 text-sm font-medium leading-snug group-hover:underline">
+          {link}
+        </p>
+        <p className="mt-1 text-xs text-muted-foreground">{meta}</p>
+      </div>
+    </li>
   )
 }
 
