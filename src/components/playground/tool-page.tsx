@@ -4,6 +4,7 @@ import type * as React from 'react'
 import { lazy, type ReactNode, Suspense } from 'react'
 
 import { BackLinkFooter } from '@/components/back-link-footer'
+import { ToolPageNeighbors } from '@/components/playground/related-tools'
 import { UsageButton } from '@/components/playground/usage-panel'
 import { Badge } from '@/components/ui/badge'
 import { getPlaygroundTool, type PlaygroundSlug } from '@/lib/playground'
@@ -98,7 +99,11 @@ export function ToolPage({
 
       {after}
 
-      <BackLinkFooter to="/playground" slug={slug}>
+      <BackLinkFooter
+        to="/playground"
+        slug={slug}
+        before={<ToolPageNeighbors slug={slug} />}
+      >
         プレイグラウンドの一覧へ
       </BackLinkFooter>
     </div>
