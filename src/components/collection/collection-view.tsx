@@ -737,27 +737,12 @@ export function CollectionDetail({
 
   return (
     <article className="mx-auto w-full max-w-5xl px-6 py-8">
-      <div className="grid gap-8 md:grid-cols-[minmax(0,2fr)_minmax(0,3fr)]">
-        {src ? (
-          // 一覧のサムネイルは正方形に切り抜くが、ここでは切らずに全体を見せる
-          <div className="self-start md:sticky md:top-20">
-            <ZoomableImage
-              src={src}
-              alt={item.title}
-              className="rounded-lg border bg-muted/30"
-              imgClassName="mx-auto max-h-[70vh] w-auto object-contain"
-            />
-            <p className="mt-2 text-center text-xs text-muted-foreground">
-              クリックで拡大
-            </p>
-          </div>
-        ) : (
-          <div className="flex aspect-square items-center justify-center rounded-lg border bg-muted/30 text-muted-foreground">
-            <ImageOff className="size-8" />
-          </div>
-        )}
-
-        <div>
+      {/*
+        スマホでは 名前 → 写真 → 項目 の順に縦に並べる（写真が 1 画面を占めて名前が隠れないように）。
+        広い画面では、左に写真（スクロールしても付いてくる）、右に名前と項目
+      */}
+      <div className="grid gap-x-8 gap-y-6 md:grid-cols-[minmax(0,2fr)_minmax(0,3fr)] md:grid-rows-[auto_1fr]">
+        <header className="md:col-start-2 md:row-start-1">
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
             {config.label}
             {item.draft && <DraftBadge />}
@@ -766,8 +751,33 @@ export function CollectionDetail({
           <h1 className="mt-1 text-3xl font-bold leading-tight">
             {item.title}
           </h1>
+        </header>
+
+        {/* 写真の大きさは読み込む前に決めておく（読み込んだときに下の文章がずれないように） */}
+        <div className="self-start md:sticky md:top-20 md:col-start-1 md:row-span-2 md:row-start-1">
+          {src ? (
+            // 一覧のサムネイルは正方形に切り抜くが、ここでは切らずに全体を見せる
+            <>
+              <ZoomableImage
+                src={src}
+                alt={item.title}
+                className="h-[min(55vh,28rem)] rounded-lg border bg-muted/30 md:aspect-[4/5] md:h-auto md:max-h-[70vh]"
+                imgClassName="size-full object-contain"
+              />
+              <p className="mt-2 text-center text-xs text-muted-foreground">
+                クリックで拡大
+              </p>
+            </>
+          ) : (
+            <div className="flex h-40 items-center justify-center rounded-lg border bg-muted/30 text-muted-foreground md:aspect-square md:h-auto">
+              <ImageOff className="size-8" />
+            </div>
+          )}
+        </div>
+
+        <div className="md:col-start-2 md:row-start-2">
           {rows.length > 0 && (
-            <dl className="mt-6 divide-y border-y text-sm">
+            <dl className="divide-y border-y text-sm">
               {rows.map((row) => (
                 <div
                   key={row.label}
