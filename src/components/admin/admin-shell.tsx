@@ -36,7 +36,7 @@ export function AdminShell({
           <SidebarTrigger className="-ml-1" />
           <Separator
             orientation="vertical"
-            className="mr-1 data-[orientation=vertical]:h-4"
+            className="mr-1 data-vertical:h-4 data-vertical:self-center"
           />
           <AppBreadcrumb className="min-w-0 flex-1 [&_ol]:flex-nowrap [&_li]:min-w-0 [&_li]:truncate" />
           <Button

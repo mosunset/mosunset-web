@@ -54,7 +54,7 @@ export function SiteHeader() {
       <SidebarTrigger className="-ml-1 lg:hidden" />
       <Separator
         orientation="vertical"
-        className="mr-2 data-[orientation=vertical]:h-4 lg:hidden"
+        className="mr-2 data-vertical:h-4 data-vertical:self-center lg:hidden"
       />
       <Link to="/" className="flex shrink-0 items-center gap-2 font-semibold">
         <img
