@@ -1,6 +1,7 @@
 import { Show, UserButton } from '@clerk/tanstack-react-start'
 import { Link } from '@tanstack/react-router'
 
+import { ThemeMenu } from '@/components/layout/theme-toggle'
 import { Separator } from '@/components/ui/separator'
 import { SidebarTrigger } from '@/components/ui/sidebar'
 import { mainNav } from '@/lib/navigation'
@@ -44,15 +45,16 @@ export function SiteHeader() {
         ))}
       </nav>
 
-      {/* 管理者がログインしているときだけ出す。公開側にはログインボタンを置かない */}
-      <Show when="signed-in">
-        <div className="ml-auto flex items-center gap-3 lg:ml-4">
+      <div className="ml-auto flex items-center gap-1 lg:ml-2">
+        <ThemeMenu />
+        {/* 管理者がログインしているときだけ出す。公開側にはログインボタンを置かない */}
+        <Show when="signed-in">
           <Link to="/admin" className={navLinkClass}>
             管理
           </Link>
           <UserButton />
-        </div>
-      </Show>
+        </Show>
+      </div>
     </header>
   )
 }

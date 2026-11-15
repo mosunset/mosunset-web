@@ -7,11 +7,13 @@ import {
   createRootRoute,
   HeadContent,
   rootRouteId,
+  ScriptOnce,
   Scripts,
   useRouter,
   useRouterState,
 } from '@tanstack/react-router'
 import { TanStackRouterDevtoolsPanel } from '@tanstack/react-router-devtools'
+import { useEffect } from 'react'
 import { SiteShell } from '@/components/layout/site-shell'
 import { NotFoundPage } from '@/components/not-found-page'
 import { Toaster } from '@/components/ui/sonner'
@@ -27,6 +29,12 @@ import {
   websiteId,
 } from '@/lib/seo'
 import { site } from '@/lib/site'
+import {
+  themeColors,
+  themeInitScript,
+  useResolvedTheme,
+  watchTheme,
+} from '@/lib/theme'
 
 import appCss from '../styles.css?url'
 
@@ -66,7 +74,17 @@ export const Route = createRootRoute({
           name: 'viewport',
           content: 'width=device-width, initial-scale=1, viewport-fit=cover',
         },
-        { name: 'theme-color', content: site.themeColor },
+        // ライト・ダークを選んでいるときは、<head> のスクリプト（themeInitScript）が書き換える
+        {
+          name: 'theme-color',
+          media: '(prefers-color-scheme: light)',
+          content: themeColors.light,
+        },
+        {
+          name: 'theme-color',
+          media: '(prefers-color-scheme: dark)',
+          content: themeColors.dark,
+        },
         ...seo({
           title: isGlobalNotFound ? 'ページが見つかりません' : undefined,
           description: site.description,
@@ -144,13 +162,18 @@ function RootDocument({ children }: { children: React.ReactNode }) {
   })
 
   const nonce = useRouter().options.ssr?.nonce
+  const theme = useResolvedTheme()
+  useEffect(watchTheme, [])
 
   return (
-    <html lang="ja">
+    // dark クラスと color-scheme は、描画の前に themeInitScript が付ける（サーバーの HTML とずれてよい）
+    <html lang="ja" suppressHydrationWarning>
       <head>
         {/* ブラウザ側のルーターが CSP の nonce を読むためのもの（src/router.tsx） */}
         <meta property="csp-nonce" nonce={nonce} />
         <HeadContent />
+        {/* theme-color の meta より後に置く（スクリプトが書き換える） */}
+        <ScriptOnce>{themeInitScript}</ScriptOnce>
       </head>
       <body>
         <ClerkProvider
@@ -162,7 +185,7 @@ function RootDocument({ children }: { children: React.ReactNode }) {
           <TooltipProvider>
             {/* 管理画面は /admin のルートで専用のレイアウトを使う */}
             {isAdmin ? children : <SiteShell>{children}</SiteShell>}
-            <Toaster richColors position="top-center" />
+            <Toaster theme={theme} richColors position="top-center" />
           </TooltipProvider>
         </ClerkProvider>
         <TanStackDevtools

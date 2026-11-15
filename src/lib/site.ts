@@ -21,7 +21,6 @@ export const site = {
     '業務の自動化',
   ],
   locale: 'ja_JP',
-  themeColor: '#ffffff',
   /** public/ に置いた画像のパス */
   image: {
     path: '/my.webp',
