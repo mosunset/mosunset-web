@@ -1,7 +1,7 @@
 import { createServerFn } from '@tanstack/react-start'
 import { asc, desc } from 'drizzle-orm'
 
-import { publicAttributes } from '@/lib/collections'
+import { publicAttributes } from '@/lib/collections/config'
 import { isAdminRequest } from '@/server/auth'
 import { getDb, publishedItems, publishedPosts, schema } from '@/server/db'
 

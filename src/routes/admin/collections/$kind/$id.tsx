@@ -3,7 +3,7 @@ import { createFileRoute, notFound } from '@tanstack/react-router'
 import { AdminPage } from '@/components/admin/admin-page'
 import { CollectionForm } from '@/components/admin/collection-form'
 import { getItemForAdmin } from '@/functions/collections'
-import { collections } from '@/lib/collections'
+import { collections } from '@/lib/collections/config'
 
 export const Route = createFileRoute('/admin/collections/$kind/$id')({
   loader: async ({ params }) => {

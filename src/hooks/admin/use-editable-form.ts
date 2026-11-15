@@ -2,7 +2,7 @@ import { useCallback, useRef, useState } from 'react'
 import { flushSync } from 'react-dom'
 import { toast } from 'sonner'
 
-import { useLocalBackup } from '@/hooks/use-local-backup'
+import { useLocalBackup } from '@/hooks/admin/use-local-backup'
 import { errorMessage } from '@/lib/errors'
 
 type SaveOptions<R> = {

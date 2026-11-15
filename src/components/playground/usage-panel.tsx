@@ -2,7 +2,7 @@ import { CircleHelp, GripHorizontal, Lightbulb, X } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 
 import { Button } from '@/components/ui/button'
-import type { ToolUsage } from '@/lib/playground-usage'
+import type { ToolUsage } from '@/lib/playground/usage'
 import { cn } from '@/lib/utils'
 
 /**

@@ -1,6 +1,6 @@
 import { createFileRoute, notFound, Outlet } from '@tanstack/react-router'
 
-import { collections, isCollectionKind } from '@/lib/collections'
+import { collections, isCollectionKind } from '@/lib/collections/config'
 
 export const Route = createFileRoute('/admin/collections/$kind')({
   params: {

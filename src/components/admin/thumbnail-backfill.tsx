@@ -4,7 +4,7 @@ import { useState } from 'react'
 
 import { Button } from '@/components/ui/button'
 import { listImagesWithoutThumbnail } from '@/functions/images'
-import { useThumbnailMaker } from '@/hooks/use-image-upload'
+import { useThumbnailMaker } from '@/hooks/admin/use-image-upload'
 import { errorMessage } from '@/lib/errors'
 import { THUMBNAIL_SIZE } from '@/lib/images'
 

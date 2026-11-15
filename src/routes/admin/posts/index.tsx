@@ -3,11 +3,11 @@ import { Plus } from 'lucide-react'
 
 import { AdminPage } from '@/components/admin/admin-page'
 import { ListFilter } from '@/components/admin/list-filter'
-import { EmptyState } from '@/components/empty-state'
+import { EmptyState } from '@/components/common/empty-state'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { listPostsForAdmin } from '@/functions/posts'
-import { useListFilter } from '@/hooks/use-list-filter'
+import { useListFilter } from '@/hooks/admin/use-list-filter'
 import { formatDateTime } from '@/lib/format'
 
 export const Route = createFileRoute('/admin/posts/')({

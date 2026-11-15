@@ -7,7 +7,7 @@ const { posts, collectionItems: items } = schema
 
 /**
  * トップページの「新しいもの」。公開済みのものだけ（管理者のログイン中でも下書きは出さない）。
- * ツールはコードの中の一覧（src/lib/playground.ts）から、ページの側で選ぶ
+ * ツールはコードの中の一覧（src/lib/playground/tools.ts）から、ページの側で選ぶ
  */
 export const getHomeFeed = createServerFn({ method: 'GET' }).handler(
   async () => {

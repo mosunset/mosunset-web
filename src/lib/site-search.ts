@@ -8,10 +8,10 @@ import {
   displayAttribute,
   isDisplayedField,
   itemSubtitle,
-} from '@/lib/collections'
+} from '@/lib/collections/config'
 import { thumbnailUrl } from '@/lib/images'
 import { contactNav, mainNav } from '@/lib/navigation'
-import { playgroundTools } from '@/lib/playground'
+import { playgroundTools } from '@/lib/playground/tools'
 import { normalizeForSearch } from '@/lib/search-text'
 
 /** サイト全体の検索で見つかるもの 1 件 */

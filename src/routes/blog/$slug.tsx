@@ -1,13 +1,13 @@
 import { createFileRoute, Link } from '@tanstack/react-router'
-
-import { BackLinkFooter } from '@/components/back-link-footer'
 import {
   ArticleTocAside,
   ArticleTocDisclosure,
 } from '@/components/blog/article-toc'
-import { DraftBadge } from '@/components/draft-badge'
-import { RichTextContent, ZoomableImage } from '@/components/image-viewer'
-import { NotFoundPage } from '@/components/not-found-page'
+import { BackLinkFooter } from '@/components/common/back-link-footer'
+import { DraftBadge } from '@/components/common/draft-badge'
+import { NotFoundPage } from '@/components/common/not-found-page'
+import { ZoomableImage } from '@/components/rich-text/image-viewer'
+import { RichTextContent } from '@/components/rich-text/rich-text-content'
 import { getPublishedPost } from '@/functions/posts'
 import { formatDate } from '@/lib/format'
 import { imagePath } from '@/lib/images'

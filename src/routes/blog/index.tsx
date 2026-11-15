@@ -1,25 +1,26 @@
 import { createFileRoute, Link } from '@tanstack/react-router'
 import { Rss } from 'lucide-react'
 
-import { DraftBadge } from '@/components/draft-badge'
-import { EmptyState } from '@/components/empty-state'
-import { NewBadge } from '@/components/item-badges'
+import { DraftBadge } from '@/components/common/draft-badge'
+import { EmptyState } from '@/components/common/empty-state'
+import { NewBadge } from '@/components/common/item-badges'
+import { SectionPage } from '@/components/common/section-page'
 import {
   type Group,
   GroupedSections,
   groupItems,
-  type ListControls,
-  ListToolbar,
-  listSearchValidator,
   NoMatches,
+} from '@/components/list/grouped-sections'
+import { SortableHeader, TableGroupRow } from '@/components/list/list-table'
+import { ListToolbar } from '@/components/list/list-toolbar'
+import {
+  type ListControls,
+  listSearchValidator,
   parseColumnSort,
-  SortableHeader,
   type SortColumn,
-  TableGroupRow,
   useList,
   type ViewMode,
-} from '@/components/list-view'
-import { SectionPage } from '@/components/section-page'
+} from '@/components/list/use-list'
 import { listPublishedPosts } from '@/functions/posts'
 import { formatDate, isRecent, yearOf } from '@/lib/format'
 import { thumbnailUrl } from '@/lib/images'

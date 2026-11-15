@@ -15,7 +15,7 @@ pnpm docs:dev   # http://localhost:3001
 
 - 1 ページ = 1 つの Markdown ファイル。作ったら `docs/_sidebar.md` にリンクを足す
 - 新しい機能の仕様は `docs/specs/` に置く（[仕様書の書き方](specs/README.md)）
-- コードから読み取れることは繰り返さず、ファイルのパスを書いて案内する（例: `src/lib/collections.ts`）
+- コードから読み取れることは繰り返さず、ファイルのパスを書いて案内する（例: `src/lib/collections/config.ts`）
 - 決めたこと・決めた理由・やめたことを残す。コードと食い違ったら、どちらかを直す
 
 ## 使える書き方

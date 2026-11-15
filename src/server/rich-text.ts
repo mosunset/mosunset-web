@@ -158,7 +158,7 @@ export function readingMinutes(doc: RichTextDoc) {
 
 /**
  * コードの塊に、上の帯（言語名と「コピー」のボタン）を付ける。
- * ボタンの動きは RichTextContent（src/components/image-viewer.tsx）がまとめて受け取る
+ * ボタンの動きは RichTextContent（src/components/rich-text/rich-text-content.tsx）がまとめて受け取る
  */
 export function withCodeBlockToolbar(html: string) {
   return html

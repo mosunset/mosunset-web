@@ -1,23 +1,23 @@
 import { createFileRoute, Link } from '@tanstack/react-router'
 
-import { NewBadge } from '@/components/item-badges'
+import { NewBadge } from '@/components/common/item-badges'
+import { SectionPage } from '@/components/common/section-page'
+import { FilterValue } from '@/components/list/filters'
+import { NoMatches } from '@/components/list/grouped-sections'
+import { SortableHeader } from '@/components/list/list-table'
+import { ListToolbar } from '@/components/list/list-toolbar'
 import {
   type Facet,
-  FilterValue,
   type ListControls,
-  ListToolbar,
   listSearchValidator,
-  NoMatches,
-  SortableHeader,
   type SortColumn,
   useList,
   type ViewMode,
-} from '@/components/list-view'
-import { SectionPage } from '@/components/section-page'
+} from '@/components/list/use-list'
 import { formatDay, isRecent } from '@/lib/format'
 import { listItemId } from '@/lib/list-memory'
 import { getNavItem } from '@/lib/navigation'
-import { playgroundCategories, playgroundTools } from '@/lib/playground'
+import { playgroundCategories, playgroundTools } from '@/lib/playground/tools'
 import { sectionHead } from '@/lib/seo'
 
 const item = getNavItem('/playground')

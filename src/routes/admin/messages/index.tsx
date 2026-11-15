@@ -1,7 +1,7 @@
 import { createFileRoute, Link } from '@tanstack/react-router'
 
 import { AdminPage } from '@/components/admin/admin-page'
-import { EmptyState } from '@/components/empty-state'
+import { EmptyState } from '@/components/common/empty-state'
 import { Badge } from '@/components/ui/badge'
 import { listMessages } from '@/functions/contact'
 import { formatDateTime, messageTitle } from '@/lib/format'

@@ -3,7 +3,7 @@ import {
   type CollectionKind,
   collections,
   itemSubtitle,
-} from '@/lib/collections'
+} from '@/lib/collections/config'
 import { imageUrl } from '@/lib/images'
 import { absoluteUrl, jsonLd, ogImage, personId, seo } from '@/lib/seo'
 

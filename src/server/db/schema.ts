@@ -10,7 +10,7 @@ import {
 import type { RichTextDoc } from '@/lib/tiptap'
 
 // drizzle-kit からも読み込まれるので、値の import は相対パスにしておく
-import { collectionKinds } from '../../lib/collection-kinds'
+import { collectionKinds } from '../../lib/collections/kinds'
 
 const id = () =>
   text('id')

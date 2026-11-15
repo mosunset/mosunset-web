@@ -13,8 +13,8 @@ import {
   type CollectionKind,
   collectionList,
   filterKeysOf,
-} from '@/lib/collections'
-import { playgroundCategories, playgroundTools } from '@/lib/playground'
+} from '@/lib/collections/config'
+import { playgroundCategories, playgroundTools } from '@/lib/playground/tools'
 
 /**
  * サイドバーで、今いる場所（第一階層）の下に出す中身。

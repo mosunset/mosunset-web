@@ -3,14 +3,14 @@ import { createServerFn } from '@tanstack/react-start'
 import { and, asc, desc, eq, inArray, ne } from 'drizzle-orm'
 import { z } from 'zod'
 import { adminMiddleware } from '@/functions/auth'
-import { collectionKinds } from '@/lib/collection-kinds'
 import {
   type AttributeField,
   type CollectionAttributes,
   collections,
   groupFieldOf,
   publicAttributes,
-} from '@/lib/collections'
+} from '@/lib/collections/config'
+import { collectionKinds } from '@/lib/collections/kinds'
 import { isAdminRequest } from '@/server/auth'
 import { getDb, publishedItems, schema } from '@/server/db'
 import { deleteImagesOf, deleteReplacedImage } from '@/server/r2'

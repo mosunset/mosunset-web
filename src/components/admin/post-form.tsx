@@ -24,8 +24,8 @@ import {
   type PostInput,
   savePost,
 } from '@/functions/posts'
-import { useEditableForm } from '@/hooks/use-editable-form'
-import { useSaveShortcut } from '@/hooks/use-save-shortcut'
+import { useEditableForm } from '@/hooks/admin/use-editable-form'
+import { useSaveShortcut } from '@/hooks/admin/use-save-shortcut'
 import { slugHint, slugInputPattern, slugPattern } from '@/lib/slug'
 import { emptyDoc, type RichTextDoc } from '@/lib/tiptap'
 

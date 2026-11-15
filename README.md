@@ -53,18 +53,26 @@ TURNSTILE_SITE_KEY=1x00000000000000000000AA   # 開発中は Cloudflare のテ�
 ```
 src/
   routes/        ページ（TanStack Router のファイルベースルーティング）。admin/ は管理画面
-  components/    画面の部品
-    layout/        サイト全体の枠（ヘッダー・フッター・サイドバー・パンくず）
+  components/    画面の部品（直下にファイルは置かず、用途ごとのフォルダに入れる）
+    common/        いろいろなページで使う小さな部品（空のとき・見つからないとき・一覧ページの枠・戻るリンク・バッジ）
+    list/          一覧の仕組み（use-list: 検索・絞り込み・並べ替えの状態 / list-toolbar: 上の検索欄の段 /
+                   filters: 絞り込みの札 / grouped-sections: まとまりと見出し / list-table: 表）
+    rich-text/     本文の表示（rich-text-content）と、画像の拡大表示（image-viewer）
+    layout/        サイト全体の枠（ヘッダー・フッター・サイドバー・パンくず・検索）
+    blog/          ブログの記事ページの部品（目次など）
     collection/    コレクション（楽器・資格・おもちゃ・本）の一覧と詳細ページ
+    contact/       お問い合わせのフォーム
     admin/         管理画面
-    editor/        本文のリッチテキストエディター
+    editor/        本文のリッチテキストエディター（管理画面）
     playground/    プレイグラウンドのツール。tools/ に 1 ツール 1 ファイル（ファイルが複数あるツールは tools/<名前>/ にまとめる）
     ui/            shadcn/ui
-    （直下）       いろいろなページで使う小さな部品（空のとき・見つからないとき・画像ビューアーなど）
-  hooks/         React のフック
-  functions/     server function（画面から呼ぶ API）。posts・collections・contact・images・isbn・dashboard・auth
+  hooks/         React のフック。管理画面だけで使うものは hooks/admin/
+  functions/     server function（画面から呼ぶ API）。posts・collections・contact・images・isbn・dashboard・auth など
   server/        サーバーの中だけで使う処理（DB・R2・認証・メール・Turnstile・本文の無害化・ヘッダー・フィードなど）
-  lib/           画面とサーバーの両方で使う処理（SEO・コレクションの定義・画像の URL など）
+  lib/           画面とサーバーの両方で使う処理（SEO・画像の URL・日付の書き方など）
+    collections/   コレクションの種類（kinds）・項目の定義（config）・SEO（seo）
+    playground/    プレイグラウンドのツールの一覧（tools）と使い方の説明（usage）
+    auth/          Clerk（ログイン）を読み込むかどうかの判断
   start.ts       リクエストごとのミドルウェア（セキュリティのヘッダー・CSRF・Clerk）
 drizzle/         D1 のマイグレーション
 docs/            開発用のドキュメント（仕様・設計メモ）
@@ -79,11 +87,11 @@ docs/            開発用のドキュメント（仕様・設計メモ）
 | API | `src/functions`（`createServerFn` と `adminMiddleware`） | `src/server`・`src/lib` |
 | サーバーの中身 | `src/server` | `src/lib` |
 
-- `src/lib` は `src/server` も `src/functions` も import しません（型だけでも）。両方で使う型や定数は `src/lib` に置きます（例: コレクションの種類は `src/lib/collection-kinds.ts`）。
+- `src/lib` は `src/server` も `src/functions` も import しません（型だけでも）。両方で使う型や定数は `src/lib` に置きます（例: コレクションの種類は `src/lib/collections/kinds.ts`）。
 - 画面のファイルから `src/server` を import すると、`pnpm build` が import protection のエラーで止まります（`vite.config.ts` の `importProtection`）。server function の handler や `.server()` の中でだけ使うものは、ブラウザ用のバンドルでは消えるので通ります。
 - 例外は、画面を持たない server route（`sitemap.xml`・`rss.xml`・`llms.txt`・`/images/$`）と `src/start.ts` です。どちらも `server.handlers` や `.server()` の中から `src/server` の関数を呼ぶだけにしています。
-- コレクション（楽器・資格・おもちゃ・本）の種類と項目は `src/lib/collections.ts` の 1 か所で決めています。管理画面の入力欄・サーバーでの入力チェック・公開ページの表示は、ここから作ります。
-- プレイグラウンドのツールは `src/lib/playground.ts` に 1 件足し、`src/routes/playground/<slug>.tsx` と `src/components/playground/tools/` にファイルを作ります（ファイルが複数になったら `tools/<名前>/` のフォルダにまとめます。例: `tools/box-packing/`）。重いライブラリを使うツールは `clientOnlyTool` でブラウザでだけ読み込みます（Worker に入れない）。
+- コレクション（楽器・資格・おもちゃ・本）の種類と項目は `src/lib/collections/config.ts` の 1 か所で決めています。管理画面の入力欄・サーバーでの入力チェック・公開ページの表示は、ここから作ります。
+- プレイグラウンドのツールは `src/lib/playground/tools.ts` に 1 件足し、`src/routes/playground/<slug>.tsx` と `src/components/playground/tools/` にファイルを作ります（ファイルが複数になったら `tools/<名前>/` のフォルダにまとめます。例: `tools/box-packing/`）。重いライブラリを使うツールは `clientOnlyTool` でブラウザでだけ読み込みます（Worker に入れない）。
 
 ## セキュリティ
 

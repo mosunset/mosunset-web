@@ -2,7 +2,7 @@ import { Camera, ImagePlus, Loader2, X } from 'lucide-react'
 import { useRef, useState } from 'react'
 
 import { Button } from '@/components/ui/button'
-import { useImageUpload } from '@/hooks/use-image-upload'
+import { useImageUpload } from '@/hooks/admin/use-image-upload'
 import { errorMessage } from '@/lib/errors'
 import { IMAGE_ACCEPT, imageFilesFrom } from '@/lib/image-resize'
 import { imageUrl } from '@/lib/images'

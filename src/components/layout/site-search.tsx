@@ -8,7 +8,7 @@ import {
   useSyncExternalStore,
 } from 'react'
 
-import { DraftBadge } from '@/components/draft-badge'
+import { DraftBadge } from '@/components/common/draft-badge'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,

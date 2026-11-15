@@ -1,8 +1,8 @@
 import { desc } from 'drizzle-orm'
 
-import { collections } from '@/lib/collections'
+import { collections } from '@/lib/collections/config'
 import { contactNav, mainNav } from '@/lib/navigation'
-import { playgroundTools } from '@/lib/playground'
+import { playgroundTools } from '@/lib/playground/tools'
 import { absoluteUrl } from '@/lib/seo'
 import { site } from '@/lib/site'
 import { getDb, publishedItems, publishedPosts, schema } from '@/server/db'

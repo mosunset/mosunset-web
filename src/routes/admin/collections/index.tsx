@@ -2,7 +2,7 @@ import { createFileRoute, Link } from '@tanstack/react-router'
 
 import { AdminPage } from '@/components/admin/admin-page'
 import { Card, CardHeader, CardTitle } from '@/components/ui/card'
-import { collectionList } from '@/lib/collections'
+import { collectionList } from '@/lib/collections/config'
 import { getNavItem } from '@/lib/navigation'
 
 export const Route = createFileRoute('/admin/collections/')({

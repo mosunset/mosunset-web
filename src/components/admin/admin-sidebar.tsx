@@ -24,7 +24,7 @@ import {
   SidebarRail,
   useSidebar,
 } from '@/components/ui/sidebar'
-import { collectionList } from '@/lib/collections'
+import { collectionList } from '@/lib/collections/config'
 import { getNavItem } from '@/lib/navigation'
 import { site } from '@/lib/site'
 

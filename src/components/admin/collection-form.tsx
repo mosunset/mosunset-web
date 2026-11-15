@@ -27,13 +27,13 @@ import {
   type getItemForAdmin,
   saveItem,
 } from '@/functions/collections'
-import { useEditableForm } from '@/hooks/use-editable-form'
-import { useSaveShortcut } from '@/hooks/use-save-shortcut'
+import { useEditableForm } from '@/hooks/admin/use-editable-form'
+import { useSaveShortcut } from '@/hooks/admin/use-save-shortcut'
 import {
   type CollectionAttributes,
   type CollectionKind,
   collections,
-} from '@/lib/collections'
+} from '@/lib/collections/config'
 import { imageUrl } from '@/lib/images'
 import { slugHint, slugInputPattern } from '@/lib/slug'
 import { emptyDoc, type RichTextDoc } from '@/lib/tiptap'

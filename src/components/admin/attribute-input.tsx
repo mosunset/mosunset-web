@@ -1,6 +1,6 @@
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import type { AttributeField } from '@/lib/collections'
+import type { AttributeField } from '@/lib/collections/config'
 
 /** コレクションの種類ごとの追加項目の入力欄（文字・URL・日付・選択） */
 export function AttributeInput({

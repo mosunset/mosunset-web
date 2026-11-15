@@ -35,7 +35,7 @@ import {
   slashItems,
 } from '@/components/editor/slash-command'
 import { Separator } from '@/components/ui/separator'
-import { useImageUpload } from '@/hooks/use-image-upload'
+import { useImageUpload } from '@/hooks/admin/use-image-upload'
 import { errorMessage } from '@/lib/errors'
 import { IMAGE_ACCEPT, imageFilesFrom } from '@/lib/image-resize'
 import { type RichTextDoc, richTextExtensions } from '@/lib/tiptap'

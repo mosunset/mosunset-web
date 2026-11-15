@@ -11,11 +11,11 @@ import {
   CardTitle,
 } from '@/components/ui/card'
 import { getHomeFeed } from '@/functions/home'
-import { collections, imageFitOf } from '@/lib/collections'
+import { collections, imageFitOf } from '@/lib/collections/config'
 import { formatDate, formatDay } from '@/lib/format'
 import { thumbnailUrl } from '@/lib/images'
 import { mainNav } from '@/lib/navigation'
-import { playgroundTools } from '@/lib/playground'
+import { playgroundTools } from '@/lib/playground/tools'
 import { seo } from '@/lib/seo'
 import { site } from '@/lib/site'
 import { cn } from '@/lib/utils'

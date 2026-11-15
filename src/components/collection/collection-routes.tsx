@@ -6,16 +6,19 @@ import {
   CollectionGrid,
   CollectionNotFound,
 } from '@/components/collection/collection-view'
-import { type ListSearch, listSearchValidator } from '@/components/list-view'
-import { SectionPage } from '@/components/section-page'
+import { SectionPage } from '@/components/common/section-page'
+import {
+  type ListSearch,
+  listSearchValidator,
+} from '@/components/list/use-list'
 import { getAdminStatus } from '@/functions/auth'
 import { getPublishedItem, listPublishedItems } from '@/functions/collections'
-import { collectionDetailHead } from '@/lib/collection-seo'
 import {
   type CollectionKind,
   collections,
   facetKeysOf,
-} from '@/lib/collections'
+} from '@/lib/collections/config'
+import { collectionDetailHead } from '@/lib/collections/seo'
 import { getNavItem } from '@/lib/navigation'
 import { sectionHead } from '@/lib/seo'
 

@@ -1,8 +1,7 @@
 import { createFileRoute } from '@tanstack/react-router'
-
-import { ContactForm } from '@/components/contact-form'
+import { SectionPage } from '@/components/common/section-page'
+import { ContactForm } from '@/components/contact/contact-form'
 import { SocialIcon } from '@/components/layout/social-icons'
-import { SectionPage } from '@/components/section-page'
 import { getContactConfig } from '@/functions/contact'
 import { getNavItem } from '@/lib/navigation'
 import { sectionHead } from '@/lib/seo'

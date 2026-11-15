@@ -35,7 +35,7 @@ flowchart LR
 | API | `src/functions`（`createServerFn` と `adminMiddleware`） | `src/server`・`src/lib` |
 | サーバーの中身 | `src/server`（DB・R2・メール・Turnstile・秘密の値） | `src/lib` |
 
-- `src/lib` は `src/server` も `src/functions` も import しない（型だけでも）。両方で使う型や定数は `src/lib` に置く（例: コレクションの種類は `src/lib/collection-kinds.ts`）
+- `src/lib` は `src/server` も `src/functions` も import しない（型だけでも）。両方で使う型や定数は `src/lib` に置く（例: コレクションの種類は `src/lib/collections/kinds.ts`）
 - 画面のファイルから `src/server` を import すると、`pnpm build` が import protection のエラーで止まる（`vite.config.ts` の `importProtection`）。server function の handler や `.server()` の中でだけ使うものは、ブラウザ用のバンドルでは消えるので通る
 - 例外は画面を持たない server route（`sitemap.xml`・`rss.xml`・`llms.txt`・`/images/$`）と `src/start.ts`。どちらも `server.handlers` や `.server()` の中から `src/server` の関数を呼ぶだけにする
 
@@ -66,7 +66,7 @@ sequenceDiagram
 |---|---|---|
 | `/` | トップ | `src/routes/index.tsx` |
 | `/blog` | ブログ | `src/routes/blog/` |
-| `/instruments` `/certifications` `/toys` `/books` | コレクション | `src/routes/<種類>/`（共通の中身は `src/lib/collection-routes.tsx`） |
+| `/instruments` `/certifications` `/toys` `/books` | コレクション | `src/routes/<種類>/`（共通の中身は `src/components/collection/collection-routes.tsx`） |
 | `/playground` | ブラウザで動く小さなツール | `src/routes/playground/` |
 | `/contact` | お問い合わせ | `src/routes/contact.tsx` |
 | `/admin` | 管理画面（記事・コレクション・お問い合わせ） | `src/routes/admin/` |
@@ -95,6 +95,6 @@ sequenceDiagram
 
 ## よくある足し方
 
-- **コレクションの項目を足す:** `src/lib/collections.ts` に 1 行足す。管理画面の入力欄・サーバーでの入力チェック・公開ページの表示はここから作られる。DB は変えない
-- **プレイグラウンドのツールを足す:** `src/lib/playground.ts` に 1 件足し、`src/routes/playground/<slug>.tsx` と `src/components/playground/tools/` にファイルを作る。重いライブラリを使うツールは `clientOnlyTool` でブラウザでだけ読み込む（Worker に入れない）
+- **コレクションの項目を足す:** `src/lib/collections/config.ts` に 1 行足す。管理画面の入力欄・サーバーでの入力チェック・公開ページの表示はここから作られる。DB は変えない
+- **プレイグラウンドのツールを足す:** `src/lib/playground/tools.ts` に 1 件足し、`src/routes/playground/<slug>.tsx` と `src/components/playground/tools/` にファイルを作る。重いライブラリを使うツールは `clientOnlyTool` でブラウザでだけ読み込む（Worker に入れない）
 - **外部のサービスを使う:** `src/server/security-headers.ts` の CSP に通信先を足す

@@ -5,7 +5,7 @@ import {
   getPlaygroundTool,
   type PlaygroundSlug,
   playgroundTools,
-} from '@/lib/playground'
+} from '@/lib/playground/tools'
 import { cn } from '@/lib/utils'
 
 /** 一覧のふだんの並び（新しい順。同じ日は登録した順） */

@@ -3,7 +3,7 @@ import { ExternalLink, Trash2 } from 'lucide-react'
 import type { ReactNode } from 'react'
 
 import { Button } from '@/components/ui/button'
-import type { CollectionKind, collections } from '@/lib/collections'
+import type { CollectionKind, collections } from '@/lib/collections/config'
 
 /** 記事・コレクションの編集フォームで共通の部品 */
 

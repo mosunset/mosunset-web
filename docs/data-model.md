@@ -65,7 +65,7 @@ erDiagram
 
 | 列 | 型 | 内容 |
 |---|---|---|
-| `kind` | `instrument` \| `certification` \| `toy` \| `book` | 種類（`src/lib/collection-kinds.ts`） |
+| `kind` | `instrument` \| `certification` \| `toy` \| `book` | 種類（`src/lib/collections/kinds.ts`） |
 | `slug` | text | 種類の中で重複不可 |
 | `description` | json | 説明 |
 | `image_key` | text | R2 のキー |
@@ -76,7 +76,7 @@ erDiagram
 
 インデックス: `(kind, sort_order)`、一意: `(kind, slug)`
 
-種類ごとの項目（`attributes` の中身）は `src/lib/collections.ts` で決めています。項目を足すときは DB を変えず、ここに足します。
+種類ごとの項目（`attributes` の中身）は `src/lib/collections/config.ts` で決めています。項目を足すときは DB を変えず、ここに足します。
 
 ## contact_messages（お問い合わせ）
 

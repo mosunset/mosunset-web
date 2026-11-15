@@ -2,7 +2,7 @@ import { createServerFn } from '@tanstack/react-start'
 import { count, desc, eq } from 'drizzle-orm'
 
 import { adminMiddleware } from '@/functions/auth'
-import type { CollectionKind } from '@/lib/collection-kinds'
+import type { CollectionKind } from '@/lib/collections/kinds'
 import { getDb, schema } from '@/server/db'
 
 const { posts, collectionItems, contactMessages } = schema

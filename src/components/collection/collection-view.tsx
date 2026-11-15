@@ -2,28 +2,30 @@ import { Link, useNavigate } from '@tanstack/react-router'
 import { ChevronLeft, ChevronRight, ExternalLink, ImageOff } from 'lucide-react'
 import * as React from 'react'
 
-import { BackLinkFooter } from '@/components/back-link-footer'
-import { DraftBadge } from '@/components/draft-badge'
-import { EmptyState } from '@/components/empty-state'
-import { RichTextContent, ZoomableImage } from '@/components/image-viewer'
-import { NewBadge, StatusBadge } from '@/components/item-badges'
+import { BackLinkFooter } from '@/components/common/back-link-footer'
+import { DraftBadge } from '@/components/common/draft-badge'
+import { EmptyState } from '@/components/common/empty-state'
+import { NewBadge, StatusBadge } from '@/components/common/item-badges'
+import { NotFoundPage } from '@/components/common/not-found-page'
+import { FilterValue } from '@/components/list/filters'
 import {
-  type Facet,
-  FilterValue,
   type Group,
   GroupedSections,
   groupItems,
+  NoMatches,
+} from '@/components/list/grouped-sections'
+import { SortableHeader, TableGroupRow } from '@/components/list/list-table'
+import { ListToolbar } from '@/components/list/list-toolbar'
+import {
+  type Facet,
   type ListControls,
   type ListSearch,
-  ListToolbar,
-  NoMatches,
-  SortableHeader,
   type SortColumn,
-  TableGroupRow,
   useList,
   type ViewMode,
-} from '@/components/list-view'
-import { NotFoundPage } from '@/components/not-found-page'
+} from '@/components/list/use-list'
+import { ZoomableImage } from '@/components/rich-text/image-viewer'
+import { RichTextContent } from '@/components/rich-text/rich-text-content'
 import {
   type AttributeField,
   type CollectionAttributes,
@@ -36,7 +38,7 @@ import {
   imageFitOf,
   isDisplayedField,
   statusMarkOf,
-} from '@/lib/collections'
+} from '@/lib/collections/config'
 import { formatDay, isRecent } from '@/lib/format'
 import { imageUrl, thumbnailUrl } from '@/lib/images'
 import {

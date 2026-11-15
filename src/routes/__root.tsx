@@ -14,15 +14,14 @@ import {
 } from '@tanstack/react-router'
 import { TanStackRouterDevtoolsPanel } from '@tanstack/react-router-devtools'
 import { useEffect } from 'react'
+import { NotFoundPage } from '@/components/common/not-found-page'
 import { NavigationProgress } from '@/components/layout/navigation-progress'
 import { SiteShell } from '@/components/layout/site-shell'
-import { NotFoundPage } from '@/components/not-found-page'
 import { Toaster } from '@/components/ui/sonner'
 import { TooltipProvider } from '@/components/ui/tooltip'
-
+import { ClerkAvailableProvider } from '@/lib/auth/clerk-available'
+import { readSignedInHint } from '@/lib/auth/clerk-hint'
 import { resolveBreadcrumbs } from '@/lib/breadcrumbs'
-import { ClerkAvailableProvider } from '@/lib/clerk-available'
-import { readSignedInHint } from '@/lib/clerk-hint'
 import {
   absoluteUrl,
   jsonLd,

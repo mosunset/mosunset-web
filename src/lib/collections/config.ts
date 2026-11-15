@@ -1,10 +1,10 @@
-import type { CollectionKind } from '@/lib/collection-kinds'
+import type { CollectionKind } from '@/lib/collections/kinds'
 
 export {
   type CollectionKind,
   collectionKinds,
   isCollectionKind,
-} from '@/lib/collection-kinds'
+} from '@/lib/collections/kinds'
 
 /** 種類ごとの追加項目の定義。管理画面の入力欄・サーバーの検証・公開ページの表示に使う */
 export type AttributeField =

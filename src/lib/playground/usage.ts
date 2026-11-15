@@ -1,4 +1,4 @@
-import type { PlaygroundSlug } from '@/lib/playground'
+import type { PlaygroundSlug } from '@/lib/playground/tools'
 
 /**
  * ツールのページの「使い方」（タイトルの右のボタンで、浮かせて出す）。
