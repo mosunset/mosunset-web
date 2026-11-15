@@ -2,24 +2,25 @@ import { Link, useMatchRoute } from '@tanstack/react-router'
 import { House } from 'lucide-react'
 import type * as React from 'react'
 
+import { SocialIcon } from '@/components/layout/social-icons'
+import { ThemeSwitch } from '@/components/layout/theme-toggle'
 import {
   Sidebar,
   SidebarContent,
+  SidebarFooter,
   SidebarGroup,
   SidebarGroupContent,
   SidebarGroupLabel,
+  SidebarHeader,
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
   useSidebar,
 } from '@/components/ui/sidebar'
-import { mainNav } from '@/lib/navigation'
+import { contactNav, getNavItem, navGroups } from '@/lib/navigation'
+import { site } from '@/lib/site'
 
-const navItems = [
-  { title: 'ホーム', to: '/', icon: House },
-  ...mainNav,
-] as const
-
+/** 狭い画面のメニュー（ヘッダーの ☰ で開く） */
 export function AppSidebar(props: React.ComponentProps<typeof Sidebar>) {
   const matchRoute = useMatchRoute()
   const { isMobile, setOpen, setOpenMobile } = useSidebar()
@@ -29,30 +30,108 @@ export function AppSidebar(props: React.ComponentProps<typeof Sidebar>) {
 
   return (
     <Sidebar {...props}>
+      {/* スマホでは画面の端から端まで覆うので、ヘッダーの代わりに名前を出す（それより広いとヘッダーの下に出る） */}
+      <SidebarHeader className="md:hidden">
+        <Link
+          to="/"
+          onClick={close}
+          className="flex items-center gap-3 rounded-md p-2 hover:bg-sidebar-accent"
+        >
+          <img
+            src={site.image.path}
+            alt=""
+            width={36}
+            height={36}
+            className="size-9 rounded-full object-cover"
+          />
+          <span className="grid leading-tight">
+            <span className="font-semibold">{site.name}</span>
+            <span className="text-xs text-muted-foreground">
+              {site.tagline}
+            </span>
+          </span>
+        </Link>
+      </SidebarHeader>
+
       <SidebarContent>
         <SidebarGroup>
-          <SidebarGroupLabel>メニュー</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
-              {navItems.map((item) => (
-                <SidebarMenuItem key={item.to}>
-                  <SidebarMenuButton
-                    asChild
-                    isActive={Boolean(
-                      matchRoute({ to: item.to, fuzzy: item.to !== '/' }),
-                    )}
-                  >
-                    <Link to={item.to} onClick={close}>
-                      <item.icon />
-                      <span>{item.title}</span>
-                    </Link>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              ))}
+              <SidebarMenuItem>
+                <SidebarMenuButton
+                  asChild
+                  isActive={Boolean(matchRoute({ to: '/' }))}
+                >
+                  <Link to="/" onClick={close}>
+                    <House />
+                    <span>ホーム</span>
+                  </Link>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
+
+        {navGroups.map((group) => (
+          <SidebarGroup key={group.label} className="py-1">
+            <SidebarGroupLabel>{group.label}</SidebarGroupLabel>
+            <SidebarGroupContent>
+              <SidebarMenu>
+                {group.paths.map((path) => {
+                  const item = getNavItem(path)
+                  return (
+                    <SidebarMenuItem key={path}>
+                      <SidebarMenuButton
+                        asChild
+                        size="lg"
+                        isActive={Boolean(
+                          matchRoute({ to: path, fuzzy: true }),
+                        )}
+                      >
+                        <Link to={path} onClick={close}>
+                          <item.icon />
+                          <span className="grid min-w-0 leading-tight">
+                            <span className="truncate">{item.title}</span>
+                            <span className="truncate text-xs font-normal text-muted-foreground">
+                              {item.description}
+                            </span>
+                          </span>
+                        </Link>
+                      </SidebarMenuButton>
+                    </SidebarMenuItem>
+                  )
+                })}
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+        ))}
       </SidebarContent>
+
+      <SidebarFooter className="gap-3 border-t p-3">
+        <ThemeSwitch />
+        <div className="flex items-center gap-1 text-sm text-muted-foreground">
+          {site.social.map((s) => (
+            <a
+              key={s.name}
+              href={s.url}
+              target="_blank"
+              rel="noopener noreferrer me"
+              aria-label={s.name}
+              className="rounded-md p-2 hover:bg-sidebar-accent hover:text-foreground"
+            >
+              <SocialIcon name={s.name} className="size-4" />
+            </a>
+          ))}
+          <Link
+            to={contactNav.to}
+            onClick={close}
+            className="ml-auto inline-flex items-center gap-1.5 rounded-md px-2 py-1.5 hover:bg-sidebar-accent hover:text-foreground"
+          >
+            <contactNav.icon className="size-4" />
+            {contactNav.title}
+          </Link>
+        </div>
+      </SidebarFooter>
     </Sidebar>
   )
 }

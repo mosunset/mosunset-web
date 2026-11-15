@@ -57,6 +57,26 @@ export const contactNav = {
 
 export type NavItem = (typeof mainNav)[number] | typeof contactNav
 
+type MainNavPath = (typeof mainNav)[number]['to']
+
+/**
+ * 第一階層のまとまり（サイドバーで見出しを付けて分ける）。
+ * トップページの「作ったもの、書いたこと、集めているもの」と同じ分け方
+ */
+export const navGroups = [
+  { label: '書いたこと', paths: ['/blog'] },
+  { label: '作ったもの', paths: ['/playground'] },
+  {
+    label: '集めているもの',
+    paths: ['/instruments', '/certifications', '/toys', '/books'],
+  },
+] as const satisfies readonly { label: string; paths: MainNavPath[] }[]
+
+/** コレクション（集めているもの）の第一階層の項目 */
+export const collectionNav = mainNav.filter((item) =>
+  (navGroups[2].paths as readonly string[]).includes(item.to),
+)
+
 /** to から第一階層の項目を取り出す */
 export function getNavItem(to: NavItem['to']): NavItem {
   const item = [...mainNav, contactNav].find((i) => i.to === to)
