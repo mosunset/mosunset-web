@@ -1,6 +1,10 @@
 import { Show, UserButton } from '@clerk/tanstack-react-start'
 import { Link } from '@tanstack/react-router'
 
+import {
+  SiteSearchButton,
+  SiteSearchIconButton,
+} from '@/components/layout/site-search'
 import { ThemeMenu } from '@/components/layout/theme-toggle'
 import { Separator } from '@/components/ui/separator'
 import { SidebarTrigger } from '@/components/ui/sidebar'
@@ -46,6 +50,8 @@ export function SiteHeader() {
       </nav>
 
       <div className="ml-auto flex items-center gap-1 lg:ml-2">
+        <SiteSearchButton className="mr-1 hidden lg:inline-flex" />
+        <SiteSearchIconButton className="lg:hidden" />
         <ThemeMenu />
         {/* 管理者がログインしているときだけ出す。公開側にはログインボタンを置かない */}
         <Show when="signed-in">

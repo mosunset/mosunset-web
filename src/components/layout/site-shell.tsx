@@ -4,6 +4,7 @@ import { AppBreadcrumb } from '@/components/layout/app-breadcrumb'
 import { AppSidebar } from '@/components/layout/app-sidebar'
 import { SiteFooter } from '@/components/layout/site-footer'
 import { SiteHeader } from '@/components/layout/site-header'
+import { SiteSearchDialog } from '@/components/layout/site-search'
 import { SidebarInset, SidebarProvider } from '@/components/ui/sidebar'
 
 /** 公開サイトのレイアウト（ヘッダー・必要なときだけ出るサイドバー・フッター） */
@@ -34,6 +35,7 @@ export function SiteShell({ children }: { children: React.ReactNode }) {
             <SiteFooter />
           </SidebarInset>
         </div>
+        <SiteSearchDialog />
       </SidebarProvider>
     </div>
   )
