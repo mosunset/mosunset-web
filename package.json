@@ -44,6 +44,7 @@
     "@tiptap/starter-kit": "^3.32.2",
     "@tiptap/static-renderer": "^3.32.2",
     "@tiptap/suggestion": "^3.32.2",
+    "barcode-detector": "3.2.3",
     "class-variance-authority": "^0.7.1",
     "cn": "^0.5.1",
     "drizzle-orm": "^0.45.4",
@@ -59,7 +60,8 @@
     "three": "^0.187.0",
     "ulid": "^3.0.2",
     "uuid": "^14.0.3",
-    "zod": "^4.6.7"
+    "zod": "^4.6.7",
+    "zxing-wasm": "3.1.6"
   },
   "devDependencies": {
     "@biomejs/biome": "2.4.5",

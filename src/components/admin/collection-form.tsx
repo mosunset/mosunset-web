@@ -42,6 +42,8 @@ type Props = {
   kind: CollectionKind
   /** 編集時は既存のアイテム。新規作成時は undefined */
   item?: Awaited<ReturnType<typeof getItemForAdmin>>
+  /** 新しく本を登録するときに、最初から入れて検索する ISBN（バーコードで読んだもの） */
+  initialIsbn?: string
 }
 
 type CollectionFields = {
@@ -54,7 +56,7 @@ type CollectionFields = {
   description: RichTextDoc
 }
 
-export function CollectionForm({ kind, item }: Props) {
+export function CollectionForm({ kind, item, initialIsbn }: Props) {
   const config = collections[kind]
   const router = useRouter()
   const save = useServerFn(saveItem)
@@ -63,14 +65,16 @@ export function CollectionForm({ kind, item }: Props) {
   const initial = useMemo<CollectionFields>(
     () => ({
       title: item?.title ?? '',
-      slug: item?.slug ?? '',
+      // 本の URL はふだん ISBN にしている
+      slug: item?.slug ?? initialIsbn ?? '',
       acquiredAt: item?.acquiredAt ?? '',
       published: item?.published ?? true,
       imageKey: item?.imageKey ?? null,
-      attributes: item?.attributes ?? {},
+      attributes:
+        item?.attributes ?? (initialIsbn ? { isbn: initialIsbn } : {}),
       description: item?.description ?? emptyDoc,
     }),
-    [item],
+    [item, initialIsbn],
   )
   const {
     fields,
@@ -78,6 +82,7 @@ export function CollectionForm({ kind, item }: Props) {
     set,
     dirty,
     editorKey,
+    refreshEditor,
     saving,
     savedAt,
     error,
@@ -100,6 +105,7 @@ export function CollectionForm({ kind, item }: Props) {
   const applyIsbnResult = (result: IsbnResult) => {
     const { fields: next, filled } = mergeIsbnResult(fields, result)
     setFields(next)
+    if (filled.includes('内容紹介')) refreshEditor()
 
     if (filled.length > 0) {
       toast.success(`「${result.title}」の${filled.join('・')}を入れました`)
@@ -202,6 +208,7 @@ export function CollectionForm({ kind, item }: Props) {
                   onChange={(value) => setAttribute('isbn', value)}
                   needCover={!fields.imageKey}
                   onFound={applyIsbnResult}
+                  autoSearch={!item && Boolean(initialIsbn)}
                 />
               ) : (
                 <AttributeInput

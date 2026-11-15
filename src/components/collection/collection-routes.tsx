@@ -1,4 +1,5 @@
 import { type AnyRouteMatch, getRouteApi } from '@tanstack/react-router'
+import { lazy, Suspense } from 'react'
 
 import {
   CollectionDetail,
@@ -7,6 +8,7 @@ import {
 } from '@/components/collection/collection-view'
 import { type ListSearch, listSearchValidator } from '@/components/list-view'
 import { SectionPage } from '@/components/section-page'
+import { getAdminStatus } from '@/functions/auth'
 import { getPublishedItem, listPublishedItems } from '@/functions/collections'
 import { collectionDetailHead } from '@/lib/collection-seo'
 import {
@@ -16,6 +18,13 @@ import {
 } from '@/lib/collections'
 import { getNavItem } from '@/lib/navigation'
 import { sectionHead } from '@/lib/seo'
+
+// バーコードの読み取りは管理者しか使わないので、押せるようになってから読み込む
+const BookScanner = lazy(() =>
+  import('@/components/collection/book-scanner').then((m) => ({
+    default: m.BookScanner,
+  })),
+)
 
 /**
  * コレクションの一覧ページ（/books/ など）の設定。
@@ -27,10 +36,17 @@ export function collectionIndexRoute(kind: CollectionKind) {
   const route = getRouteApi(`${config.path}/`)
 
   function Page() {
-    const items = route.useLoaderData()
+    const { items, admin } = route.useLoaderData()
     const search = route.useSearch() as ListSearch
     return (
       <SectionPage item={item}>
+        {admin && kind === 'book' && (
+          <div className="mb-4 flex justify-end">
+            <Suspense fallback={null}>
+              <BookScanner />
+            </Suspense>
+          </div>
+        )}
         <CollectionGrid kind={kind} items={items} search={search} />
       </SectionPage>
     )
@@ -39,7 +55,16 @@ export function collectionIndexRoute(kind: CollectionKind) {
   return {
     head: () => sectionHead(item),
     validateSearch: listSearchValidator(facetKeysOf(kind)),
-    loader: () => listPublishedItems({ data: { kind } }),
+    loader: async () => {
+      const [items, admin] = await Promise.all([
+        listPublishedItems({ data: { kind } }),
+        // 本の一覧では、管理者にだけ「バーコードで調べる」を出す
+        kind === 'book'
+          ? getAdminStatus().then((s) => s.status === 'admin')
+          : false,
+      ])
+      return { items, admin }
+    },
     component: Page,
   }
 }

@@ -88,4 +88,5 @@ drizzle/         D1 のマイグレーション
 ## 本番
 
 - 本番の D1・R2・Turnstile のサイトキーなどは `wrangler.jsonc` にあります。秘密の値（`CLERK_SECRET_KEY`・`ADMIN_USER_IDS`・`TURNSTILE_SECRET_KEY`）は `wrangler secret put <名前>` で入れます。
+- 本の ISBN 検索（管理画面と、本の一覧の「バーコードで調べる」）は、`RAKUTEN_APP_ID`（楽天ブックス。新しい窓口を使うときは `RAKUTEN_ACCESS_KEY` も）と `GOOGLE_BOOKS_API_KEY`（なくても動くが、キーなしは回数の上限にすぐ当たる）を `wrangler secret put` で入れると使えます。入っていないものは「使えませんでした」と出るだけで、ほかは動きます。
 - 本番のコンテンツは管理画面で直接編集します。`pnpm import:old-site` は開発用のデータベースにだけ入れます。

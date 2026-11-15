@@ -6,7 +6,7 @@ const commonHeaders: Record<string, string> = {
   'Referrer-Policy': 'strict-origin-when-cross-origin',
   // ほかのサイトの iframe に埋め込ませない（古いブラウザ向け。新しいブラウザは CSP の frame-ancestors）
   'X-Frame-Options': 'DENY',
-  // カメラ（物体認識）とマイク（音声入力）はこのサイトの中だけ。ほかの機能は使わない
+  // カメラ（物体認識・本のバーコード）とマイク（音声入力）はこのサイトの中だけ。ほかの機能は使わない
   'Permissions-Policy':
     'camera=(self), microphone=(self), geolocation=(), payment=(), usb=(), browsing-topics=()',
   // ほかのサイトから開かれたウィンドウと分ける（Clerk のポップアップは使えるようにしておく）

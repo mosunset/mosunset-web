@@ -143,6 +143,8 @@ export function useEditableForm<F extends object>({
     set,
     dirty,
     editorKey,
+    /** 本文をコードから書き換えたあと、エディターに読み直させる */
+    refreshEditor: () => setEditorKey((k) => k + 1),
     saving,
     autoSaving,
     savedAt,
