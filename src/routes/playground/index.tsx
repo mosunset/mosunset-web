@@ -107,15 +107,16 @@ function PlaygroundIndex() {
 
 /**
  * カード全体を押すとツールへ。名前のリンクをカードいっぱいに広げ（after:inset-0）、
- * カテゴリとタグはその上に重ねたボタンにして、押すとそれで絞り込む
+ * カテゴリとタグはその上に重ねたボタンにして、押すとそれで絞り込む。
+ * スマホでは、画像を左に小さく置いた横長のカードにする（縦に大きいカードが 25 枚並ぶと長すぎるため）
  */
 function ToolCards({ tools, list }: { tools: Tool[]; list: ListControls }) {
   return (
-    <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+    <ul className="grid gap-3 sm:grid-cols-2 sm:gap-4 lg:grid-cols-3">
       {tools.map((tool) => (
         <li key={tool.slug} id={listItemId(tool.slug)} className="scroll-mt-32">
-          <div className="group relative flex h-full flex-col overflow-hidden rounded-lg border transition-colors hover:bg-muted/40">
-            <div className="aspect-[1200/630] overflow-hidden border-b bg-muted/30">
+          <div className="group relative flex h-full gap-3 overflow-hidden rounded-lg border p-3 transition-colors hover:bg-muted/40 sm:flex-col sm:gap-0 sm:p-0">
+            <div className="aspect-[1200/630] w-28 shrink-0 self-start overflow-hidden rounded-md border bg-muted/30 sm:w-auto sm:self-auto sm:rounded-none sm:border-0 sm:border-b">
               <img
                 src={tool.thumbnail}
                 alt=""
@@ -123,7 +124,7 @@ function ToolCards({ tools, list }: { tools: Tool[]; list: ListControls }) {
                 className="size-full object-cover transition-transform duration-300 group-hover:scale-105"
               />
             </div>
-            <div className="flex flex-1 flex-col gap-1 p-4">
+            <div className="flex min-w-0 flex-1 flex-col gap-1 sm:p-4">
               <FilterValue
                 list={list}
                 facetKey="cat"
@@ -148,8 +149,15 @@ function ToolCards({ tools, list }: { tools: Tool[]; list: ListControls }) {
                   {formatDay(tool.publishedDate)}
                 </time>
                 {isRecent(tool.publishedDate) && <NewBadge />}
-                {tool.tags.slice(0, 3).map((tag) => (
-                  <FilterValue key={tag} list={list} facetKey="tag" value={tag}>
+                {/* スマホではタグを 2 つまで（カードを低く保つ） */}
+                {tool.tags.slice(0, 3).map((tag, i) => (
+                  <FilterValue
+                    key={tag}
+                    list={list}
+                    facetKey="tag"
+                    value={tag}
+                    className={i >= 2 ? 'hidden sm:inline' : undefined}
+                  >
                     #{tag}
                   </FilterValue>
                 ))}
