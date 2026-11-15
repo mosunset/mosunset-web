@@ -108,10 +108,6 @@ const aboutFacts = [
     label: '好きなこと',
     value: '小さなツール作り・自動化・吹奏楽・料理',
   },
-  {
-    label: '学習中',
-    value: 'データベーススペシャリスト・情報処理安全確保支援士',
-  },
 ]
 
 function Contents() {
