@@ -137,6 +137,8 @@ export function ContactForm({
       <Turnstile
         ref={turnstileRef}
         siteKey={turnstileSiteKey}
+        // 確認の枠（高さ 65px）があとから出ても下がずれないように、場所を先に取っておく
+        className="min-h-[65px]"
         options={{ language: 'ja', theme: 'auto' }}
         onSuccess={setToken}
         onExpire={() => setToken(null)}
