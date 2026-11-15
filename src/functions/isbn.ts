@@ -9,7 +9,12 @@ import {
   saveCover,
 } from '@/server/isbn'
 
-/** ISBN から書名・著者・出版社・表紙を調べる（管理者のみ） */
+/**
+ * ISBN から書名・著者・出版社・表紙を調べる（管理者のみ）
+ *
+ * TODO: 楽天ブックス書籍検索 API も調べる先に足す（表紙が大きく、内容紹介もある）。
+ * 2026-11-15 に楽天ウェブサービスのサイトが 503 でアプリ ID を発行できなかったので、発行できたら対応する
+ */
 export const lookupIsbn = createServerFn({ method: 'POST' })
   .middleware([adminMiddleware])
   .validator((data: unknown) =>
