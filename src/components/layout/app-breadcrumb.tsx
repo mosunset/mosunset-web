@@ -20,10 +20,19 @@ function CrumbLink({ to, ...props }: { to: string } & ComponentProps<'a'>) {
   return <Link to={to} search={(search ?? {}) as never} {...props} />
 }
 
-export function AppBreadcrumb({ className }: { className?: string }) {
+/**
+ * パンくず。minDepth 段より浅いページでは出さない
+ * （公開側は 3。「ホーム > ブログ」はヘッダーやページの見出しと同じことしか言わないので、一覧ページでは出さない）
+ */
+export function AppBreadcrumb({
+  className,
+  minDepth = 2,
+}: {
+  className?: string
+  minDepth?: number
+}) {
   const crumbs = resolveBreadcrumbs(useMatches())
-  // トップページ（ホームだけ）では出さない
-  if (crumbs.length <= 1) return null
+  if (crumbs.length < minDepth) return null
 
   return (
     <Breadcrumb className={className}>

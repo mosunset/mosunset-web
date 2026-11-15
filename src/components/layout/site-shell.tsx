@@ -28,7 +28,11 @@ export function SiteShell({ children }: { children: React.ReactNode }) {
         <div className="flex flex-1">
           <AppSidebar className="top-(--header-height) h-[calc(100svh-var(--header-height))]!" />
           <SidebarInset>
-            <AppBreadcrumb className="mx-auto w-full max-w-5xl px-6 pt-6" />
+            {/* 構造化データのパンくず（__root.tsx）は、一覧ページでもそのまま出す */}
+            <AppBreadcrumb
+              minDepth={3}
+              className="mx-auto w-full max-w-5xl px-6 pt-6"
+            />
             <div id="content" tabIndex={-1} className="flex-1 outline-none">
               {children}
             </div>
