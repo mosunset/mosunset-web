@@ -10,7 +10,7 @@ import { ZoomableImage } from '@/components/rich-text/image-viewer'
 import { RichTextContent } from '@/components/rich-text/rich-text-content'
 import { getPublishedPost } from '@/functions/posts'
 import { formatDate } from '@/lib/format'
-import { imagePath } from '@/lib/images'
+import { imagePath, imageSrcSet } from '@/lib/images'
 import {
   absoluteUrl,
   jsonLd,
@@ -116,6 +116,10 @@ function BlogPost() {
               alt={post.title}
               className="mb-6 rounded-lg border"
               imgClassName="aspect-[1200/630] w-full object-cover"
+              // スマホには小さい版（640px）を送り、ページでいちばん大きく出る写真なので優先して読む
+              srcSet={imageSrcSet(post.coverImageKey)}
+              sizes="(min-width: 816px) 768px, calc(100vw - 48px)"
+              fetchPriority="high"
             />
           )}
           <p className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted-foreground">

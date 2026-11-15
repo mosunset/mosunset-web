@@ -46,6 +46,7 @@ function Hero() {
         alt={site.image.alt}
         width={160}
         height={160}
+        fetchPriority="high"
         className="size-40 rounded-full object-cover shadow-lg"
       />
       <div className="space-y-3">

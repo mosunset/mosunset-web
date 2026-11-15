@@ -23,7 +23,7 @@ import {
 } from '@/components/list/use-list'
 import { listPublishedPosts } from '@/functions/posts'
 import { formatDate, isRecent, yearOf } from '@/lib/format'
-import { thumbnailUrl } from '@/lib/images'
+import { listImageLoading, thumbnailUrl } from '@/lib/images'
 import { listItemId } from '@/lib/list-memory'
 import { getNavItem } from '@/lib/navigation'
 import { sectionHead } from '@/lib/seo'
@@ -121,13 +121,15 @@ function BlogIndex() {
         <PostTable groups={groups} list={list} />
       ) : (
         <GroupedSections groups={groups}>
-          {(posts, grouped) =>
-            view === 'card' ? (
-              <PostCards posts={posts} grouped={grouped} />
+          {(posts, grouped) => {
+            // いちばん上のまとまりの最初の 1 枚だけ、表紙をすぐ読む
+            const eager = posts === groups[0]?.items ? 1 : 0
+            return view === 'card' ? (
+              <PostCards posts={posts} grouped={grouped} eager={eager} />
             ) : (
-              <PostList posts={posts} grouped={grouped} />
+              <PostList posts={posts} grouped={grouped} eager={eager} />
             )
-          }
+          }}
         </GroupedSections>
       )}
     </SectionPage>
@@ -169,13 +171,15 @@ type PostsProps = {
   posts: Post[]
   /** まとまりの見出し（h2）の下に並ぶとき */
   grouped: boolean
+  /** 先頭から何枚の表紙をすぐ読むか */
+  eager: number
 }
 
-function PostList({ posts, grouped }: PostsProps) {
+function PostList({ posts, grouped, eager }: PostsProps) {
   const Title = grouped ? 'h3' : 'h2'
   return (
     <ul className="divide-y">
-      {posts.map((post) => (
+      {posts.map((post, index) => (
         <li key={post.slug} id={listItemId(post.slug)} className="scroll-mt-32">
           <Link
             to="/blog/$slug"
@@ -197,7 +201,7 @@ function PostList({ posts, grouped }: PostsProps) {
               <img
                 src={thumbnailUrl(post.coverImageKey) ?? undefined}
                 alt=""
-                loading="lazy"
+                {...listImageLoading(index, eager)}
                 className="aspect-[4/3] w-24 shrink-0 self-start rounded-md border object-cover sm:w-40"
               />
             )}
@@ -208,11 +212,11 @@ function PostList({ posts, grouped }: PostsProps) {
   )
 }
 
-function PostCards({ posts, grouped }: PostsProps) {
+function PostCards({ posts, grouped, eager }: PostsProps) {
   const Title = grouped ? 'h3' : 'h2'
   return (
     <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-      {posts.map((post) => (
+      {posts.map((post, index) => (
         <li key={post.slug} id={listItemId(post.slug)} className="scroll-mt-32">
           <Link
             to="/blog/$slug"
@@ -224,7 +228,7 @@ function PostCards({ posts, grouped }: PostsProps) {
                 <img
                   src={thumbnailUrl(post.coverImageKey) ?? undefined}
                   alt=""
-                  loading="lazy"
+                  {...listImageLoading(index, eager)}
                   className="size-full object-cover transition-transform duration-300 group-hover:scale-105"
                 />
               )}

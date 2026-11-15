@@ -63,6 +63,7 @@ export function SiteHeader() {
           alt=""
           width={28}
           height={28}
+          fetchPriority="low"
           className="size-7 rounded-full object-cover"
         />
         {site.name}

@@ -15,6 +15,7 @@ import {
   type ViewMode,
 } from '@/components/list/use-list'
 import { formatDay, isRecent } from '@/lib/format'
+import { listImageLoading } from '@/lib/images'
 import { listItemId } from '@/lib/list-memory'
 import { getNavItem } from '@/lib/navigation'
 import { playgroundCategories, playgroundTools } from '@/lib/playground/tools'
@@ -113,14 +114,15 @@ function PlaygroundIndex() {
 function ToolCards({ tools, list }: { tools: Tool[]; list: ListControls }) {
   return (
     <ul className="grid gap-3 sm:grid-cols-2 sm:gap-4 lg:grid-cols-3">
-      {tools.map((tool) => (
+      {tools.map((tool, index) => (
         <li key={tool.slug} id={listItemId(tool.slug)} className="scroll-mt-32">
           <div className="group relative flex h-full gap-3 overflow-hidden rounded-lg border p-3 transition-colors hover:bg-muted/40 sm:flex-col sm:gap-0 sm:p-0">
             <div className="aspect-[1200/630] w-28 shrink-0 self-start overflow-hidden rounded-md border bg-muted/30 sm:w-auto sm:self-auto sm:rounded-none sm:border-0 sm:border-b">
               <img
                 src={tool.thumbnail}
                 alt=""
-                loading="lazy"
+                // 先頭の 1 枚はすぐ読む
+                {...listImageLoading(index, 1)}
                 className="size-full object-cover transition-transform duration-300 group-hover:scale-105"
               />
             </div>

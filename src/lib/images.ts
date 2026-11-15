@@ -34,3 +34,23 @@ export const thumbnailKey = (key: string) => `thumbs/${key}`
 export function thumbnailUrl(key: string | null | undefined) {
   return key ? imagePath(thumbnailKey(key)) : null
 }
+
+/**
+ * 一覧の写真の読み込み方。先頭から eager 枚はすぐ読み、ほかは近づいてから読む（lazy）。
+ * 先頭の 1 枚はページでいちばん大きく出るもの（LCP）になりやすいので、優先して読む。
+ * すぐ読む枚数を増やすと、JS や先頭の 1 枚と回線を取り合って、かえって遅くなるので、スマホでの 1 行目までにする
+ */
+export function listImageLoading(index: number, eager: number) {
+  return {
+    loading: index < eager ? ('eager' as const) : ('lazy' as const),
+    fetchPriority: index === 0 && eager > 0 ? ('high' as const) : undefined,
+  }
+}
+
+/**
+ * 詳しいページなどで大きく出す写真の srcset。スマホには一覧用の小さい画像（長い辺 640px）、
+ * 広い画面には元の画像を選ばせる（元の画像の幅はわからないので、上限の 2000px として書く）
+ */
+export function imageSrcSet(key: string) {
+  return `${imagePath(thumbnailKey(key))} ${THUMBNAIL_SIZE}w, ${imagePath(key)} 2000w`
+}

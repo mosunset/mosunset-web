@@ -40,7 +40,12 @@ import {
   statusMarkOf,
 } from '@/lib/collections/config'
 import { formatDay, isRecent } from '@/lib/format'
-import { imageUrl, thumbnailUrl } from '@/lib/images'
+import {
+  imageSrcSet,
+  imageUrl,
+  listImageLoading,
+  thumbnailUrl,
+} from '@/lib/images'
 import {
   type ListEntry,
   listItemId,
@@ -306,7 +311,14 @@ export function CollectionGrid({
         <CollectionTable kind={kind} groups={groups} list={list} />
       ) : view === 'gallery' ? (
         <GroupedSections groups={groups}>
-          {(items) => <CollectionGallery kind={kind} items={items} />}
+          {(items) => (
+            <CollectionGallery
+              kind={kind}
+              items={items}
+              // スマホでの 1 行目（3 枚）。表紙の形がまちまちで、どれがいちばん大きく出るか決まらない
+              eager={items === groups[0]?.items ? 3 : 0}
+            />
+          )}
         </GroupedSections>
       ) : (
         <>
@@ -329,6 +341,9 @@ export function CollectionGrid({
                   items={items}
                   grouped={grouped}
                   list={list}
+                  eager={
+                    featured.length === 0 && items === groups[0]?.items ? 2 : 0
+                  }
                 />
               )}
             </GroupedSections>
@@ -344,19 +359,22 @@ function CollectionCards({
   items,
   grouped,
   list,
+  eager = 0,
 }: {
   kind: CollectionKind
   items: ListItem[]
   /** まとまりの見出し（h2）の下に並ぶとき */
   grouped: boolean
   list: ListControls
+  /** 先頭から何枚の写真をすぐ読むか（いちばん上に出るまとまりの、スマホでの 1 行目） */
+  eager?: number
 }) {
   const config = collections[kind]
   const contain = imageFitOf(kind) === 'contain'
   const Title = grouped ? 'h3' : 'h2'
   return (
     <ul className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
-      {items.map((item) => {
+      {items.map((item, index) => {
         const src = thumbnailUrl(item.imageKey)
         return (
           <li
@@ -374,7 +392,7 @@ function CollectionCards({
                   <img
                     src={src}
                     alt=""
-                    loading="lazy"
+                    {...listImageLoading(index, eager)}
                     className={cn(
                       'size-full transition-transform duration-300 group-hover:scale-105',
                       contain ? 'object-contain p-2' : 'object-cover',
@@ -424,7 +442,7 @@ function FeaturedCards({
         </span>
       </h2>
       <ul className="grid grid-cols-2 gap-4 lg:grid-cols-3 lg:gap-6">
-        {items.map((item) => {
+        {items.map((item, index) => {
           const src = thumbnailUrl(item.imageKey)
           return (
             <li
@@ -445,7 +463,7 @@ function FeaturedCards({
                     <img
                       src={src}
                       alt=""
-                      loading="lazy"
+                      {...listImageLoading(index, 2)}
                       className="size-full object-contain p-3 drop-shadow-md transition-transform duration-300 group-hover:scale-[1.03] sm:p-5"
                     />
                   ) : (
@@ -472,15 +490,18 @@ function FeaturedCards({
 function CollectionGallery({
   kind,
   items,
+  eager = 0,
 }: {
   kind: CollectionKind
   items: ListItem[]
+  /** 先頭から何枚の写真をすぐ読むか */
+  eager?: number
 }) {
   const config = collections[kind]
   const contain = imageFitOf(kind) === 'contain'
   return (
     <ul className="grid grid-cols-3 gap-x-3 gap-y-4 sm:grid-cols-4 md:grid-cols-6">
-      {items.map((item) => {
+      {items.map((item, index) => {
         const src = thumbnailUrl(item.imageKey)
         return (
           <li
@@ -499,7 +520,7 @@ function CollectionGallery({
                   <img
                     src={src}
                     alt=""
-                    loading="lazy"
+                    {...listImageLoading(index, eager)}
                     className={cn(
                       'size-full transition-transform duration-300 group-hover:scale-105',
                       contain ? 'object-contain p-1' : 'object-cover',
@@ -868,6 +889,10 @@ export function CollectionDetail({
                 alt={item.title}
                 className="h-[min(55vh,28rem)] rounded-lg border bg-muted/30 md:aspect-[4/5] md:h-auto md:max-h-[70vh]"
                 imgClassName="size-full object-contain"
+                // スマホには小さい版（640px）を送り、ページでいちばん大きく出る写真なので優先して読む
+                srcSet={item.imageKey ? imageSrcSet(item.imageKey) : undefined}
+                sizes="(min-width: 768px) 400px, calc(100vw - 48px)"
+                fetchPriority="high"
               />
               <p className="mt-2 text-center text-xs text-muted-foreground">
                 クリックで拡大
