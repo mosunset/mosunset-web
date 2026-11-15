@@ -9,6 +9,13 @@ import { site } from '@/lib/site'
 const navLinkClass =
   'rounded-md px-3 py-2 text-sm text-muted-foreground transition-colors hover:text-foreground'
 
+/**
+ * ヘッダーの第一階層のリンク。今いる場所（その下のページも含む）は、
+ * 文字を濃くして、ヘッダーの下の線に重ねて太い線を引く
+ */
+const sectionLinkClass =
+  'relative flex items-center px-3 text-sm text-muted-foreground transition-colors hover:text-foreground after:absolute after:inset-x-2 after:-bottom-px after:h-0.5 after:rounded-full after:bg-transparent after:transition-colors data-[status=active]:font-medium data-[status=active]:text-foreground data-[status=active]:after:bg-foreground'
+
 export function SiteHeader() {
   return (
     <header className="sticky top-0 z-50 flex h-(--header-height) w-full shrink-0 items-center gap-2 border-b bg-background/95 px-4 backdrop-blur">
@@ -29,14 +36,9 @@ export function SiteHeader() {
         {site.name}
       </Link>
 
-      <nav className="ml-auto hidden items-center lg:flex">
+      <nav className="ml-auto hidden self-stretch lg:flex">
         {mainNav.map((item) => (
-          <Link
-            key={item.to}
-            to={item.to}
-            className={navLinkClass}
-            activeProps={{ className: 'font-medium text-foreground!' }}
-          >
+          <Link key={item.to} to={item.to} className={sectionLinkClass}>
             {item.title}
           </Link>
         ))}
