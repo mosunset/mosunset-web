@@ -1,8 +1,8 @@
 import { createFileRoute, notFound } from '@tanstack/react-router'
 
 import { NotFoundPage } from '@/components/common/not-found-page'
+import { preloadTool } from '@/components/playground/tool-modules'
 import { ToolPage } from '@/components/playground/tool-page'
-import { preloadTool } from '@/components/playground/tool-registry'
 import { findPlaygroundTool } from '@/lib/playground/tools'
 import { seo } from '@/lib/seo'
 

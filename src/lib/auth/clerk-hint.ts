@@ -26,3 +26,10 @@ export const readSignedInHint = createIsomorphicFn()
       }),
     ),
   )
+
+/** いつも Clerk を読み込むページ（管理画面・ログインの画面）。ほかのページでは、ログインしているらしいときだけ読み込む */
+export const isClerkPath = (pathname: string) =>
+  pathname === '/admin' ||
+  pathname.startsWith('/admin/') ||
+  pathname === '/sign-in' ||
+  pathname.startsWith('/sign-in/')

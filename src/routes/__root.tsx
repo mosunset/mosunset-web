@@ -1,6 +1,3 @@
-import { jaJP } from '@clerk/localizations'
-import { ClerkProvider } from '@clerk/tanstack-react-start'
-import { shadcn } from '@clerk/ui/themes'
 import { TanStackDevtools } from '@tanstack/react-devtools'
 import {
   type AnyRouteMatch,
@@ -14,13 +11,13 @@ import {
 } from '@tanstack/react-router'
 import { TanStackRouterDevtoolsPanel } from '@tanstack/react-router-devtools'
 import { useEffect } from 'react'
+import { ClerkRoot, preloadClerk } from '@/components/auth/clerk-loader'
 import { NotFoundPage } from '@/components/common/not-found-page'
+import { LazyToaster } from '@/components/layout/lazy-toaster'
 import { NavigationProgress } from '@/components/layout/navigation-progress'
 import { SiteShell } from '@/components/layout/site-shell'
-import { Toaster } from '@/components/ui/sonner'
 import { TooltipProvider } from '@/components/ui/tooltip'
-import { ClerkAvailableProvider } from '@/lib/auth/clerk-available'
-import { readSignedInHint } from '@/lib/auth/clerk-hint'
+import { isClerkPath, readSignedInHint } from '@/lib/auth/clerk-hint'
 import { resolveBreadcrumbs } from '@/lib/breadcrumbs'
 import {
   absoluteUrl,
@@ -144,7 +141,12 @@ export const Route = createRootRoute({
     }
   },
   // ログインしているらしいか（Clerk を読み込むか）。ページを移るたびに読み直す
-  loader: () => ({ signedInHint: readSignedInHint() }),
+  // Clerk を使うページ（管理画面・ログイン・ログイン中）では、描く前に Clerk の部品を読み込んでおく
+  loader: async ({ location }) => {
+    const signedInHint = readSignedInHint()
+    if (signedInHint || isClerkPath(location.pathname)) await preloadClerk()
+    return { signedInHint }
+  },
   notFoundComponent: NotFound,
   shellComponent: RootDocument,
 })
@@ -194,25 +196,18 @@ function RootDocument({ children }: { children: React.ReactNode }) {
       </head>
       <body>
         {isAdmin || needsClerk ? (
-          <ClerkProvider
-            nonce={nonce}
-            appearance={{ theme: shadcn }}
-            signInUrl="/sign-in"
-            localization={jaJP}
-          >
-            <ClerkAvailableProvider value>
-              <TooltipProvider>
-                {/* 管理画面は /admin のルートで専用のレイアウトを使う */}
-                {isAdmin ? children : <SiteShell>{children}</SiteShell>}
-                <Toaster theme={theme} richColors position="top-center" />
-                <NavigationProgress />
-              </TooltipProvider>
-            </ClerkAvailableProvider>
-          </ClerkProvider>
+          <ClerkRoot nonce={nonce}>
+            <TooltipProvider>
+              {/* 管理画面は /admin のルートで専用のレイアウトを使う */}
+              {isAdmin ? children : <SiteShell>{children}</SiteShell>}
+              <LazyToaster theme={theme} richColors position="top-center" />
+              <NavigationProgress />
+            </TooltipProvider>
+          </ClerkRoot>
         ) : (
           <TooltipProvider>
             <SiteShell>{children}</SiteShell>
-            <Toaster theme={theme} richColors position="top-center" />
+            <LazyToaster theme={theme} richColors position="top-center" />
             <NavigationProgress />
           </TooltipProvider>
         )}

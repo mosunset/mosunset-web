@@ -1,7 +1,9 @@
 import { createFileRoute } from '@tanstack/react-router'
 
-import { collectionIndexRoute } from '@/components/collection/collection-routes'
+import { CollectionIndexPage } from '@/components/collection/collection-pages'
+import { collectionIndexOptions } from '@/components/collection/collection-routes'
 
-export const Route = createFileRoute('/instruments/')(
-  collectionIndexRoute('instrument'),
-)
+export const Route = createFileRoute('/instruments/')({
+  ...collectionIndexOptions('instrument'),
+  component: () => <CollectionIndexPage kind="instrument" />,
+})

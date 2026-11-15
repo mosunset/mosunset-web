@@ -1,16 +1,6 @@
-import { type AnyRouteMatch, getRouteApi } from '@tanstack/react-router'
-import { lazy, Suspense } from 'react'
+import type { AnyRouteMatch } from '@tanstack/react-router'
 
-import {
-  CollectionDetail,
-  CollectionGrid,
-  CollectionNotFound,
-} from '@/components/collection/collection-view'
-import { SectionPage } from '@/components/common/section-page'
-import {
-  type ListSearch,
-  listSearchValidator,
-} from '@/components/list/use-list'
+import { listSearchValidator } from '@/components/list/list-search'
 import { getAdminStatus } from '@/functions/auth'
 import { getPublishedItem, listPublishedItems } from '@/functions/collections'
 import {
@@ -22,39 +12,16 @@ import { collectionDetailHead } from '@/lib/collections/seo'
 import { getNavItem } from '@/lib/navigation'
 import { sectionHead } from '@/lib/seo'
 
-// バーコードの読み取りは管理者しか使わないので、押せるようになってから読み込む
-const BookScanner = lazy(() =>
-  import('@/components/collection/book-scanner').then((m) => ({
-    default: m.BookScanner,
-  })),
-)
-
 /**
- * コレクションの一覧ページ（/books/ など）の設定。
- * createFileRoute('<パス>') はコード生成のために各ファイルで呼ぶので、中身だけをここで作る
+ * コレクションのルート（/books/ と /books/$slug など）の設定のうち、ページの部品以外。
+ * createFileRoute('<パス>') はコード生成のために各ファイルで呼び、部品（collection-pages.tsx）は
+ * 各ファイルの component にその場で書く。そうすると、部品の JS はそのページを開いたときだけ読まれる
+ * （設定はどのページでも読まれるので、ここには重いものを import しない）
  */
-export function collectionIndexRoute(kind: CollectionKind) {
-  const config = collections[kind]
-  const item = getNavItem(config.path)
-  const route = getRouteApi(`${config.path}/`)
 
-  function Page() {
-    const { items, admin } = route.useLoaderData()
-    const search = route.useSearch() as ListSearch
-    return (
-      <SectionPage item={item}>
-        {admin && kind === 'book' && (
-          <div className="mb-4 flex justify-end">
-            <Suspense fallback={null}>
-              <BookScanner />
-            </Suspense>
-          </div>
-        )}
-        <CollectionGrid kind={kind} items={items} search={search} />
-      </SectionPage>
-    )
-  }
-
+/** 一覧ページの設定 */
+export function collectionIndexOptions(kind: CollectionKind) {
+  const item = getNavItem(collections[kind].path)
   return {
     head: () => sectionHead(item),
     validateSearch: listSearchValidator(facetKeysOf(kind)),
@@ -68,21 +35,13 @@ export function collectionIndexRoute(kind: CollectionKind) {
       ])
       return { items, admin }
     },
-    component: Page,
   }
 }
 
 type Detail = Awaited<ReturnType<typeof getPublishedItem>>
 
-/** コレクションの詳細ページ（/books/$slug など）の設定 */
-export function collectionDetailRoute(kind: CollectionKind) {
-  const route = getRouteApi(collections[kind].detailPath)
-
-  function Page() {
-    const item = route.useLoaderData()
-    return <CollectionDetail kind={kind} item={item} />
-  }
-
+/** 詳しいページの設定 */
+export function collectionDetailOptions(kind: CollectionKind) {
   return {
     loader: ({ params }: { params: { slug: string } }) =>
       getPublishedItem({ data: { kind, slug: params.slug } }),
@@ -95,7 +54,5 @@ export function collectionDetailRoute(kind: CollectionKind) {
     },
     head: ({ loaderData }: { loaderData?: Detail }) =>
       collectionDetailHead(kind, loaderData),
-    component: Page,
-    notFoundComponent: () => <CollectionNotFound kind={kind} />,
   }
 }

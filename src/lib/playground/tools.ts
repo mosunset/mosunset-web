@@ -2,7 +2,7 @@
  * プレイグラウンドのツール一覧。ツールそのものがコードなので、管理画面ではなくここで管理する。
  * ツールを足すときは、ここに 1 件足し、src/components/playground/tools/<slug>/ を作り、
  * public/playground/<slug>/thumbnail.webp を置く（ページは /playground/$slug の 1 つのルートが出す）。
- * フォルダの中身は src/components/playground/tool-registry.tsx の説明のとおり
+ * フォルダの中身は src/components/playground/tool-modules.ts の説明のとおり
  * （入口の index.tsx か browser.tsx・使い方の usage.ts・下に出す文章の after.tsx）
  */
 type PlaygroundTool = {

@@ -1,11 +1,10 @@
-import { Show, UserButton } from '@clerk/tanstack-react-start'
 import {
   Link,
   useLocation,
   useMatches,
   useMatchRoute,
 } from '@tanstack/react-router'
-import { ChevronDown, LayoutDashboard, Pencil } from 'lucide-react'
+import { ChevronDown, Pencil } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 
 import {
@@ -21,7 +20,7 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { Separator } from '@/components/ui/separator'
 import { SidebarTrigger } from '@/components/ui/sidebar'
-import { useClerkAvailable } from '@/lib/auth/clerk-available'
+import { useClerkUi } from '@/lib/auth/clerk-ui'
 import { resolveEditHref } from '@/lib/breadcrumbs'
 import { collectionNav, mainNav } from '@/lib/navigation'
 import { site } from '@/lib/site'
@@ -44,7 +43,7 @@ export function SiteHeader() {
   const editHref = resolveEditHref(useMatches())
   const headerRef = useRef<HTMLElement>(null)
   const hidden = useHideOnScroll(headerRef)
-  const clerkAvailable = useClerkAvailable()
+  const clerkUi = useClerkUi()
 
   return (
     <header
@@ -108,15 +107,7 @@ export function SiteHeader() {
         )}
         {/* 管理者がログインしているときだけ出す。公開側にはログインボタンを置かない
             （ログインしていない訪問者には Clerk を読み込まないので、そのときは何も出さない） */}
-        {clerkAvailable && (
-          <Show when="signed-in">
-            <Link to="/admin" aria-label="管理画面" className={navLinkClass}>
-              <LayoutDashboard className="lg:hidden" />
-              <span className="hidden lg:inline">管理</span>
-            </Link>
-            <UserButton />
-          </Show>
-        )}
+        {clerkUi && <clerkUi.HeaderAccount linkClassName={navLinkClass} />}
       </div>
     </header>
   )

@@ -11,11 +11,11 @@ import {
   groupItems,
   NoMatches,
 } from '@/components/list/grouped-sections'
+import { listSearchValidator } from '@/components/list/list-search'
 import { SortableHeader, TableGroupRow } from '@/components/list/list-table'
 import { ListToolbar } from '@/components/list/list-toolbar'
 import {
   type ListControls,
-  listSearchValidator,
   parseColumnSort,
   type SortColumn,
   useList,

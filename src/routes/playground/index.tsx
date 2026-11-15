@@ -4,12 +4,12 @@ import { NewBadge } from '@/components/common/item-badges'
 import { SectionPage } from '@/components/common/section-page'
 import { FilterValue } from '@/components/list/filters'
 import { NoMatches } from '@/components/list/grouped-sections'
+import { listSearchValidator } from '@/components/list/list-search'
 import { SortableHeader } from '@/components/list/list-table'
 import { ListToolbar } from '@/components/list/list-toolbar'
 import {
   type Facet,
   type ListControls,
-  listSearchValidator,
   type SortColumn,
   useList,
   type ViewMode,
