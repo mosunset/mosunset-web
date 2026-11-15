@@ -10,9 +10,16 @@
 
 ```bash
 pnpm install
-pnpm db:migrate:local   # 開発用のデータベースを作る
-pnpm import:old-site    # 旧サイトのコンテンツを開発用のデータベースに入れる（任意）
+pnpm db:migrate:local   # 開発用のデータベースを作る（中身は空）
 pnpm dev                # http://localhost:3000
+```
+
+本番の記事とコレクションで試したいときは、作ったばかりの空の開発用データベースに本番から写します
+（お問い合わせは写さない。画像は本番の R2 にあるので、手元では表示されません）。
+
+```bash
+npx wrangler d1 export mosunset-web --remote --no-schema --table posts --table collection_items --output .wrangler/prod-data.sql
+npx wrangler d1 execute mosunset-web --local --file .wrangler/prod-data.sql
 ```
 
 開発用の秘密の値は `.dev.vars` に書きます（Git には入れない）。
@@ -59,9 +66,9 @@ src/
   server/        サーバーの中だけで使う処理（DB・R2・認証・メール・Turnstile・本文の無害化・ヘッダー・フィードなど）
   lib/           画面とサーバーの両方で使う処理（SEO・コレクションの定義・画像の URL など）
   start.ts       リクエストごとのミドルウェア（セキュリティのヘッダー・CSRF・Clerk）
-content/migration/  旧サイトから移したコンテンツの手直し版（取り込みスクリプト用）
-scripts/         旧サイトの取り込みと、画像を本番の R2 に送るスクリプト
 drizzle/         D1 のマイグレーション
+docs/            開発用のドキュメント（仕様・設計メモ）
+.github/         GitHub Actions（main に push されたらデプロイ）
 ```
 
 中身は 3 つの層に分けています。
@@ -90,4 +97,4 @@ drizzle/         D1 のマイグレーション
 
 - 本番の D1・R2・Turnstile のサイトキーなどは `wrangler.jsonc` にあります。秘密の値（`CLERK_SECRET_KEY`・`ADMIN_USER_IDS`・`TURNSTILE_SECRET_KEY`）は `wrangler secret put <名前>` で入れます。
 - 本の ISBN 検索（管理画面と、本の一覧の「バーコードで調べる」）は、`RAKUTEN_APP_ID`（楽天ブックス。新しい窓口を使うときは `RAKUTEN_ACCESS_KEY` も）と `GOOGLE_BOOKS_API_KEY`（なくても動くが、キーなしは回数の上限にすぐ当たる）を `wrangler secret put` で入れると使えます。入っていないものは「使えませんでした」と出るだけで、ほかは動きます。
-- 本番のコンテンツは管理画面で直接編集します。`pnpm import:old-site` は開発用のデータベースにだけ入れます。
+- 本番のコンテンツは管理画面で直接編集します。旧サイトからの移行は 2026-11 に済んでいます（旧サイトの中身は Git の履歴 `0fa6d60` にあります）。
