@@ -9,10 +9,21 @@ declare module '@tanstack/react-router' {
      * 動的ルートでは関数にすると params や loaderData から生成できる。
      */
     breadcrumb?: string | ((match: AnyRouteMatch) => string | undefined)
+    /**
+     * 管理者がこのページを見ているときの、編集画面の URL（ヘッダーの「編集」）。
+     * loaderData に管理者のときだけ入る ID から作り、なければ undefined
+     */
+    editHref?: (match: AnyRouteMatch) => string | undefined
   }
 }
 
 type Crumb = { label: string; pathname: string }
+
+/** いちばん奥のページの編集画面の URL（staticData.editHref）。管理者でなければ undefined */
+export function resolveEditHref(matches: AnyRouteMatch[]) {
+  const leaf = matches.at(-1)
+  return leaf?.staticData?.editHref?.(leaf)
+}
 
 /** マッチしているルートの staticData.breadcrumb からパンくずを組み立てる */
 export function resolveBreadcrumbs(matches: AnyRouteMatch[]): Crumb[] {

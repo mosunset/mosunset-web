@@ -61,6 +61,8 @@ export const getPublishedPost = createServerFn({ method: 'GET' })
       updatedAt: post.updatedAt,
       html: renderRichText(post.content),
       draft: post.status !== 'published',
+      /** 管理者のログイン中だけ入れる（ヘッダーの「編集」の行き先） */
+      editId: admin ? post.id : undefined,
     }
   })
 

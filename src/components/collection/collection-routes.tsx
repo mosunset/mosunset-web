@@ -60,6 +60,10 @@ export function collectionDetailRoute(kind: CollectionKind) {
       getPublishedItem({ data: { kind, slug: params.slug } }),
     staticData: {
       breadcrumb: (match: AnyRouteMatch) => match.loaderData?.title,
+      editHref: (match: AnyRouteMatch) =>
+        match.loaderData?.editId
+          ? `/admin/collections/${kind}/${match.loaderData.editId}`
+          : undefined,
     },
     head: ({ loaderData }: { loaderData?: Detail }) =>
       collectionDetailHead(kind, loaderData),

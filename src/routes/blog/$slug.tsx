@@ -20,6 +20,10 @@ export const Route = createFileRoute('/blog/$slug')({
   loader: ({ params }) => getPublishedPost({ data: { slug: params.slug } }),
   staticData: {
     breadcrumb: (match) => match.loaderData?.title,
+    editHref: (match) =>
+      match.loaderData?.editId
+        ? `/admin/posts/${match.loaderData.editId}`
+        : undefined,
   },
   head: ({ loaderData }) =>
     loaderData

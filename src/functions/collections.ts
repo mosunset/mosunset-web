@@ -170,6 +170,8 @@ export const getPublishedItem = createServerFn({ method: 'GET' })
       draft: !item.published,
       /** 同じ種類のもの全部の、一覧のふだんの並び（slug と名前だけ） */
       siblings,
+      /** 管理者のログイン中だけ入れる（ヘッダーの「編集」の行き先） */
+      editId: admin ? item.id : undefined,
     }
   })
 

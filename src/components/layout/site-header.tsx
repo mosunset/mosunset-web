@@ -1,5 +1,6 @@
 import { Show, UserButton } from '@clerk/tanstack-react-start'
-import { Link } from '@tanstack/react-router'
+import { Link, useMatches } from '@tanstack/react-router'
+import { Pencil } from 'lucide-react'
 
 import {
   SiteSearchButton,
@@ -8,6 +9,7 @@ import {
 import { ThemeMenu } from '@/components/layout/theme-toggle'
 import { Separator } from '@/components/ui/separator'
 import { SidebarTrigger } from '@/components/ui/sidebar'
+import { resolveEditHref } from '@/lib/breadcrumbs'
 import { mainNav } from '@/lib/navigation'
 import { site } from '@/lib/site'
 
@@ -22,6 +24,9 @@ const sectionLinkClass =
   'relative flex items-center px-3 text-sm text-muted-foreground transition-colors hover:text-foreground after:absolute after:inset-x-2 after:-bottom-px after:h-0.5 after:rounded-full after:bg-transparent after:transition-colors data-[status=active]:font-medium data-[status=active]:text-foreground data-[status=active]:after:bg-foreground'
 
 export function SiteHeader() {
+  // 管理者が記事やコレクションのページを見ているときだけ、その編集画面へのリンクを出す
+  const editHref = resolveEditHref(useMatches())
+
   return (
     <header className="sticky top-0 z-50 flex h-(--header-height) w-full shrink-0 items-center gap-2 border-b bg-background/95 px-4 backdrop-blur">
       {/* 狭い画面ではメニューをサイドバー（ドロワー）で開く */}
@@ -53,6 +58,16 @@ export function SiteHeader() {
         <SiteSearchButton className="mr-1 hidden lg:inline-flex" />
         <SiteSearchIconButton className="lg:hidden" />
         <ThemeMenu />
+        {editHref && (
+          <Link
+            to={editHref}
+            aria-label="このページを編集"
+            className={`${navLinkClass} inline-flex items-center gap-1.5`}
+          >
+            <Pencil className="size-4" />
+            <span className="hidden sm:inline">編集</span>
+          </Link>
+        )}
         {/* 管理者がログインしているときだけ出す。公開側にはログインボタンを置かない */}
         <Show when="signed-in">
           <Link to="/admin" className={navLinkClass}>
