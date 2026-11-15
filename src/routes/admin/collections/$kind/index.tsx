@@ -18,7 +18,7 @@ import {
 import { CSS } from '@dnd-kit/utilities'
 import { createFileRoute, Link, useRouter } from '@tanstack/react-router'
 import { useServerFn } from '@tanstack/react-start'
-import { GripVertical, ImageOff, Plus } from 'lucide-react'
+import { GripVertical, ImageOff, ListChecks, Plus } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { toast } from 'sonner'
 
@@ -27,7 +27,11 @@ import { ListFilter } from '@/components/admin/list-filter'
 import { EmptyState } from '@/components/empty-state'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { listItemsForAdmin, reorderItems } from '@/functions/collections'
+import {
+  listItemsForAdmin,
+  reorderItems,
+  setItemsPublished,
+} from '@/functions/collections'
 import { useListFilter } from '@/hooks/use-list-filter'
 import {
   type CollectionKind,
@@ -78,8 +82,59 @@ function AdminCollectionItems() {
     items,
     listFilterOptions,
   )
+
+  // まとめて公開・非公開にするために選んでいるもの（選んでいるあいだは並び替えない）
+  const setPublished = useServerFn(setItemsPublished)
+  const [selecting, setSelecting] = useState(false)
+  const [selected, setSelected] = useState<ReadonlySet<string>>(new Set())
+  const [applying, setApplying] = useState(false)
+  // 選んだもののうち、今の絞り込みで見えているもの（見えていないものは操作しない）
+  const selectedVisible = visible.filter((i) => selected.has(i.id))
+  const allVisibleSelected =
+    visible.length > 0 && selectedVisible.length === visible.length
+  const toggle = (id: string, on: boolean) =>
+    setSelected((prev) => {
+      const next = new Set(prev)
+      if (on) next.add(id)
+      else next.delete(id)
+      return next
+    })
+  const stopSelecting = () => {
+    setSelecting(false)
+    setSelected(new Set())
+  }
+  const applyPublished = async (published: boolean) => {
+    const targets = selectedVisible.filter((i) => i.published !== published)
+    if (targets.length === 0) {
+      toast.info(
+        published ? 'どれも公開になっています' : 'どれも非公開になっています',
+      )
+      return
+    }
+    const message = published
+      ? `${targets.length} 件を公開します。公開ページに出るようになります。`
+      : `${targets.length} 件を非公開にします。公開ページから見えなくなります。`
+    if (!window.confirm(message)) return
+    setApplying(true)
+    try {
+      await setPublished({
+        data: { kind, ids: targets.map((i) => i.id), published },
+      })
+      toast.success(
+        `${targets.length} 件を${published ? '公開' : '非公開に'}しました`,
+      )
+      stopSelecting()
+      router.invalidate()
+    } catch (e) {
+      toast.error(errorMessage(e, 'まとめて変えられませんでした'))
+    } finally {
+      setApplying(false)
+    }
+  }
+
   // 絞り込み中は見えていないものとの前後関係がわからないので、並び替えは全件表示のときだけ
-  const canReorder = query.trim() === '' && filter === 'all' && items.length > 1
+  const canReorder =
+    !selecting && query.trim() === '' && filter === 'all' && items.length > 1
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
@@ -137,14 +192,74 @@ function AdminCollectionItems() {
                 .join('・')}など）`}
             />
           </div>
-          <p className="mt-3 text-xs text-muted-foreground">
-            {visible.length} / {items.length} 件
-            {canReorder
-              ? '・左のつまみをドラッグして並び替え（スマホは長押し）'
-              : items.length > 1
-                ? '・並び替えは検索・絞り込みを解除すると使えます'
-                : ''}
-          </p>
+          <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-2">
+            <p className="text-xs text-muted-foreground">
+              {visible.length} / {items.length} 件
+              {selecting
+                ? `・${selectedVisible.length} 件を選んでいます`
+                : canReorder
+                  ? '・左のつまみをドラッグして並び替え（スマホは長押し）'
+                  : items.length > 1
+                    ? '・並び替えは検索・絞り込みを解除すると使えます'
+                    : ''}
+            </p>
+            {!selecting && (
+              <Button
+                variant="outline"
+                size="sm"
+                className="ml-auto"
+                onClick={() => setSelecting(true)}
+              >
+                <ListChecks />
+                まとめて公開・非公開
+              </Button>
+            )}
+          </div>
+
+          {selecting && (
+            <div className="sticky top-(--header-height) z-10 mt-2 flex flex-wrap items-center gap-2 rounded-lg border bg-background/95 p-2 shadow-sm backdrop-blur">
+              <label className="flex items-center gap-2 px-1 text-sm">
+                <input
+                  type="checkbox"
+                  className="size-4"
+                  checked={allVisibleSelected}
+                  onChange={(e) =>
+                    setSelected(
+                      e.target.checked
+                        ? new Set(visible.map((i) => i.id))
+                        : new Set(),
+                    )
+                  }
+                />
+                表示中のものをすべて選ぶ
+              </label>
+              <div className="ml-auto flex flex-wrap gap-2">
+                <Button
+                  size="sm"
+                  disabled={applying || selectedVisible.length === 0}
+                  onClick={() => applyPublished(true)}
+                >
+                  公開にする
+                </Button>
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  disabled={applying || selectedVisible.length === 0}
+                  onClick={() => applyPublished(false)}
+                >
+                  非公開にする
+                </Button>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  disabled={applying}
+                  onClick={stopSelecting}
+                >
+                  やめる
+                </Button>
+              </div>
+            </div>
+          )}
 
           {visible.length === 0 ? (
             <EmptyState className="mt-4">
@@ -168,6 +283,14 @@ function AdminCollectionItems() {
                       kind={kind}
                       item={item}
                       draggable={canReorder}
+                      selection={
+                        selecting
+                          ? {
+                              checked: selected.has(item.id),
+                              onChange: (on) => toggle(item.id, on),
+                            }
+                          : undefined
+                      }
                     />
                   ))}
                 </ul>
@@ -184,10 +307,13 @@ function SortableRow({
   kind,
   item,
   draggable,
+  selection,
 }: {
   kind: CollectionKind
   item: Item
   draggable: boolean
+  /** まとめて操作するために選んでいるあいだだけ渡す（行を押すと選ぶ・外す） */
+  selection?: { checked: boolean; onChange: (checked: boolean) => void }
 }) {
   const {
     attributes,
@@ -200,6 +326,52 @@ function SortableRow({
   } = useSortable({ id: item.id, disabled: !draggable })
   const src = thumbnailUrl(item.imageKey)
   const subtitle = itemSubtitle(kind, item.attributes)
+
+  const content = (
+    <>
+      <div className="size-12 shrink-0 overflow-hidden rounded-md border bg-muted/30 sm:size-14">
+        {src ? (
+          <img
+            src={src}
+            alt=""
+            loading="lazy"
+            className="size-full object-cover"
+          />
+        ) : (
+          <div className="flex size-full items-center justify-center text-muted-foreground">
+            <ImageOff className="size-4" />
+          </div>
+        )}
+      </div>
+      <div className="min-w-0 flex-1">
+        <div className="truncate font-medium">{item.title}</div>
+        <div className="truncate text-sm text-muted-foreground">
+          {subtitle || `${collections[kind].path}/${item.slug}`}
+        </div>
+      </div>
+      {item.published ? (
+        <Badge>公開</Badge>
+      ) : (
+        <Badge variant="secondary">非公開</Badge>
+      )}
+    </>
+  )
+
+  if (selection) {
+    return (
+      <li className={cn('bg-background', selection.checked && 'bg-muted/40')}>
+        <label className="flex cursor-pointer items-center gap-3 py-3 pr-4 pl-3 hover:bg-muted/30 sm:gap-4">
+          <input
+            type="checkbox"
+            className="size-4 shrink-0"
+            checked={selection.checked}
+            onChange={(e) => selection.onChange(e.target.checked)}
+          />
+          {content}
+        </label>
+      </li>
+    )
+  }
 
   return (
     <li
@@ -230,31 +402,7 @@ function SortableRow({
           !draggable && 'pl-4',
         )}
       >
-        <div className="size-12 shrink-0 overflow-hidden rounded-md border bg-muted/30 sm:size-14">
-          {src ? (
-            <img
-              src={src}
-              alt=""
-              loading="lazy"
-              className="size-full object-cover"
-            />
-          ) : (
-            <div className="flex size-full items-center justify-center text-muted-foreground">
-              <ImageOff className="size-4" />
-            </div>
-          )}
-        </div>
-        <div className="min-w-0 flex-1">
-          <div className="truncate font-medium">{item.title}</div>
-          <div className="truncate text-sm text-muted-foreground">
-            {subtitle || `${collections[kind].path}/${item.slug}`}
-          </div>
-        </div>
-        {item.published ? (
-          <Badge>公開</Badge>
-        ) : (
-          <Badge variant="secondary">非公開</Badge>
-        )}
+        {content}
       </Link>
     </li>
   )

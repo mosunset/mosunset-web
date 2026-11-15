@@ -1,6 +1,6 @@
 import { notFound } from '@tanstack/react-router'
 import { createServerFn } from '@tanstack/react-start'
-import { and, asc, desc, eq, ne } from 'drizzle-orm'
+import { and, asc, desc, eq, inArray, ne } from 'drizzle-orm'
 import { z } from 'zod'
 import { adminMiddleware } from '@/functions/auth'
 import { collectionKinds } from '@/lib/collection-kinds'
@@ -315,6 +315,37 @@ export const reorderItems = createServerFn({ method: 'POST' })
         .where(and(eq(items.id, itemId), eq(items.kind, data.kind))),
     )
     // D1 の batch は 1 回の往復でまとめて実行される
+    await db.batch([first, ...rest])
+    return { ok: true }
+  })
+
+/**
+ * 一覧で選んだものを、まとめて公開・非公開にする。
+ * D1 は 1 回の問い合わせに渡せる値の数に上限（100）があるので、90 件ずつに分けて 1 回の往復で送る
+ */
+export const setItemsPublished = createServerFn({ method: 'POST' })
+  .middleware([adminMiddleware])
+  .validator((data: unknown) =>
+    z
+      .object({
+        kind: kindSchema,
+        ids: z.array(z.string()).min(1).max(1000),
+        published: z.boolean(),
+      })
+      .parse(data),
+  )
+  .handler(async ({ data }) => {
+    const db = getDb()
+    const chunks: string[][] = []
+    for (let i = 0; i < data.ids.length; i += 90) {
+      chunks.push(data.ids.slice(i, i + 90))
+    }
+    const [first, ...rest] = chunks.map((ids) =>
+      db
+        .update(items)
+        .set({ published: data.published })
+        .where(and(eq(items.kind, data.kind), inArray(items.id, ids))),
+    )
     await db.batch([first, ...rest])
     return { ok: true }
   })
