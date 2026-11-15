@@ -3,8 +3,10 @@ import {
   Download,
   ImagePlus,
   Loader2,
+  Magnet,
   RotateCw,
   Scan,
+  ScanSearch,
   Sparkles,
   Spline,
 } from 'lucide-react'
@@ -15,6 +17,7 @@ import { toast } from 'sonner'
 import { HelpTip, RangeSlider, Stat } from '@/components/playground/parts'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
+import { autoDetect, CONFIDENT_SCORE, fitEdges } from './detect'
 import { makeSamplePhoto, sampleQuad } from './sample'
 import {
   arcLength,
@@ -163,6 +166,20 @@ function defaultQuad(w: number, h: number): Quad {
   }
 }
 
+/** 四隅を写真の中に収める */
+function clampQuad(q: Quad, w: number, h: number): Quad {
+  return {
+    corners: q.corners.map((p) => ({
+      x: Math.min(w, Math.max(0, p.x)),
+      y: Math.min(h, Math.max(0, p.y)),
+    })) as Quad['corners'],
+    handles: q.handles,
+  }
+}
+
+/** 重い計算の前に、「調べています」を先に描かせる */
+const nextPaint = () => new Promise((r) => setTimeout(r, 30))
+
 function cloneQuad(q: Quad): Quad {
   return {
     corners: q.corners.map((p) => ({ ...p })) as Quad['corners'],
@@ -278,6 +295,7 @@ export function PerspectiveCorrection() {
   const [quality, setQuality] = useState(92)
   const [jpegBg, setJpegBg] = useState('#ffffff')
   const [opening, setOpening] = useState(false)
+  const [detecting, setDetecting] = useState(false)
   const [exporting, setExporting] = useState(false)
   const previewRef = useRef<HTMLCanvasElement>(null)
 
@@ -298,8 +316,14 @@ export function PerspectiveCorrection() {
     try {
       const p = await loadPhoto(url, name, revoke)
       setPhoto(p)
-      setQuad(initial ? cloneQuad(initial) : defaultQuad(p.width, p.height))
-      if (initial && !isStraight(initial)) setCurved(true)
+      if (initial) {
+        setQuad(cloneQuad(initial))
+        if (!isStraight(initial)) setCurved(true)
+      } else {
+        // 開いたら、まず自動で四隅と辺を探す
+        setQuad(defaultQuad(p.width, p.height))
+        await detect(p, true)
+      }
     } catch {
       if (revoke) URL.revokeObjectURL(url)
       toast.error(
@@ -307,6 +331,52 @@ export function PerspectiveCorrection() {
       )
     } finally {
       setOpening(false)
+    }
+  }
+
+  /** 写真の中の四角いものを自動で探す（quiet なら、見つかったときは何も言わない） */
+  const detect = async (p: Photo, quiet = false) => {
+    setDetecting(true)
+    await nextPaint()
+    try {
+      const found = autoDetect(p.preview, p.width, p.height)
+      if (!found) {
+        toast.error(
+          '四角いものを見つけられませんでした。角をドラッグして合わせてください',
+        )
+        return
+      }
+      setQuad(clampQuad(found.quad, p.width, p.height))
+      if (!isStraight(found.quad)) setCurved(true)
+      if (found.score < CONFIDENT_SCORE) {
+        toast.warning(
+          'はっきりした四角形が見つからなかったので、いちばん近いものに合わせました。角を確かめてください',
+        )
+      } else if (!quiet) {
+        toast.success('四隅と辺を合わせました')
+      }
+    } catch {
+      toast.error('自動で探せませんでした')
+    } finally {
+      setDetecting(false)
+    }
+  }
+
+  /** 手で置いた四隅を手がかりに、辺の本当の位置へ寄せる */
+  const snapEdges = async () => {
+    if (!photo || !quad) return
+    setDetecting(true)
+    await nextPaint()
+    try {
+      const diag = Math.hypot(photo.width, photo.height)
+      // 広く探すと、箱の側面の向こう側の辺まで行ってしまうので、近くだけを探す
+      const fitted = fitEdges(photo.preview, quad, diag * 0.008)
+      setQuad(clampQuad(fitted, photo.width, photo.height))
+      if (!isStraight(fitted)) setCurved(true)
+    } catch {
+      toast.error('辺を合わせられませんでした')
+    } finally {
+      setDetecting(false)
     }
   }
 
@@ -522,6 +592,34 @@ export function PerspectiveCorrection() {
               mapper={showGrid ? mapper : null}
               onChange={setQuad}
             />
+            <div className="flex flex-wrap items-center gap-2">
+              <Button
+                type="button"
+                size="sm"
+                disabled={detecting}
+                onClick={() => detect(photo)}
+              >
+                {detecting ? (
+                  <Loader2 className="animate-spin" />
+                ) : (
+                  <ScanSearch />
+                )}
+                自動で検出
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                disabled={detecting || !convex}
+                onClick={snapEdges}
+              >
+                <Magnet />
+                今の四隅から辺に吸着
+              </Button>
+              <HelpTip>
+                「自動で検出」は、写真の中でいちばん大きく、まわりと色がはっきり違う四角いもの（紙・画面・看板など）を探し、辺のうねりもベジエ曲線で合わせます。うまく見つからないときは、角をだいたいの位置に置いてから「今の四隅から辺に吸着」を押すと、近くの辺に寄せて、角と曲がりを細かく合わせます。
+              </HelpTip>
+            </div>
             <div className="flex flex-wrap items-center gap-2">
               <Button
                 type="button"
