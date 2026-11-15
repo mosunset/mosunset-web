@@ -361,7 +361,7 @@ function parseSettingsObject(value: unknown): Settings | null {
     boxes: (s.boxes as Record<string, unknown>[]).slice(0, MAX_ROWS).map((b) =>
       row(
         {
-          tag: typeof b?.tag === 'string' ? b.tag.slice(0, 40) : '',
+          tag: typeof b?.tag === 'string' ? b.tag.slice(0, 80) : '',
           x: num(b?.x, 1, 1, MAX_SIZE),
           y: num(b?.y, 1, 1, MAX_SIZE),
           z: num(b?.z, 1, 1, MAX_SIZE),
@@ -2071,7 +2071,7 @@ export function BoxPacking() {
                       <Input
                         aria-label="タグ"
                         value={b.tag}
-                        maxLength={40}
+                        maxLength={80}
                         placeholder={`箱 ${i + 1}`}
                         onChange={(e) => setBox(b.id, { tag: e.target.value })}
                         className="h-8 min-w-28"
