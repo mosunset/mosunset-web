@@ -131,7 +131,8 @@ function Latest() {
               key={tool.slug}
               link={
                 <Link
-                  to={`/playground/${tool.slug}`}
+                  to="/playground/$slug"
+                  params={{ slug: tool.slug }}
                   className="after:absolute after:inset-0 after:content-['']"
                 >
                   {tool.name}

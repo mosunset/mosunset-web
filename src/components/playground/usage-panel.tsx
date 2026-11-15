@@ -2,8 +2,14 @@ import { CircleHelp, GripHorizontal, Lightbulb, X } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 
 import { Button } from '@/components/ui/button'
-import type { ToolUsage } from '@/lib/playground/usage'
 import { cn } from '@/lib/utils'
+
+/**
+ * ツールのページの「使い方」（tools/<slug>/usage.ts に書く）。
+ * steps は初めて使う人が上から順にやること、tips は知っておくと便利なこと。
+ * ボタンや欄の名前は、画面の表示と同じ文字で「」に入れる
+ */
+export type ToolUsage = { steps: readonly string[]; tips: readonly string[] }
 
 /**
  * ツールのページの「使い方」ボタンと、押すと浮かんで出る使い方の窓。

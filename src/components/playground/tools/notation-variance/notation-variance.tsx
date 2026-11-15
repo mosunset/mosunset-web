@@ -5,7 +5,7 @@ import { CopyButton } from '@/components/playground/parts'
 import {
   loadTokenizer,
   type Tokenizer,
-} from '@/components/playground/tools/kuromoji'
+} from '@/components/playground/tools/kuromoji/kuromoji'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'

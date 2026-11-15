@@ -1,7 +1,9 @@
 /**
  * プレイグラウンドのツール一覧。ツールそのものがコードなので、管理画面ではなくここで管理する。
- * ツールを足すときは、ここに 1 件追加して src/routes/playground/<slug>.tsx と
- * src/components/playground/tools/<slug>.tsx を作る。
+ * ツールを足すときは、ここに 1 件足し、src/components/playground/tools/<slug>/ を作り、
+ * public/playground/<slug>/thumbnail.webp を置く（ページは /playground/$slug の 1 つのルートが出す）。
+ * フォルダの中身は src/components/playground/tool-registry.tsx の説明のとおり
+ * （入口の index.tsx か browser.tsx・使い方の usage.ts・下に出す文章の after.tsx）
  */
 type PlaygroundTool = {
   slug: PlaygroundSlug
@@ -15,6 +17,13 @@ type PlaygroundTool = {
   publishedDate: string
   /** public/ のサムネイル */
   thumbnail: string
+  /** 横に広いツール（ページの幅を広げる） */
+  wide?: true
+  /**
+   * ブラウザでだけ描くツールの、読み込み中の枠の高さ（px。パソコンの幅で最初に出る大きさ）。
+   * だいたい合わせておくと、ツールが出たときに下のリンクが押し下げられない（CLS）。見た目を大きく変えたら測り直す
+   */
+  loadingHeight?: number
 }
 
 export const playgroundTools = [
@@ -51,6 +60,7 @@ export const playgroundTools = [
     tags: ['UUID', 'ULID', 'Cuid2', 'NanoID', 'JavaScript'],
     publishedDate: '2025-11-04',
     thumbnail: '/playground/id-generators/thumbnail.webp',
+    loadingHeight: 900,
   },
   {
     slug: 'ngram-similarity',
@@ -74,6 +84,7 @@ export const playgroundTools = [
     tags: ['モニタ', '計算', 'シミュレーター', 'ペアリング'],
     publishedDate: '2025-01-27',
     thumbnail: '/playground/monitor-pairing/thumbnail.webp',
+    wide: true,
   },
   {
     slug: 'unit-price-comparison',
@@ -96,6 +107,7 @@ export const playgroundTools = [
     tags: ['オートファジー', '断食', '健康', 'タイマー'],
     publishedDate: '2025-09-01',
     thumbnail: '/playground/autophagy-clock/thumbnail.svg',
+    loadingHeight: 685,
   },
   {
     slug: 'interactive-bmi-calculator-graph',
@@ -119,6 +131,8 @@ export const playgroundTools = [
     tags: ['NLP', '形態素解析', '日本語', 'テキスト解析'],
     publishedDate: '2025-09-12',
     thumbnail: '/playground/kuromoji/thumbnail.webp',
+    wide: true,
+    loadingHeight: 408,
   },
   {
     slug: 'webyolo',
@@ -130,6 +144,8 @@ export const playgroundTools = [
     tags: ['AI', '物体認識', 'TensorFlow.js', 'ブラウザ AI'],
     publishedDate: '2025-09-11',
     thumbnail: '/playground/webyolo/thumbnail.webp',
+    wide: true,
+    loadingHeight: 352,
   },
   {
     slug: 'masonryimage',
@@ -141,6 +157,8 @@ export const playgroundTools = [
     tags: ['画像', 'Masonry', 'ギャラリー', 'レイアウト'],
     publishedDate: '2025-09-10',
     thumbnail: '/playground/masonryimage/thumbnail.webp',
+    wide: true,
+    loadingHeight: 1982,
   },
   {
     slug: 'mosaic-art',
@@ -152,6 +170,8 @@ export const playgroundTools = [
     tags: ['モザイクアート', 'フォトモザイク', '画像加工', 'Canvas'],
     publishedDate: '2026-11-14',
     thumbnail: '/playground/mosaic-art/thumbnail.webp',
+    wide: true,
+    loadingHeight: 534,
   },
   {
     slug: 'box-packing',
@@ -163,6 +183,8 @@ export const playgroundTools = [
     tags: ['箱詰め', '3D', '積み付け', '段ボール', 'Three.js'],
     publishedDate: '2026-11-07',
     thumbnail: '/playground/box-packing/thumbnail.webp',
+    wide: true,
+    loadingHeight: 3339,
   },
   {
     slug: '3dblock',
@@ -174,6 +196,8 @@ export const playgroundTools = [
     tags: ['3D', 'ブロック', 'インタラクティブ', 'WebGL', 'Three.js'],
     publishedDate: '2025-09-09',
     thumbnail: '/playground/3dblock/thumbnail.webp',
+    wide: true,
+    loadingHeight: 886,
   },
   {
     slug: 'readability-check',
@@ -186,6 +210,7 @@ export const playgroundTools = [
     tags: ['文章校正', '読みやすさ', '日本語', '形態素解析', 'テキスト解析'],
     publishedDate: '2026-11-14',
     thumbnail: '/playground/readability-check/thumbnail.svg',
+    loadingHeight: 2608,
   },
   {
     slug: 'furigana',
@@ -198,6 +223,7 @@ export const playgroundTools = [
     tags: ['ふりがな', 'ルビ', '日本語', 'Kuromoji', 'HTML'],
     publishedDate: '2026-11-14',
     thumbnail: '/playground/furigana/thumbnail.webp',
+    loadingHeight: 666,
   },
   {
     slug: 'notation-variance',
@@ -210,6 +236,8 @@ export const playgroundTools = [
     tags: ['表記ゆれ', '校正', '形態素解析', '日本語', 'テキスト解析'],
     publishedDate: '2026-11-14',
     thumbnail: '/playground/notation-variance/thumbnail.webp',
+    wide: true,
+    loadingHeight: 920,
   },
   {
     slug: 'cron-expression',
@@ -221,6 +249,8 @@ export const playgroundTools = [
     tags: ['cron', 'crontab', 'スケジュール', 'GitHub Actions', 'Cloudflare'],
     publishedDate: '2026-11-14',
     thumbnail: '/playground/cron-expression/thumbnail.webp',
+    wide: true,
+    loadingHeight: 1230,
   },
   {
     slug: 'regex-tester',
@@ -233,6 +263,7 @@ export const playgroundTools = [
     tags: ['正規表現', 'RegExp', 'JavaScript', '置換', 'テキスト処理'],
     publishedDate: '2026-11-14',
     thumbnail: '/playground/regex-tester/thumbnail.webp',
+    loadingHeight: 1924,
   },
   {
     slug: 'jwt-decoder',
@@ -263,6 +294,7 @@ export const playgroundTools = [
     ],
     publishedDate: '2026-11-14',
     thumbnail: '/playground/encode-decode/thumbnail.svg',
+    wide: true,
   },
   {
     slug: 'image-compress',
@@ -275,6 +307,7 @@ export const playgroundTools = [
     tags: ['画像圧縮', 'WebP', 'EXIF 削除', '画像変換', 'リサイズ'],
     publishedDate: '2026-11-14',
     thumbnail: '/playground/image-compress/thumbnail.svg',
+    loadingHeight: 566,
   },
   {
     slug: 'image-privacy',
@@ -287,6 +320,8 @@ export const playgroundTools = [
     tags: ['AI', '背景除去', '顔ぼかし', 'MediaPipe', 'プライバシー'],
     publishedDate: '2026-11-14',
     thumbnail: '/playground/image-privacy/thumbnail.svg',
+    wide: true,
+    loadingHeight: 677,
   },
   {
     slug: 'perspective-correction',
@@ -299,6 +334,8 @@ export const playgroundTools = [
     tags: ['射影変換', '台形補正', 'ホモグラフィー', 'ベジエ曲線', 'Canvas'],
     publishedDate: '2026-11-15',
     thumbnail: '/playground/perspective-correction/thumbnail.svg',
+    wide: true,
+    loadingHeight: 196,
   },
   {
     slug: 'whisper-transcribe',
@@ -311,6 +348,8 @@ export const playgroundTools = [
     tags: ['AI', '文字起こし', 'Whisper', '音声認識', 'ブラウザ AI'],
     publishedDate: '2026-11-14',
     thumbnail: '/playground/whisper-transcribe/thumbnail.svg',
+    wide: true,
+    loadingHeight: 359,
   },
 ] as const satisfies readonly (Omit<PlaygroundTool, 'slug'> & {
   slug: string
@@ -322,6 +361,11 @@ export function getPlaygroundTool(slug: PlaygroundSlug): PlaygroundTool {
   const tool = playgroundTools.find((t) => t.slug === slug)
   if (!tool) throw new Error(`Unknown playground tool: ${slug}`)
   return tool
+}
+
+/** URL の slug からツールを探す（ないときは undefined） */
+export function findPlaygroundTool(slug: string): PlaygroundTool | undefined {
+  return playgroundTools.find((t) => t.slug === slug)
 }
 
 export const playgroundCategories = [

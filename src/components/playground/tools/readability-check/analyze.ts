@@ -1,4 +1,7 @@
-import type { Token, Tokenizer } from '@/components/playground/tools/kuromoji'
+import type {
+  Token,
+  Tokenizer,
+} from '@/components/playground/tools/kuromoji/kuromoji'
 
 /** warn = 直したほうがよい、caution = 見直すとよい */
 export type Level = 'warn' | 'caution'

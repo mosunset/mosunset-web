@@ -1,5 +1,5 @@
-import type { Token } from '@/components/playground/tools/kuromoji'
-import { kataToHira } from '@/components/playground/tools/kuromoji'
+import type { Token } from '@/components/playground/tools/kuromoji/kuromoji'
+import { kataToHira } from '@/components/playground/tools/kuromoji/kuromoji'
 
 import { gradeKanji, secondaryJoyoKanji } from './kanji-grades'
 

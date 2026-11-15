@@ -38,31 +38,7 @@ import { Route as ImagesSplatRouteImport } from './routes/images/$'
 import { Route as InstrumentsIndexRouteImport } from './routes/instruments/index'
 import { Route as InstrumentsSlugRouteImport } from './routes/instruments/$slug'
 import { Route as PlaygroundIndexRouteImport } from './routes/playground/index'
-import { Route as Playground3dblockRouteImport } from './routes/playground/3dblock'
-import { Route as PlaygroundAutophagyClockRouteImport } from './routes/playground/autophagy-clock'
-import { Route as PlaygroundBoxPackingRouteImport } from './routes/playground/box-packing'
-import { Route as PlaygroundCharacterCountRouteImport } from './routes/playground/character-count'
-import { Route as PlaygroundCronExpressionRouteImport } from './routes/playground/cron-expression'
-import { Route as PlaygroundEncodeDecodeRouteImport } from './routes/playground/encode-decode'
-import { Route as PlaygroundFuriganaRouteImport } from './routes/playground/furigana'
-import { Route as PlaygroundHashGeneratorRouteImport } from './routes/playground/hash-generator'
-import { Route as PlaygroundIdGeneratorsRouteImport } from './routes/playground/id-generators'
-import { Route as PlaygroundImageCompressRouteImport } from './routes/playground/image-compress'
-import { Route as PlaygroundImagePrivacyRouteImport } from './routes/playground/image-privacy'
-import { Route as PlaygroundInteractiveBmiCalculatorGraphRouteImport } from './routes/playground/interactive-bmi-calculator-graph'
-import { Route as PlaygroundJwtDecoderRouteImport } from './routes/playground/jwt-decoder'
-import { Route as PlaygroundKuromojiRouteImport } from './routes/playground/kuromoji'
-import { Route as PlaygroundMasonryimageRouteImport } from './routes/playground/masonryimage'
-import { Route as PlaygroundMonitorPairingRouteImport } from './routes/playground/monitor-pairing'
-import { Route as PlaygroundMosaicArtRouteImport } from './routes/playground/mosaic-art'
-import { Route as PlaygroundNgramSimilarityRouteImport } from './routes/playground/ngram-similarity'
-import { Route as PlaygroundNotationVarianceRouteImport } from './routes/playground/notation-variance'
-import { Route as PlaygroundPerspectiveCorrectionRouteImport } from './routes/playground/perspective-correction'
-import { Route as PlaygroundReadabilityCheckRouteImport } from './routes/playground/readability-check'
-import { Route as PlaygroundRegexTesterRouteImport } from './routes/playground/regex-tester'
-import { Route as PlaygroundUnitPriceComparisonRouteImport } from './routes/playground/unit-price-comparison'
-import { Route as PlaygroundWebyoloRouteImport } from './routes/playground/webyolo'
-import { Route as PlaygroundWhisperTranscribeRouteImport } from './routes/playground/whisper-transcribe'
+import { Route as PlaygroundSlugRouteImport } from './routes/playground/$slug'
 import { Route as SignInSplatRouteImport } from './routes/sign-in.$'
 import { Route as ToysIndexRouteImport } from './routes/toys/index'
 import { Route as ToysSlugRouteImport } from './routes/toys/$slug'
@@ -223,142 +199,11 @@ const PlaygroundIndexRoute = PlaygroundIndexRouteImport.update({
   path: '/',
   getParentRoute: () => PlaygroundRouteRoute,
 } as any)
-const Playground3dblockRoute = Playground3dblockRouteImport.update({
-  id: '/3dblock',
-  path: '/3dblock',
+const PlaygroundSlugRoute = PlaygroundSlugRouteImport.update({
+  id: '/$slug',
+  path: '/$slug',
   getParentRoute: () => PlaygroundRouteRoute,
 } as any)
-const PlaygroundAutophagyClockRoute =
-  PlaygroundAutophagyClockRouteImport.update({
-    id: '/autophagy-clock',
-    path: '/autophagy-clock',
-    getParentRoute: () => PlaygroundRouteRoute,
-  } as any)
-const PlaygroundBoxPackingRoute = PlaygroundBoxPackingRouteImport.update({
-  id: '/box-packing',
-  path: '/box-packing',
-  getParentRoute: () => PlaygroundRouteRoute,
-} as any)
-const PlaygroundCharacterCountRoute =
-  PlaygroundCharacterCountRouteImport.update({
-    id: '/character-count',
-    path: '/character-count',
-    getParentRoute: () => PlaygroundRouteRoute,
-  } as any)
-const PlaygroundCronExpressionRoute =
-  PlaygroundCronExpressionRouteImport.update({
-    id: '/cron-expression',
-    path: '/cron-expression',
-    getParentRoute: () => PlaygroundRouteRoute,
-  } as any)
-const PlaygroundEncodeDecodeRoute = PlaygroundEncodeDecodeRouteImport.update({
-  id: '/encode-decode',
-  path: '/encode-decode',
-  getParentRoute: () => PlaygroundRouteRoute,
-} as any)
-const PlaygroundFuriganaRoute = PlaygroundFuriganaRouteImport.update({
-  id: '/furigana',
-  path: '/furigana',
-  getParentRoute: () => PlaygroundRouteRoute,
-} as any)
-const PlaygroundHashGeneratorRoute = PlaygroundHashGeneratorRouteImport.update({
-  id: '/hash-generator',
-  path: '/hash-generator',
-  getParentRoute: () => PlaygroundRouteRoute,
-} as any)
-const PlaygroundIdGeneratorsRoute = PlaygroundIdGeneratorsRouteImport.update({
-  id: '/id-generators',
-  path: '/id-generators',
-  getParentRoute: () => PlaygroundRouteRoute,
-} as any)
-const PlaygroundImageCompressRoute = PlaygroundImageCompressRouteImport.update({
-  id: '/image-compress',
-  path: '/image-compress',
-  getParentRoute: () => PlaygroundRouteRoute,
-} as any)
-const PlaygroundImagePrivacyRoute = PlaygroundImagePrivacyRouteImport.update({
-  id: '/image-privacy',
-  path: '/image-privacy',
-  getParentRoute: () => PlaygroundRouteRoute,
-} as any)
-const PlaygroundInteractiveBmiCalculatorGraphRoute =
-  PlaygroundInteractiveBmiCalculatorGraphRouteImport.update({
-    id: '/interactive-bmi-calculator-graph',
-    path: '/interactive-bmi-calculator-graph',
-    getParentRoute: () => PlaygroundRouteRoute,
-  } as any)
-const PlaygroundJwtDecoderRoute = PlaygroundJwtDecoderRouteImport.update({
-  id: '/jwt-decoder',
-  path: '/jwt-decoder',
-  getParentRoute: () => PlaygroundRouteRoute,
-} as any)
-const PlaygroundKuromojiRoute = PlaygroundKuromojiRouteImport.update({
-  id: '/kuromoji',
-  path: '/kuromoji',
-  getParentRoute: () => PlaygroundRouteRoute,
-} as any)
-const PlaygroundMasonryimageRoute = PlaygroundMasonryimageRouteImport.update({
-  id: '/masonryimage',
-  path: '/masonryimage',
-  getParentRoute: () => PlaygroundRouteRoute,
-} as any)
-const PlaygroundMonitorPairingRoute =
-  PlaygroundMonitorPairingRouteImport.update({
-    id: '/monitor-pairing',
-    path: '/monitor-pairing',
-    getParentRoute: () => PlaygroundRouteRoute,
-  } as any)
-const PlaygroundMosaicArtRoute = PlaygroundMosaicArtRouteImport.update({
-  id: '/mosaic-art',
-  path: '/mosaic-art',
-  getParentRoute: () => PlaygroundRouteRoute,
-} as any)
-const PlaygroundNgramSimilarityRoute =
-  PlaygroundNgramSimilarityRouteImport.update({
-    id: '/ngram-similarity',
-    path: '/ngram-similarity',
-    getParentRoute: () => PlaygroundRouteRoute,
-  } as any)
-const PlaygroundNotationVarianceRoute =
-  PlaygroundNotationVarianceRouteImport.update({
-    id: '/notation-variance',
-    path: '/notation-variance',
-    getParentRoute: () => PlaygroundRouteRoute,
-  } as any)
-const PlaygroundPerspectiveCorrectionRoute =
-  PlaygroundPerspectiveCorrectionRouteImport.update({
-    id: '/perspective-correction',
-    path: '/perspective-correction',
-    getParentRoute: () => PlaygroundRouteRoute,
-  } as any)
-const PlaygroundReadabilityCheckRoute =
-  PlaygroundReadabilityCheckRouteImport.update({
-    id: '/readability-check',
-    path: '/readability-check',
-    getParentRoute: () => PlaygroundRouteRoute,
-  } as any)
-const PlaygroundRegexTesterRoute = PlaygroundRegexTesterRouteImport.update({
-  id: '/regex-tester',
-  path: '/regex-tester',
-  getParentRoute: () => PlaygroundRouteRoute,
-} as any)
-const PlaygroundUnitPriceComparisonRoute =
-  PlaygroundUnitPriceComparisonRouteImport.update({
-    id: '/unit-price-comparison',
-    path: '/unit-price-comparison',
-    getParentRoute: () => PlaygroundRouteRoute,
-  } as any)
-const PlaygroundWebyoloRoute = PlaygroundWebyoloRouteImport.update({
-  id: '/webyolo',
-  path: '/webyolo',
-  getParentRoute: () => PlaygroundRouteRoute,
-} as any)
-const PlaygroundWhisperTranscribeRoute =
-  PlaygroundWhisperTranscribeRouteImport.update({
-    id: '/whisper-transcribe',
-    path: '/whisper-transcribe',
-    getParentRoute: () => PlaygroundRouteRoute,
-  } as any)
 const SignInSplatRoute = SignInSplatRouteImport.update({
   id: '/sign-in/$',
   path: '/sign-in/$',
@@ -451,31 +296,7 @@ export interface FileRoutesByFullPath {
   '/certifications/$slug': typeof CertificationsSlugRoute
   '/images/$': typeof ImagesSplatRoute
   '/instruments/$slug': typeof InstrumentsSlugRoute
-  '/playground/3dblock': typeof Playground3dblockRoute
-  '/playground/autophagy-clock': typeof PlaygroundAutophagyClockRoute
-  '/playground/box-packing': typeof PlaygroundBoxPackingRoute
-  '/playground/character-count': typeof PlaygroundCharacterCountRoute
-  '/playground/cron-expression': typeof PlaygroundCronExpressionRoute
-  '/playground/encode-decode': typeof PlaygroundEncodeDecodeRoute
-  '/playground/furigana': typeof PlaygroundFuriganaRoute
-  '/playground/hash-generator': typeof PlaygroundHashGeneratorRoute
-  '/playground/id-generators': typeof PlaygroundIdGeneratorsRoute
-  '/playground/image-compress': typeof PlaygroundImageCompressRoute
-  '/playground/image-privacy': typeof PlaygroundImagePrivacyRoute
-  '/playground/interactive-bmi-calculator-graph': typeof PlaygroundInteractiveBmiCalculatorGraphRoute
-  '/playground/jwt-decoder': typeof PlaygroundJwtDecoderRoute
-  '/playground/kuromoji': typeof PlaygroundKuromojiRoute
-  '/playground/masonryimage': typeof PlaygroundMasonryimageRoute
-  '/playground/monitor-pairing': typeof PlaygroundMonitorPairingRoute
-  '/playground/mosaic-art': typeof PlaygroundMosaicArtRoute
-  '/playground/ngram-similarity': typeof PlaygroundNgramSimilarityRoute
-  '/playground/notation-variance': typeof PlaygroundNotationVarianceRoute
-  '/playground/perspective-correction': typeof PlaygroundPerspectiveCorrectionRoute
-  '/playground/readability-check': typeof PlaygroundReadabilityCheckRoute
-  '/playground/regex-tester': typeof PlaygroundRegexTesterRoute
-  '/playground/unit-price-comparison': typeof PlaygroundUnitPriceComparisonRoute
-  '/playground/webyolo': typeof PlaygroundWebyoloRoute
-  '/playground/whisper-transcribe': typeof PlaygroundWhisperTranscribeRoute
+  '/playground/$slug': typeof PlaygroundSlugRoute
   '/sign-in/$': typeof SignInSplatRoute
   '/toys/$slug': typeof ToysSlugRoute
   '/admin/': typeof AdminIndexRoute
@@ -510,31 +331,7 @@ export interface FileRoutesByTo {
   '/certifications/$slug': typeof CertificationsSlugRoute
   '/images/$': typeof ImagesSplatRoute
   '/instruments/$slug': typeof InstrumentsSlugRoute
-  '/playground/3dblock': typeof Playground3dblockRoute
-  '/playground/autophagy-clock': typeof PlaygroundAutophagyClockRoute
-  '/playground/box-packing': typeof PlaygroundBoxPackingRoute
-  '/playground/character-count': typeof PlaygroundCharacterCountRoute
-  '/playground/cron-expression': typeof PlaygroundCronExpressionRoute
-  '/playground/encode-decode': typeof PlaygroundEncodeDecodeRoute
-  '/playground/furigana': typeof PlaygroundFuriganaRoute
-  '/playground/hash-generator': typeof PlaygroundHashGeneratorRoute
-  '/playground/id-generators': typeof PlaygroundIdGeneratorsRoute
-  '/playground/image-compress': typeof PlaygroundImageCompressRoute
-  '/playground/image-privacy': typeof PlaygroundImagePrivacyRoute
-  '/playground/interactive-bmi-calculator-graph': typeof PlaygroundInteractiveBmiCalculatorGraphRoute
-  '/playground/jwt-decoder': typeof PlaygroundJwtDecoderRoute
-  '/playground/kuromoji': typeof PlaygroundKuromojiRoute
-  '/playground/masonryimage': typeof PlaygroundMasonryimageRoute
-  '/playground/monitor-pairing': typeof PlaygroundMonitorPairingRoute
-  '/playground/mosaic-art': typeof PlaygroundMosaicArtRoute
-  '/playground/ngram-similarity': typeof PlaygroundNgramSimilarityRoute
-  '/playground/notation-variance': typeof PlaygroundNotationVarianceRoute
-  '/playground/perspective-correction': typeof PlaygroundPerspectiveCorrectionRoute
-  '/playground/readability-check': typeof PlaygroundReadabilityCheckRoute
-  '/playground/regex-tester': typeof PlaygroundRegexTesterRoute
-  '/playground/unit-price-comparison': typeof PlaygroundUnitPriceComparisonRoute
-  '/playground/webyolo': typeof PlaygroundWebyoloRoute
-  '/playground/whisper-transcribe': typeof PlaygroundWhisperTranscribeRoute
+  '/playground/$slug': typeof PlaygroundSlugRoute
   '/sign-in/$': typeof SignInSplatRoute
   '/toys/$slug': typeof ToysSlugRoute
   '/admin': typeof AdminIndexRoute
@@ -579,31 +376,7 @@ export interface FileRoutesById {
   '/certifications/$slug': typeof CertificationsSlugRoute
   '/images/$': typeof ImagesSplatRoute
   '/instruments/$slug': typeof InstrumentsSlugRoute
-  '/playground/3dblock': typeof Playground3dblockRoute
-  '/playground/autophagy-clock': typeof PlaygroundAutophagyClockRoute
-  '/playground/box-packing': typeof PlaygroundBoxPackingRoute
-  '/playground/character-count': typeof PlaygroundCharacterCountRoute
-  '/playground/cron-expression': typeof PlaygroundCronExpressionRoute
-  '/playground/encode-decode': typeof PlaygroundEncodeDecodeRoute
-  '/playground/furigana': typeof PlaygroundFuriganaRoute
-  '/playground/hash-generator': typeof PlaygroundHashGeneratorRoute
-  '/playground/id-generators': typeof PlaygroundIdGeneratorsRoute
-  '/playground/image-compress': typeof PlaygroundImageCompressRoute
-  '/playground/image-privacy': typeof PlaygroundImagePrivacyRoute
-  '/playground/interactive-bmi-calculator-graph': typeof PlaygroundInteractiveBmiCalculatorGraphRoute
-  '/playground/jwt-decoder': typeof PlaygroundJwtDecoderRoute
-  '/playground/kuromoji': typeof PlaygroundKuromojiRoute
-  '/playground/masonryimage': typeof PlaygroundMasonryimageRoute
-  '/playground/monitor-pairing': typeof PlaygroundMonitorPairingRoute
-  '/playground/mosaic-art': typeof PlaygroundMosaicArtRoute
-  '/playground/ngram-similarity': typeof PlaygroundNgramSimilarityRoute
-  '/playground/notation-variance': typeof PlaygroundNotationVarianceRoute
-  '/playground/perspective-correction': typeof PlaygroundPerspectiveCorrectionRoute
-  '/playground/readability-check': typeof PlaygroundReadabilityCheckRoute
-  '/playground/regex-tester': typeof PlaygroundRegexTesterRoute
-  '/playground/unit-price-comparison': typeof PlaygroundUnitPriceComparisonRoute
-  '/playground/webyolo': typeof PlaygroundWebyoloRoute
-  '/playground/whisper-transcribe': typeof PlaygroundWhisperTranscribeRoute
+  '/playground/$slug': typeof PlaygroundSlugRoute
   '/sign-in/$': typeof SignInSplatRoute
   '/toys/$slug': typeof ToysSlugRoute
   '/admin/': typeof AdminIndexRoute
@@ -650,31 +423,7 @@ export interface FileRouteTypes {
     | '/certifications/$slug'
     | '/images/$'
     | '/instruments/$slug'
-    | '/playground/3dblock'
-    | '/playground/autophagy-clock'
-    | '/playground/box-packing'
-    | '/playground/character-count'
-    | '/playground/cron-expression'
-    | '/playground/encode-decode'
-    | '/playground/furigana'
-    | '/playground/hash-generator'
-    | '/playground/id-generators'
-    | '/playground/image-compress'
-    | '/playground/image-privacy'
-    | '/playground/interactive-bmi-calculator-graph'
-    | '/playground/jwt-decoder'
-    | '/playground/kuromoji'
-    | '/playground/masonryimage'
-    | '/playground/monitor-pairing'
-    | '/playground/mosaic-art'
-    | '/playground/ngram-similarity'
-    | '/playground/notation-variance'
-    | '/playground/perspective-correction'
-    | '/playground/readability-check'
-    | '/playground/regex-tester'
-    | '/playground/unit-price-comparison'
-    | '/playground/webyolo'
-    | '/playground/whisper-transcribe'
+    | '/playground/$slug'
     | '/sign-in/$'
     | '/toys/$slug'
     | '/admin/'
@@ -709,31 +458,7 @@ export interface FileRouteTypes {
     | '/certifications/$slug'
     | '/images/$'
     | '/instruments/$slug'
-    | '/playground/3dblock'
-    | '/playground/autophagy-clock'
-    | '/playground/box-packing'
-    | '/playground/character-count'
-    | '/playground/cron-expression'
-    | '/playground/encode-decode'
-    | '/playground/furigana'
-    | '/playground/hash-generator'
-    | '/playground/id-generators'
-    | '/playground/image-compress'
-    | '/playground/image-privacy'
-    | '/playground/interactive-bmi-calculator-graph'
-    | '/playground/jwt-decoder'
-    | '/playground/kuromoji'
-    | '/playground/masonryimage'
-    | '/playground/monitor-pairing'
-    | '/playground/mosaic-art'
-    | '/playground/ngram-similarity'
-    | '/playground/notation-variance'
-    | '/playground/perspective-correction'
-    | '/playground/readability-check'
-    | '/playground/regex-tester'
-    | '/playground/unit-price-comparison'
-    | '/playground/webyolo'
-    | '/playground/whisper-transcribe'
+    | '/playground/$slug'
     | '/sign-in/$'
     | '/toys/$slug'
     | '/admin'
@@ -777,31 +502,7 @@ export interface FileRouteTypes {
     | '/certifications/$slug'
     | '/images/$'
     | '/instruments/$slug'
-    | '/playground/3dblock'
-    | '/playground/autophagy-clock'
-    | '/playground/box-packing'
-    | '/playground/character-count'
-    | '/playground/cron-expression'
-    | '/playground/encode-decode'
-    | '/playground/furigana'
-    | '/playground/hash-generator'
-    | '/playground/id-generators'
-    | '/playground/image-compress'
-    | '/playground/image-privacy'
-    | '/playground/interactive-bmi-calculator-graph'
-    | '/playground/jwt-decoder'
-    | '/playground/kuromoji'
-    | '/playground/masonryimage'
-    | '/playground/monitor-pairing'
-    | '/playground/mosaic-art'
-    | '/playground/ngram-similarity'
-    | '/playground/notation-variance'
-    | '/playground/perspective-correction'
-    | '/playground/readability-check'
-    | '/playground/regex-tester'
-    | '/playground/unit-price-comparison'
-    | '/playground/webyolo'
-    | '/playground/whisper-transcribe'
+    | '/playground/$slug'
     | '/sign-in/$'
     | '/toys/$slug'
     | '/admin/'
@@ -1048,179 +749,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PlaygroundIndexRouteImport
       parentRoute: typeof PlaygroundRouteRoute
     }
-    '/playground/3dblock': {
-      id: '/playground/3dblock'
-      path: '/3dblock'
-      fullPath: '/playground/3dblock'
-      preLoaderRoute: typeof Playground3dblockRouteImport
-      parentRoute: typeof PlaygroundRouteRoute
-    }
-    '/playground/autophagy-clock': {
-      id: '/playground/autophagy-clock'
-      path: '/autophagy-clock'
-      fullPath: '/playground/autophagy-clock'
-      preLoaderRoute: typeof PlaygroundAutophagyClockRouteImport
-      parentRoute: typeof PlaygroundRouteRoute
-    }
-    '/playground/box-packing': {
-      id: '/playground/box-packing'
-      path: '/box-packing'
-      fullPath: '/playground/box-packing'
-      preLoaderRoute: typeof PlaygroundBoxPackingRouteImport
-      parentRoute: typeof PlaygroundRouteRoute
-    }
-    '/playground/character-count': {
-      id: '/playground/character-count'
-      path: '/character-count'
-      fullPath: '/playground/character-count'
-      preLoaderRoute: typeof PlaygroundCharacterCountRouteImport
-      parentRoute: typeof PlaygroundRouteRoute
-    }
-    '/playground/cron-expression': {
-      id: '/playground/cron-expression'
-      path: '/cron-expression'
-      fullPath: '/playground/cron-expression'
-      preLoaderRoute: typeof PlaygroundCronExpressionRouteImport
-      parentRoute: typeof PlaygroundRouteRoute
-    }
-    '/playground/encode-decode': {
-      id: '/playground/encode-decode'
-      path: '/encode-decode'
-      fullPath: '/playground/encode-decode'
-      preLoaderRoute: typeof PlaygroundEncodeDecodeRouteImport
-      parentRoute: typeof PlaygroundRouteRoute
-    }
-    '/playground/furigana': {
-      id: '/playground/furigana'
-      path: '/furigana'
-      fullPath: '/playground/furigana'
-      preLoaderRoute: typeof PlaygroundFuriganaRouteImport
-      parentRoute: typeof PlaygroundRouteRoute
-    }
-    '/playground/hash-generator': {
-      id: '/playground/hash-generator'
-      path: '/hash-generator'
-      fullPath: '/playground/hash-generator'
-      preLoaderRoute: typeof PlaygroundHashGeneratorRouteImport
-      parentRoute: typeof PlaygroundRouteRoute
-    }
-    '/playground/id-generators': {
-      id: '/playground/id-generators'
-      path: '/id-generators'
-      fullPath: '/playground/id-generators'
-      preLoaderRoute: typeof PlaygroundIdGeneratorsRouteImport
-      parentRoute: typeof PlaygroundRouteRoute
-    }
-    '/playground/image-compress': {
-      id: '/playground/image-compress'
-      path: '/image-compress'
-      fullPath: '/playground/image-compress'
-      preLoaderRoute: typeof PlaygroundImageCompressRouteImport
-      parentRoute: typeof PlaygroundRouteRoute
-    }
-    '/playground/image-privacy': {
-      id: '/playground/image-privacy'
-      path: '/image-privacy'
-      fullPath: '/playground/image-privacy'
-      preLoaderRoute: typeof PlaygroundImagePrivacyRouteImport
-      parentRoute: typeof PlaygroundRouteRoute
-    }
-    '/playground/interactive-bmi-calculator-graph': {
-      id: '/playground/interactive-bmi-calculator-graph'
-      path: '/interactive-bmi-calculator-graph'
-      fullPath: '/playground/interactive-bmi-calculator-graph'
-      preLoaderRoute: typeof PlaygroundInteractiveBmiCalculatorGraphRouteImport
-      parentRoute: typeof PlaygroundRouteRoute
-    }
-    '/playground/jwt-decoder': {
-      id: '/playground/jwt-decoder'
-      path: '/jwt-decoder'
-      fullPath: '/playground/jwt-decoder'
-      preLoaderRoute: typeof PlaygroundJwtDecoderRouteImport
-      parentRoute: typeof PlaygroundRouteRoute
-    }
-    '/playground/kuromoji': {
-      id: '/playground/kuromoji'
-      path: '/kuromoji'
-      fullPath: '/playground/kuromoji'
-      preLoaderRoute: typeof PlaygroundKuromojiRouteImport
-      parentRoute: typeof PlaygroundRouteRoute
-    }
-    '/playground/masonryimage': {
-      id: '/playground/masonryimage'
-      path: '/masonryimage'
-      fullPath: '/playground/masonryimage'
-      preLoaderRoute: typeof PlaygroundMasonryimageRouteImport
-      parentRoute: typeof PlaygroundRouteRoute
-    }
-    '/playground/monitor-pairing': {
-      id: '/playground/monitor-pairing'
-      path: '/monitor-pairing'
-      fullPath: '/playground/monitor-pairing'
-      preLoaderRoute: typeof PlaygroundMonitorPairingRouteImport
-      parentRoute: typeof PlaygroundRouteRoute
-    }
-    '/playground/mosaic-art': {
-      id: '/playground/mosaic-art'
-      path: '/mosaic-art'
-      fullPath: '/playground/mosaic-art'
-      preLoaderRoute: typeof PlaygroundMosaicArtRouteImport
-      parentRoute: typeof PlaygroundRouteRoute
-    }
-    '/playground/ngram-similarity': {
-      id: '/playground/ngram-similarity'
-      path: '/ngram-similarity'
-      fullPath: '/playground/ngram-similarity'
-      preLoaderRoute: typeof PlaygroundNgramSimilarityRouteImport
-      parentRoute: typeof PlaygroundRouteRoute
-    }
-    '/playground/notation-variance': {
-      id: '/playground/notation-variance'
-      path: '/notation-variance'
-      fullPath: '/playground/notation-variance'
-      preLoaderRoute: typeof PlaygroundNotationVarianceRouteImport
-      parentRoute: typeof PlaygroundRouteRoute
-    }
-    '/playground/perspective-correction': {
-      id: '/playground/perspective-correction'
-      path: '/perspective-correction'
-      fullPath: '/playground/perspective-correction'
-      preLoaderRoute: typeof PlaygroundPerspectiveCorrectionRouteImport
-      parentRoute: typeof PlaygroundRouteRoute
-    }
-    '/playground/readability-check': {
-      id: '/playground/readability-check'
-      path: '/readability-check'
-      fullPath: '/playground/readability-check'
-      preLoaderRoute: typeof PlaygroundReadabilityCheckRouteImport
-      parentRoute: typeof PlaygroundRouteRoute
-    }
-    '/playground/regex-tester': {
-      id: '/playground/regex-tester'
-      path: '/regex-tester'
-      fullPath: '/playground/regex-tester'
-      preLoaderRoute: typeof PlaygroundRegexTesterRouteImport
-      parentRoute: typeof PlaygroundRouteRoute
-    }
-    '/playground/unit-price-comparison': {
-      id: '/playground/unit-price-comparison'
-      path: '/unit-price-comparison'
-      fullPath: '/playground/unit-price-comparison'
-      preLoaderRoute: typeof PlaygroundUnitPriceComparisonRouteImport
-      parentRoute: typeof PlaygroundRouteRoute
-    }
-    '/playground/webyolo': {
-      id: '/playground/webyolo'
-      path: '/webyolo'
-      fullPath: '/playground/webyolo'
-      preLoaderRoute: typeof PlaygroundWebyoloRouteImport
-      parentRoute: typeof PlaygroundRouteRoute
-    }
-    '/playground/whisper-transcribe': {
-      id: '/playground/whisper-transcribe'
-      path: '/whisper-transcribe'
-      fullPath: '/playground/whisper-transcribe'
-      preLoaderRoute: typeof PlaygroundWhisperTranscribeRouteImport
+    '/playground/$slug': {
+      id: '/playground/$slug'
+      path: '/$slug'
+      fullPath: '/playground/$slug'
+      preLoaderRoute: typeof PlaygroundSlugRouteImport
       parentRoute: typeof PlaygroundRouteRoute
     }
     '/sign-in/$': {
@@ -1452,61 +985,12 @@ const InstrumentsRouteRouteWithChildren =
   InstrumentsRouteRoute._addFileChildren(InstrumentsRouteRouteChildren)
 
 interface PlaygroundRouteRouteChildren {
-  Playground3dblockRoute: typeof Playground3dblockRoute
-  PlaygroundAutophagyClockRoute: typeof PlaygroundAutophagyClockRoute
-  PlaygroundBoxPackingRoute: typeof PlaygroundBoxPackingRoute
-  PlaygroundCharacterCountRoute: typeof PlaygroundCharacterCountRoute
-  PlaygroundCronExpressionRoute: typeof PlaygroundCronExpressionRoute
-  PlaygroundEncodeDecodeRoute: typeof PlaygroundEncodeDecodeRoute
-  PlaygroundFuriganaRoute: typeof PlaygroundFuriganaRoute
-  PlaygroundHashGeneratorRoute: typeof PlaygroundHashGeneratorRoute
-  PlaygroundIdGeneratorsRoute: typeof PlaygroundIdGeneratorsRoute
-  PlaygroundImageCompressRoute: typeof PlaygroundImageCompressRoute
-  PlaygroundImagePrivacyRoute: typeof PlaygroundImagePrivacyRoute
-  PlaygroundInteractiveBmiCalculatorGraphRoute: typeof PlaygroundInteractiveBmiCalculatorGraphRoute
-  PlaygroundJwtDecoderRoute: typeof PlaygroundJwtDecoderRoute
-  PlaygroundKuromojiRoute: typeof PlaygroundKuromojiRoute
-  PlaygroundMasonryimageRoute: typeof PlaygroundMasonryimageRoute
-  PlaygroundMonitorPairingRoute: typeof PlaygroundMonitorPairingRoute
-  PlaygroundMosaicArtRoute: typeof PlaygroundMosaicArtRoute
-  PlaygroundNgramSimilarityRoute: typeof PlaygroundNgramSimilarityRoute
-  PlaygroundNotationVarianceRoute: typeof PlaygroundNotationVarianceRoute
-  PlaygroundPerspectiveCorrectionRoute: typeof PlaygroundPerspectiveCorrectionRoute
-  PlaygroundReadabilityCheckRoute: typeof PlaygroundReadabilityCheckRoute
-  PlaygroundRegexTesterRoute: typeof PlaygroundRegexTesterRoute
-  PlaygroundUnitPriceComparisonRoute: typeof PlaygroundUnitPriceComparisonRoute
-  PlaygroundWebyoloRoute: typeof PlaygroundWebyoloRoute
-  PlaygroundWhisperTranscribeRoute: typeof PlaygroundWhisperTranscribeRoute
+  PlaygroundSlugRoute: typeof PlaygroundSlugRoute
   PlaygroundIndexRoute: typeof PlaygroundIndexRoute
 }
 
 const PlaygroundRouteRouteChildren: PlaygroundRouteRouteChildren = {
-  Playground3dblockRoute: Playground3dblockRoute,
-  PlaygroundAutophagyClockRoute: PlaygroundAutophagyClockRoute,
-  PlaygroundBoxPackingRoute: PlaygroundBoxPackingRoute,
-  PlaygroundCharacterCountRoute: PlaygroundCharacterCountRoute,
-  PlaygroundCronExpressionRoute: PlaygroundCronExpressionRoute,
-  PlaygroundEncodeDecodeRoute: PlaygroundEncodeDecodeRoute,
-  PlaygroundFuriganaRoute: PlaygroundFuriganaRoute,
-  PlaygroundHashGeneratorRoute: PlaygroundHashGeneratorRoute,
-  PlaygroundIdGeneratorsRoute: PlaygroundIdGeneratorsRoute,
-  PlaygroundImageCompressRoute: PlaygroundImageCompressRoute,
-  PlaygroundImagePrivacyRoute: PlaygroundImagePrivacyRoute,
-  PlaygroundInteractiveBmiCalculatorGraphRoute:
-    PlaygroundInteractiveBmiCalculatorGraphRoute,
-  PlaygroundJwtDecoderRoute: PlaygroundJwtDecoderRoute,
-  PlaygroundKuromojiRoute: PlaygroundKuromojiRoute,
-  PlaygroundMasonryimageRoute: PlaygroundMasonryimageRoute,
-  PlaygroundMonitorPairingRoute: PlaygroundMonitorPairingRoute,
-  PlaygroundMosaicArtRoute: PlaygroundMosaicArtRoute,
-  PlaygroundNgramSimilarityRoute: PlaygroundNgramSimilarityRoute,
-  PlaygroundNotationVarianceRoute: PlaygroundNotationVarianceRoute,
-  PlaygroundPerspectiveCorrectionRoute: PlaygroundPerspectiveCorrectionRoute,
-  PlaygroundReadabilityCheckRoute: PlaygroundReadabilityCheckRoute,
-  PlaygroundRegexTesterRoute: PlaygroundRegexTesterRoute,
-  PlaygroundUnitPriceComparisonRoute: PlaygroundUnitPriceComparisonRoute,
-  PlaygroundWebyoloRoute: PlaygroundWebyoloRoute,
-  PlaygroundWhisperTranscribeRoute: PlaygroundWhisperTranscribeRoute,
+  PlaygroundSlugRoute: PlaygroundSlugRoute,
   PlaygroundIndexRoute: PlaygroundIndexRoute,
 }
 

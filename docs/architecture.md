@@ -67,7 +67,7 @@ sequenceDiagram
 | `/` | トップ | `src/routes/index.tsx` |
 | `/blog` | ブログ | `src/routes/blog/` |
 | `/instruments` `/certifications` `/toys` `/books` | コレクション | `src/routes/<種類>/`（共通の中身は `src/components/collection/collection-routes.tsx`） |
-| `/playground` | ブラウザで動く小さなツール | `src/routes/playground/` |
+| `/playground` | ブラウザで動く小さなツール | `src/routes/playground/`（ツールのページは `$slug.tsx` の 1 つ） |
 | `/contact` | お問い合わせ | `src/routes/contact.tsx` |
 | `/admin` | 管理画面（記事・コレクション・お問い合わせ） | `src/routes/admin/` |
 | `/sign-in` | 管理画面のログイン（Clerk） | `src/routes/sign-in.$.tsx` |
@@ -96,5 +96,5 @@ sequenceDiagram
 ## よくある足し方
 
 - **コレクションの項目を足す:** `src/lib/collections/config.ts` に 1 行足す。管理画面の入力欄・サーバーでの入力チェック・公開ページの表示はここから作られる。DB は変えない
-- **プレイグラウンドのツールを足す:** `src/lib/playground/tools.ts` に 1 件足し、`src/routes/playground/<slug>.tsx` と `src/components/playground/tools/` にファイルを作る。重いライブラリを使うツールは `clientOnlyTool` でブラウザでだけ読み込む（Worker に入れない）
+- **プレイグラウンドのツールを足す:** `src/lib/playground/tools.ts` に 1 件足し、`src/components/playground/tools/<slug>/` を作り、`public/playground/<slug>/thumbnail.webp` を置く。ルートは作らない（`src/routes/playground/$slug.tsx` が全ツール分を出す）。入口は `index.tsx`（サーバーでも描く）か `browser.tsx`（ブラウザでだけ描く。重いライブラリを使うものはこちらにすると Worker に入らない）。使い方は `usage.ts`、下に出す文章は `after.tsx`（`src/components/playground/tool-registry.tsx`）
 - **外部のサービスを使う:** `src/server/security-headers.ts` の CSP に通信先を足す

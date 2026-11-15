@@ -5,7 +5,7 @@ import { RangeSlider, Stat, VoiceButton } from '@/components/playground/parts'
 import {
   loadTokenizer,
   type Tokenizer,
-} from '@/components/playground/tools/kuromoji'
+} from '@/components/playground/tools/kuromoji/kuromoji'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 import { useSpeechRecognition } from '@/hooks/use-speech-recognition'

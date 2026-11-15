@@ -89,9 +89,18 @@ function PlaygroundTools({ onNavigate }: { onNavigate: () => void }) {
             <SidebarMenuSubButton
               asChild
               size="sm"
-              isActive={Boolean(matchRoute({ to: `/playground/${tool.slug}` }))}
+              isActive={Boolean(
+                matchRoute({
+                  to: '/playground/$slug',
+                  params: { slug: tool.slug },
+                }),
+              )}
             >
-              <Link to={`/playground/${tool.slug}`} onClick={onNavigate}>
+              <Link
+                to="/playground/$slug"
+                params={{ slug: tool.slug }}
+                onClick={onNavigate}
+              >
                 <span>{tool.name}</span>
               </Link>
             </SidebarMenuSubButton>

@@ -135,7 +135,8 @@ function ToolCards({ tools, list }: { tools: Tool[]; list: ListControls }) {
               </FilterValue>
               <h2 className="font-semibold group-hover:underline">
                 <Link
-                  to={`/playground/${tool.slug}`}
+                  to="/playground/$slug"
+                  params={{ slug: tool.slug }}
                   className="after:absolute after:inset-0 after:content-['']"
                 >
                   {tool.name}
@@ -198,7 +199,8 @@ function ToolTable({ tools, list }: { tools: Tool[]; list: ListControls }) {
             >
               <td className="px-3 py-2">
                 <Link
-                  to={`/playground/${tool.slug}`}
+                  to="/playground/$slug"
+                  params={{ slug: tool.slug }}
                   className="group flex items-start gap-3"
                 >
                   <img

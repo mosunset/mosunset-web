@@ -5,7 +5,7 @@ import { CopyButton, HelpTip } from '@/components/playground/parts'
 import {
   loadTokenizer,
   type Tokenizer,
-} from '@/components/playground/tools/kuromoji'
+} from '@/components/playground/tools/kuromoji/kuromoji'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'

@@ -64,14 +64,15 @@ src/
     contact/       お問い合わせのフォーム
     admin/         管理画面
     editor/        本文のリッチテキストエディター（管理画面）
-    playground/    プレイグラウンドのツール。tools/ に 1 ツール 1 ファイル（ファイルが複数あるツールは tools/<名前>/ にまとめる）
+    playground/    プレイグラウンドのツールのページ（tool-page）と、ツールの中身の読み込み（tool-registry）。
+                   ツールは tools/<slug>/ に 1 ツール 1 フォルダ（入口・本体・使い方・下の文章）
     ui/            shadcn/ui
   hooks/         React のフック。管理画面だけで使うものは hooks/admin/
   functions/     server function（画面から呼ぶ API）。posts・collections・contact・images・isbn・dashboard・auth など
   server/        サーバーの中だけで使う処理（DB・R2・認証・メール・Turnstile・本文の無害化・ヘッダー・フィードなど）
   lib/           画面とサーバーの両方で使う処理（SEO・画像の URL・日付の書き方など）
     collections/   コレクションの種類（kinds）・項目の定義（config）・SEO（seo）
-    playground/    プレイグラウンドのツールの一覧（tools）と使い方の説明（usage）
+    playground/    プレイグラウンドのツールの一覧（tools）
     auth/          Clerk（ログイン）を読み込むかどうかの判断
   start.ts       リクエストごとのミドルウェア（セキュリティのヘッダー・CSRF・Clerk）
 drizzle/         D1 のマイグレーション
@@ -91,7 +92,10 @@ docs/            開発用のドキュメント（仕様・設計メモ）
 - 画面のファイルから `src/server` を import すると、`pnpm build` が import protection のエラーで止まります（`vite.config.ts` の `importProtection`）。server function の handler や `.server()` の中でだけ使うものは、ブラウザ用のバンドルでは消えるので通ります。
 - 例外は、画面を持たない server route（`sitemap.xml`・`rss.xml`・`llms.txt`・`/images/$`）と `src/start.ts` です。どちらも `server.handlers` や `.server()` の中から `src/server` の関数を呼ぶだけにしています。
 - コレクション（楽器・資格・おもちゃ・本）の種類と項目は `src/lib/collections/config.ts` の 1 か所で決めています。管理画面の入力欄・サーバーでの入力チェック・公開ページの表示は、ここから作ります。
-- プレイグラウンドのツールは `src/lib/playground/tools.ts` に 1 件足し、`src/routes/playground/<slug>.tsx` と `src/components/playground/tools/` にファイルを作ります（ファイルが複数になったら `tools/<名前>/` のフォルダにまとめます。例: `tools/box-packing/`）。重いライブラリを使うツールは `clientOnlyTool` でブラウザでだけ読み込みます（Worker に入れない）。
+- プレイグラウンドのツールを足すときに触るのは 3 か所です。ページは `/playground/$slug` の 1 つのルートが全ツール分を出すので、ルートのファイルは作りません。
+  1. `src/lib/playground/tools.ts` に 1 件足す（名前・説明・タグ・横に広いか・読み込み中の枠の高さ）
+  2. `src/components/playground/tools/<slug>/` を作る。入口は `index.tsx`（サーバーでも描く）か `browser.tsx`（ブラウザでだけ描く。重いライブラリ・カメラ・Worker・今の時刻を使うもの。Worker に入らない）のどちらか 1 つで、本体を default で export し直します。使い方は `usage.ts`、ツールの下に出す文章があれば `after.tsx`（くわしくは `src/components/playground/tool-registry.tsx`）
+  3. `public/playground/<slug>/thumbnail.webp` を置く
 
 ## セキュリティ
 

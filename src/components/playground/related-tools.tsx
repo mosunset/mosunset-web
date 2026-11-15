@@ -54,7 +54,8 @@ export function ToolPageNeighbors({ slug }: { slug: PlaygroundSlug }) {
             {related.map((t) => (
               <li key={t.slug}>
                 <Link
-                  to={`/playground/${t.slug}`}
+                  to="/playground/$slug"
+                  params={{ slug: t.slug }}
                   className="group flex h-full gap-3 rounded-lg border p-2.5 transition-colors hover:bg-muted/40 sm:flex-col sm:gap-2"
                 >
                   <img
@@ -81,7 +82,11 @@ export function ToolPageNeighbors({ slug }: { slug: PlaygroundSlug }) {
       {(prev || next) && (
         <nav aria-label="前後のツール" className="grid grid-cols-2 gap-3">
           {prev ? (
-            <Link to={`/playground/${prev.slug}`} className={box}>
+            <Link
+              to="/playground/$slug"
+              params={{ slug: prev.slug }}
+              className={box}
+            >
               <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
                 <ChevronLeft className="size-3.5" />
                 前へ
@@ -95,7 +100,8 @@ export function ToolPageNeighbors({ slug }: { slug: PlaygroundSlug }) {
           )}
           {next && (
             <Link
-              to={`/playground/${next.slug}`}
+              to="/playground/$slug"
+              params={{ slug: next.slug }}
               className={cn(box, 'items-end text-right')}
             >
               <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
