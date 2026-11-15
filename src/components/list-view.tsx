@@ -2,6 +2,7 @@ import { useNavigate } from '@tanstack/react-router'
 import {
   ArrowDown,
   ArrowUp,
+  ChevronDown,
   ChevronsUpDown,
   Grid3x3,
   LayoutGrid,
@@ -467,9 +468,60 @@ export function ListToolbar({
       <div className="mt-2 mb-6 space-y-3">
         {/* スマホでは札の列を「絞り込み」のボタンの中にしまう */}
         {facetRows.length > 0 && (
-          <div className="hidden space-y-3 sm:block">{facetRows}</div>
+          <div className="hidden space-y-3 sm:block">
+            {/* 広い画面でも、出すのは最初の 1 種類だけ。残りは開いたときに出す（札が何段にもなって一覧が下に押されるため） */}
+            {facetRows[0]}
+            {facets.length > 1 && (
+              <MoreFacets
+                labels={facets.slice(1).map((f) => f.label)}
+                // 残りの札で選んでいるものがあるときは、開いておく
+                forceOpen={facets.slice(1).some((f) => f.selected.length > 0)}
+              >
+                {facetRows.slice(1)}
+              </MoreFacets>
+            )}
+          </div>
         )}
         <ActiveFilters list={list} />
+      </div>
+    </>
+  )
+}
+
+/** 広い画面で、2 種類目からの絞り込みの札を畳んでおく */
+function MoreFacets({
+  labels,
+  forceOpen,
+  children,
+}: {
+  labels: string[]
+  forceOpen: boolean
+  children: React.ReactNode
+}) {
+  const [expanded, setExpanded] = React.useState(false)
+  const open = expanded || forceOpen
+  const id = React.useId()
+  return (
+    <>
+      {!forceOpen && (
+        <button
+          type="button"
+          aria-expanded={open}
+          aria-controls={id}
+          onClick={() => setExpanded((v) => !v)}
+          className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
+        >
+          <ChevronDown
+            className={cn(
+              'size-3.5 transition-transform',
+              open && 'rotate-180',
+            )}
+          />
+          {open ? '閉じる' : `${labels.join('・')}でも絞り込む`}
+        </button>
+      )}
+      <div id={id} hidden={!open} className="space-y-3">
+        {children}
       </div>
     </>
   )
