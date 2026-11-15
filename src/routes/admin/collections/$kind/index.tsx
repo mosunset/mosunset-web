@@ -269,6 +269,8 @@ function AdminCollectionItems() {
             </EmptyState>
           ) : (
             <DndContext
+              // 決まった id を渡さないと、つまみの aria-describedby の番号がサーバーとブラウザでずれる
+              id="admin-collection-items"
               sensors={sensors}
               collisionDetection={closestCenter}
               onDragEnd={onDragEnd}
