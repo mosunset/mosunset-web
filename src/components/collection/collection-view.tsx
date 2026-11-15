@@ -34,6 +34,7 @@ import {
   filterKeysOf,
   groupFieldOf,
   imageFitOf,
+  isDisplayedField,
   statusMarkOf,
 } from '@/lib/collections'
 import { formatDay, isRecent } from '@/lib/format'
@@ -70,6 +71,10 @@ const viewsOf = (kind: CollectionKind): readonly ViewMode[] =>
 
 const fieldsOf = (kind: CollectionKind): readonly AttributeField[] =>
   collections[kind].fields
+
+/** 公開ページに項目として出すもの（「一覧で大きく出す」などの設定の項目は除く） */
+const shownFieldsOf = (kind: CollectionKind) =>
+  fieldsOf(kind).filter(isDisplayedField)
 
 /**
  * 絞り込みの列（選択肢の決まった項目はその順に全部、文字の項目は多い順に 8 個まで札を見せる）。
@@ -172,7 +177,7 @@ const dimmedClass =
 
 /** 表に出す項目（URL は表では長すぎるので出さない） */
 const tableFieldsOf = (kind: CollectionKind) =>
-  fieldsOf(kind).filter((f) => f.type !== 'url')
+  shownFieldsOf(kind).filter((f) => f.type !== 'url')
 
 /** 表の見出しを押して並べ替えられる列（選択肢の決まった項目は選択肢の順に並べる） */
 function columnsOf(kind: CollectionKind): SortColumn<ListItem>[] {
@@ -222,7 +227,7 @@ export function CollectionGrid({
   search: ListSearch
 }) {
   const config = collections[kind]
-  const fields = fieldsOf(kind)
+  const fields = shownFieldsOf(kind)
   const list = useList({
     path: config.path,
     search,
@@ -243,22 +248,35 @@ export function CollectionGrid({
   })
   const { visible, view } = list
 
+  // 「主な資格」など、いちばん上に大きく出すもの（おすすめ順のカードの表示のときだけ）
+  const featuredConfig = (
+    config as { featured?: { key: string; label: string } }
+  ).featured
+  const featured =
+    featuredConfig && view === 'card' && list.sort === 'order'
+      ? visible.filter((item) => item.attributes[featuredConfig.key] === 'yes')
+      : []
+  const rest =
+    featured.length > 0
+      ? visible.filter((item) => !featured.includes(item))
+      : visible
+
   // 状態などでまとめて、見出しを付けて並べる（並べ替えはまとまりの中で効く）
   const groupField = groupFieldOf(kind)
   const groups = groupField
-    ? groupItems(visible, (item) => item.attributes[groupField.key] ?? '', {
+    ? groupItems(rest, (item) => item.attributes[groupField.key] ?? '', {
         label: (key) => (key ? displayAttribute(groupField, key) : '未設定'),
         order:
           groupField.type === 'select'
             ? groupField.options.map((o) => o.value)
             : undefined,
       })
-    : [{ key: '', label: '', items: visible }]
+    : [{ key: '', label: 'そのほか', items: rest }]
 
   // 出ている並びを覚えて、詳しいページの「前へ／次へ」をこの順で動けるようにする
   const orderJson = JSON.stringify(
-    groups.flatMap((g) =>
-      g.items.map((i): ListEntry => ({ slug: i.slug, title: i.title })),
+    [...featured, ...groups.flatMap((g) => g.items)].map(
+      (i): ListEntry => ({ slug: i.slug, title: i.title }),
     ),
   )
   React.useEffect(() => {
@@ -289,16 +307,31 @@ export function CollectionGrid({
           {(items) => <CollectionGallery kind={kind} items={items} />}
         </GroupedSections>
       ) : (
-        <GroupedSections groups={groups}>
-          {(items, grouped) => (
-            <CollectionCards
+        <>
+          {featuredConfig && featured.length > 0 && (
+            <FeaturedCards
               kind={kind}
-              items={items}
-              grouped={grouped}
+              label={featuredConfig.label}
+              items={featured}
               list={list}
             />
           )}
-        </GroupedSections>
+          {rest.length > 0 && (
+            <GroupedSections
+              groups={groups}
+              forceHeadings={featured.length > 0}
+            >
+              {(items, grouped) => (
+                <CollectionCards
+                  kind={kind}
+                  items={items}
+                  grouped={grouped}
+                  list={list}
+                />
+              )}
+            </GroupedSections>
+          )}
+        </>
       )}
     </>
   )
@@ -361,6 +394,75 @@ function CollectionCards({
         )
       })}
     </ul>
+  )
+}
+
+/**
+ * いちばん上に大きく並べるもの（「主な資格」など）。
+ * 写真は切らずに全体を見せ、紙の証書が机に置いてあるように少し影を付ける
+ */
+function FeaturedCards({
+  kind,
+  label,
+  items,
+  list,
+}: {
+  kind: CollectionKind
+  label: string
+  items: ListItem[]
+  list: ListControls
+}) {
+  const config = collections[kind]
+  return (
+    <section className="mb-10">
+      <h2 className="mb-4 flex items-baseline gap-2 border-b pb-2 text-lg font-semibold">
+        {label}
+        <span className="text-xs font-normal text-muted-foreground tabular-nums">
+          {items.length} 件
+        </span>
+      </h2>
+      <ul className="grid grid-cols-2 gap-4 lg:grid-cols-3 lg:gap-6">
+        {items.map((item) => {
+          const src = thumbnailUrl(item.imageKey)
+          return (
+            <li
+              key={item.slug}
+              id={listItemId(item.slug)}
+              className={cn(
+                'scroll-mt-32',
+                isDimmed(kind, item) && dimmedClass,
+              )}
+            >
+              <Link
+                to={config.detailPath}
+                params={{ slug: item.slug }}
+                className="group block"
+              >
+                <div className="relative aspect-square overflow-hidden rounded-xl border bg-gradient-to-b from-muted/20 to-muted/60 shadow-sm transition-shadow group-hover:shadow-md">
+                  {src ? (
+                    <img
+                      src={src}
+                      alt=""
+                      loading="lazy"
+                      className="size-full object-contain p-3 drop-shadow-md transition-transform duration-300 group-hover:scale-[1.03] sm:p-5"
+                    />
+                  ) : (
+                    <div className="flex size-full items-center justify-center text-muted-foreground">
+                      <ImageOff className="size-6" />
+                    </div>
+                  )}
+                  <ImageBadges kind={kind} item={item} />
+                </div>
+                <h3 className="mt-2 font-semibold leading-snug group-hover:underline sm:text-lg">
+                  {item.title}
+                </h3>
+              </Link>
+              <Subtitle kind={kind} item={item} list={list} />
+            </li>
+          )
+        })}
+      </ul>
+    </section>
   )
 }
 
@@ -703,7 +805,7 @@ export function CollectionDetail({
   const neighbors = useNeighbors(kind, item.slug, item.siblings)
   useArrowKeys(kind, neighbors)
 
-  const fields: readonly AttributeField[] = config.fields
+  const fields = shownFieldsOf(kind)
   const rows: { label: string; value: React.ReactNode }[] = [
     ...fields.flatMap<{ label: string; value: React.ReactNode }>((field) => {
       const value = item.attributes[field.key]

@@ -6,6 +6,7 @@ import {
   type CollectionKind,
   collections,
   displayAttribute,
+  isDisplayedField,
   itemSubtitle,
 } from '@/lib/collections'
 import { thumbnailUrl } from '@/lib/images'
@@ -88,7 +89,7 @@ function attributeWords(
 ) {
   const fields: readonly AttributeField[] = collections[kind].fields
   return fields
-    .filter((f) => f.type !== 'url' && attributes[f.key])
+    .filter((f) => isDisplayedField(f) && f.type !== 'url' && attributes[f.key])
     .map((f) => displayAttribute(f, attributes[f.key]))
 }
 

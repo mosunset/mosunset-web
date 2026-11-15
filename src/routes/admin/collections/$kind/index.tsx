@@ -36,6 +36,7 @@ import { useListFilter } from '@/hooks/use-list-filter'
 import {
   type CollectionKind,
   collections,
+  isDisplayedField,
   itemSubtitle,
 } from '@/lib/collections'
 import { errorMessage } from '@/lib/errors'
@@ -187,6 +188,7 @@ function AdminCollectionItems() {
               {...filterProps}
               options={filterOptions}
               placeholder={`${config.label}を検索（名前・${config.fields
+                .filter(isDisplayedField)
                 .map((f) => f.label)
                 .slice(0, 2)
                 .join('・')}など）`}

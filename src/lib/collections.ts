@@ -23,7 +23,13 @@ export type AttributeField =
       label: string
       type: 'select'
       options: readonly { value: string; label: string }[]
+      /** 並べ方などの設定に使う項目。公開ページの項目の一覧・表・検索には出さない */
+      setting?: true
     }
+
+/** 公開ページに項目として出すか（並べ方などの設定に使う項目は出さない） */
+export const isDisplayedField = (field: AttributeField) =>
+  !(field.type === 'select' && field.setting)
 
 type CollectionConfig = {
   kind: CollectionKind
@@ -63,6 +69,11 @@ type CollectionConfig = {
     key: string
     values: Readonly<Record<string, 'accent' | 'dim'>>
   }
+  /**
+   * 一覧のいちばん上に大きく出すもの。key の項目（select・setting）が 'yes' のものを、
+   * おすすめ順のカードの表示のときだけ、label の見出しを付けて先に並べる
+   */
+  featured?: { key: string; label: string }
   fields: readonly AttributeField[]
 }
 
@@ -116,6 +127,7 @@ export const collections = {
     filterKeys: ['status', 'category', 'issuer'],
     groupKey: 'status',
     marks: { key: 'status', values: { studying: 'accent', planned: 'dim' } },
+    featured: { key: 'featured', label: '主な資格' },
     fields: [
       {
         key: 'status',
@@ -127,10 +139,23 @@ export const collections = {
           { value: 'planned', label: '未取得' },
         ],
       },
+      {
+        key: 'featured',
+        label: '一覧のいちばん上に大きく出す',
+        type: 'select',
+        options: [{ value: 'yes', label: '大きく出す' }],
+        setting: true,
+      },
       { key: 'issuer', label: '発行元', type: 'text' },
       { key: 'category', label: '分類', type: 'text' },
       { key: 'score', label: 'スコア', type: 'text' },
-      { key: 'credentialId', label: '認定番号', type: 'text' },
+      // 合格証書・免許証の番号は本人に結びつく番号なので、公開しない（写真の番号もモザイクで隠している）
+      {
+        key: 'credentialId',
+        label: '認定番号',
+        type: 'text',
+        adminOnly: true,
+      },
       { key: 'expiresAt', label: '有効期限', type: 'date' },
       { key: 'verifyUrl', label: '証明ページの URL', type: 'url' },
     ],

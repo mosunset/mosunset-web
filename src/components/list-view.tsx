@@ -988,12 +988,17 @@ export function groupItems<T>(
 export function GroupedSections<T>({
   groups,
   children,
+  forceHeadings = false,
 }: {
   groups: readonly Group<T>[]
   /** grouped のときは見出し（h2）の下に並ぶので、中の名前は h3 にする */
   children: (items: T[], grouped: boolean) => React.ReactNode
+  /** まとまりが 1 つでも見出しを付ける（上にほかの見出し付きのまとまりがあるとき） */
+  forceHeadings?: boolean
 }) {
-  if (groups.length <= 1) return <>{children(groups[0]?.items ?? [], false)}</>
+  if (groups.length <= 1 && !forceHeadings) {
+    return <>{children(groups[0]?.items ?? [], false)}</>
+  }
   return (
     <div className="space-y-10">
       {groups.map((group) => (
