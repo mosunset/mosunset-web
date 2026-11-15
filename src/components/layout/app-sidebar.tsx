@@ -2,6 +2,7 @@ import { Link, useMatchRoute } from '@tanstack/react-router'
 import { House } from 'lucide-react'
 import type * as React from 'react'
 
+import { SectionContents } from '@/components/layout/section-contents'
 import { SocialIcon } from '@/components/layout/social-icons'
 import { ThemeSwitch } from '@/components/layout/theme-toggle'
 import {
@@ -79,15 +80,10 @@ export function AppSidebar(props: React.ComponentProps<typeof Sidebar>) {
               <SidebarMenu>
                 {group.paths.map((path) => {
                   const item = getNavItem(path)
+                  const active = Boolean(matchRoute({ to: path, fuzzy: true }))
                   return (
                     <SidebarMenuItem key={path}>
-                      <SidebarMenuButton
-                        asChild
-                        size="lg"
-                        isActive={Boolean(
-                          matchRoute({ to: path, fuzzy: true }),
-                        )}
-                      >
+                      <SidebarMenuButton asChild size="lg" isActive={active}>
                         <Link to={path} onClick={close}>
                           <item.icon />
                           <span className="grid min-w-0 leading-tight">
@@ -98,6 +94,10 @@ export function AppSidebar(props: React.ComponentProps<typeof Sidebar>) {
                           </span>
                         </Link>
                       </SidebarMenuButton>
+                      {/* 今いる場所の中身（道具の一覧・最近の記事・分類など） */}
+                      {active && (
+                        <SectionContents path={path} onNavigate={close} />
+                      )}
                     </SidebarMenuItem>
                   )
                 })}
