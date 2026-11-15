@@ -14,6 +14,9 @@ git push origin main           # これでデプロイが始まる
 - いま本番に出ている版は `npx wrangler deployments list`
 - マイグレーションは、古いコードのままでも動く形（列を足すなど）にしておく。push からデプロイまでのあいだも本番は動いているため
 - 流し直したいときは、Actions のタブの「デプロイ」から Run workflow
+- Cloudflare 側の自動ビルド（ダッシュボードの Workers Builds・Git 連携）は使わない。2026-11-15 に切断した。
+  つなぐと push のたびに Actions とは別にビルドが走り、チェックなしのデプロイが重なるおそれがある。
+  Cloudflare のダッシュボードでは、Actions からのデプロイは「手動で展開（Wrangler）」と表示される
 
 ## 初めの設定（1 回だけ）
 
