@@ -29,7 +29,7 @@ export function useImageUpload(folder: string, { thumbnail = false } = {}) {
 /**
  * R2 に保存済みの画像の、一覧用の小さい画像を作って送る関数を作る。
  * 元の画像をブラウザで読み込んで縮める（ISBN で取ってきた表紙や、前にアップロードした画像のぶん）。
- * 縮めても小さくならないもの（もともと小さい・GIF など）は、元の画像をそのまま使う
+ * 縮めても小さくならないものも、書き出し直したものを使う（元の画像の位置情報などを残さないため。GIF はそのまま）
  */
 export function useThumbnailMaker() {
   const upload = useServerFn(uploadThumbnail)

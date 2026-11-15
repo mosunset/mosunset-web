@@ -2,6 +2,7 @@ import { env } from 'cloudflare:workers'
 
 import { IMAGE_KEY_PATTERN, imageExtensions, thumbnailKey } from '@/lib/images'
 import { collectImageKeys, type RichTextDoc } from '@/lib/tiptap'
+import { stripImageMetadata } from '@/server/image-metadata'
 
 // サーバー側の処理（server function の handler の中など）からだけ使う。
 // 画面のコンポーネントから import されるファイルに置くと、ブラウザ用のバンドルに cloudflare:workers が入ってしまう
@@ -39,7 +40,7 @@ export async function imageResponse(path: string) {
   return new Response(object.body, { headers })
 }
 
-/** 画像を R2 に保存してキーを返す。種類は呼び出し側で確かめておく */
+/** 画像を R2 に保存してキーを返す。種類は呼び出し側で確かめておく。位置情報などのメタデータは必ず取り除く */
 export async function putImage(
   folder: string,
   body: ArrayBuffer,
@@ -48,19 +49,25 @@ export async function putImage(
   const ext = imageExtensions[contentType]
   if (!ext) throw new Error('保存できない画像の種類です')
   const key = `${folder}/${crypto.randomUUID()}.${ext}`
-  await env.IMAGES.put(key, body, { httpMetadata: { contentType } })
+  await env.IMAGES.put(key, stripImageMetadata(body, contentType), {
+    httpMetadata: { contentType },
+  })
   return key
 }
 
-/** 一覧用の小さい画像を、元の画像のキーに対応する場所に保存する。種類は呼び出し側で確かめておく */
+/** 一覧用の小さい画像を、元の画像のキーに対応する場所に保存する。種類は呼び出し側で確かめておく。メタデータは取り除く */
 export async function putThumbnail(
   key: string,
   body: ArrayBuffer,
   contentType: string,
 ) {
-  await env.IMAGES.put(thumbnailKey(key), body, {
-    httpMetadata: { contentType },
-  })
+  await env.IMAGES.put(
+    thumbnailKey(key),
+    stripImageMetadata(body, contentType),
+    {
+      httpMetadata: { contentType },
+    },
+  )
 }
 
 /** 元の画像が R2 にあるか */

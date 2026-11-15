@@ -20,6 +20,7 @@ import {
   type RichTextDoc,
   richTextExtensions,
 } from '../src/lib/tiptap.ts'
+import { stripImageMetadata } from '../src/server/image-metadata.ts'
 
 /** 旧サイトの main の最後のコミット */
 const OLD_SITE_REV = process.env.OLD_SITE_REV ?? '0fa6d60'
@@ -159,7 +160,11 @@ async function importImage(
     return null
   }
   const key = `${folder}/${randomUUID()}.${ext === 'jpeg' ? 'jpg' : ext}`
-  await bucket.put(key, blob, { httpMetadata: { contentType: type } })
+  // 旧サイトの写真には撮った場所（GPS）などが入っているので、必ず取り除いてから入れる
+  const bytes = new Uint8Array(blob)
+  await bucket.put(key, stripImageMetadata(bytes.buffer, type), {
+    httpMetadata: { contentType: type },
+  })
   uploaded++
   return key
 }
