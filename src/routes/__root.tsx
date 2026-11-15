@@ -21,6 +21,8 @@ import { Toaster } from '@/components/ui/sonner'
 import { TooltipProvider } from '@/components/ui/tooltip'
 
 import { resolveBreadcrumbs } from '@/lib/breadcrumbs'
+import { ClerkAvailableProvider } from '@/lib/clerk-available'
+import { readSignedInHint } from '@/lib/clerk-hint'
 import {
   absoluteUrl,
   jsonLd,
@@ -142,6 +144,8 @@ export const Route = createRootRoute({
       ],
     }
   },
+  // ログインしているらしいか（Clerk を読み込むか）。ページを移るたびに読み直す
+  loader: () => ({ signedInHint: readSignedInHint() }),
   notFoundComponent: NotFound,
   shellComponent: RootDocument,
 })
@@ -156,11 +160,23 @@ function NotFound() {
   )
 }
 
+/** ログインの画面（Clerk の部品で作っている） */
+const isSignInPath = (pathname: string) =>
+  pathname === '/sign-in' || pathname.startsWith('/sign-in/')
+
 function RootDocument({ children }: { children: React.ReactNode }) {
   const isAdmin = useRouterState({
     select: (state) =>
       state.location.pathname === '/admin' ||
       state.location.pathname.startsWith('/admin/'),
+  })
+  // Clerk（ログイン）のプログラムは、管理画面・ログインの画面と、ログインしているらしいときだけ読み込む。
+  // ログインしていない訪問者には、Clerk の本体・画面の部品・ロボット対策の通信を発生させない
+  const needsClerk = useRouterState({
+    select: (state) =>
+      isSignInPath(state.location.pathname) ||
+      (state.matches[0]?.loaderData as { signedInHint?: boolean } | undefined)
+        ?.signedInHint === true,
   })
 
   const nonce = useRouter().options.ssr?.nonce
@@ -178,19 +194,29 @@ function RootDocument({ children }: { children: React.ReactNode }) {
         <ScriptOnce>{themeInitScript}</ScriptOnce>
       </head>
       <body>
-        <ClerkProvider
-          nonce={nonce}
-          appearance={{ theme: shadcn }}
-          signInUrl="/sign-in"
-          localization={jaJP}
-        >
+        {isAdmin || needsClerk ? (
+          <ClerkProvider
+            nonce={nonce}
+            appearance={{ theme: shadcn }}
+            signInUrl="/sign-in"
+            localization={jaJP}
+          >
+            <ClerkAvailableProvider value>
+              <TooltipProvider>
+                {/* 管理画面は /admin のルートで専用のレイアウトを使う */}
+                {isAdmin ? children : <SiteShell>{children}</SiteShell>}
+                <Toaster theme={theme} richColors position="top-center" />
+                <NavigationProgress />
+              </TooltipProvider>
+            </ClerkAvailableProvider>
+          </ClerkProvider>
+        ) : (
           <TooltipProvider>
-            {/* 管理画面は /admin のルートで専用のレイアウトを使う */}
-            {isAdmin ? children : <SiteShell>{children}</SiteShell>}
+            <SiteShell>{children}</SiteShell>
             <Toaster theme={theme} richColors position="top-center" />
             <NavigationProgress />
           </TooltipProvider>
-        </ClerkProvider>
+        )}
         <TanStackDevtools
           config={{
             position: 'bottom-right',

@@ -22,6 +22,7 @@ import {
 import { Separator } from '@/components/ui/separator'
 import { SidebarTrigger } from '@/components/ui/sidebar'
 import { resolveEditHref } from '@/lib/breadcrumbs'
+import { useClerkAvailable } from '@/lib/clerk-available'
 import { collectionNav, mainNav } from '@/lib/navigation'
 import { site } from '@/lib/site'
 import { cn } from '@/lib/utils'
@@ -43,6 +44,7 @@ export function SiteHeader() {
   const editHref = resolveEditHref(useMatches())
   const headerRef = useRef<HTMLElement>(null)
   const hidden = useHideOnScroll(headerRef)
+  const clerkAvailable = useClerkAvailable()
 
   return (
     <header
@@ -101,14 +103,17 @@ export function SiteHeader() {
             <span className="hidden lg:inline">編集</span>
           </Link>
         )}
-        {/* 管理者がログインしているときだけ出す。公開側にはログインボタンを置かない */}
-        <Show when="signed-in">
-          <Link to="/admin" aria-label="管理画面" className={navLinkClass}>
-            <LayoutDashboard className="lg:hidden" />
-            <span className="hidden lg:inline">管理</span>
-          </Link>
-          <UserButton />
-        </Show>
+        {/* 管理者がログインしているときだけ出す。公開側にはログインボタンを置かない
+            （ログインしていない訪問者には Clerk を読み込まないので、そのときは何も出さない） */}
+        {clerkAvailable && (
+          <Show when="signed-in">
+            <Link to="/admin" aria-label="管理画面" className={navLinkClass}>
+              <LayoutDashboard className="lg:hidden" />
+              <span className="hidden lg:inline">管理</span>
+            </Link>
+            <UserButton />
+          </Show>
+        )}
       </div>
     </header>
   )
