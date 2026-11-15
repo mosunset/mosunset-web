@@ -67,6 +67,18 @@ function Hero() {
   )
 }
 
+/** 欄の見出し。英語を大きく、その下に日本語を小さく添える */
+function SectionHeading({ en, ja }: { en: string; ja: string }) {
+  return (
+    <h2>
+      <span className="block text-2xl font-bold">{en}</span>
+      <span className="mt-1 block text-sm font-medium text-muted-foreground">
+        {ja}
+      </span>
+    </h2>
+  )
+}
+
 /** 新しいツール（公開日の新しい順。同じ日は登録した順） */
 const latestTools = [...playgroundTools]
   .sort((a, b) => b.publishedDate.localeCompare(a.publishedDate))
@@ -77,7 +89,7 @@ function Latest() {
   const feed = Route.useLoaderData()
   return (
     <section id="latest" className="scroll-mt-20 border-t py-16">
-      <h2 className="text-2xl font-bold">Latest</h2>
+      <SectionHeading en="Latest" ja="新着" />
       <div className="mt-6 grid gap-10 md:grid-cols-2">
         {feed.posts.length > 0 && (
           <LatestColumn
@@ -260,7 +272,7 @@ function LatestRow({
 function About() {
   return (
     <section id="about" className="scroll-mt-20 border-t py-16">
-      <h2 className="text-2xl font-bold">About</h2>
+      <SectionHeading en="About" ja="自己紹介" />
       <div className="mt-6 grid gap-8 md:grid-cols-[2fr_1fr]">
         <div className="space-y-4 leading-relaxed">
           <p>
@@ -311,7 +323,7 @@ const aboutFacts = [
 function Contents() {
   return (
     <section id="contents" className="scroll-mt-20 border-t py-16">
-      <h2 className="text-2xl font-bold">Contents</h2>
+      <SectionHeading en="Contents" ja="コンテンツ" />
       <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {mainNav.map((item) => (
           <Link key={item.to} to={item.to} className="group">
@@ -336,7 +348,7 @@ function Contents() {
 function Links() {
   return (
     <section id="links" className="scroll-mt-20 border-t py-16 text-center">
-      <h2 className="text-2xl font-bold">Links</h2>
+      <SectionHeading en="Links" ja="リンク" />
       <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
         {site.social.map((s) => (
           <Button key={s.name} asChild variant="outline">
