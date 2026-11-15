@@ -70,10 +70,15 @@ export function RichTextEditor({
     setUploading((n) => n + files.length)
     for (const file of files) {
       try {
-        const key = await uploadFile(file)
+        const { key, width, height } = await uploadFile(file)
         const node = {
           type: 'image',
-          attrs: { src: `/images/${key}`, alt: '' },
+          // 幅と高さを書いておくと、読み込む前から場所が取られ、表示がずれない
+          attrs: {
+            src: `/images/${key}`,
+            alt: '',
+            ...(width && height ? { width, height } : {}),
+          },
         }
         if (pos !== undefined) {
           editor.chain().focus().insertContentAt(pos, node).run()

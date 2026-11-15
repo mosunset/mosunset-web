@@ -34,7 +34,7 @@ export function ImageUpload({ value, onChange, folder }: Props) {
     setPending(true)
     setError(null)
     try {
-      const key = await uploadFile(file)
+      const { key } = await uploadFile(file)
       onChange(key)
     } catch (e) {
       setError(errorMessage(e, 'アップロードできませんでした'))

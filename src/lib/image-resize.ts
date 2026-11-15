@@ -17,9 +17,36 @@ const QUALITY = 0.85
  */
 export async function resizeImage(
   file: File,
-  { maxSize = MAX_SIZE, quality = QUALITY } = {},
+  options: { maxSize?: number; quality?: number } = {},
 ): Promise<File> {
-  if (file.type === 'image/gif') return file
+  return (await resizeImageWithSize(file, options)).file
+}
+
+/** 書き出した画像と、その幅・高さ（px）。GIF で大きさが読めなかったときは null */
+export type ResizedImage = {
+  file: File
+  width: number | null
+  height: number | null
+}
+
+/**
+ * resizeImage と同じことをして、書き出した画像の幅・高さも返す。
+ * 本文に入れる画像は幅と高さを書いておくと、読み込む前から場所が取られ、表示がずれない
+ */
+export async function resizeImageWithSize(
+  file: File,
+  { maxSize = MAX_SIZE, quality = QUALITY } = {},
+): Promise<ResizedImage> {
+  if (file.type === 'image/gif') {
+    try {
+      const bitmap = await createImageBitmap(file)
+      const size = { width: bitmap.width, height: bitmap.height }
+      bitmap.close()
+      return { file, ...size }
+    } catch {
+      return { file, width: null, height: null }
+    }
+  }
   if (!file.type.startsWith('image/')) {
     throw new Error('画像のファイルを選んでください')
   }
@@ -56,7 +83,11 @@ export async function resizeImage(
 
   const name = file.name.replace(/\.[^.]+$/, '') || 'image'
   const ext = blob.type.replace('image/', '').replace('jpeg', 'jpg')
-  return new File([blob], `${name}.${ext}`, { type: blob.type })
+  return {
+    file: new File([blob], `${name}.${ext}`, { type: blob.type }),
+    width,
+    height,
+  }
 }
 
 /** ドラッグ＆ドロップや貼り付けから画像ファイルだけを取り出す */

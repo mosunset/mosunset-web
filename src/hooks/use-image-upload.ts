@@ -1,28 +1,35 @@
 import { useServerFn } from '@tanstack/react-start'
 import { uploadImage, uploadThumbnail } from '@/functions/images'
-import { resizeImage } from '@/lib/image-resize'
+import { resizeImage, resizeImageWithSize } from '@/lib/image-resize'
 import { imagePath, THUMBNAIL_SIZE } from '@/lib/images'
 
+/** アップロードした画像の保存先のキーと、幅・高さ（px。分からなければ null） */
+export type UploadedImage = {
+  key: string
+  width: number | null
+  height: number | null
+}
+
 /**
- * 画像を縮小してから R2 の folder にアップロードし、保存先のキーを返す関数を作る。
+ * 画像を縮小してから R2 の folder にアップロードし、保存先のキーと大きさを返す関数を作る。
  * thumbnail なら、一覧用の小さい画像も作って一緒に送る（コレクションの写真・記事の表紙）。
  * 失敗したときは例外をそのまま投げるので、呼ぶ側で知らせ方を決める
  */
 export function useImageUpload(folder: string, { thumbnail = false } = {}) {
   const upload = useServerFn(uploadImage)
 
-  return async (file: File): Promise<string> => {
-    const resized = await resizeImage(file)
+  return async (file: File): Promise<UploadedImage> => {
+    const resized = await resizeImageWithSize(file)
     const form = new FormData()
-    form.set('file', resized)
+    form.set('file', resized.file)
     form.set('folder', folder)
     if (thumbnail) {
       const thumb = await resizeImage(file, { maxSize: THUMBNAIL_SIZE })
       // 縮めても小さくならない（もともと小さい・GIF など）ときは、送る画像と同じものにする
-      form.set('thumb', thumb.size < resized.size ? thumb : resized)
+      form.set('thumb', thumb.size < resized.file.size ? thumb : resized.file)
     }
     const { key } = await upload({ data: form })
-    return key
+    return { key, width: resized.width, height: resized.height }
   }
 }
 
