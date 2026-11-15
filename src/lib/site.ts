@@ -21,6 +21,11 @@ export const site = {
     '業務の自動化',
   ],
   locale: 'ja_JP',
+  /**
+   * public/ に置いたアイコンの小さい版。ヘッダーなどで小さく出す版（64px）と、トップページで出す版（320px）。
+   * 毎ページ読むので、元の大きい画像（image）は SNS のカードなどだけに使う
+   */
+  icon: { small: '/my-64.webp', medium: '/my-320.webp' },
   /** public/ に置いた画像のパス */
   image: {
     path: '/my.webp',

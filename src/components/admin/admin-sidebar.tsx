@@ -48,7 +48,7 @@ export function AdminSidebar() {
             <SidebarMenuButton asChild size="lg" tooltip="ダッシュボード">
               <Link to="/admin" onClick={close}>
                 <img
-                  src={site.image.path}
+                  src={site.icon.small}
                   alt=""
                   width={32}
                   height={32}

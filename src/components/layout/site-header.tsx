@@ -58,7 +58,7 @@ export function SiteHeader() {
       />
       <Link to="/" className="flex shrink-0 items-center gap-2 font-semibold">
         <img
-          src={site.image.path}
+          src={site.icon.small}
           alt=""
           width={28}
           height={28}

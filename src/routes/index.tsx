@@ -33,7 +33,7 @@ function Hero() {
   return (
     <section className="flex flex-col items-center gap-6 py-20 text-center">
       <img
-        src={site.image.path}
+        src={site.icon.medium}
         alt={site.image.alt}
         width={160}
         height={160}

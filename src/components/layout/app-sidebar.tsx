@@ -39,7 +39,7 @@ export function AppSidebar(props: React.ComponentProps<typeof Sidebar>) {
           className="flex items-center gap-3 rounded-md p-2 hover:bg-sidebar-accent"
         >
           <img
-            src={site.image.path}
+            src={site.icon.small}
             alt=""
             width={36}
             height={36}
