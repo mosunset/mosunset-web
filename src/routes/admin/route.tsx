@@ -3,6 +3,7 @@ import { createFileRoute, Outlet, redirect } from '@tanstack/react-router'
 import { AdminShell } from '@/components/admin/admin-shell'
 import { getAdminStatus } from '@/functions/auth'
 import { countUnreadMessages } from '@/functions/contact'
+import { readAdminSidebarOpen } from '@/lib/admin-sidebar'
 import { seo } from '@/lib/seo'
 
 export const Route = createFileRoute('/admin')({
@@ -21,12 +22,14 @@ export const Route = createFileRoute('/admin')({
   loader: async ({ context }) => ({
     unreadCount:
       context.admin.status === 'admin' ? await countUnreadMessages() : 0,
+    sidebarOpen: readAdminSidebarOpen(),
   }),
   component: AdminLayout,
 })
 
 function AdminLayout() {
   const { admin } = Route.useRouteContext()
+  const { sidebarOpen } = Route.useLoaderData()
 
   if (admin.status === 'forbidden') {
     return (
@@ -44,7 +47,7 @@ function AdminLayout() {
   }
 
   return (
-    <AdminShell>
+    <AdminShell sidebarOpen={sidebarOpen}>
       <Outlet />
     </AdminShell>
   )

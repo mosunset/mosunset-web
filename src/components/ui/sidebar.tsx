@@ -24,8 +24,7 @@ import {
 } from "@/components/ui/tooltip"
 import { PanelLeftIcon } from "lucide-react"
 
-const SIDEBAR_COOKIE_NAME = "sidebar_state"
-const SIDEBAR_COOKIE_MAX_AGE = 60 * 60 * 24 * 7
+const SIDEBAR_COOKIE_MAX_AGE = 60 * 60 * 24 * 365
 const SIDEBAR_WIDTH = "16rem"
 const SIDEBAR_WIDTH_MOBILE = "18rem"
 const SIDEBAR_WIDTH_ICON = "3rem"
@@ -68,6 +67,7 @@ function SidebarProvider({
   open: openProp,
   onOpenChange: setOpenProp,
   keyboardShortcut = true,
+  cookie,
   className,
   style,
   children,
@@ -78,6 +78,11 @@ function SidebarProvider({
   onOpenChange?: (open: boolean) => void
   /** Ctrl+B（⌘B）で開け閉めする。開け閉めのボタンがない幅でも効くので、要らないときは切る */
   keyboardShortcut?: boolean
+  /**
+   * 開け閉めを覚えておく cookie（name と path）。サーバーで読んで defaultOpen に渡すと、
+   * 再読み込みしても畳んだままになる。指定しなければ覚えない
+   */
+  cookie?: { name: string; path: string }
 }) {
   const isMobile = useIsMobile()
   const [openMobile, setOpenMobile] = React.useState(false)
@@ -96,9 +101,11 @@ function SidebarProvider({
       }
 
       // This sets the cookie to keep the sidebar state.
-      document.cookie = `${SIDEBAR_COOKIE_NAME}=${openState}; path=/; max-age=${SIDEBAR_COOKIE_MAX_AGE}`
+      if (cookie) {
+        document.cookie = `${cookie.name}=${openState}; path=${cookie.path}; max-age=${SIDEBAR_COOKIE_MAX_AGE}; samesite=lax`
+      }
     },
-    [setOpenProp, open]
+    [setOpenProp, open, cookie]
   )
 
   // Helper to toggle the sidebar.

@@ -11,11 +11,25 @@ import {
   SidebarProvider,
   SidebarTrigger,
 } from '@/components/ui/sidebar'
+import { adminSidebarCookie } from '@/lib/admin-sidebar'
 
-/** 管理画面のレイアウト（常に出ている左メニュー＋上のバー） */
-export function AdminShell({ children }: { children: React.ReactNode }) {
+/**
+ * 管理画面のレイアウト（常に出ている左メニュー＋上のバー）。
+ * 左メニューを畳んだかどうかは cookie に覚え、再読み込みしても畳んだままにする
+ */
+export function AdminShell({
+  sidebarOpen,
+  children,
+}: {
+  sidebarOpen: boolean
+  children: React.ReactNode
+}) {
   return (
-    <SidebarProvider className="[--header-height:--spacing(14)]">
+    <SidebarProvider
+      defaultOpen={sidebarOpen}
+      cookie={adminSidebarCookie}
+      className="[--header-height:--spacing(14)]"
+    >
       <AdminSidebar />
       <SidebarInset className="min-w-0">
         <header className="sticky top-0 z-40 flex h-(--header-height) shrink-0 items-center gap-2 border-b bg-background/95 px-3 backdrop-blur sm:px-4">
