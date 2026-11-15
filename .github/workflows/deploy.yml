@@ -1,0 +1,49 @@
+# main に push されたら、チェックしてから本番（Cloudflare Workers の mosunset-web）にデプロイする。
+# 手元からはデプロイしない（本番はいつも GitHub の main と同じものにする）。手順は docs/deploy.md
+name: デプロイ
+
+on:
+  push:
+    branches: [main]
+  # GitHub の画面（Actions のタブ）から手で流し直せるように
+  workflow_dispatch:
+
+# デプロイは 1 つずつ順番に流す（途中のデプロイは止めない。待っているあいだに次の push が来たら、新しいほうだけ流す）
+concurrency:
+  group: production
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v5
+
+      # 手元と同じ版（pnpm 12・Node 26）にそろえる
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 12
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 26
+          cache: pnpm
+
+      - name: 依存を入れる
+        run: pnpm install --frozen-lockfile
+
+      - name: 型チェック
+        run: pnpm run typecheck
+
+      - name: 書き方のチェック（Biome）
+        run: pnpm run check
+
+      # D1 のマイグレーションはここでは流さない（必要なときは push の前に手元で pnpm db:migrate:remote）
+      - name: ビルドしてデプロイ
+        run: pnpm run deploy
+        env:
+          # Cloudflare の API トークン（リポジトリの Settings → Secrets and variables → Actions に入れる）
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}

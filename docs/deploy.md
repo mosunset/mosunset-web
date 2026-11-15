@@ -1,13 +1,36 @@
 # デプロイ
 
-`main` から手動でデプロイします（2026-11-07 に新サイトを公開）。
+GitHub の `main` に push すると、GitHub Actions（`.github/workflows/deploy.yml`）が
+型チェック・Biome・ビルドを通してから本番にデプロイします。手元からはデプロイしません
+（本番をいつも GitHub の `main` と同じものにするため。2026-11-15 から）。
+
+```bash
+pnpm check && pnpm typecheck   # Actions でも同じことをする。先に手元で通しておく
+pnpm db:migrate:remote         # マイグレーションがあるときだけ。push の前に流す（Actions では流さない）
+git push origin main           # これでデプロイが始まる
+```
+
+- 結果は GitHub の Actions のタブか、コミットの横の ✓ / ✗ で見る。チェックで落ちたときはデプロイされない
+- いま本番に出ている版は `npx wrangler deployments list`
+- マイグレーションは、古いコードのままでも動く形（列を足すなど）にしておく。push からデプロイまでのあいだも本番は動いているため
+- 流し直したいときは、Actions のタブの「デプロイ」から Run workflow
+
+## 初めの設定（1 回だけ）
+
+1. Cloudflare のダッシュボードで API トークンを作る（My Profile → API Tokens → Create Token →
+   テンプレート「Edit Cloudflare Workers」。アカウントは自分のもの、ゾーンは `mosunset.com`）
+2. GitHub のリポジトリの Settings → Secrets and variables → Actions → New repository secret に、
+   名前 `CLOUDFLARE_API_TOKEN` で入れる
+
+## Actions が使えないときだけ、手元からデプロイする
 
 ```bash
 git switch main && git pull
 pnpm check && pnpm typecheck
-pnpm db:migrate:remote   # マイグレーションがあるときだけ
-pnpm run deploy          # `pnpm deploy` は pnpm の別のコマンドなので run を付ける
+pnpm run deploy   # `pnpm deploy` は pnpm の別のコマンドなので run を付ける
 ```
+
+手元から出したあとは、同じコミットを必ず `main` に push しておく（本番と GitHub がずれないように）。
 
 ## 本番のリソース
 

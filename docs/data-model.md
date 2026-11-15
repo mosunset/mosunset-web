@@ -5,7 +5,7 @@
 ```bash
 pnpm db:generate       # schema.ts を変えたあと、マイグレーションを作る
 pnpm db:migrate:local  # 開発用の D1 に当てる
-pnpm db:migrate:remote # 本番の D1 に当てる（デプロイの前に）
+pnpm db:migrate:remote # 本番の D1 に当てる（main に push する前に。push するとデプロイが始まる）
 ```
 
 - `id` はすべて UUID、`created_at` / `updated_at` はミリ秒の UNIX 時間
