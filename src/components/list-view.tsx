@@ -428,7 +428,8 @@ export function ListToolbar({
       {/* 検索欄の段は、スクロールしても画面の上に貼り付ける */}
       <div
         className={cn(
-          'sticky top-14 z-20 -mx-6 flex items-center gap-2 border-b border-transparent bg-background/95 px-6 py-2 transition-[border-color,box-shadow] supports-backdrop-filter:bg-background/80 supports-backdrop-filter:backdrop-blur',
+          // スマホでヘッダーを隠しているあいだは、画面のいちばん上に貼り付く（site-header.tsx の useHideOnScroll）
+          'sticky top-[var(--header-offset,3.5rem)] z-20 -mx-6 flex items-center gap-2 border-b border-transparent bg-background/95 px-6 py-2 transition-[top,border-color,box-shadow] duration-200 supports-backdrop-filter:bg-background/80 supports-backdrop-filter:backdrop-blur',
           stuck && 'border-border shadow-sm',
         )}
       >

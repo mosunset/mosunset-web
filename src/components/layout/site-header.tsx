@@ -1,6 +1,12 @@
 import { Show, UserButton } from '@clerk/tanstack-react-start'
-import { Link, useMatches, useMatchRoute } from '@tanstack/react-router'
+import {
+  Link,
+  useLocation,
+  useMatches,
+  useMatchRoute,
+} from '@tanstack/react-router'
 import { ChevronDown, LayoutDashboard, Pencil } from 'lucide-react'
+import { useEffect, useRef, useState } from 'react'
 
 import {
   SiteSearchButton,
@@ -35,9 +41,15 @@ const isCollection = (to: string) => collectionNav.some((c) => c.to === to)
 export function SiteHeader() {
   // 管理者が記事やコレクションのページを見ているときだけ、その編集画面へのリンクを出す
   const editHref = resolveEditHref(useMatches())
+  const headerRef = useRef<HTMLElement>(null)
+  const hidden = useHideOnScroll(headerRef)
 
   return (
-    <header className="sticky top-0 z-50 flex h-(--header-height) w-full shrink-0 items-center gap-2 border-b bg-background/95 px-4 backdrop-blur">
+    <header
+      ref={headerRef}
+      data-hidden={hidden}
+      className="sticky top-0 z-50 flex h-(--header-height) w-full shrink-0 items-center gap-2 border-b bg-background/95 px-4 backdrop-blur transition-transform duration-200 data-[hidden=true]:-translate-y-full"
+    >
       {/* 狭い画面ではメニューをサイドバー（ドロワー）で開く */}
       <SidebarTrigger className="-ml-1 lg:hidden" />
       <Separator
@@ -100,6 +112,71 @@ export function SiteHeader() {
       </div>
     </header>
   )
+}
+
+/** スマホの幅。ここより狭いと、下へスクロールしたときにヘッダーを隠す */
+const PHONE_QUERY = '(max-width: 767px)'
+/** これより小さい動きでは出し入れしない（指が少し触れただけで動かないように） */
+const SCROLL_THRESHOLD = 8
+
+/**
+ * スマホで、下へスクロールしたらヘッダーを隠し、上へ戻したら出す（画面を広く使えるように）。
+ * 隠しているあいだは、一覧の検索欄の段などが画面のいちばん上に貼り付くよう、
+ * <html> の --header-offset を 0 にする（使う側は var(--header-offset, 3.5rem)）
+ */
+function useHideOnScroll(headerRef: React.RefObject<HTMLElement | null>) {
+  const [hidden, setHidden] = useState(false)
+  const { pathname } = useLocation()
+
+  // ほかのページに移ったら出す
+  // biome-ignore lint/correctness/useExhaustiveDependencies: pathname が変わったときだけ動かす
+  useEffect(() => {
+    setHidden(false)
+  }, [pathname])
+
+  useEffect(() => {
+    // キーボードでヘッダーの中に移ったときは出す（隠れたままのボタンを押すことにならないように）
+    const header = headerRef.current
+    const show = () => setHidden(false)
+    header?.addEventListener('focusin', show)
+    const phone = matchMedia(PHONE_QUERY)
+    let lastY = window.scrollY
+    let frame = 0
+    const update = () => {
+      frame = 0
+      const y = window.scrollY
+      const dy = y - lastY
+      // ページのいちばん上の近く（ヘッダーの高さぶん）では、いつも出す
+      if (!phone.matches || y < 56) setHidden(false)
+      else if (dy > SCROLL_THRESHOLD) setHidden(true)
+      else if (dy < -SCROLL_THRESHOLD) setHidden(false)
+      // 小さい動きは、たまって超えるまで待つ
+      else return
+      lastY = y
+    }
+    const onScroll = () => {
+      if (!frame) frame = requestAnimationFrame(update)
+    }
+    window.addEventListener('scroll', onScroll, { passive: true })
+    phone.addEventListener('change', update)
+    return () => {
+      header?.removeEventListener('focusin', show)
+      window.removeEventListener('scroll', onScroll)
+      phone.removeEventListener('change', update)
+      cancelAnimationFrame(frame)
+    }
+  }, [headerRef])
+
+  useEffect(() => {
+    const root = document.documentElement.style
+    if (hidden) root.setProperty('--header-offset', '0px')
+    else root.removeProperty('--header-offset')
+    return () => {
+      root.removeProperty('--header-offset')
+    }
+  }, [hidden])
+
+  return hidden
 }
 
 /** 楽器・資格・おもちゃ・本をまとめたメニュー（タブレットの幅用） */
