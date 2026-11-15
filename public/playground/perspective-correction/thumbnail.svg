@@ -1,0 +1,82 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="768" height="432" viewBox="0 0 768 432">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#f8fafc"/>
+      <stop offset="1" stop-color="#eef2f7"/>
+    </linearGradient>
+    <linearGradient id="desk" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#c49065"/>
+      <stop offset="1" stop-color="#9c6b43"/>
+    </linearGradient>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="150%">
+      <feDropShadow dx="0" dy="10" stdDeviation="12" flood-color="#334155" flood-opacity="0.16"/>
+    </filter>
+    <clipPath id="photo"><rect x="56" y="76" width="300" height="280" rx="14"/></clipPath>
+    <clipPath id="sheet">
+      <path d="M150 118 C190 108 240 112 286 116 C300 180 312 250 324 318 C250 330 160 334 92 326 C108 250 126 180 150 118 Z"/>
+    </clipPath>
+  </defs>
+  <rect width="768" height="432" fill="url(#bg)"/>
+
+  <!-- 斜めから撮った写真（机の上の、少し反った紙） -->
+  <g filter="url(#shadow)">
+    <rect x="56" y="76" width="300" height="280" rx="14" fill="url(#desk)"/>
+  </g>
+  <g clip-path="url(#photo)">
+    <path d="M150 118 C190 108 240 112 286 116 C300 180 312 250 324 318 C250 330 160 334 92 326 C108 250 126 180 150 118 Z" fill="#fbfaf6"/>
+    <g clip-path="url(#sheet)">
+      <path d="M140 128 C190 118 240 122 290 126 L292 158 C240 154 190 152 134 160 Z" fill="#0e7490"/>
+      <path d="M120 200 C190 196 250 196 302 200 L308 248 C250 246 180 246 110 250 Z" fill="#bae6fd"/>
+      <path d="M110 250 C150 228 190 232 230 246 L230 250 Z" fill="#86efac"/>
+      <g stroke="#94a3b8" stroke-width="6" stroke-linecap="round">
+        <path d="M110 272 C180 270 250 270 310 272"/>
+        <path d="M106 290 C170 288 230 288 300 290"/>
+        <path d="M102 308 C150 307 190 307 220 308"/>
+      </g>
+    </g>
+    <!-- 合わせた辺（ベジエ）と持ち手 -->
+    <path d="M150 118 C190 108 240 112 286 116" fill="none" stroke="#f97316" stroke-width="4"/>
+    <path d="M286 116 C300 180 312 250 324 318 C250 330 160 334 92 326 C108 250 126 180 150 118" fill="none" stroke="#22d3ee" stroke-width="3"/>
+    <g stroke="#ffffff" stroke-width="1.5" stroke-dasharray="4 3">
+      <path d="M92 326 L160 334"/>
+      <path d="M324 318 L250 330"/>
+    </g>
+    <g fill="#ffffff" stroke="#0e7490" stroke-width="2">
+      <rect x="154" y="328" width="12" height="12"/>
+      <rect x="244" y="324" width="12" height="12"/>
+    </g>
+    <circle cx="208" cy="329" r="6" fill="#0e7490" stroke="#fff" stroke-width="2"/>
+    <g fill="rgba(34,211,238,0.3)" stroke="#ffffff" stroke-width="3">
+      <circle cx="150" cy="118" r="11"/>
+      <circle cx="286" cy="116" r="11"/>
+      <circle cx="324" cy="318" r="11"/>
+      <circle cx="92" cy="326" r="11"/>
+    </g>
+  </g>
+
+  <!-- 矢印 -->
+  <g fill="none" stroke="#94a3b8" stroke-width="6" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M384 216 H446"/>
+    <path d="M430 198 L450 216 L430 234"/>
+  </g>
+
+  <!-- 正面から見た形に直した紙 -->
+  <g filter="url(#shadow)">
+    <rect x="510" y="60" width="160" height="312" rx="6" fill="#fbfaf6"/>
+  </g>
+  <g stroke="rgba(14,116,144,0.14)" stroke-width="1.5">
+    <path d="M510 100 H670 M510 140 H670 M510 180 H670 M510 220 H670 M510 260 H670 M510 300 H670 M510 340 H670"/>
+    <path d="M550 60 V372 M590 60 V372 M630 60 V372"/>
+  </g>
+  <rect x="524" y="76" width="132" height="40" fill="#0e7490"/>
+  <rect x="524" y="132" width="132" height="92" fill="#bae6fd"/>
+  <circle cx="626" cy="158" r="13" fill="#fcd34d"/>
+  <path d="M524 224 C556 188 592 196 620 210 C636 200 648 198 656 202 V224 Z" fill="#86efac"/>
+  <g stroke="#94a3b8" stroke-width="7" stroke-linecap="round">
+    <path d="M528 252 H652"/>
+    <path d="M528 272 H644"/>
+    <path d="M528 292 H652"/>
+    <path d="M528 312 H600"/>
+  </g>
+  <rect x="524" y="340" width="132" height="14" fill="#f97316"/>
+</svg>

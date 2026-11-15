@@ -57,6 +57,7 @@ import { Route as PlaygroundMonitorPairingRouteImport } from './routes/playgroun
 import { Route as PlaygroundMosaicArtRouteImport } from './routes/playground/mosaic-art'
 import { Route as PlaygroundNgramSimilarityRouteImport } from './routes/playground/ngram-similarity'
 import { Route as PlaygroundNotationVarianceRouteImport } from './routes/playground/notation-variance'
+import { Route as PlaygroundPerspectiveCorrectionRouteImport } from './routes/playground/perspective-correction'
 import { Route as PlaygroundReadabilityCheckRouteImport } from './routes/playground/readability-check'
 import { Route as PlaygroundRegexTesterRouteImport } from './routes/playground/regex-tester'
 import { Route as PlaygroundUnitPriceComparisonRouteImport } from './routes/playground/unit-price-comparison'
@@ -324,6 +325,12 @@ const PlaygroundNotationVarianceRoute =
     path: '/notation-variance',
     getParentRoute: () => PlaygroundRouteRoute,
   } as any)
+const PlaygroundPerspectiveCorrectionRoute =
+  PlaygroundPerspectiveCorrectionRouteImport.update({
+    id: '/perspective-correction',
+    path: '/perspective-correction',
+    getParentRoute: () => PlaygroundRouteRoute,
+  } as any)
 const PlaygroundReadabilityCheckRoute =
   PlaygroundReadabilityCheckRouteImport.update({
     id: '/readability-check',
@@ -463,6 +470,7 @@ export interface FileRoutesByFullPath {
   '/playground/mosaic-art': typeof PlaygroundMosaicArtRoute
   '/playground/ngram-similarity': typeof PlaygroundNgramSimilarityRoute
   '/playground/notation-variance': typeof PlaygroundNotationVarianceRoute
+  '/playground/perspective-correction': typeof PlaygroundPerspectiveCorrectionRoute
   '/playground/readability-check': typeof PlaygroundReadabilityCheckRoute
   '/playground/regex-tester': typeof PlaygroundRegexTesterRoute
   '/playground/unit-price-comparison': typeof PlaygroundUnitPriceComparisonRoute
@@ -521,6 +529,7 @@ export interface FileRoutesByTo {
   '/playground/mosaic-art': typeof PlaygroundMosaicArtRoute
   '/playground/ngram-similarity': typeof PlaygroundNgramSimilarityRoute
   '/playground/notation-variance': typeof PlaygroundNotationVarianceRoute
+  '/playground/perspective-correction': typeof PlaygroundPerspectiveCorrectionRoute
   '/playground/readability-check': typeof PlaygroundReadabilityCheckRoute
   '/playground/regex-tester': typeof PlaygroundRegexTesterRoute
   '/playground/unit-price-comparison': typeof PlaygroundUnitPriceComparisonRoute
@@ -589,6 +598,7 @@ export interface FileRoutesById {
   '/playground/mosaic-art': typeof PlaygroundMosaicArtRoute
   '/playground/ngram-similarity': typeof PlaygroundNgramSimilarityRoute
   '/playground/notation-variance': typeof PlaygroundNotationVarianceRoute
+  '/playground/perspective-correction': typeof PlaygroundPerspectiveCorrectionRoute
   '/playground/readability-check': typeof PlaygroundReadabilityCheckRoute
   '/playground/regex-tester': typeof PlaygroundRegexTesterRoute
   '/playground/unit-price-comparison': typeof PlaygroundUnitPriceComparisonRoute
@@ -659,6 +669,7 @@ export interface FileRouteTypes {
     | '/playground/mosaic-art'
     | '/playground/ngram-similarity'
     | '/playground/notation-variance'
+    | '/playground/perspective-correction'
     | '/playground/readability-check'
     | '/playground/regex-tester'
     | '/playground/unit-price-comparison'
@@ -717,6 +728,7 @@ export interface FileRouteTypes {
     | '/playground/mosaic-art'
     | '/playground/ngram-similarity'
     | '/playground/notation-variance'
+    | '/playground/perspective-correction'
     | '/playground/readability-check'
     | '/playground/regex-tester'
     | '/playground/unit-price-comparison'
@@ -784,6 +796,7 @@ export interface FileRouteTypes {
     | '/playground/mosaic-art'
     | '/playground/ngram-similarity'
     | '/playground/notation-variance'
+    | '/playground/perspective-correction'
     | '/playground/readability-check'
     | '/playground/regex-tester'
     | '/playground/unit-price-comparison'
@@ -1168,6 +1181,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PlaygroundNotationVarianceRouteImport
       parentRoute: typeof PlaygroundRouteRoute
     }
+    '/playground/perspective-correction': {
+      id: '/playground/perspective-correction'
+      path: '/perspective-correction'
+      fullPath: '/playground/perspective-correction'
+      preLoaderRoute: typeof PlaygroundPerspectiveCorrectionRouteImport
+      parentRoute: typeof PlaygroundRouteRoute
+    }
     '/playground/readability-check': {
       id: '/playground/readability-check'
       path: '/readability-check'
@@ -1451,6 +1471,7 @@ interface PlaygroundRouteRouteChildren {
   PlaygroundMosaicArtRoute: typeof PlaygroundMosaicArtRoute
   PlaygroundNgramSimilarityRoute: typeof PlaygroundNgramSimilarityRoute
   PlaygroundNotationVarianceRoute: typeof PlaygroundNotationVarianceRoute
+  PlaygroundPerspectiveCorrectionRoute: typeof PlaygroundPerspectiveCorrectionRoute
   PlaygroundReadabilityCheckRoute: typeof PlaygroundReadabilityCheckRoute
   PlaygroundRegexTesterRoute: typeof PlaygroundRegexTesterRoute
   PlaygroundUnitPriceComparisonRoute: typeof PlaygroundUnitPriceComparisonRoute
@@ -1480,6 +1501,7 @@ const PlaygroundRouteRouteChildren: PlaygroundRouteRouteChildren = {
   PlaygroundMosaicArtRoute: PlaygroundMosaicArtRoute,
   PlaygroundNgramSimilarityRoute: PlaygroundNgramSimilarityRoute,
   PlaygroundNotationVarianceRoute: PlaygroundNotationVarianceRoute,
+  PlaygroundPerspectiveCorrectionRoute: PlaygroundPerspectiveCorrectionRoute,
   PlaygroundReadabilityCheckRoute: PlaygroundReadabilityCheckRoute,
   PlaygroundRegexTesterRoute: PlaygroundRegexTesterRoute,
   PlaygroundUnitPriceComparisonRoute: PlaygroundUnitPriceComparisonRoute,
