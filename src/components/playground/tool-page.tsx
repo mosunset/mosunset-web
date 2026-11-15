@@ -23,12 +23,44 @@ export function toolRouteOptions(slug: PlaygroundSlug) {
   }
 }
 
-const loading = (
-  <div className="flex h-64 items-center justify-center gap-2 rounded-lg border text-muted-foreground">
-    <Loader2 className="size-4 animate-spin" />
-    読み込み中…
-  </div>
-)
+/**
+ * ブラウザだけで描くツールの、読み込み中の枠の高さ（px）。
+ * だいたいの実際の高さにしておくと、ツールが出たときに下のリンクが押し下げられない（CLS）。
+ * パソコンの幅で、最初に出る大きさを測った値（2026-11-15）。ツールの見た目を大きく変えたら測り直す
+ */
+const loadingHeights: Partial<Record<PlaygroundSlug, number>> = {
+  '3dblock': 886,
+  'autophagy-clock': 685,
+  'box-packing': 3339,
+  'cron-expression': 1230,
+  furigana: 666,
+  'id-generators': 900,
+  'image-compress': 566,
+  'image-privacy': 677,
+  kuromoji: 408,
+  masonryimage: 1982,
+  'mosaic-art': 534,
+  'notation-variance': 920,
+  'perspective-correction': 196,
+  'readability-check': 2608,
+  'regex-tester': 1924,
+  webyolo: 352,
+  'whisper-transcribe': 359,
+}
+
+/** 読み込み中の枠。高さは 256〜1200px（それより高いツールも、下のリンクは画面の外にあるので 1200px で足りる） */
+function Loading({ slug }: { slug: PlaygroundSlug }) {
+  const height = Math.min(Math.max(loadingHeights[slug] ?? 256, 256), 1200)
+  return (
+    <div
+      className="flex items-start justify-center gap-2 rounded-lg border pt-24 text-muted-foreground"
+      style={{ minHeight: height }}
+    >
+      <Loader2 className="size-4 animate-spin" />
+      読み込み中…
+    </div>
+  )
+}
 
 /**
  * ツールの本体を、ブラウザでだけ読み込む部品にする。
@@ -89,8 +121,8 @@ export function ToolPage({
       <div className="mt-8">
         {clientOnly ? (
           // ツールの本体は lazy() で後から読み込むので、それを待つあいだも同じ表示にする
-          <ClientOnly fallback={loading}>
-            <Suspense fallback={loading}>{children}</Suspense>
+          <ClientOnly fallback={<Loading slug={slug} />}>
+            <Suspense fallback={<Loading slug={slug} />}>{children}</Suspense>
           </ClientOnly>
         ) : (
           children

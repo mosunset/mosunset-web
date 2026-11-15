@@ -123,7 +123,8 @@ export function Furigana() {
       {loadError ? (
         <p className="text-sm text-destructive">{loadError}</p>
       ) : !tokenizer ? (
-        <p className="flex items-center gap-2 text-sm text-muted-foreground">
+        // 辞書を読み込んだあとの表示に近い高さを取っておく（読み込んだときに下が押し下げられないように）
+        <p className="flex min-h-[28rem] items-start gap-2 text-sm text-muted-foreground">
           <Loader2 className="size-4 animate-spin" />
           辞書を読み込んでいます（初回のみ・約 17MB）…
         </p>
