@@ -17,7 +17,12 @@ export function SiteShell({ children }: { children: React.ReactNode }) {
       >
         本文へ移動
       </a>
-      <SidebarProvider defaultOpen={false} className="flex flex-col">
+      {/* 公開側のサイドバーは狭い画面のメニューなので、Ctrl+B では開かない（広い画面では閉じるボタンがない） */}
+      <SidebarProvider
+        defaultOpen={false}
+        keyboardShortcut={false}
+        className="flex flex-col"
+      >
         <SiteHeader />
         <div className="flex flex-1">
           <AppSidebar className="top-(--header-height) h-[calc(100svh-var(--header-height))]!" />
