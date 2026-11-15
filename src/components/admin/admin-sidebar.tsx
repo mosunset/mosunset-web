@@ -4,6 +4,7 @@ import {
   Inbox,
   LayoutDashboard,
   NotebookPen,
+  Plus,
   SquarePen,
 } from 'lucide-react'
 
@@ -16,6 +17,7 @@ import {
   SidebarGroupLabel,
   SidebarHeader,
   SidebarMenu,
+  SidebarMenuAction,
   SidebarMenuBadge,
   SidebarMenuButton,
   SidebarMenuItem,
@@ -164,6 +166,21 @@ export function AdminSidebar() {
                         <span>{c.label}</span>
                       </Link>
                     </SidebarMenuButton>
+                    {/* 「記事を書く」と同じく、一覧を開かずにすぐ追加できるように */}
+                    <SidebarMenuAction
+                      asChild
+                      className="text-muted-foreground"
+                    >
+                      <Link
+                        to="/admin/collections/$kind/new"
+                        params={{ kind: c.kind }}
+                        onClick={close}
+                        aria-label={`${c.label}を追加`}
+                        title={`${c.label}を追加`}
+                      >
+                        <Plus />
+                      </Link>
+                    </SidebarMenuAction>
                   </SidebarMenuItem>
                 )
               })}
