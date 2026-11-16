@@ -7,6 +7,7 @@
  */
 import type { Genome, Metric, PackInput, PackResult } from './solver'
 
+/** 変えるときは、サイトの CSP（src/server/security-headers.ts の connect-src）も変える */
 const BASE = 'http://127.0.0.1:8787'
 /** ネイティブ版の窓口の形の版（server.rs の PAGE_API）。違えば使わない */
 const API = 1

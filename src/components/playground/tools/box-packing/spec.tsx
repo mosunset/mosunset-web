@@ -498,7 +498,10 @@ export function BoxPackingSpec() {
             秒ごとに聞きに行き、3D・部門別ベスト・試した組み合わせの表をその場で描き替えます。ネイティブ版がいるあいだは、ブラウザの
             Worker
             は使いません（柱で積む方式もネイティブ版が受け持ちます）。ネイティブ版は
-            mosunset.com と localhost のページにだけ答えます。
+            mosunset.com と localhost のページにだけ答えます。mosunset.com
+            のページでは、初めてのときにブラウザが、この PC
+            のほかのアプリにつないでよいかを聞きます。許可しないと、ネイティブ版を見つけられません（localhost
+            のページでは聞かれません）。
           </li>
           <li>
             <strong>立ち上げと終わり：</strong>

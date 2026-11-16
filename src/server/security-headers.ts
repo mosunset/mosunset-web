@@ -31,7 +31,8 @@ const TURNSTILE = 'https://challenges.cloudflare.com'
  * Content-Security-Policy。
  * スクリプトは、サーバーがリクエストごとに作る nonce が付いたものと、そこから読み込まれたもの（strict-dynamic）だけ動かせる。
  * 外部から読み込むもの: Clerk（ログイン）、Turnstile、物体認識のモデル（storage.googleapis.com）、
- * 文字起こしのモデル（Hugging Face）と ONNX Runtime（cdn.jsdelivr.net）
+ * 文字起こしのモデル（Hugging Face）と ONNX Runtime（cdn.jsdelivr.net）。
+ * ほかに、箱詰めのページはこの PC で動くネイティブ版（127.0.0.1:8787）に計算を頼む
  */
 function contentSecurityPolicy(nonce: string, local: boolean) {
   const clerk = clerkFrontendOrigin()
@@ -57,6 +58,9 @@ function contentSecurityPolicy(nonce: string, local: boolean) {
       'https://*.huggingface.co',
       'https://*.hf.co',
       'https://cdn.jsdelivr.net',
+      // 箱詰めのネイティブ版（native/box-packing。場所は box-packing/native.ts の BASE と同じにする）。
+      // https のページからこの PC に話しかけるので、ブラウザーが最初に許可を聞く
+      'http://127.0.0.1:8787',
     ]
       .filter(Boolean)
       .join(' ')}`,
