@@ -1,8 +1,11 @@
 import { createFileRoute, Link } from '@tanstack/react-router'
+import * as React from 'react'
+
 import {
   ArticleTocAside,
   ArticleTocDisclosure,
 } from '@/components/blog/article-toc'
+import { CopyArticleMenu } from '@/components/blog/copy-article-menu'
 import { BackLinkFooter } from '@/components/common/back-link-footer'
 import { DraftBadge } from '@/components/common/draft-badge'
 import { NotFoundPage } from '@/components/common/not-found-page'
@@ -99,6 +102,7 @@ const TOC_MIN_HEADINGS = 3
 function BlogPost() {
   const post = Route.useLoaderData()
   const showToc = post.toc.length >= TOC_MIN_HEADINGS
+  const bodyRef = React.useRef<HTMLDivElement>(null)
 
   return (
     <div
@@ -140,6 +144,11 @@ function BlogPost() {
                 </span>
               )}
             <span>約 {post.readingMinutes} 分で読めます</span>
+            <CopyArticleMenu
+              title={post.title}
+              bodyRef={bodyRef}
+              className="ml-auto"
+            />
           </p>
           <h1 className="mt-2 text-3xl font-bold leading-tight sm:text-4xl">
             {post.title}
@@ -153,7 +162,9 @@ function BlogPost() {
           <ArticleTocDisclosure toc={post.toc} className="mt-6 xl:hidden" />
         )}
 
-        <RichTextContent html={post.html} className="mt-8" />
+        <div ref={bodyRef} className="mt-8">
+          <RichTextContent html={post.html} />
+        </div>
 
         <BackLinkFooter
           to="/blog"
