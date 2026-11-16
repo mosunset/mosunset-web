@@ -1,0 +1,70 @@
+{
+  "floorX": 1100,
+  "floorY": 1100,
+  "walls": {
+    "back": false,
+    "left": false,
+    "right": false
+  },
+  "gap": 5,
+  "edgeGap": 5,
+  "supportPercent": 95,
+  "objective": "height",
+  "wallBias": 50,
+  "tidy": {
+    "weight": 50,
+    "group": true,
+    "flat": true,
+    "bigBottom": true,
+    "upright": true,
+    "even": true,
+    "bigWall": true,
+    "front": true,
+    "frontFlat": true,
+    "near": true,
+    "balance": true
+  },
+  "seed": 1,
+  "boxes": [
+    {
+      "tag": "冬服",
+      "x": 500,
+      "y": 400,
+      "z": 350,
+      "count": 4,
+      "canLayDown": false
+    },
+    {
+      "tag": "本",
+      "x": 400,
+      "y": 300,
+      "z": 250,
+      "count": 8,
+      "canLayDown": false
+    },
+    {
+      "tag": "食器",
+      "x": 330,
+      "y": 250,
+      "z": 200,
+      "count": 10,
+      "canLayDown": false
+    },
+    {
+      "tag": "細長いもの",
+      "x": 600,
+      "y": 200,
+      "z": 150,
+      "count": 4,
+      "canLayDown": true
+    },
+    {
+      "tag": "小物",
+      "x": 250,
+      "y": 200,
+      "z": 150,
+      "count": 4,
+      "canLayDown": false
+    }
+  ]
+}

@@ -1,0 +1,94 @@
+{
+  "floorX": 1400,
+  "floorY": 1200,
+  "walls": {
+    "back": true,
+    "left": true,
+    "right": false
+  },
+  "gap": 5,
+  "edgeGap": 5,
+  "supportPercent": 95,
+  "objective": "floor",
+  "wallBias": 50,
+  "tidy": {
+    "weight": 50,
+    "group": true,
+    "flat": true,
+    "bigBottom": true,
+    "upright": true,
+    "even": true,
+    "bigWall": true,
+    "front": true,
+    "frontFlat": true,
+    "near": true,
+    "balance": true
+  },
+  "seed": 1,
+  "boxes": [
+    {
+      "tag": "箱1",
+      "x": 460,
+      "y": 500,
+      "z": 250,
+      "count": 7,
+      "canLayDown": false
+    },
+    {
+      "tag": "箱2",
+      "x": 190,
+      "y": 420,
+      "z": 470,
+      "count": 6,
+      "canLayDown": true
+    },
+    {
+      "tag": "箱3",
+      "x": 560,
+      "y": 250,
+      "z": 500,
+      "count": 12,
+      "canLayDown": false
+    },
+    {
+      "tag": "箱4",
+      "x": 450,
+      "y": 160,
+      "z": 360,
+      "count": 2,
+      "canLayDown": true
+    },
+    {
+      "tag": "箱5",
+      "x": 550,
+      "y": 280,
+      "z": 490,
+      "count": 8,
+      "canLayDown": false
+    },
+    {
+      "tag": "箱6",
+      "x": 260,
+      "y": 160,
+      "z": 510,
+      "count": 8,
+      "canLayDown": true
+    },
+    {
+      "tag": "箱7",
+      "x": 270,
+      "y": 210,
+      "z": 360,
+      "count": 10,
+      "canLayDown": false
+    },
+    {
+      "tag": "箱8",
+      "x": 260,
+      "y": 190,
+      "z": 530,
+      "count": 7,
+      "canLayDown": true
+    }
+  ]
+}

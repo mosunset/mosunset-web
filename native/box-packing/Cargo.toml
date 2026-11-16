@@ -1,0 +1,17 @@
+[package]
+name = "box-packing"
+version = "0.1.0"
+edition = "2021"
+publish = false
+description = "箱詰めの計算を Rust（CPU 並列）と CUDA で動かしてみる試作"
+
+[dependencies]
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+rayon = "1"
+
+[profile.release]
+opt-level = 3
+lto = "fat"
+codegen-units = 1
+debug = false

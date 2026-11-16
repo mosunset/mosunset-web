@@ -1,0 +1,508 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>箱詰めシミュレーター</title>
+<style>
+:root {
+  --bg: #f6f5f2; --panel: #ffffff; --ink: #1d1f22; --muted: #6b7076; --line: #e3e1dc;
+  --accent: #1f6feb; --accent-ink: #ffffff; --soft: #eef3fd; --danger: #c43c3c; --ok: #1a7f4b;
+  --scene: #eceae5; --field: #fbfaf8;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #131416; --panel: #1b1d20; --ink: #e8e9ea; --muted: #9aa0a6; --line: #2c2f33;
+    --accent: #4c8dff; --accent-ink: #0b0c0d; --soft: #1d2a40; --danger: #ef6b6b; --ok: #4cc38a;
+    --scene: #18191b; --field: #222428;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #131416; --panel: #1b1d20; --ink: #e8e9ea; --muted: #9aa0a6; --line: #2c2f33;
+  --accent: #4c8dff; --accent-ink: #0b0c0d; --soft: #1d2a40; --danger: #ef6b6b; --ok: #4cc38a;
+  --scene: #18191b; --field: #222428;
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--ink); font: 14px/1.6 system-ui, "Hiragino Sans", "Yu Gothic UI", "Meiryo", sans-serif; }
+header { padding: 14px 20px; border-bottom: 1px solid var(--line); display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+header h1 { font-size: 18px; margin: 0; }
+header span { color: var(--muted); font-size: 13px; }
+main { display: grid; grid-template-columns: minmax(340px, 420px) 1fr; gap: 16px; padding: 16px 20px; align-items: start; }
+@media (max-width: 900px) { main { grid-template-columns: 1fr; padding: 12px 16px; } }
+.panel { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px; }
+.panel + .panel { margin-top: 12px; }
+h2 { font-size: 14px; margin: 0 0 10px; }
+.grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 12px; }
+label.f { display: flex; flex-direction: column; gap: 2px; font-size: 12px; color: var(--muted); }
+input[type=number], input[type=text], select {
+  width: 100%; padding: 6px 8px; border: 1px solid var(--line); border-radius: 6px;
+  background: var(--field); color: var(--ink); font: inherit;
+}
+input[type=range] { width: 100%; }
+.checks { display: flex; flex-wrap: wrap; gap: 4px 14px; }
+.checks label { display: flex; align-items: center; gap: 4px; font-size: 13px; }
+.row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+button {
+  font: inherit; padding: 7px 12px; border-radius: 6px; border: 1px solid var(--line);
+  background: var(--panel); color: var(--ink); cursor: pointer;
+}
+button:hover { border-color: var(--muted); }
+button.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); font-weight: 600; }
+button.primary:disabled { opacity: .5; cursor: default; }
+button.small { padding: 3px 8px; font-size: 12px; }
+button.icon { padding: 2px 7px; color: var(--muted); }
+.boxes { width: 100%; border-collapse: collapse; font-size: 13px; }
+.boxes th { white-space: nowrap; font-weight: 500; color: var(--muted); font-size: 12px; text-align: left; padding: 2px 3px; }
+.boxes td { padding: 2px 3px; }
+.boxes input[type=number] { padding: 4px 5px; }
+.boxes input[type=text] { padding: 4px 5px; }
+.boxes td.n { width: 64px; }
+.boxes td.c { width: 50px; }
+.swatch { display: inline-block; width: 10px; height: 10px; border-radius: 2px; vertical-align: middle; }
+.scroll { overflow-x: auto; }
+details summary { cursor: pointer; font-size: 13px; color: var(--muted); margin-top: 8px; }
+.view { position: relative; background: var(--scene); border: 1px solid var(--line); border-radius: 10px; height: min(68vh, 720px); min-height: 360px; overflow: hidden; }
+.view canvas { display: block; }
+.empty { position: absolute; inset: 0; display: grid; place-items: center; color: var(--muted); text-align: center; padding: 20px; }
+.tip { position: absolute; pointer-events: none; background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: 4px 8px; font-size: 12px; display: none; white-space: nowrap; }
+.stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-top: 12px; }
+@media (max-width: 600px) { .stats { grid-template-columns: repeat(2, 1fr); } }
+.stat { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; }
+.stat b { display: block; font-size: 22px; font-variant-numeric: tabular-nums; }
+.stat span { font-size: 12px; color: var(--muted); }
+.progress { height: 6px; background: var(--line); border-radius: 3px; overflow: hidden; margin: 8px 0 6px; }
+.progress div { height: 100%; width: 0; background: var(--accent); transition: width .3s; }
+.meta { font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.msg { margin-top: 8px; font-size: 13px; }
+.msg.err { color: var(--danger); }
+.legend { display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: 13px; margin-top: 10px; }
+.unplaced { color: var(--danger); font-size: 13px; margin-top: 6px; }
+</style>
+<script type="importmap">
+{ "imports": {
+  "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+} }
+</script>
+</head>
+<body>
+<header>
+  <h1>箱詰めシミュレーター</h1>
+  <span>この PC の CPU と GPU で計算します</span>
+</header>
+<main>
+  <div>
+    <section class="panel">
+      <h2>床と置き方</h2>
+      <div class="grid2">
+        <label class="f">床の幅（mm）<input type="number" id="floorX" min="1"></label>
+        <label class="f">床の奥行き（mm）<input type="number" id="floorY" min="1"></label>
+        <label class="f">箱どうしのすき間（mm）<input type="number" id="gap" min="0"></label>
+        <label class="f">床の端とのすき間（mm）<input type="number" id="edgeGap" min="0"></label>
+        <label class="f">底面を支える割合（%）<input type="number" id="supportPercent" min="0" max="100"></label>
+        <label class="f">めざすもの
+          <select id="objective"><option value="height">全体の高さを低く</option><option value="floor">下の段から隙間なく</option></select>
+        </label>
+      </div>
+      <div style="margin-top:10px">
+        <div class="meta">壁</div>
+        <div class="checks">
+          <label><input type="checkbox" id="wallBack">奥</label>
+          <label><input type="checkbox" id="wallLeft">左</label>
+          <label><input type="checkbox" id="wallRight">右</label>
+        </div>
+      </div>
+      <label class="f" style="margin-top:8px">重心を壁側に寄せる強さ <span id="wallBiasV"></span><input type="range" id="wallBias" min="0" max="100"></label>
+      <label class="f">見た目の整いをどれだけ重視するか <span id="tidyV"></span><input type="range" id="tidyWeight" min="0" max="100"></label>
+      <details>
+        <summary>見た目の整いで見る点</summary>
+        <div class="checks" id="tidyChecks" style="margin-top:6px"></div>
+      </details>
+    </section>
+
+    <section class="panel">
+      <div class="row" style="justify-content:space-between">
+        <h2 style="margin:0">箱 <span class="meta" id="boxTotal"></span></h2>
+        <div class="row">
+          <button class="small" id="sampleDefault">見本</button>
+          <button class="small" id="sampleRandom">ばらばらな箱</button>
+        </div>
+      </div>
+      <div class="scroll" style="margin-top:8px">
+        <table class="boxes">
+          <thead><tr><th title="計算に使う">使う</th><th></th><th>名前</th><th>幅</th><th>奥行き</th><th>高さ</th><th>個数</th><th title="横倒しにしてよい">倒す</th><th></th></tr></thead>
+          <tbody id="boxRows"></tbody>
+        </table>
+      </div>
+      <div class="row" style="margin-top:8px">
+        <button class="small" id="addRow">＋ 箱を足す</button>
+        <button class="small" id="loadJson">ファイルを読む</button>
+        <button class="small" id="saveJson">ファイルに書き出す</button>
+        <input type="file" id="file" accept=".json,application/json" hidden>
+      </div>
+    </section>
+
+    <section class="panel">
+      <h2>計算</h2>
+      <div class="grid2">
+        <label class="f">計算する時間
+          <select id="seconds">
+            <option value="10">10 秒</option><option value="30">30 秒</option>
+            <option value="60">1 分</option><option value="180">3 分</option><option value="600">10 分</option>
+          </select>
+        </label>
+        <label class="f">GPU
+          <select id="useGpu"><option value="1">使う</option><option value="0">使わない（CPU だけ）</option></select>
+        </label>
+      </div>
+      <div class="row" style="margin-top:10px">
+        <button class="primary" id="run">詰め方を探す</button>
+        <button id="stop" disabled>止める</button>
+      </div>
+      <div class="progress"><div id="bar"></div></div>
+      <div class="meta" id="meta">まだ計算していません</div>
+      <div class="msg" id="msg"></div>
+    </section>
+  </div>
+
+  <div>
+    <div class="view" id="view">
+      <div class="empty" id="empty">「詰め方を探す」を押すと、ここに積んだ形が出ます。<br>ドラッグで回す・ホイールで寄る・右ドラッグで動かす</div>
+      <div class="tip" id="tip"></div>
+    </div>
+    <div class="stats">
+      <div class="stat"><span>高さ</span><b id="sHeight">–</b></div>
+      <div class="stat"><span>充填率</span><b id="sFill">–</b></div>
+      <div class="stat"><span>見た目の整い</span><b id="sTidy">–</b></div>
+      <div class="stat"><span>置けた箱</span><b id="sPlaced">–</b></div>
+    </div>
+    <div class="unplaced" id="unplaced"></div>
+    <div class="legend" id="legend"></div>
+  </div>
+</main>
+
+<script type="module">
+import * as THREE from 'three'
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js'
+
+const $ = (id) => document.getElementById(id)
+const STORE = 'box-packing-native:v1'
+const tidyKeys = [
+  ['group', '同じ箱がまとまる'], ['flat', '上の面が平ら'], ['bigBottom', '大きい箱が下'],
+  ['upright', '横倒しが少ない'], ['even', 'くぼみ・飛び出しがない'], ['bigWall', '大きい箱が壁側'],
+  ['front', '箱の正面が手前'], ['frontFlat', '手前の面がそろう'], ['near', 'リストで近い箱が近く'],
+  ['balance', '左右の釣り合い'],
+]
+const sample = () => ({
+  floorX: 1100, floorY: 1100, walls: { back: false, left: false, right: false },
+  gap: 5, edgeGap: 5, supportPercent: 95, objective: 'height', wallBias: 50,
+  tidy: { weight: 50, ...Object.fromEntries(tidyKeys.map(([k]) => [k, true])) },
+  boxes: [
+    { tag: '冬服', x: 500, y: 400, z: 350, count: 4, canLayDown: false },
+    { tag: '本', x: 400, y: 300, z: 250, count: 8, canLayDown: false },
+    { tag: '食器', x: 330, y: 250, z: 200, count: 10, canLayDown: false },
+    { tag: '細長いもの', x: 600, y: 200, z: 150, count: 4, canLayDown: true },
+    { tag: '小物', x: 250, y: 200, z: 150, count: 4, canLayDown: false },
+  ],
+  seconds: 30, gpu: true,
+})
+
+let S
+try { S = JSON.parse(localStorage.getItem(STORE)) } catch { S = null }
+if (!S || !Array.isArray(S.boxes)) S = sample()
+const save = () => { try { localStorage.setItem(STORE, JSON.stringify(S)) } catch {} }
+
+// ---- 色（名前ごと） ----
+const palette = ['#e07a5f', '#3d85c6', '#81b29a', '#f2cc8f', '#9d7bd8', '#e5989b', '#4fb3bf', '#c9a227', '#6d9f4a', '#d96aa7', '#8d99ae', '#f4a261']
+const nameOf = (b, i) => (b.tag || '').trim() || `箱 ${i + 1}`
+const colorMap = (boxes = S.boxes) => {
+  const m = new Map()
+  boxes.forEach((b, i) => { const n = nameOf(b, i); if (!m.has(n)) m.set(n, palette[m.size % palette.length]) })
+  return m
+}
+
+// ---- 設定の欄 ----
+const num = (id, get, set) => {
+  const el = $(id); el.value = get()
+  el.addEventListener('input', () => { set(Math.trunc(Number(el.value))); save() })
+}
+function bindSettings() {
+  num('floorX', () => S.floorX, (v) => (S.floorX = v))
+  num('floorY', () => S.floorY, (v) => (S.floorY = v))
+  num('gap', () => S.gap, (v) => (S.gap = v))
+  num('edgeGap', () => S.edgeGap, (v) => (S.edgeGap = v))
+  num('supportPercent', () => S.supportPercent, (v) => (S.supportPercent = v))
+  $('objective').value = S.objective
+  $('objective').onchange = (e) => { S.objective = e.target.value; save() }
+  for (const [id, k] of [['wallBack', 'back'], ['wallLeft', 'left'], ['wallRight', 'right']]) {
+    $(id).checked = S.walls[k]
+    $(id).onchange = (e) => { S.walls[k] = e.target.checked; save() }
+  }
+  const range = (id, vid, get, set) => {
+    const el = $(id); el.value = get(); $(vid).textContent = get()
+    el.oninput = () => { set(Number(el.value)); $(vid).textContent = el.value; save() }
+  }
+  range('wallBias', 'wallBiasV', () => S.wallBias, (v) => (S.wallBias = v))
+  range('tidyWeight', 'tidyV', () => S.tidy.weight, (v) => (S.tidy.weight = v))
+  $('tidyChecks').innerHTML = ''
+  for (const [k, label] of tidyKeys) {
+    const l = document.createElement('label')
+    const c = document.createElement('input'); c.type = 'checkbox'; c.checked = !!S.tidy[k]
+    c.onchange = () => { S.tidy[k] = c.checked; save() }
+    l.append(c, label); $('tidyChecks').append(l)
+  }
+  $('seconds').value = String(S.seconds ?? 30)
+  $('seconds').onchange = (e) => { S.seconds = Number(e.target.value); save() }
+  $('useGpu').value = S.gpu === false ? '0' : '1'
+  $('useGpu').onchange = (e) => { S.gpu = e.target.value === '1'; save() }
+}
+
+function renderBoxes() {
+  const colors = colorMap()
+  const body = $('boxRows'); body.innerHTML = ''
+  S.boxes.forEach((b, i) => {
+    const tr = document.createElement('tr')
+    const cell = (cls) => { const td = document.createElement('td'); if (cls) td.className = cls; tr.append(td); return td }
+    const use = document.createElement('input'); use.type = 'checkbox'; use.checked = b.enabled !== false; use.title = '計算に使う'
+    use.onchange = () => { b.enabled = use.checked; save(); renderBoxes() }; cell().append(use)
+    tr.style.opacity = b.enabled === false ? '0.45' : ''
+    const sw = document.createElement('span'); sw.className = 'swatch'; sw.style.background = colors.get(nameOf(b, i)); cell().append(sw)
+    const tag = document.createElement('input'); tag.type = 'text'; tag.value = b.tag; tag.placeholder = `箱 ${i + 1}`
+    tag.oninput = () => { b.tag = tag.value; save() }; tag.onchange = () => renderBoxes(); cell().append(tag)
+    for (const k of ['x', 'y', 'z', 'count']) {
+      const n = document.createElement('input'); n.type = 'number'; n.min = k === 'count' ? '0' : '1'; n.value = b[k]
+      n.oninput = () => { b[k] = Math.trunc(Number(n.value)); save(); total() }
+      cell(k === 'count' ? 'c' : 'n').append(n)
+    }
+    const lay = document.createElement('input'); lay.type = 'checkbox'; lay.checked = b.canLayDown
+    lay.onchange = () => { b.canLayDown = lay.checked; save() }; cell().append(lay)
+    const del = document.createElement('button'); del.className = 'icon'; del.textContent = '×'; del.title = 'この行を消す'
+    del.onclick = () => { S.boxes.splice(i, 1); save(); renderBoxes() }; cell().append(del)
+    body.append(tr)
+  })
+  total()
+}
+const usedCount = (b) => (b.enabled === false || !(b.count > 0) ? 0 : b.count)
+const total = () => { $('boxTotal').textContent = `使う箱 ${S.boxes.reduce((s, b) => s + usedCount(b), 0)} 個` }
+
+$('addRow').onclick = () => { S.boxes.push({ tag: '', x: 300, y: 300, z: 300, count: 1, canLayDown: false, enabled: true }); save(); renderBoxes() }
+$('sampleDefault').onclick = () => { const k = sample(); S.boxes = k.boxes; save(); renderBoxes() }
+$('sampleRandom').onclick = () => {
+  const rand = mulberry(Date.now() & 0xffff)
+  const size = () => Math.round((150 + rand() * 450) / 10) * 10
+  const types = 6 + Math.floor(rand() * 6)
+  const boxes = Array.from({ length: types }, (_, i) => ({ tag: `箱${i + 1}`, x: size(), y: size(), z: size(), count: 0, canLayDown: rand() < 0.5 }))
+  for (let i = 0; i < 60; i++) boxes[Math.floor(rand() * types)].count++
+  S.boxes = boxes.filter((b) => b.count > 0); save(); renderBoxes()
+}
+function mulberry(seed) {
+  let a = seed | 0
+  return () => {
+    a = (a + 0x6d2b79f5) | 0
+    let t = Math.imul(a ^ (a >>> 15), 1 | a)
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296
+  }
+}
+const inputOf = () => {
+  const { seconds, gpu, ...rest } = S
+  return {
+    ...rest,
+    boxes: S.boxes.map((b) => ({ tag: b.tag || '', x: b.x, y: b.y, z: b.z, count: usedCount(b), canLayDown: !!b.canLayDown })),
+    seed: 1,
+  }
+}
+$('saveJson').onclick = () => {
+  const { seconds, gpu, seed, ...settings } = S
+  const boxes = S.boxes.map((b) => ({ tag: b.tag || '', x: b.x, y: b.y, z: b.z, count: b.count, canLayDown: !!b.canLayDown, enabled: b.enabled !== false }))
+  const r = lastShown && lastShown.result
+  const inp = lastShown && lastShown.input
+  const data = {
+    tool: 'box-packing', version: 1, unit: 'mm',
+    settings: { ...settings, boxes },
+    result: r && {
+      height: r.height, fillRate: r.fillRate, floorCoverage: r.floorCoverage, cog: r.cog,
+      placements: r.placements.map((p, i) => ({
+        order: i + 1, tag: nameOf(inp.boxes[p.type], p.type), x: p.x, y: p.y, z: p.z, w: p.w, d: p.d, h: p.h,
+        upFace: p.faces[4], laidDown: p.laidDown,
+      })),
+      unplaced: r.unplaced.map((u) => ({ tag: nameOf(inp.boxes[u.type], u.type), count: u.count, reason: u.reason })),
+    },
+  }
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' })
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'box-packing.json'; a.click()
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000)
+}
+$('loadJson').onclick = () => $('file').click()
+$('file').onchange = async (e) => {
+  const f = e.target.files[0]; if (!f) return
+  try {
+    const data = JSON.parse(await f.text())
+    const j = data && typeof data.settings === 'object' && data.settings ? data.settings : data
+    if (!Array.isArray(j.boxes)) throw new Error()
+    const base = sample()
+    const n = (v, d) => (Number.isFinite(Number(v)) ? Math.trunc(Number(v)) : d)
+    S = {
+      floorX: n(j.floorX, base.floorX), floorY: n(j.floorY, base.floorY),
+      walls: { ...base.walls, ...j.walls },
+      gap: n(j.gap, base.gap), edgeGap: n(j.edgeGap, base.edgeGap), supportPercent: n(j.supportPercent, base.supportPercent),
+      objective: j.objective === 'floor' ? 'floor' : 'height', wallBias: n(j.wallBias, base.wallBias),
+      tidy: { ...base.tidy, ...j.tidy },
+      boxes: j.boxes.map((b) => ({
+        tag: String(b.tag ?? ''), x: n(b.x, 100), y: n(b.y, 100), z: n(b.z, 100), count: n(b.count, 1),
+        canLayDown: !!b.canLayDown, enabled: b.enabled !== false,
+      })),
+      seconds: S.seconds, gpu: S.gpu,
+    }
+    save(); bindSettings(); renderBoxes(); message(`「${f.name}」を読みました（箱 ${S.boxes.length} 種類）。`)
+  } catch { message('このファイルは読めませんでした（箱詰めの入力の JSON を選んでください）。', true) }
+  e.target.value = ''
+}
+
+// ---- 3D ----
+const view = $('view')
+const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true })
+renderer.setPixelRatio(Math.min(2, devicePixelRatio))
+view.prepend(renderer.domElement)
+const scene = new THREE.Scene()
+const camera = new THREE.PerspectiveCamera(40, 1, 0.01, 200)
+const controls = new OrbitControls(camera, renderer.domElement)
+controls.enableDamping = true
+scene.add(new THREE.HemisphereLight(0xffffff, 0x888888, 1.6))
+const sun = new THREE.DirectionalLight(0xffffff, 1.4); sun.position.set(2, 5, 3); scene.add(sun)
+const world = new THREE.Group(); scene.add(world)
+let pickables = []
+let fitted = ''
+
+function resize() {
+  const w = view.clientWidth, h = view.clientHeight
+  renderer.setSize(w, h); camera.aspect = w / h; camera.updateProjectionMatrix()
+}
+new ResizeObserver(resize).observe(view)
+renderer.setAnimationLoop(() => { controls.update(); renderer.render(scene, camera) })
+
+function draw(result, input) {
+  world.clear(); pickables = []
+  const mm = 0.001
+  const X = input.floorX * mm, Y = input.floorY * mm
+  const dark = matchMedia('(prefers-color-scheme: dark)').matches
+  const floor = new THREE.Mesh(new THREE.BoxGeometry(X, 0.01, Y), new THREE.MeshStandardMaterial({ color: dark ? 0x3a3c40 : 0xd8d4cc }))
+  floor.position.y = -0.005; world.add(floor)
+  const H = Math.max(result.height * mm, 0.3)
+  const wallMat = new THREE.MeshStandardMaterial({ color: 0x8899aa, transparent: true, opacity: 0.18, side: THREE.DoubleSide })
+  if (input.walls.back) { const m = new THREE.Mesh(new THREE.PlaneGeometry(X, H), wallMat); m.position.set(0, H / 2, -Y / 2); world.add(m) }
+  if (input.walls.left) { const m = new THREE.Mesh(new THREE.PlaneGeometry(Y, H), wallMat); m.rotation.y = Math.PI / 2; m.position.set(-X / 2, H / 2, 0); world.add(m) }
+  if (input.walls.right) { const m = new THREE.Mesh(new THREE.PlaneGeometry(Y, H), wallMat); m.rotation.y = Math.PI / 2; m.position.set(X / 2, H / 2, 0); world.add(m) }
+  const colors = colorMap(input.boxes)
+  const edgeMat = new THREE.LineBasicMaterial({ color: dark ? 0x111111 : 0x333333, transparent: true, opacity: 0.55 })
+  for (const p of result.placements) {
+    const b = input.boxes[p.type]
+    const name = nameOf(b, p.type)
+    const geo = new THREE.BoxGeometry(p.w * mm, p.h * mm, p.d * mm)
+    const mesh = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({ color: colors.get(name) ?? '#999', roughness: 0.8 }))
+    mesh.position.set((p.x + p.w / 2) * mm - X / 2, (p.z + p.h / 2) * mm, Y / 2 - (p.y + p.d / 2) * mm)
+    mesh.userData = { name, p, b }
+    mesh.add(new THREE.LineSegments(new THREE.EdgesGeometry(geo), edgeMat))
+    world.add(mesh); pickables.push(mesh)
+  }
+  // 床の大きさが変わったときだけカメラを合わせ直す（計算中に良くなるたびに動かさない）
+  const key = `${input.floorX}x${input.floorY}`
+  if (fitted !== key) {
+    fitted = key
+    const r = Math.max(X, Y, H) * 1.6
+    camera.position.set(r * 0.7, r * 0.75, r)
+    controls.target.set(0, H / 3, 0)
+  }
+}
+
+const ray = new THREE.Raycaster(); const ptr = new THREE.Vector2()
+renderer.domElement.addEventListener('pointermove', (e) => {
+  const rect = renderer.domElement.getBoundingClientRect()
+  ptr.set(((e.clientX - rect.left) / rect.width) * 2 - 1, -((e.clientY - rect.top) / rect.height) * 2 + 1)
+  ray.setFromCamera(ptr, camera)
+  const hit = ray.intersectObjects(pickables, false)[0]
+  const tip = $('tip')
+  if (!hit) { tip.style.display = 'none'; return }
+  const { name, p, b } = hit.object.userData
+  tip.textContent = `${name}　${b.x}×${b.y}×${b.z} mm${p.laidDown ? '（横倒し）' : ''}　高さ ${p.z}〜${p.z + p.h} mm`
+  tip.style.display = 'block'
+  tip.style.left = `${Math.min(e.clientX - rect.left + 12, rect.width - tip.offsetWidth - 8)}px`
+  tip.style.top = `${e.clientY - rect.top + 12}px`
+})
+renderer.domElement.addEventListener('pointerleave', () => { $('tip').style.display = 'none' })
+
+// ---- 計算 ----
+let version = -1
+let polling = null
+let runInput = null
+let lastShown = null
+const message = (t, err = false) => { $('msg').textContent = t; $('msg').className = err ? 'msg err' : 'msg' }
+const fmt = (n) => n.toLocaleString('ja-JP')
+
+$('run').onclick = async () => {
+  runInput = inputOf()
+  message('')
+  const res = await fetch('/api/solve', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ input: runInput, seconds: S.seconds ?? 30, gpu: S.gpu !== false }),
+  }).catch(() => null)
+  if (!res) return message('計算のプログラムにつながりません。box-packing serve を動かしているか確かめてください。', true)
+  if (!res.ok) { const j = await res.json().catch(() => ({})); return message(j.error ?? '計算を始められませんでした。', true) }
+  version = -1
+  $('run').disabled = true; $('stop').disabled = false
+  clearInterval(polling); polling = setInterval(poll, 400); poll()
+}
+$('stop').onclick = () => fetch('/api/stop', { method: 'POST' })
+
+async function poll() {
+  const st = await fetch(`/api/status?v=${version}`).then((r) => r.json()).catch(() => null)
+  if (!st || st.idle) return
+  $('bar').style.width = `${Math.min(100, (st.elapsed / st.seconds) * 100)}%`
+  const evals = st.cpuEvals + st.gpuEvals
+  const gpu = st.gpu ? `GPU: ${st.gpu}` : (S.gpu === false ? 'GPU は使わない' : 'GPU を準備中…')
+  $('meta').textContent = `${st.elapsed.toFixed(1)} / ${st.seconds} 秒・試した詰め方 ${fmt(evals)} 通り（${fmt(Math.round(evals / Math.max(0.1, st.elapsed)))} 通り/秒）・CPU ${st.cpuThreads} 個の係・${gpu}`
+  if (st.error) message(st.error, true)
+  if (st.result) { version = st.version; if (st.input) runInput = st.input; show(st.result) }
+  if (!st.running) {
+    clearInterval(polling); polling = null
+    $('run').disabled = false; $('stop').disabled = true
+    $('bar').style.width = '100%'
+    if (!st.error) message('計算を終えました。いちばん良かった詰め方を出しています。')
+  }
+}
+
+function show(r) {
+  const input = runInput ?? inputOf()
+  lastShown = { result: r, input }
+  $('empty').style.display = 'none'
+  draw(r, input)
+  $('sHeight').textContent = `${fmt(r.height)} mm`
+  $('sFill').textContent = `${(r.fillRate * 100).toFixed(1)}%`
+  $('sTidy').textContent = `${Math.round(r.tidiness * 100)} 点`
+  const placed = r.placements.length
+  const missing = r.unplaced.reduce((s, u) => s + u.count, 0)
+  $('sPlaced').textContent = `${placed} / ${placed + missing}`
+  $('unplaced').textContent = r.unplaced.length
+    ? '置けなかった箱: ' + r.unplaced.map((u) => `${nameOf(input.boxes[u.type], u.type)} ${u.count} 個（${u.reason === 'too-big' ? '床に入らない' : '支えが足りない'}）`).join('、')
+    : ''
+  const colors = colorMap(input.boxes)
+  const counts = new Map()
+  for (const p of r.placements) { const n = nameOf(input.boxes[p.type], p.type); counts.set(n, (counts.get(n) ?? 0) + 1) }
+  $('legend').innerHTML = ''
+  for (const [n, c] of counts) {
+    const s = document.createElement('span')
+    const sw = document.createElement('span'); sw.className = 'swatch'; sw.style.background = colors.get(n)
+    s.append(sw, ` ${n} ${c} 個`); $('legend').append(s)
+  }
+}
+
+bindSettings()
+renderBoxes()
+// 開いたときに計算中なら、続きを出す
+fetch('/api/status?v=-1').then((r) => r.json()).then((st) => {
+  if (st.running) { $('run').disabled = true; $('stop').disabled = false; polling = setInterval(poll, 400) }
+  poll()
+}).catch(() => {})
+</script>
+</body>
+</html>
