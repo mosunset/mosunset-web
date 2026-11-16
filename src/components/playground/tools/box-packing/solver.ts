@@ -531,7 +531,7 @@ type Trace = {
 /**
  * 並べ順（置く単位の番号の列）のとおりに 1 つずつ置いていく。置く場所はルールの重み（weights）で選ぶ。
  * base と from を渡すと、base の並べ順・ルールと from 番目より前が同じとみなし、そこから先だけを置き直す。
- * GPU の計算（gpu.ts）も同じ決め方をする
+ * ネイティブ版（native/box-packing の solver.rs の pack_in_order と、GPU の kernel.cu）も同じ決め方をする
  */
 function packInOrder(
   order: readonly number[],
@@ -965,7 +965,7 @@ export const COG_WEIGHT = 0.3
 /**
  * 重心のずれ（床の大きさで割った値）。壁に沿う向き（その向きに壁がない、または両側に壁がある）は床の中央からのずれ。
  * 壁に垂直な向き（奥の壁・片側だけの横の壁）は、壁からの距離に寄せる強さ（0〜1）を掛けたもの（壁に近いほど良い）。
- * GPU の見積もり（gpu.ts）でも使う
+ * ネイティブ版（native/box-packing の solver.rs の cog_error_of）も同じ計算をする
  */
 export function cogErrorOf(x: number, y: number, input: PackInput) {
   const { floorX: X, floorY: Y, walls } = input
@@ -1414,66 +1414,6 @@ export function evaluateGenome(input: PackInput, genome: Genome): PackResult {
   )
 }
 
-/** かたまりの中の箱どうしの横の接触面積と、箱 1 個の体積（GPU で見た目の整いを見積もるのに使う） */
-export function unitExtras(table: UnitTable, unitId: number, oi: number) {
-  const u = table.units[unitId]
-  const bo = table.groups[u.group].orientations[u.base[oi]]
-  return {
-    internal:
-      (u.a - 1) * u.b * u.c * bo.d * bo.h + u.a * (u.b - 1) * u.c * bo.w * bo.h,
-    boxVolume: bo.w * bo.d * bo.h,
-  }
-}
-
-/**
- * 並べ方を 1 つ積んだ記録（置き始める角を原点にした座標）。GPU の計算で、
- * 入れ替えた位置より前の置き方をここから写して、そこから先だけを計算するのに使う
- */
-export function traceIds(
-  input: PackInput,
-  table: UnitTable,
-  ids: readonly number[],
-  rule: Rule,
-) {
-  const t = packInOrder(ids, rule.map(weightOf), input, table)
-  return {
-    placed: t.placed.map((p) => {
-      const x = unitExtras(table, p.unit, p.oi)
-      return [
-        p.u,
-        p.v,
-        p.z,
-        p.w,
-        p.d,
-        p.h,
-        p.group,
-        p.size + (p.laidDown ? 256 : 0),
-        x.internal,
-        x.boxVolume,
-        p.rank,
-        p.frontOK ? 1 : 0,
-      ] as const
-    }),
-    placedAfter: t.placedAfter,
-    heightAfter: t.heightAfter,
-  }
-}
-
-/** 置き始める角の向き（GPU の計算でも同じ決め方を使う） */
-export function alongSideFirstOf(walls: Walls) {
-  return anchorOf(walls).alongSideFirst
-}
-
-/** 置き始める角（GPU の計算で、壁がどちら側かを知るのに使う） */
-export function wallSidesOf(walls: Walls) {
-  return {
-    /** 置き始める角を原点にしたとき、v の小さい側に壁がある */
-    wallV: walls.back,
-    /** u の小さい側に壁がある（左右の片方だけに壁があるとき） */
-    wallU: walls.left !== walls.right,
-  }
-}
-
 /** 最初に試す並べ方（ばらの箱をいろいろな順に・できるだけ大きなかたまりにして、ルールもいくつか） */
 export function startPlans(input: PackInput, table: UnitTable) {
   const rules = defaultRules(input)
@@ -1572,7 +1512,7 @@ export function createKindStats() {
 }
 
 /**
- * 並べ方を少し崩す（CPU の係と GPU の係で同じ崩し方を使う）。
+ * 並べ方を少し崩す（ネイティブ版の solver.rs の mutate も同じ崩し方）。
  * 並べ順の入れ替え・1 つを別の位置へ・区間を逆順に・ルールの重みを変える（2 つの重みを入れ替えると優先する順が変わる）・
  * かたまりを分ける・2 つのかたまりをつなぐ・2 つの良い並べ方の組み合わせ。
  * start は、元の並べ方と初めて違う位置（ルールが変わったら 0。何も変わらなければ並べ順の長さ）
@@ -1866,7 +1806,7 @@ export function lineStart(
 
 /** CPU 係の焼きなましの温度が半分になるまでの試行回数 */
 const CPU_HALF_LIFE = 20_000
-/** 探し直すとき、何回に 1 回は、いちばん良い並べ方を崩すのではなく新しい並べ方から始めるか（CPU の係と GPU の係で同じ） */
+/** 探し直すとき、何回に 1 回は、いちばん良い並べ方を崩すのではなく新しい並べ方から始めるか（ネイティブ版も同じ） */
 export const FRESH_EVERY = 3
 
 export function createSearch(
