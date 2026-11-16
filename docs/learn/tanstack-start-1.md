@@ -100,12 +100,6 @@ export const saveItem = createServerFn({ method: 'POST' })
 
 `src/routes/robots[.]txt.ts` は `component` の代わりに `server.handlers.GET` を持っていて、ふつうの `Response` を返します。RSS・sitemap・画像の配信も同じ形です。
 
-## 確かめてみる課題（5 分）
-
-1. `src/routes/blog/$slug.tsx` の loader に `console.log('loader', typeof window)` を足して `pnpm dev` を起動します。
-2. `/blog/何かの記事` を**直接開いた**ときと、**一覧からリンクで移った**ときで、ログがどこに出るかを比べます。ターミナル（サーバー側）とブラウザの DevTools のどちらに出るかで、loader がどこで動いたかがわかります。
-3. 試し終わったら消します（コミットはしない）。
-
 ## このあとの予定
 
 2. **データの流れの続き**：`useServerFn`・`router.invalidate()`・管理画面の保存の流れ（`src/components/admin/collection-form.tsx`）
