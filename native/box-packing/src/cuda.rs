@@ -114,6 +114,8 @@ impl Gpu {
                 sym!(lib, "cuDeviceGetAttribute");
             let primary_ctx_retain: unsafe extern "system" fn(*mut CuCtx, i32) -> CuResult =
                 sym!(lib, "cuDevicePrimaryCtxRetain");
+            let primary_ctx_set_flags: unsafe extern "system" fn(i32, u32) -> CuResult =
+                sym!(lib, "cuDevicePrimaryCtxSetFlags_v2");
             let drv = Driver {
                 get_error_string: sym!(lib, "cuGetErrorString"),
                 ctx_set_current: sym!(lib, "cuCtxSetCurrent"),
@@ -141,6 +143,9 @@ impl Gpu {
             device_get_attribute(&mut major, 75, dev);
             device_get_attribute(&mut minor, 76, dev);
             device_get_attribute(&mut sms, 16, dev);
+            // GPU の計算が終わるのを待つあいだ、CPU を回し続けずに眠らせる（CU_CTX_SCHED_BLOCKING_SYNC）。
+            // 既定（AUTO）では、待つスレッドが 1 コアを使い切っていた。使い口を作る前に決める
+            primary_ctx_set_flags(dev, 0x04);
             let mut ctx = std::ptr::null_mut();
             if primary_ctx_retain(&mut ctx, dev) != 0 {
                 return Err("コンテキストを作れません".into());

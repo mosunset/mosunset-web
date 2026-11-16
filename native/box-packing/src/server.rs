@@ -20,6 +20,9 @@ const UI: &str = include_str!("ui.html");
 const IDLE_QUIT_SECS: f64 = 600.0;
 /// ページからの頼みごとの形を変えたら上げる（ページは違う版のネイティブ版を使わない）
 const PAGE_API: u32 = 1;
+/// ページから頼まれた計算で、GPU と並べて動かす CPU の探す係の数（--cpu-threads で変えられる）。
+/// GPU を使うと CPU の係を全部動かさなくても速さはほぼ同じなので、ほかのアプリのために CPU を空けておく
+const SERVE_CPU_THREADS: usize = 2;
 
 /// 問い合わせてよいページ（それ以外のサイトからは答えない）
 fn allowed_origin(origin: &str) -> bool {
@@ -63,6 +66,8 @@ struct State {
     /// GPU の名前（立ち上げたときに調べる。使えなければ None）
     gpu_name: Mutex<Option<String>>,
     threads: usize,
+    /// GPU を使うときの CPU の探す係の数（--cpu-threads。無ければ SERVE_CPU_THREADS）
+    cpu_threads: usize,
     batch: usize,
 }
 
@@ -79,6 +84,7 @@ pub fn serve(args: &Args) {
         last_request: Mutex::new(std::time::Instant::now()),
         gpu_name: Mutex::new(None),
         threads: args.threads,
+        cpu_threads: args.cpu_threads.unwrap_or(SERVE_CPU_THREADS),
         batch: args.batch,
     });
     {
@@ -262,7 +268,7 @@ fn start(state: &State, req: SolveRequest) {
     let seconds = req.seconds.clamp(1.0, 3600.0);
     let job = Arc::new(Job::new(seconds, false));
     let error = Arc::new(Mutex::new(None));
-    let opt = SolveOptions { seconds, threads: state.threads, gpu: req.gpu, batch: state.batch, main_threads: None };
+    let opt = SolveOptions { seconds, threads: state.threads, gpu: req.gpu, batch: state.batch, main_threads: None, cpu_threads: Some(state.cpu_threads) };
     let input = Arc::new(req.input);
     let (j, e, inp) = (job.clone(), error.clone(), input.clone());
     std::thread::spawn(move || {
@@ -289,7 +295,7 @@ fn start_page(state: &State, req: PageRun) {
     job.watch = true;
     let job = Arc::new(job);
     let error = Arc::new(Mutex::new(None));
-    let opt = SolveOptions { seconds, threads: state.threads, gpu: true, batch: state.batch, main_threads: None };
+    let opt = SolveOptions { seconds, threads: state.threads, gpu: true, batch: state.batch, main_threads: None, cpu_threads: Some(state.cpu_threads) };
     let input = Arc::new(req.input);
     let (j, e, inp) = (job.clone(), error.clone(), input.clone());
     std::thread::spawn(move || {
