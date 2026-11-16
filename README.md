@@ -77,7 +77,8 @@ src/
     auth/          Clerk（ログイン）を読み込むかどうかの判断（Clerk の部品そのものは components/auth/ で、要るときだけ読み込む）
   start.ts       リクエストごとのミドルウェア（セキュリティのヘッダー・CSRF・Clerk）
 drizzle/         D1 のマイグレーション
-docs/            開発用のドキュメント（仕様・設計メモ）
+docs/            開発用のドキュメント（仕様・設計メモ・TanStack Start 入門）
+native/          この PC で別に動かすプログラム（box-packing: 箱詰めの計算係。Rust + CUDA。サイトのビルドには入らない）
 .github/         GitHub Actions（main に push されたらデプロイ）
 ```
 
