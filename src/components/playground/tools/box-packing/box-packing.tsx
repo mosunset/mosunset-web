@@ -21,7 +21,6 @@ import { HelpTip, RangeSlider, Stat } from '@/components/playground/parts'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { cn } from '@/lib/utils'
-import type { GpuReply, GpuRequest } from './gpu.worker'
 import {
   comboImproved,
   createLines,
@@ -30,6 +29,13 @@ import {
   type Lines,
   pickLine,
 } from './lines'
+import {
+  launchNative,
+  type NativeInfo,
+  probeNative,
+  quitNative,
+  runNative,
+} from './native'
 import { BestResults, SavedResults, type SettingsSummary } from './saved'
 import type { SearchRequest, WorkerMessage } from './search.worker'
 import {
@@ -52,7 +58,10 @@ import {
   buildCombos,
   comboChips,
   defaultSweep,
+  LIGHT_SEARCH_MS,
+  LIGHT_WORKERS,
   MAX_SEARCH_MS,
+  NATIVE_SLICE_MS,
   planSearch,
   RangeOrValue,
   SearchBar,
@@ -395,7 +404,6 @@ const STORAGE = {
   view: 'mosunset:box-packing:view',
   saved: 'mosunset:box-packing:saved',
   bests: 'mosunset:box-packing:bests',
-  gpu: 'mosunset:box-packing:gpu',
   sweep: 'mosunset:box-packing:sweep',
 } as const
 
@@ -698,12 +706,6 @@ function withBest(
   return next
 }
 
-/**
- * GPU 係が 1 回に 1 つの組み合わせを受け持つ時間。GPU は数千〜数万通りをまとめて数秒かけて評価するので、
- * CPU の係（SLICE_SEC）より長くする
- */
-const GPU_SLICE_MS = 15_000
-
 /** 止めたときの行: 計算中の印を消し、「変化なし」の時間を止める */
 const stopRow = (r: SweepRow): SweepRow => ({
   ...r,
@@ -956,13 +958,18 @@ function NumberField({
 const numberInput = 'h-8 w-20 px-2 text-right font-mono tabular-nums'
 
 /**
- * 同時に動かす Worker の数。CPU のコアの数から、画面のために 1 つ残す（1〜8）。
- * それぞれ別の乱数で並べ順を探し、いちばん良い結果を採る
+ * ブラウザーだけで計算するときの Worker の数（軽い計算。パソコンとブラウザーが重くならないよう LIGHT_WORKERS まで。
+ * コアが少なければ、画面のために 1 つ残す）
  */
-const workerCount = Math.max(
+const lightWorkerCount = Math.max(
   1,
-  Math.min(8, (globalThis.navigator?.hardwareConcurrency ?? 2) - 1),
+  Math.min(LIGHT_WORKERS, (globalThis.navigator?.hardwareConcurrency ?? 2) - 1),
 )
+/** ネイティブ版が動いているか確かめる間隔（ふだん・立ち上げを頼んだ直後） */
+const NATIVE_PROBE_MS = 5000
+const NATIVE_PROBE_FAST_MS = 1000
+/** 立ち上げを頼んでから、短い間隔で確かめ続ける時間 */
+const NATIVE_LAUNCH_WAIT_MS = 20_000
 
 export function BoxPacking() {
   // 前に開いたときの設定・表示・保存した結果を、ブラウザから読み戻す
@@ -997,45 +1004,50 @@ export function BoxPacking() {
   }>({ running: false, combos: [], rows: [], startedAt: 0 })
   /** 経過時間の表示を進めるための時計 */
   const [now, setNow] = useState(() => Date.now())
-  /** GPU（WebGPU）を使うか（使える環境のときだけ効く） */
-  const [useGpu, setUseGpu] = useState(() => readStorage(STORAGE.gpu) !== false)
-  const [gpu, setGpu] = useState<{
-    status: 'checking' | 'ready' | 'unavailable'
-    description?: string
-  }>({ status: 'checking' })
-  /** GPU 係の Worker（ページを開いているあいだ 1 つだけ動かし続ける）と、頼みごとごとの返事の受け取り先 */
-  const gpuWorkerRef = useRef<Worker | null>(null)
-  const gpuHandlersRef = useRef(new Map<number, (reply: GpuReply) => void>())
-  const gpuTokenRef = useRef(0)
+  /**
+   * この PC で動いているネイティブ版（動いていなければ null）。動いていれば、計算はネイティブ版に任せ、
+   * ページはその結果をその場で表示する（native.ts）
+   */
+  const [native, setNative] = useState<NativeInfo | null>(null)
+  const nativeRef = useRef<NativeInfo | null>(null)
+  nativeRef.current = native
+  /** 立ち上げを頼んだ時刻（しばらくは短い間隔で確かめる） */
+  const [launchedAt, setLaunchedAt] = useState(0)
 
-  // GPU 係を用意し、GPU が使えるかを確かめる
+  // ネイティブ版が動いているか、ときどき確かめる（タブが裏にあるあいだは確かめない）
   useEffect(() => {
-    if (!('gpu' in navigator)) {
-      setGpu({ status: 'unavailable' })
-      return
+    let cancelled = false
+    let timer = 0
+    const check = async () => {
+      if (document.visibilityState === 'visible') {
+        const info = await probeNative()
+        if (cancelled) return
+        setNative((prev) =>
+          prev && info && prev.gpu === info.gpu && prev.threads === info.threads
+            ? prev
+            : info,
+        )
+      }
+      const fast = Date.now() - launchedAt < NATIVE_LAUNCH_WAIT_MS
+      timer = window.setTimeout(
+        check,
+        fast ? NATIVE_PROBE_FAST_MS : NATIVE_PROBE_MS,
+      )
     }
-    const w = new Worker(new URL('./gpu.worker.ts', import.meta.url), {
-      type: 'module',
-    })
-    gpuWorkerRef.current = w
-    w.onmessage = (event: MessageEvent<GpuReply>) => {
-      const reply = event.data
-      if (reply.kind === 'ready')
-        setGpu({ status: 'ready', description: reply.description })
-      else if (reply.kind === 'unavailable') setGpu({ status: 'unavailable' })
-      gpuHandlersRef.current.get(reply.token)?.(reply)
-    }
-    w.onerror = () => setGpu({ status: 'unavailable' })
-    w.postMessage({ type: 'probe' } satisfies GpuRequest)
+    void check()
     return () => {
-      w.terminate()
-      gpuWorkerRef.current = null
+      cancelled = true
+      window.clearTimeout(timer)
     }
-  }, [])
-  useEffect(() => {
-    writeStorage(STORAGE.gpu, useGpu)
-  }, [useGpu])
-  const gpuOn = useGpu && gpu.status === 'ready'
+  }, [launchedAt])
+  const startNative = () => {
+    launchNative()
+    setLaunchedAt(Date.now())
+  }
+  const stopNative = async () => {
+    await quitNative()
+    setNative(null)
+  }
   const [showBest3D, setShowBest3D] = useState(true)
   const captureRef = useRef<(() => Promise<Blob | null>) | null>(null)
   const fileRef = useRef<HTMLInputElement>(null)
@@ -1151,7 +1163,7 @@ export function BoxPacking() {
     objective: settings.objective,
     method: settings.method,
   }
-  const plan = planSearch(sweepConfig, sweepBase, workerCount)
+  const plan = planSearch(sweepConfig, sweepBase, native ? 1 : lightWorkerCount)
 
   /** 条件の組み合わせを作って探し始める。from を渡すと、その結果 1 つから続けて詰める */
   const startSearch = (from?: { settings: Settings; result: PackResult }) => {
@@ -1199,7 +1211,8 @@ export function BoxPacking() {
 
   // Worker ごとに別の組み合わせを SLICE_SEC だけ計算し、終わったら次の組み合わせをランダムに選び直す
   // （計算した回数が少ないものを優先）。同じ組み合わせにまた当たったら、前に見つけた良い並べ方の続きから詰める。
-  // 止めるまで続け、MAX_SEARCH_MS たったら自動で止める
+  // ネイティブ版が動いていれば、0 番の係をネイティブ版にして（並べ順の方式だけ受け持つ）、止めるまで（MAX_SEARCH_MS まで）続ける。
+  // ブラウザーだけなら軽い計算: 係は lightWorkerCount まで、LIGHT_SEARCH_MS で止め、タブが裏にあるあいだは休む
   // biome-ignore lint/correctness/useExhaustiveDependencies: 探し始めたとき（startedAt が変わったとき）だけ動かす
   useEffect(() => {
     if (!search.running) return
@@ -1218,6 +1231,12 @@ export function BoxPacking() {
     const usable = combos
       .map((c, i) => (validate(c) ? -1 : i))
       .filter((i) => i >= 0)
+    // ネイティブ版が動いていれば、ネイティブ版 1 つだけを計算係にする（並べ順・柱の両方の方式を受け持つ）
+    const nativeOn = nativeRef.current !== null
+    /** ネイティブ版につながらなくなったら false（0 番の係をブラウザーの係に戻す） */
+    let nativeAlive = nativeOn
+    const workerCount = nativeOn ? 1 : lightWorkerCount
+    const searchLimitMs = nativeOn ? MAX_SEARCH_MS : LIGHT_SEARCH_MS
     const stops = new Array<Runner | null>(workerCount).fill(null)
     /** 係ごとの計算係（Worker）。探すあいだは作ったまま使い回す */
     const pool = new Array<Worker | null>(workerCount).fill(null)
@@ -1242,50 +1261,31 @@ export function BoxPacking() {
     const mainActive = new Array<number>(n).fill(0)
     /** 係ごとに、受け持っている別の筋（いつもの筋なら null） */
     const slotLine = new Array<Line | null>(workerCount).fill(null)
-    // GPU を使うときは、計算係のうち 1 つ（0 番）を GPU 係にする
-    const gpuWorker = gpuOn ? gpuWorkerRef.current : null
-    const runGpu = (
+    /** この係がネイティブ版か */
+    const isNativeSlot = (slot: number) => slot === 0 && nativeAlive
+    const runNativeJob = (
       job: PackInput,
       on: Parameters<typeof runWorker>[1],
     ): Runner => {
-      const w = gpuWorker
-      if (!w || job.method === 'columns')
-        return runWorker(job, on, workerFor(0))
-      const token = ++gpuTokenRef.current
-      gpuHandlersRef.current.set(token, (reply) => {
-        if (reply.kind === 'best') on.best(reply.result)
-        else if (reply.kind === 'metric') on.metric(reply.metric, reply.result)
-        else if (reply.kind === 'done') {
-          gpuHandlersRef.current.delete(token)
-          on.done()
-        }
-        if ('tried' in reply) on.progress(reply.tried)
+      return runNative(job, {
+        ...on,
+        lost: () => {
+          nativeAlive = false
+          setNative(null)
+          toast.error(
+            'ネイティブ版につながらなくなったので、ブラウザーでの軽い計算に切り替えました',
+          )
+        },
       })
-      w.postMessage({
-        type: 'run',
-        token,
-        input: job,
-        durationMs: MAX_SEARCH_MS,
-      } satisfies GpuRequest)
-      return Object.assign(
-        () => {
-          gpuHandlersRef.current.delete(token)
-          w.postMessage({ type: 'stop', token } satisfies GpuRequest)
-        },
-        {
-          adopt: (genome: Genome) =>
-            w.postMessage({
-              type: 'adopt',
-              token,
-              genome,
-            } satisfies GpuRequest),
-        },
-      )
     }
     const slotTried = new Array<number>(workerCount).fill(0)
     let finishedTried = 0
     let lastProgress = 0
     let ended = false
+    /** タブが裏にあって休んでいる（ブラウザーだけのとき） */
+    let paused = false
+    /** 係ごとの、今の受け持ちを終える関数（休むときに使う） */
+    const finishers = new Array<(() => void) | null>(workerCount).fill(null)
 
     // 係からの知らせが多いと画面の描き直しが追いつかないので、表と部門別ベストの更新はためておき、
     // 0.4 秒ごとにまとめて反映する
@@ -1329,10 +1329,8 @@ export function BoxPacking() {
     /** 次に計算する組み合わせ（計算中を含めた回数がいちばん少ないものから、ランダムに 1 つ） */
     const pick = (slot: number) => {
       if (usable.length === 0) return -1
-      // GPU 係は、並べ順の方式の組み合わせだけを受け持つ
-      const isGpu = slot === 0 && !!gpuWorker
-      const ordered = usable.filter((i) => combos[i].method !== 'columns')
-      const candidates = isGpu && ordered.length > 0 ? ordered : usable
+      const isNative = isNativeSlot(slot)
+      const candidates = usable
       // まだ一度も当たっていない組み合わせがあれば、そこから
       const fresh = candidates.filter((i) => visits[i] + active[i] === 0)
       if (fresh.length > 0)
@@ -1347,8 +1345,8 @@ export function BoxPacking() {
         order.map((i, r) => [i, r / Math.max(1, order.length - 1)]),
       )
       const total = candidates.reduce((a, i) => a + visits[i] + active[i], 0)
-      // GPU 係は、良い組み合わせを深く探す（試す数が多いので、良いところに使う）
-      const explore = isGpu ? 0.15 : 0.5
+      // ネイティブ版は、良い組み合わせを深く探す（試す数が多いので、良いところに使う）
+      const explore = isNative ? 0.15 : 0.5
       let chosen = candidates[0]
       let bestValue = Number.NEGATIVE_INFINITY
       for (const i of candidates) {
@@ -1369,15 +1367,15 @@ export function BoxPacking() {
     }
 
     const launch = (slot: number) => {
-      if (ended) return
+      if (ended || paused) return
       const i = pick(slot)
       if (i < 0) return
       active[i]++
       slotCombo[slot] = i
       // CPU の係は、ときどき別の筋を受け持つ（いつもの筋がまだ一度も動いていない組み合わせでは、いつもの筋から）
-      const isGpuSlot = slot === 0 && !!gpuWorker
+      const onNative = isNativeSlot(slot)
       const picked =
-        !isGpuSlot &&
+        !onNative &&
         combos[i].method !== 'columns' &&
         (bestGenome[i] !== undefined || mainActive[i] > 0)
           ? pickLine(lines[i], bestGenome[i], Math.random)
@@ -1401,6 +1399,7 @@ export function BoxPacking() {
       const finish = () => {
         if (finished) return
         finished = true
+        finishers[slot] = null
         window.clearTimeout(timer)
         stops[slot]?.()
         stops[slot] = null
@@ -1442,11 +1441,11 @@ export function BoxPacking() {
         )
         launch(slot)
       }
-      const runner =
-        slot === 0 && gpuWorker
-          ? runGpu
-          : (job: PackInput, on: Parameters<typeof runWorker>[1]) =>
-              runWorker(job, on, workerFor(slot))
+      finishers[slot] = finish
+      const runner = onNative
+        ? runNativeJob
+        : (job: PackInput, on: Parameters<typeof runWorker>[1]) =>
+            runWorker(job, on, workerFor(slot))
       stops[slot] = runner(
         {
           ...input,
@@ -1528,11 +1527,7 @@ export function BoxPacking() {
       // 組み合わせが 1 つだけなら区切らずに探し続ける（良い結果が出なくなったら、良い並べ方から再開）
       timer = window.setTimeout(
         finish,
-        n > 1
-          ? slot === 0 && gpuWorker
-            ? GPU_SLICE_MS
-            : SLICE_SEC * 1000
-          : MAX_SEARCH_MS,
+        n > 1 ? (onNative ? NATIVE_SLICE_MS : SLICE_SEC * 1000) : searchLimitMs,
       )
     }
 
@@ -1544,8 +1539,8 @@ export function BoxPacking() {
       return
     }
     for (let slot = 0; slot < workerCount; slot++) launch(slot)
-    // 止めなかったときは 1 時間で止める
-    const limit = window.setTimeout(() => {
+    // 止めなかったときは、ネイティブ版なら 1 時間、ブラウザーだけなら LIGHT_SEARCH_MS で止める（休んでいた時間は数えない）
+    const timeUp = () => {
       setSearch((s) =>
         s.startedAt === startedAt
           ? {
@@ -1556,9 +1551,30 @@ export function BoxPacking() {
           : s,
       )
       toast.success(
-        '1 時間たったので、探すのを止めました（結果は部門別ベストに入っています）',
+        nativeOn
+          ? '1 時間たったので、探すのを止めました（結果は部門別ベストに入っています）'
+          : `${LIGHT_SEARCH_MS / 1000} 秒たったので止めました（ブラウザーだけの軽い計算です。続けるなら「続けて詰める」か、もう一度「探す」）`,
       )
-    }, MAX_SEARCH_MS)
+    }
+    let remainingMs = searchLimitMs
+    let resumedAt = Date.now()
+    let limit = window.setTimeout(timeUp, remainingMs)
+    // ブラウザーだけのときは、タブが裏にあるあいだ休む（係を止め、戻ったら前の良い並べ方の続きから再開）
+    const onVisibility = () => {
+      if (nativeOn || ended) return
+      if (document.visibilityState === 'hidden' && !paused) {
+        paused = true
+        remainingMs -= Date.now() - resumedAt
+        window.clearTimeout(limit)
+        for (const f of [...finishers]) f?.()
+      } else if (document.visibilityState === 'visible' && paused) {
+        paused = false
+        resumedAt = Date.now()
+        limit = window.setTimeout(timeUp, Math.max(0, remainingMs))
+        for (let slot = 0; slot < workerCount; slot++) launch(slot)
+      }
+    }
+    document.addEventListener('visibilitychange', onVisibility)
     // 経過時間の表示を進める
     const clock = window.setInterval(() => setNow(Date.now()), 1000)
     return () => {
@@ -1576,6 +1592,7 @@ export function BoxPacking() {
       }
       window.clearTimeout(limit)
       window.clearInterval(clock)
+      document.removeEventListener('visibilitychange', onVisibility)
       for (const stop of stops) stop?.()
       for (const w of pool) w?.terminate()
     }
@@ -2537,10 +2554,11 @@ export function BoxPacking() {
         activeCount={activeCount}
         count={search.combos.length}
         tried={progress.tried}
-        workers={workerCount}
-        gpu={gpu}
-        useGpu={useGpu}
-        onUseGpu={setUseGpu}
+        workers={native ? 1 : lightWorkerCount}
+        native={native}
+        onLaunchNative={startNative}
+        onQuitNative={() => void stopNative()}
+        launching={!native && Date.now() - launchedAt < NATIVE_LAUNCH_WAIT_MS}
         error={error}
         onStart={() => startSearch()}
         onStop={stopSearch}

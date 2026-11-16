@@ -1,0 +1,126 @@
+{
+  "floorX": 1800,
+  "floorY": 1500,
+  "walls": {
+    "back": false,
+    "left": false,
+    "right": false
+  },
+  "gap": 5,
+  "edgeGap": 5,
+  "supportPercent": 95,
+  "objective": "height",
+  "wallBias": 50,
+  "tidy": {
+    "weight": 50,
+    "group": true,
+    "flat": true,
+    "bigBottom": true,
+    "upright": true,
+    "even": true,
+    "bigWall": true,
+    "front": true,
+    "frontFlat": true,
+    "near": true,
+    "balance": true
+  },
+  "seed": 1,
+  "boxes": [
+    {
+      "tag": "箱1",
+      "x": 470,
+      "y": 170,
+      "z": 360,
+      "count": 13,
+      "canLayDown": true
+    },
+    {
+      "tag": "箱2",
+      "x": 490,
+      "y": 370,
+      "z": 370,
+      "count": 14,
+      "canLayDown": true
+    },
+    {
+      "tag": "箱3",
+      "x": 270,
+      "y": 400,
+      "z": 240,
+      "count": 8,
+      "canLayDown": true
+    },
+    {
+      "tag": "箱4",
+      "x": 470,
+      "y": 360,
+      "z": 510,
+      "count": 12,
+      "canLayDown": false
+    },
+    {
+      "tag": "箱5",
+      "x": 300,
+      "y": 460,
+      "z": 280,
+      "count": 13,
+      "canLayDown": false
+    },
+    {
+      "tag": "箱6",
+      "x": 390,
+      "y": 520,
+      "z": 390,
+      "count": 10,
+      "canLayDown": true
+    },
+    {
+      "tag": "箱7",
+      "x": 540,
+      "y": 290,
+      "z": 570,
+      "count": 14,
+      "canLayDown": false
+    },
+    {
+      "tag": "箱8",
+      "x": 340,
+      "y": 470,
+      "z": 220,
+      "count": 12,
+      "canLayDown": true
+    },
+    {
+      "tag": "箱9",
+      "x": 480,
+      "y": 150,
+      "z": 150,
+      "count": 11,
+      "canLayDown": true
+    },
+    {
+      "tag": "箱10",
+      "x": 540,
+      "y": 420,
+      "z": 460,
+      "count": 13,
+      "canLayDown": false
+    },
+    {
+      "tag": "箱11",
+      "x": 410,
+      "y": 410,
+      "z": 180,
+      "count": 15,
+      "canLayDown": true
+    },
+    {
+      "tag": "箱12",
+      "x": 390,
+      "y": 530,
+      "z": 340,
+      "count": 15,
+      "canLayDown": true
+    }
+  ]
+}
