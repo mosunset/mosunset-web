@@ -1539,7 +1539,7 @@ export function BoxPacking() {
       return
     }
     for (let slot = 0; slot < workerCount; slot++) launch(slot)
-    // 止めなかったときは、ネイティブ版なら 1 時間、ブラウザーだけなら LIGHT_SEARCH_MS で止める（休んでいた時間は数えない）
+    // 止めなかったときは、ネイティブ版なら 24 時間（MAX_SEARCH_MS）、ブラウザーだけなら LIGHT_SEARCH_MS で止める（休んでいた時間は数えない）
     const timeUp = () => {
       setSearch((s) =>
         s.startedAt === startedAt
@@ -1552,7 +1552,7 @@ export function BoxPacking() {
       )
       toast.success(
         nativeOn
-          ? '1 時間たったので、探すのを止めました（結果は部門別ベストに入っています）'
+          ? '24 時間たったので、探すのを止めました（結果は部門別ベストに入っています）'
           : `${LIGHT_SEARCH_MS / 1000} 秒たったので止めました（ブラウザーだけの軽い計算です。続けるなら「続けて詰める」か、もう一度「探す」）`,
       )
     }
