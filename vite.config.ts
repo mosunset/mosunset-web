@@ -27,6 +27,21 @@ const config = defineConfig({
   resolve: { tsconfigPaths: true },
   optimizeDeps: { include: sharedDeps },
   environments: {
+    client: {
+      build: {
+        rolldownOptions: {
+          output: {
+            // ページを開いたときに必ず読む JS（入口から import でつながっているもの）は、1 つのファイルにまとめる。
+            // 細かく分かれていると数十個になり、Lighthouse が「ファイルごとに順番待ちする」として
+            // 遅く見積もる（Cloudflare の HTTP/3 は、まとめて送れるものとして扱われない）。
+            // あとから読むもの（ページごとの部品・ツール）は、これまでどおり分けたまま
+            codeSplitting: {
+              groups: [{ name: 'app', tags: ['$initial'] }],
+            },
+          },
+        },
+      },
+    },
     ssr: {
       optimizeDeps: {
         include: [
