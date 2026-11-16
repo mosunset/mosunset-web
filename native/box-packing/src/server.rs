@@ -20,6 +20,8 @@ const UI: &str = include_str!("ui.html");
 const IDLE_QUIT_SECS: f64 = 600.0;
 /// ページからの頼みごとの形を変えたら上げる（ページは違う版のネイティブ版を使わない）
 const PAGE_API: u32 = 1;
+/// 1 回の計算の上限（24 時間）。ページの MAX_SEARCH_MS とそろえる
+const MAX_SECONDS: f64 = 24.0 * 3600.0;
 /// ページから頼まれた計算で、GPU と並べて動かす CPU の探す係の数（--cpu-threads で変えられる）。
 /// GPU を使うと CPU の係を全部動かさなくても速さはほぼ同じなので、ほかのアプリのために CPU を空けておく
 const SERVE_CPU_THREADS: usize = 2;
@@ -265,7 +267,7 @@ fn start(state: &State, req: SolveRequest) {
     if let Some(c) = cur.as_ref() {
         c.job.stop.store(true, Ordering::Relaxed);
     }
-    let seconds = req.seconds.clamp(1.0, 3600.0);
+    let seconds = req.seconds.clamp(1.0, MAX_SECONDS);
     let job = Arc::new(Job::new(seconds, false));
     let error = Arc::new(Mutex::new(None));
     let opt = SolveOptions { seconds, threads: state.threads, gpu: req.gpu, batch: state.batch, main_threads: None, cpu_threads: Some(state.cpu_threads) };
@@ -289,7 +291,7 @@ fn start_page(state: &State, req: PageRun) {
     if let Some(c) = cur.as_ref() {
         c.job.stop.store(true, Ordering::Relaxed);
     }
-    let seconds = 3600.0;
+    let seconds = MAX_SECONDS;
     let mut job = Job::new(seconds, false);
     job.stall = Some(90.0);
     job.watch = true;

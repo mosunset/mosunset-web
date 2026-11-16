@@ -45,7 +45,7 @@ export const defaultSweep: SweepConfig = {
 export const SLICE_SEC = 2
 
 /** 止めなかったときに、自動で止めるまでの時間（ネイティブ版で計算するとき） */
-export const MAX_SEARCH_MS = 60 * 60 * 1000
+export const MAX_SEARCH_MS = 24 * 60 * 60 * 1000
 
 /** ブラウザーだけで計算するとき（軽い計算）の Worker の数。パソコンとブラウザーが重くならないように */
 export const LIGHT_WORKERS = 2
@@ -320,7 +320,7 @@ export function SearchBar({
   const minutes = (sec: number) =>
     sec >= 90 ? `約 ${Math.round(sec / 60)} 分` : `約 ${Math.round(sec)} 秒`
   const until = native
-    ? '「止める」を押すまで続け、1 時間たったら自動で止めます'
+    ? '「止める」を押すまで続け、24 時間たったら自動で止めます'
     : `ブラウザーだけの軽い計算なので、${LIGHT_SEARCH_MS / 1000} 秒で止めます（タブが裏にあるあいだは休みます）`
   const who = native ? 'ネイティブ版で' : `ブラウザーの ${workers} 並列で`
   const sliceSec = native ? NATIVE_SLICE_MS / 1000 : SLICE_SEC
