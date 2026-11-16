@@ -62,7 +62,7 @@ export const lookupIsbn = createServerFn({ method: 'POST' })
 
     let imageKey: string | null = null
     if (data.withCover) {
-      // 楽天の表紙がいちばん大きいので先に試す
+      // 大きいものから試す（楽天は元の大きさ、Google は幅 300px くらい、国立国会図書館は幅 120〜200px くらい）
       imageKey = await saveCover([
         rakuten?.coverUrl ?? null,
         openBd?.coverUrl ?? null,

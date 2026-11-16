@@ -125,6 +125,18 @@ export async function fromOpenBd(isbn: string): Promise<BookInfo | null> {
 }
 
 /**
+ * Google Books の表紙の URL を大きい版にする。検索結果の thumbnail は幅 128px と小さいので、
+ * 大きさの指定（fife）を付けて取る（2026-11 時点で幅 300px くらいまで返る）。端のめくれ（edge=curl）は外す。
+ * zoom を 2 以上にするのは使わない（「画像なし」の画像が返る）
+ */
+export function largerGoogleCover(thumbnail: string) {
+  const url = new URL(thumbnail.replace(/^http:/, 'https:'))
+  url.searchParams.delete('edge')
+  url.searchParams.set('fife', 'w600-h900')
+  return url.toString()
+}
+
+/**
  * Google Books で ISBN から探す。
  * キー（GOOGLE_BOOKS_API_KEY）がなくても使えるが、そのときは世界中の利用者で回数を分け合うので、すぐ上限になる
  */
@@ -168,7 +180,9 @@ export async function searchGoogleBooks(
       title: v.subtitle ? `${v.title} : ${v.subtitle}` : v.title,
       author: (v.authors ?? []).join('、'),
       publisher: v.publisher ?? '',
-      coverUrl: v.imageLinks?.thumbnail?.replace(/^http:/, 'https:') ?? null,
+      coverUrl: v.imageLinks?.thumbnail
+        ? largerGoogleCover(v.imageLinks.thumbnail)
+        : null,
       publishedDate: toDate(v.publishedDate),
       description: plainText(v.description),
       link: v.infoLink?.replace(/^http:/, 'https:') ?? null,
