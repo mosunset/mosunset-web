@@ -4,5 +4,7 @@
   - [データモデル](data-model.md)
   - [セキュリティ](security.md)
   - [デプロイ](deploy.md)
+- 学ぶ
+  - [TanStack Start 入門 1：しくみと 4 つの道具](learn/tanstack-start-1.md)
 - 仕様
   - [仕様書の書き方](specs/README.md)
