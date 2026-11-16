@@ -6,6 +6,7 @@
 //!   box-packing solve <input.json> [--seconds S] [--threads N] [--gpu] [--out result.json]
 //!   box-packing serve [ポート]                               使う人のための画面（ブラウザーで開く）
 
+mod columns;
 mod cuda;
 mod gpu;
 mod model;
@@ -479,8 +480,95 @@ fn explore_line(
     }
 }
 
-/// CPU の係（と GPU の係）で、時間まで（または止められるまで）探す
+/// 柱で積む方式で探す（CPU の全スレッドで、種を変えて別々に。GPU は使わない）
+fn run_columns(input: &PackInput, opt: &SolveOptions, job: &Job) {
+    let ctx = Ctx::new(input);
+    let deadline = job.started + Duration::from_secs_f64(opt.seconds);
+    let threads = opt.threads.max(1);
+    job.cpu_threads.store(threads as u64, Ordering::Relaxed);
+    let publish = |r: &PackResult, by: &str| {
+        let mut s = job.shared.lock().unwrap();
+        if r.score < s.score - 1e-9 {
+            s.score = r.score;
+            s.version += 1;
+            s.by = by.to_string();
+            s.result = Some(r.clone());
+            if job.log {
+                println!(
+                    "{:>6.1} 秒  点数 {:.4}  高さ {} mm  整い {:.3}  充填率 {:.1}%  （{}）",
+                    job.started.elapsed().as_secs_f64(),
+                    r.score,
+                    r.height,
+                    r.tidiness,
+                    r.fill_rate * 100.0,
+                    by
+                );
+            }
+        }
+    };
+    std::thread::scope(|sc| {
+        for i in 0..threads {
+            let ctx = &ctx;
+            let publish = &publish;
+            sc.spawn(move || {
+                let mut s = columns::ColumnSearch::new(ctx, ctx.input.seed + i as i64 * 1009);
+                let by = format!("CPU {i}・柱");
+                if let Some(b) = &s.best {
+                    publish(b, &by);
+                }
+                if s.exhausted() {
+                    return;
+                }
+                let (mut last, mut metric_seen) = (s.tried, 0u64);
+                while !job.stop.load(Ordering::Relaxed) {
+                    if s.step() {
+                        publish(s.best.as_ref().unwrap(), &by);
+                    }
+                    if s.tried - last >= 16 {
+                        job.cpu_evals.fetch_add(s.tried - last, Ordering::Relaxed);
+                        last = s.tried;
+                        if s.metrics.total_version() != metric_seen {
+                            metric_seen = s.metrics.total_version();
+                            job.shared.lock().unwrap().metrics.merge(&s.metrics);
+                        }
+                    }
+                }
+            });
+        }
+        watch_job(job, deadline);
+    });
+    job.done.store(true, Ordering::Relaxed);
+}
+
+/// 時間・止める・良くならない・ページに聞かれない、のどれかで止める（止めたら job.stop を立てて返る）
+fn watch_job(job: &Job, deadline: Instant) {
+    let mut last_change = Instant::now();
+    let mut last_mark = 0u64;
+    while Instant::now() < deadline && !job.stop.load(Ordering::Relaxed) {
+        std::thread::sleep(Duration::from_millis(50));
+        {
+            let sh = job.shared.lock().unwrap();
+            let mark = sh.version + sh.metrics.total_version();
+            if mark != last_mark {
+                last_mark = mark;
+                last_change = Instant::now();
+            }
+        }
+        if job.stall.is_some_and(|st| last_change.elapsed().as_secs_f64() > st) {
+            break;
+        }
+        if job.watch && job.last_seen.lock().unwrap().elapsed().as_secs_f64() > WATCH_SECS {
+            break;
+        }
+    }
+    job.stop.store(true, Ordering::Relaxed);
+}
+
+/// CPU の係（と GPU の係）で、時間まで（または止められるまで）探す。柱で積む方式なら run_columns
 pub fn run_solve(input: &PackInput, opt: &SolveOptions, job: &Job) {
+    if input.method.as_deref() == Some("columns") {
+        return run_columns(input, opt, job);
+    }
     let ctx = Ctx::new(input);
     let deadline = job.started + Duration::from_secs_f64(opt.seconds);
     let started = job.started;

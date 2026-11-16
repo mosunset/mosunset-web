@@ -1231,12 +1231,11 @@ export function BoxPacking() {
     const usable = combos
       .map((c, i) => (validate(c) ? -1 : i))
       .filter((i) => i >= 0)
-    // ネイティブ版が動いていれば 0 番の係にする。柱で積む組み合わせはネイティブ版では計算しないので、ブラウザーの係を 1 つ足す
+    // ネイティブ版が動いていれば、ネイティブ版 1 つだけを計算係にする（並べ順・柱の両方の方式を受け持つ）
     const nativeOn = nativeRef.current !== null
     /** ネイティブ版につながらなくなったら false（0 番の係をブラウザーの係に戻す） */
     let nativeAlive = nativeOn
-    const hasColumns = usable.some((i) => combos[i].method === 'columns')
-    const workerCount = nativeOn ? (hasColumns ? 2 : 1) : lightWorkerCount
+    const workerCount = nativeOn ? 1 : lightWorkerCount
     const searchLimitMs = nativeOn ? MAX_SEARCH_MS : LIGHT_SEARCH_MS
     const stops = new Array<Runner | null>(workerCount).fill(null)
     /** 係ごとの計算係（Worker）。探すあいだは作ったまま使い回す */
@@ -1268,7 +1267,6 @@ export function BoxPacking() {
       job: PackInput,
       on: Parameters<typeof runWorker>[1],
     ): Runner => {
-      if (job.method === 'columns') return runWorker(job, on, workerFor(0))
       return runNative(job, {
         ...on,
         lost: () => {
@@ -1331,10 +1329,8 @@ export function BoxPacking() {
     /** 次に計算する組み合わせ（計算中を含めた回数がいちばん少ないものから、ランダムに 1 つ） */
     const pick = (slot: number) => {
       if (usable.length === 0) return -1
-      // ネイティブ版は、並べ順の方式の組み合わせだけを受け持つ
       const isNative = isNativeSlot(slot)
-      const ordered = usable.filter((i) => combos[i].method !== 'columns')
-      const candidates = isNative && ordered.length > 0 ? ordered : usable
+      const candidates = usable
       // まだ一度も当たっていない組み合わせがあれば、そこから
       const fresh = candidates.filter((i) => visits[i] + active[i] === 0)
       if (fresh.length > 0)

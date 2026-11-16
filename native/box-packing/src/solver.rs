@@ -761,6 +761,21 @@ pub fn finish(packed: &Trace, ctx: &Ctx, genome: Option<Genome>) -> PackResult {
             unplaced_types.push(take_type(unit.group));
         }
     }
+    evaluate_placements(placements, unplaced_types, packed.height, ctx, &table.too_big, genome)
+}
+
+/// 床の座標の置き場所から、結果（点数・重心・見た目の整いなど）を作る（TS の evaluatePlacements）。
+/// 並べ順の方式と柱の方式で同じ点数の付け方を使う。壁がない向きは、ここで全体を床の中央へ寄せる
+pub fn evaluate_placements(
+    mut placements: Vec<Placement>,
+    unplaced_types: Vec<usize>,
+    height: i64,
+    ctx: &Ctx,
+    too_big: &[Unplaced],
+    genome: Option<Genome>,
+) -> PackResult {
+    let input = ctx.input;
+    let (xx, yy, walls, gap) = (input.floor_x, input.floor_y, &input.walls, input.gap);
 
     let center_x = walls.left == walls.right;
     let center_y = !walls.back;
@@ -790,7 +805,6 @@ pub fn finish(packed: &Trace, ctx: &Ctx, genome: Option<Genome>) -> PackResult {
         cy += vol * (p.y as f64 + p.d as f64 / 2.0);
         cz += vol * (p.z as f64 + p.h as f64 / 2.0);
     }
-    let height = packed.height;
     let cog = if box_volume > 0.0 {
         Some(Cog { x: cx / box_volume, y: cy / box_volume, z: cz / box_volume })
     } else {
@@ -800,7 +814,7 @@ pub fn finish(packed: &Trace, ctx: &Ctx, genome: Option<Genome>) -> PackResult {
     let h0 = ctx.h0;
     let cog_error = cog.map(|c| cog_error_of(c.x, c.y, input)).unwrap_or(0.0);
     let (tidy_value, tidy_penalty) = tidiness_of(&placements, ctx, gap);
-    let too_big_count: i64 = table.too_big.iter().map(|u| u.count).sum();
+    let too_big_count: i64 = too_big.iter().map(|u| u.count).sum();
     let hf = height as f64;
     let score = 100.0 * (unplaced_types.len() as f64 + too_big_count as f64)
         + (if input.objective == Objective::Height {
@@ -813,7 +827,7 @@ pub fn finish(packed: &Trace, ctx: &Ctx, genome: Option<Genome>) -> PackResult {
         + 0.05 * cog.map(|c| c.z / h0).unwrap_or(0.0)
         + (input.tidy.weight / 100.0) * TIDY_SCALE * tidy_penalty;
 
-    let mut unplaced: Vec<Unplaced> = table.too_big.clone();
+    let mut unplaced: Vec<Unplaced> = too_big.to_vec();
     // TS は Map に入れた順（初めて出てきた順）
     let mut counts: Vec<(usize, i64)> = Vec::new();
     for t in unplaced_types {
