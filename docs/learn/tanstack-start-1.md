@@ -100,9 +100,9 @@ export const saveItem = createServerFn({ method: 'POST' })
 
 `src/routes/robots[.]txt.ts` は `component` の代わりに `server.handlers.GET` を持っていて、ふつうの `Response` を返します。RSS・sitemap・画像の配信も同じ形です。
 
-## このあとの予定
+## 続き
 
-2. **データの流れの続き**：`useServerFn`・`router.invalidate()`・管理画面の保存の流れ（`src/components/admin/collection-form.tsx`）
-3. **ルートの細かい機能**：`beforeLoad` と `context`・`redirect`・`notFound`・`validateSearch`（`?sort=` などの URL パラメータ）・`staticData`（パンくず）
-4. **SSR まわり**：ハイドレーション・`ScriptOnce`（テーマのちらつき防止）・CSP の nonce
-5. **Cloudflare との組み合わせ**：`env`・D1/R2・ビルドとデプロイ
+- [第 2 回：データの流れ（読む・書く・読み直す）](learn/tanstack-start-2.md)
+- [第 3 回：ルートの細かい機能](learn/tanstack-start-3.md)
+- [第 4 回：SSR まわり](learn/tanstack-start-4.md)
+- [第 5 回：Cloudflare との組み合わせ](learn/tanstack-start-5.md)
