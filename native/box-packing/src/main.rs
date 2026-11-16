@@ -78,6 +78,20 @@ fn parse_args() -> Args {
     a
 }
 
+#[link(name = "kernel32")]
+extern "system" {
+    fn GetCurrentProcess() -> *mut std::ffi::c_void;
+    fn SetPriorityClass(process: *mut std::ffi::c_void, class: u32) -> i32;
+}
+
+/// 自分の優先度を「低」（IDLE_PRIORITY_CLASS）にする。探すあいだは CPU の全コアを使うが、
+/// ほかのアプリが CPU を欲しがれば Windows がそちらを先に回すので、PC のほかの作業が重くならない。
+/// 子のスレッド（rayon の採点の係も）はこの優先度を引き継ぐ
+fn lower_priority() {
+    const IDLE_PRIORITY_CLASS: u32 = 0x40;
+    unsafe { SetPriorityClass(GetCurrentProcess(), IDLE_PRIORITY_CLASS) };
+}
+
 fn main() {
     let args = parse_args();
     let cmd = args.pos.first().map(String::as_str).unwrap_or("");
@@ -85,12 +99,19 @@ fn main() {
         "eval" => cmd_eval(&args),
         "genomes" => cmd_genomes(&args),
         "bench" => cmd_bench(&args),
-        "solve" => cmd_solve(&args),
-        "serve" => server::serve(&args),
+        "solve" => {
+            lower_priority();
+            cmd_solve(&args)
+        }
+        "serve" => {
+            lower_priority();
+            server::serve(&args)
+        }
         "install" => cmd_install(),
         "uninstall" => cmd_uninstall(),
         // 引数なし（exe をダブルクリック）なら、画面を開く
         "" => {
+            lower_priority();
             let mut a = args;
             a.pos = vec!["serve".into()];
             server::serve(&a)
