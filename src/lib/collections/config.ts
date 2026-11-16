@@ -51,6 +51,11 @@ type CollectionConfig = {
    */
   filterKeys?: readonly string[]
   /**
+   * 一覧のふだんの並び（おすすめ順）で、値が同じもの同士を近くに並べる項目（大きいまとまりから順に）。
+   * 並べ方は src/lib/collections/order.ts
+   */
+  relatedKeys?: readonly string[]
+  /**
    * 一覧をこの項目（select のもの）の値ごとにまとめ、見出しを付けて並べる（選択肢の順。値が 1 種類なら見出しなし）
    */
   groupKey?: string
@@ -86,6 +91,7 @@ export const collections = {
     acquiredAtLabel: '入手日',
     subtitleKeys: ['maker', 'model'],
     filterKeys: ['category', 'status', 'maker'],
+    relatedKeys: ['category', 'maker'],
     groupKey: 'status',
     marks: { key: 'status', values: { gone: 'dim' } },
     fields: [
@@ -125,6 +131,7 @@ export const collections = {
     acquiredAtLabel: '取得日',
     subtitleKeys: ['issuer'],
     filterKeys: ['status', 'category', 'issuer'],
+    relatedKeys: ['category', 'issuer'],
     groupKey: 'status',
     marks: { key: 'status', values: { studying: 'accent', planned: 'dim' } },
     featured: { key: 'featured', label: '主な資格' },
@@ -168,6 +175,8 @@ export const collections = {
     acquiredAtLabel: '入手日',
     subtitleKeys: ['series', 'maker'],
     filterKeys: ['category', 'series', 'maker'],
+    // 同じ作品のものをまとめ、その中はフィギュア・ぬいぐるみ…ごとに
+    relatedKeys: ['series', 'category'],
     imageFit: 'contain',
     galleryView: true,
     fields: [
@@ -207,6 +216,7 @@ export const collections = {
     acquiredAtLabel: '入手日',
     subtitleKeys: ['author'],
     filterKeys: ['readingStatus', 'category', 'publisher'],
+    relatedKeys: ['category', 'author'],
     groupKey: 'readingStatus',
     galleryView: true,
     marks: { key: 'readingStatus', values: { reading: 'accent' } },
@@ -276,6 +286,10 @@ export function statusMarkOf(
   const field = fields.find((f) => f.key === marks.key)
   return { tone, label: field ? displayAttribute(field, value) : value }
 }
+
+/** 一覧のふだんの並びで、値が同じもの同士を近くに並べる項目 */
+export const relatedKeysOf = (kind: CollectionKind): readonly string[] =>
+  (collections[kind] as { relatedKeys?: readonly string[] }).relatedKeys ?? []
 
 /** 一覧をまとめて見出しを付ける項目 */
 export const groupFieldOf = (kind: CollectionKind) => {

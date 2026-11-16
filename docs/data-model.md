@@ -71,7 +71,7 @@ erDiagram
 | `image_key` | text | R2 のキー |
 | `attributes` | json | 種類ごとの項目（メーカー・著者など） |
 | `acquired_at` | text | 入手日・取得日 |
-| `sort_order` | integer | 並び順 |
+| `sort_order` | integer | 並び順（管理画面のドラッグで決める。一覧では、同じ作品などのもの同士を近くに寄せて並べる: `src/lib/collections/order.ts`） |
 | `published` | boolean | 公開するか。公開側は `publishedItems` で絞る |
 
 インデックス: `(kind, sort_order)`、一意: `(kind, slug)`

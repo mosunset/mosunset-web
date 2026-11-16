@@ -1,6 +1,6 @@
 import { notFound } from '@tanstack/react-router'
 import { createServerFn } from '@tanstack/react-start'
-import { and, asc, desc, eq, inArray, ne } from 'drizzle-orm'
+import { and, desc, eq, inArray, ne } from 'drizzle-orm'
 import { z } from 'zod'
 import { adminMiddleware } from '@/functions/auth'
 import {
@@ -11,6 +11,7 @@ import {
   publicAttributes,
 } from '@/lib/collections/config'
 import { collectionKinds } from '@/lib/collections/kinds'
+import { defaultOrder } from '@/lib/collections/order'
 import { isAdminRequest } from '@/server/auth'
 import { getDb, publishedItems, schema } from '@/server/db'
 import { deleteImagesOf, deleteReplacedImage } from '@/server/r2'
@@ -23,13 +24,6 @@ import {
 import { idInput, optionalSlugSchema } from '@/server/validation'
 
 const { collectionItems: items } = schema
-
-/** 一覧の並び順（手で決めた順 → 入手日の新しい順 → 登録の新しい順） */
-const listOrder = [
-  asc(items.sortOrder),
-  desc(items.acquiredAt),
-  desc(items.createdAt),
-]
 
 const kindSchema = z.enum(collectionKinds)
 const dateString = z
@@ -96,15 +90,18 @@ export const listPublishedItems = createServerFn({ method: 'GET' })
         attributes: items.attributes,
         acquiredAt: items.acquiredAt,
         published: items.published,
+        sortOrder: items.sortOrder,
+        createdAt: items.createdAt,
       })
       .from(items)
       .where(and(eq(items.kind, data.kind), admin ? undefined : publishedItems))
-      .orderBy(...listOrder)
-    return rows.map(({ published, ...row }) => ({
-      ...withAttributes(row),
-      attributes: publicAttributes(data.kind, toAttributes(row.attributes)),
-      draft: !published,
-    }))
+    return defaultOrder(data.kind, rows.map(withAttributes)).map(
+      ({ published, sortOrder: _order, createdAt: _created, ...row }) => ({
+        ...row,
+        attributes: publicAttributes(data.kind, row.attributes),
+        draft: !published,
+      }),
+    )
   })
 
 /**
@@ -148,15 +145,18 @@ export const getPublishedItem = createServerFn({ method: 'GET' })
           slug: items.slug,
           title: items.title,
           attributes: items.attributes,
+          acquiredAt: items.acquiredAt,
+          sortOrder: items.sortOrder,
+          createdAt: items.createdAt,
         })
         .from(items)
-        .where(and(eq(items.kind, data.kind), visible))
-        .orderBy(...listOrder),
+        .where(and(eq(items.kind, data.kind), visible)),
     ])
     if (!item) throw notFound()
-    const siblings = inListOrder(data.kind, siblingRows).map(
-      ({ slug, title }) => ({ slug, title }),
-    )
+    const siblings = inListOrder(
+      data.kind,
+      defaultOrder(data.kind, siblingRows.map(withAttributes)),
+    ).map(({ slug, title }) => ({ slug, title }))
     const html = item.description ? renderRichText(item.description) : ''
     return {
       slug: item.slug,
@@ -210,11 +210,14 @@ export const listItemsForAdmin = createServerFn({ method: 'GET' })
         published: items.published,
         sortOrder: items.sortOrder,
         updatedAt: items.updatedAt,
+        createdAt: items.createdAt,
       })
       .from(items)
       .where(eq(items.kind, data.kind))
-      .orderBy(...listOrder)
-    return rows.map(withAttributes)
+    // 公開側と同じ並び（ドラッグで並び替えると、この並びのまま番号を振り直す）
+    return defaultOrder(data.kind, rows.map(withAttributes)).map(
+      ({ createdAt: _created, ...row }) => row,
+    )
   })
 
 export const getItemForAdmin = createServerFn({ method: 'GET' })
@@ -266,7 +269,16 @@ export const saveItem = createServerFn({ method: 'POST' })
     }
 
     if (!data.id) {
-      await db.insert(items).values({ id, ...values })
+      // ドラッグで並べている種類では最後の番号にする（同じ作品などのものがあれば、一覧ではその近くに並ぶ）。
+      // 0 のままだと、その作品のまとまりごと一覧のいちばん上に動いてしまう。並べていない種類（どれも 0）は 0 のまま
+      const [last] = await db
+        .select({ sortOrder: items.sortOrder })
+        .from(items)
+        .where(eq(items.kind, data.kind))
+        .orderBy(desc(items.sortOrder))
+        .limit(1)
+      const sortOrder = last && last.sortOrder > 0 ? last.sortOrder + 1 : 0
+      await db.insert(items).values({ id, ...values, sortOrder })
       return { id }
     }
 

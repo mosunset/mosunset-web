@@ -38,6 +38,7 @@ import {
   collections,
   isDisplayedField,
   itemSubtitle,
+  relatedKeysOf,
 } from '@/lib/collections/config'
 import { errorMessage } from '@/lib/errors'
 import { thumbnailUrl } from '@/lib/images'
@@ -136,6 +137,12 @@ function AdminCollectionItems() {
   // 絞り込み中は見えていないものとの前後関係がわからないので、並び替えは全件表示のときだけ
   const canReorder =
     !selecting && query.trim() === '' && filter === 'all' && items.length > 1
+  // 同じ作品などのものは近くに寄せて並べる（src/lib/collections/order.ts）。ほかのまとまりの中へ動かしても戻る
+  const relatedLabels = relatedKeysOf(kind)
+    .map((key) => config.fields.find((f) => f.key === key)?.label)
+    .filter(Boolean)
+    .map((label) => `「${label}」`)
+    .join('')
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
@@ -200,7 +207,7 @@ function AdminCollectionItems() {
               {selecting
                 ? `・${selectedVisible.length} 件を選んでいます`
                 : canReorder
-                  ? '・左のつまみをドラッグして並び替え（スマホは長押し）'
+                  ? `・左のつまみをドラッグして並び替え（スマホは長押し）${relatedLabels ? `。同じ${relatedLabels}のものは近くにまとまります` : ''}`
                   : items.length > 1
                     ? '・並び替えは検索・絞り込みを解除すると使えます'
                     : ''}

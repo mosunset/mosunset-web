@@ -128,7 +128,7 @@ export function CollectionForm({ kind, item, initialIsbn }: Props) {
               id: item?.id,
               kind,
               ...fields,
-              // 並び順は一覧のドラッグで変えるので、ここでは今の値を保つ
+              // 並び順は一覧のドラッグで変えるので、ここでは今の値を保つ（新しいものはサーバーで最後の番号にする）
               sortOrder: item?.sortOrder ?? 0,
             },
           }),

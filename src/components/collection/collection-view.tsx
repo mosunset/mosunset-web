@@ -39,6 +39,7 @@ import {
   isDisplayedField,
   statusMarkOf,
 } from '@/lib/collections/config'
+import { compareNames } from '@/lib/collections/order'
 import { formatDay, isRecent } from '@/lib/format'
 import {
   imageSrcSet,
@@ -210,13 +211,16 @@ function columnsOf(kind: CollectionKind): SortColumn<ListItem>[] {
   ]
 }
 
-/** 並べ替え（おすすめ順は、管理画面で決めた並び＝サーバーから届いた順のまま） */
+/**
+ * 並べ替え。おすすめ順は、サーバーから届いた順のまま
+ * （管理画面で決めた並びを、同じ作品などのもの同士で寄せたもの。src/lib/collections/order.ts）
+ */
 function sortItems(items: ListItem[], sort: string) {
   if (sort === 'order') return items
   const date = (i: ListItem) => i.acquiredAt ?? ''
   return items.sort((x, y) =>
     sort === 'name'
-      ? x.title.localeCompare(y.title, 'ja')
+      ? compareNames(x.title, y.title)
       : sort === 'old'
         ? date(x).localeCompare(date(y))
         : date(y).localeCompare(date(x)),
