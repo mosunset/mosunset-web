@@ -3,7 +3,7 @@
 //!   box-packing eval  <input.json> <genomes.json> [--gpu]   並べ方を評価して点数を出す（TS と比べる用）
 //!   box-packing genomes <input.json> <count> [seed]          確かめ用の並べ方を作る
 //!   box-packing bench <input.json> [--seconds S]             1 秒あたりに試せる数を測る
-//!   box-packing solve <input.json> [--seconds S] [--threads N] [--gpu] [--out result.json]
+//!   box-packing solve <input.json> [--seconds S] [--threads N] [--gpu] [--cpu-threads N] [--out result.json]
 //!   box-packing serve [ポート]                               使う人のための画面（ブラウザーで開く）
 
 mod columns;
@@ -43,6 +43,8 @@ pub struct Args {
     pub batch: usize,
     /// いつもの筋の CPU の係の数（--main）
     pub main_threads: Option<usize>,
+    /// GPU を使うときの CPU の探す係の数（--cpu-threads）。None なら solve は「スレッド数 − 2」、serve は SERVE_CPU_THREADS
+    pub cpu_threads: Option<usize>,
     /// 1 スレッドで 1 通りの GPU の計算を使う
     thread_kernel: bool,
 }
@@ -56,6 +58,7 @@ fn parse_args() -> Args {
         out: None,
         batch: 16384,
         main_threads: None,
+        cpu_threads: None,
         thread_kernel: false,
     };
     let mut it = std::env::args().skip(1);
@@ -63,6 +66,7 @@ fn parse_args() -> Args {
         match x.as_str() {
             "--seconds" => a.seconds = it.next().unwrap().parse().unwrap(),
             "--threads" => a.threads = it.next().unwrap().parse().unwrap(),
+            "--cpu-threads" => a.cpu_threads = Some(it.next().unwrap().parse().unwrap()),
             "--main" => a.main_threads = Some(it.next().unwrap().parse().unwrap()),
             "--batch" => a.batch = it.next().unwrap().parse().unwrap(),
             "--gpu" => a.gpu = true,
@@ -74,6 +78,20 @@ fn parse_args() -> Args {
     a
 }
 
+#[link(name = "kernel32")]
+extern "system" {
+    fn GetCurrentProcess() -> *mut std::ffi::c_void;
+    fn SetPriorityClass(process: *mut std::ffi::c_void, class: u32) -> i32;
+}
+
+/// 自分の優先度を「低」（IDLE_PRIORITY_CLASS）にする。探すあいだは CPU の全コアを使うが、
+/// ほかのアプリが CPU を欲しがれば Windows がそちらを先に回すので、PC のほかの作業が重くならない。
+/// 子のスレッド（rayon の採点の係も）はこの優先度を引き継ぐ
+fn lower_priority() {
+    const IDLE_PRIORITY_CLASS: u32 = 0x40;
+    unsafe { SetPriorityClass(GetCurrentProcess(), IDLE_PRIORITY_CLASS) };
+}
+
 fn main() {
     let args = parse_args();
     let cmd = args.pos.first().map(String::as_str).unwrap_or("");
@@ -81,12 +99,19 @@ fn main() {
         "eval" => cmd_eval(&args),
         "genomes" => cmd_genomes(&args),
         "bench" => cmd_bench(&args),
-        "solve" => cmd_solve(&args),
-        "serve" => server::serve(&args),
+        "solve" => {
+            lower_priority();
+            cmd_solve(&args)
+        }
+        "serve" => {
+            lower_priority();
+            server::serve(&args)
+        }
         "install" => cmd_install(),
         "uninstall" => cmd_uninstall(),
         // 引数なし（exe をダブルクリック）なら、画面を開く
         "" => {
+            lower_priority();
             let mut a = args;
             a.pos = vec!["serve".into()];
             server::serve(&a)
@@ -415,6 +440,9 @@ pub struct SolveOptions {
     /// いつもの筋（いちばん良い並べ方を取り込む CPU の係）の数。None なら全部（別の筋は使わない）。
     /// 2026-11-16 に 49 個・30 秒・種 4 つで比べたら、別の筋を混ぜると平均で悪くなった（全部 1.864・4 分の 1 1.928・1 本 1.928）
     pub main_threads: Option<usize>,
+    /// GPU を使うときの CPU の探す係の数（0 なら GPU の係だけ）。None なら「スレッド数 − 2」。
+    /// GPU の結果の採点（finish）は、これとは別に rayon で全コアを使う
+    pub cpu_threads: Option<usize>,
 }
 
 /// 別の筋 1 本を、良くならなくなるまで（EXPLORE_STALL 秒）続ける。終わったら次の筋を始める。
@@ -588,9 +616,13 @@ pub fn run_solve(input: &PackInput, opt: &SolveOptions, job: &Job) {
     let cpu_evals = &job.cpu_evals;
     let gpu_evals = &job.gpu_evals;
     let stop = &job.stop;
-    let cpu_threads = if opt.gpu { opt.threads.saturating_sub(2).max(1) } else { opt.threads };
+    let cpu_threads = if opt.gpu {
+        opt.cpu_threads.unwrap_or(opt.threads.saturating_sub(2).max(1)).min(opt.threads)
+    } else {
+        opt.threads.max(1)
+    };
     job.cpu_threads.store(cpu_threads as u64, Ordering::Relaxed);
-    let main_threads = opt.main_threads.unwrap_or(cpu_threads).clamp(1, cpu_threads);
+    let main_threads = opt.main_threads.unwrap_or(cpu_threads).clamp(1.min(cpu_threads), cpu_threads);
     if job.log {
         println!(
             "箱 {} 個・CPU の係 {} スレッド（いつもの筋 {}・別の筋 {}）{}・{} 秒",
@@ -719,7 +751,7 @@ pub fn run_solve(input: &PackInput, opt: &SolveOptions, job: &Job) {
 fn cmd_solve(args: &Args) {
     let input = read_input(&args.pos[1]);
     let job = Job::new(args.seconds, true);
-    let opt = SolveOptions { seconds: args.seconds, threads: args.threads, gpu: args.gpu, batch: args.batch, main_threads: args.main_threads };
+    let opt = SolveOptions { seconds: args.seconds, threads: args.threads, gpu: args.gpu, batch: args.batch, main_threads: args.main_threads, cpu_threads: args.cpu_threads };
     run_solve(&input, &opt, &job);
     let el = job.started.elapsed().as_secs_f64();
     let (c, g) = (job.cpu_evals.load(Ordering::Relaxed), job.gpu_evals.load(Ordering::Relaxed));
