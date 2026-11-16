@@ -1,10 +1,11 @@
-import { Eye, Loader2, Search, Square } from 'lucide-react'
+import { Cpu, Eye, Loader2, Power, Search, Square } from 'lucide-react'
 import { type ReactNode, useState } from 'react'
 
 import { HelpTip, RangeSlider } from '@/components/playground/parts'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { cn } from '@/lib/utils'
+import type { NativeInfo } from './native'
 import type { Method, Objective, PackResult } from './solver'
 
 /** 範囲で試す数値の設定（on でなければ、設定欄の 1 つの値で固定） */
@@ -43,8 +44,20 @@ export const defaultSweep: SweepConfig = {
  */
 export const SLICE_SEC = 2
 
-/** 止めなかったときに、自動で止めるまでの時間 */
+/** 止めなかったときに、自動で止めるまでの時間（ネイティブ版で計算するとき） */
 export const MAX_SEARCH_MS = 60 * 60 * 1000
+
+/** ブラウザーだけで計算するとき（軽い計算）の Worker の数。パソコンとブラウザーが重くならないように */
+export const LIGHT_WORKERS = 2
+
+/** ブラウザーだけで計算するとき、自動で止めるまでの時間（タブが裏にあって休んでいた時間は数えない） */
+export const LIGHT_SEARCH_MS = 30_000
+
+/**
+ * ネイティブ版が 1 回に 1 つの組み合わせを受け持つ時間。ネイティブ版は受け持つたびに GPU の準備（1 秒ほど）が
+ * 要るので、ブラウザーの係（SLICE_SEC）より長くする
+ */
+export const NATIVE_SLICE_MS = 15_000
 
 /** 1 つの組み合わせ（設定欄の値から変える値） */
 export type SweepCombo = {
@@ -272,9 +285,10 @@ export function SearchBar({
   count,
   tried,
   workers,
-  gpu,
-  useGpu,
-  onUseGpu,
+  native,
+  launching,
+  onLaunchNative,
+  onQuitNative,
   error,
   onStart,
   onStop,
@@ -290,11 +304,14 @@ export function SearchBar({
   /** 今回の組み合わせの数 */
   count: number
   tried: number
+  /** ブラウザーの係の数（ネイティブ版のときは 1） */
   workers: number
-  /** GPU（WebGPU）が使えるか */
-  gpu: { status: 'checking' | 'ready' | 'unavailable'; description?: string }
-  useGpu: boolean
-  onUseGpu: (on: boolean) => void
+  /** この PC で動いているネイティブ版（動いていなければ null） */
+  native: NativeInfo | null
+  /** 立ち上げを頼んで、まだつながっていない */
+  launching: boolean
+  onLaunchNative: () => void
+  onQuitNative: () => void
   /** 入力の誤り（あれば探せない） */
   error: string | null
   onStart: () => void
@@ -302,10 +319,16 @@ export function SearchBar({
 }) {
   const minutes = (sec: number) =>
     sec >= 90 ? `約 ${Math.round(sec / 60)} 分` : `約 ${Math.round(sec)} 秒`
+  const until = native
+    ? '「止める」を押すまで続け、1 時間たったら自動で止めます'
+    : `ブラウザーだけの軽い計算なので、${LIGHT_SEARCH_MS / 1000} 秒で止めます（タブが裏にあるあいだは休みます）`
+  const who = native ? 'ネイティブ版で' : `ブラウザーの ${workers} 並列で`
+  const sliceSec = native ? NATIVE_SLICE_MS / 1000 : SLICE_SEC
+  const roundSec = native ? plan.all * sliceSec : plan.roundSec
   const planText =
     plan.all === 1
-      ? `条件はすべて 1 つの値なので、その 1 通りを ${workers} 並列で探し続けます。「止める」を押すまで続け、1 時間たったら自動で止めます`
-      : `${plan.all} 通りの組み合わせを、${workers} 並列で少しずつ（1 回 ${SLICE_SEC} 秒）探し続けます（全部に当てたあとは、成績の良い組み合わせに時間を多く使います）。全部に 1 回ずつ当たるまで ${minutes(plan.roundSec)}で、そのあとも前の良い並べ方の続きから詰めていきます。「止める」を押すまで続け、1 時間たったら自動で止めます`
+      ? `条件はすべて 1 つの値なので、その 1 通りを${who}探し続けます。${until}`
+      : `${plan.all} 通りの組み合わせを、${who}少しずつ（1 回 ${sliceSec} 秒）探し続けます（全部に当てたあとは、成績の良い組み合わせに時間を多く使います）。全部に 1 回ずつ当たるまで ${minutes(roundSec)}で、そのあとも前の良い並べ方の続きから詰めていきます。${until}`
   return (
     <section className="space-y-3 rounded-lg border-2 border-primary/30 p-4">
       <div className="flex flex-wrap items-center gap-3">
@@ -317,34 +340,50 @@ export function SearchBar({
             回ずつ当て、そのあとは成績の良いものや、前回伸びたものを多めに）。同じ組み合わせにまた当たったときは、前に見つけた良い並べ方の続きから詰めるので、全部の組み合わせが同時に少しずつ良くなっていきます。結果は下の「部門別ベスト」に自動で入ります。
           </HelpTip>
         </h2>
-        <label
+        <span
           className={cn(
-            'ml-auto flex items-center gap-2 text-sm',
-            gpu.status !== 'ready' && 'text-muted-foreground',
+            'ml-auto flex items-center gap-1.5 text-sm',
+            !native && 'text-muted-foreground',
           )}
-          title={gpu.description}
         >
-          <input
-            type="checkbox"
-            checked={useGpu && gpu.status === 'ready'}
-            disabled={running || gpu.status !== 'ready'}
-            onChange={(e) => onUseGpu(e.target.checked)}
-            className="size-4 accent-primary"
-          />
-          GPU も使う
-          <span className="text-xs text-muted-foreground">
-            {gpu.status === 'checking'
-              ? '（確認中）'
-              : gpu.status === 'unavailable'
-                ? '（この環境では使えません）'
-                : ''}
-          </span>
-        </label>
+          <Cpu className="size-4" />
+          {native
+            ? `ネイティブ版で計算（${native.gpu ?? 'GPU'}・CPU ${native.threads} スレッド）`
+            : launching
+              ? 'ネイティブ版を立ち上げています…'
+              : 'ブラウザーで軽く計算'}
+        </span>
+        {native ? (
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            disabled={running}
+            onClick={onQuitNative}
+          >
+            <Power />
+            ネイティブ版を終了
+          </Button>
+        ) : (
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            disabled={running || launching}
+            onClick={onLaunchNative}
+          >
+            <Power />
+            ネイティブ版を起動
+          </Button>
+        )}
         <HelpTip>
-          WebGPU が使えるブラウザでは、計算係の 1 つを GPU
-          にして、少しずつ入れ替えた並べ順を数千通りまとめて評価します（上位だけを
-          CPU で正式に評価）。使えないブラウザや、オフにしたときは CPU
-          だけで計算します。
+          この PC にネイティブ版（Rust +
+          CUDA）を入れてあれば、「ネイティブ版を起動」で立ち上げ、計算を任せます（CPU
+          の全コアと GPU
+          で、ブラウザーの数百倍の数を試します）。ページは結果をその場で表示します。動いていないときは、パソコンが重くならないよう、ブラウザーの{' '}
+          {LIGHT_WORKERS} 並列で {LIGHT_SEARCH_MS / 1000}{' '}
+          秒だけ計算します。ネイティブ版は、10
+          分どのページからも使われなければ自分で終わります。
         </HelpTip>
         {running ? (
           <Button type="button" variant="outline" onClick={onStop}>
@@ -372,9 +411,7 @@ export function SearchBar({
           )}
           <span className="font-mono text-xs tabular-nums">
             {tried.toLocaleString()} 通りの並べ方を試行中・
-            {useGpu && gpu.status === 'ready'
-              ? `GPU ＋ CPU ${workers - 1} 並列`
-              : `${workers} 並列`}
+            {native ? 'ネイティブ版' : `ブラウザー ${workers} 並列`}
           </span>
         </p>
       ) : (

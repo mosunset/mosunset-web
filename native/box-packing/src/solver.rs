@@ -1717,6 +1717,8 @@ pub struct Search<'a> {
     polishing: bool,
     /// 続けて何回探し直しても、いちばん良い結果が良くならなかったか
     kicks: u64,
+    /// 試したすべての結果からの、部門別のいちばん
+    pub metrics: MetricBests,
 }
 
 impl<'a> Search<'a> {
@@ -1731,6 +1733,8 @@ impl<'a> Search<'a> {
         let ids = plans[0].ids.clone();
         let rule = plans[0].rule;
         let score = best.score;
+        let mut metrics = MetricBests::default();
+        metrics.see(&best);
         Search {
             ctx,
             best_ids: ids.clone(),
@@ -1754,6 +1758,7 @@ impl<'a> Search<'a> {
             polish: vec![],
             polishing: false,
             kicks: 0,
+            metrics,
         }
     }
 
@@ -1830,6 +1835,7 @@ impl<'a> Search<'a> {
     pub fn adopt(&mut self, ids: Vec<usize>, rule: Rule) -> bool {
         let (trace, result) = evaluate_ids(self.ctx, &ids, &rule);
         self.tried += 1;
+        self.metrics.see(&result);
         if result.score < self.best.score - 1e-9 {
             self.polish.clear();
             self.polishing = false;
@@ -1856,6 +1862,7 @@ impl<'a> Search<'a> {
         };
         let (trace, result) = evaluate_ids(ctx, &plan.ids, &plan.rule);
         self.tried += 1;
+        self.metrics.see(&result);
         self.set_current(plan.ids.clone(), plan.rule, trace.clone(), result.score);
         self.set_run(plan.ids, plan.rule, trace, result)
     }
@@ -1902,6 +1909,7 @@ impl<'a> Search<'a> {
             pack_in_order(&ids, &wts, ctx.input, &ctx.table, None, 0)
         };
         let result = finish(&trace, ctx, Some(genome_of(&ids, &rule, &ctx.table)));
+        self.metrics.see(&result);
         self.anneal_steps += 1.0;
         self.stats.record(kind, 1.0, if result.score < self.cur_score - 1e-9 { 1.0 } else { 0.0 });
         if result.score < self.run_score - 1e-9 {
@@ -1920,5 +1928,91 @@ impl<'a> Search<'a> {
             }
         }
         false
+    }
+}
+
+// ---- 部門別のいちばん（TS の betterFor・metrics） ----
+
+/// 「見た目がいちばん整っている」部門の対象にする高さの幅（いちばん低い結果の何倍まで）
+pub const TIDY_HEIGHT_BAND: f64 = 1.1;
+/// 部門（TS の metrics と同じ順）
+pub const METRICS: [&str; 3] = ["height", "low", "tidy"];
+
+/// 部門の対象になる結果か（置けなかった箱がない）
+pub fn is_complete(r: &PackResult) -> bool {
+    r.unplaced.is_empty() && !r.placements.is_empty()
+}
+
+/// 部門 metric（METRICS の番号）で、a が b より良いか（TS の betterFor）
+pub fn better_for(metric: usize, a: &PackResult, b: Option<&PackResult>, lowest: Option<i64>) -> bool {
+    if !is_complete(a) {
+        return false;
+    }
+    let Some(b) = b else { return true };
+    if metric == 2 {
+        let low = (lowest.map(|x| x as f64).unwrap_or(f64::INFINITY)).min(a.height as f64).min(b.height as f64);
+        let in_a = a.height as f64 <= low * TIDY_HEIGHT_BAND + 1e-6;
+        let in_b = b.height as f64 <= low * TIDY_HEIGHT_BAND + 1e-6;
+        if in_a != in_b {
+            return in_a;
+        }
+        if !in_a {
+            return a.height < b.height;
+        }
+    }
+    let cog_z = |r: &PackResult| r.cog.map(|c| c.z).unwrap_or(0.0);
+    let keys = |r: &PackResult| -> Vec<f64> {
+        match metric {
+            0 => vec![r.height as f64, -r.tidiness, -r.floor_coverage, cog_z(r)],
+            1 => vec![cog_z(r), r.height as f64, -r.floor_coverage],
+            _ => vec![-r.tidiness, r.height as f64, cog_z(r)],
+        }
+    };
+    let (ka, kb) = (keys(a), keys(b));
+    for i in 0..ka.len() {
+        if (ka[i] - kb[i]).abs() > 1e-6 {
+            return ka[i] < kb[i];
+        }
+    }
+    false
+}
+
+/// 部門ごとのいちばん（全部置けた結果だけ）
+#[derive(Clone, Default)]
+pub struct MetricBests {
+    pub best: [Option<PackResult>; 3],
+    /// 部門ごとに、何回良くなったか
+    pub version: [u64; 3],
+}
+
+impl MetricBests {
+    /// 結果を見て、良くなった部門があれば入れ替える（TS の search.worker の onResult と同じ順）
+    pub fn see(&mut self, r: &PackResult) -> bool {
+        if !is_complete(r) {
+            return false;
+        }
+        let mut any = false;
+        for m in 0..METRICS.len() {
+            let lowest = self.best[0].as_ref().map(|x| x.height);
+            if better_for(m, r, self.best[m].as_ref(), lowest) {
+                self.best[m] = Some(r.clone());
+                self.version[m] += 1;
+                any = true;
+            }
+        }
+        any
+    }
+
+    /// ほかの係の部門別のいちばんを取り込む
+    pub fn merge(&mut self, other: &MetricBests) -> bool {
+        let mut any = false;
+        for r in other.best.iter().flatten() {
+            any |= self.see(r);
+        }
+        any
+    }
+
+    pub fn total_version(&self) -> u64 {
+        self.version.iter().sum()
     }
 }

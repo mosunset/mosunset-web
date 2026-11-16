@@ -3,7 +3,17 @@ name = "box-packing"
 version = "0.1.0"
 edition = "2021"
 publish = false
-description = "箱詰めの計算を Rust（CPU 並列）と CUDA で動かしてみる試作"
+description = "箱詰めの計算を Rust（CPU 並列）と CUDA で動かすネイティブ版（サイトの箱詰めのページの計算係）"
+default-run = "box-packing"
+
+[[bin]]
+name = "box-packing"
+path = "src/main.rs"
+
+# 窓を出さない起動役（サイトの「ネイティブ版を起動」から呼ばれる）
+[[bin]]
+name = "box-packing-launch"
+path = "src/launch.rs"
 
 [dependencies]
 serde = { version = "1", features = ["derive"] }

@@ -11,7 +11,9 @@ import {
 } from '../../../src/components/playground/tools/box-packing/solver.ts'
 
 type Exported = {
-  settings: Omit<PackInput, 'seed'> & { boxes: (BoxSpec & { enabled?: boolean })[] }
+  settings: Omit<PackInput, 'seed' | 'boxes'> & {
+    boxes: (BoxSpec & { enabled?: boolean })[]
+  }
   result?: {
     placements: {
       tag: string

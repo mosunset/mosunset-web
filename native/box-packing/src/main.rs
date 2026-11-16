@@ -82,6 +82,8 @@ fn main() {
         "bench" => cmd_bench(&args),
         "solve" => cmd_solve(&args),
         "serve" => server::serve(&args),
+        "install" => cmd_install(),
+        "uninstall" => cmd_uninstall(),
         // 引数なし（exe をダブルクリック）なら、画面を開く
         "" => {
             let mut a = args;
@@ -89,7 +91,7 @@ fn main() {
             server::serve(&a)
         }
         _ => {
-            eprintln!("使い方: box-packing (eval|genomes|bench|solve) <input.json> ...");
+            eprintln!("使い方: box-packing (eval|genomes|bench|solve) <input.json> ... / serve / install / uninstall");
             std::process::exit(2);
         }
     }
@@ -277,6 +279,74 @@ fn cmd_bench(args: &Args) {
     }
 }
 
+// ---- サイトから立ち上げられるようにする ----
+
+/// 入れる場所（%LOCALAPPDATA%\box-packing）。target の exe を直接登録すると、動いているあいだビルドで上書きできないので、写して使う
+fn install_dir() -> std::path::PathBuf {
+    let base = std::env::var_os("LOCALAPPDATA").expect("LOCALAPPDATA がありません");
+    std::path::PathBuf::from(base).join("box-packing")
+}
+
+/// 動いているネイティブ版に終わってもらう（写す前に。動いていなければ何もしない）
+fn quit_running() {
+    use std::io::{Read, Write};
+    let addr = std::net::SocketAddr::from(([127, 0, 0, 1], 8787));
+    if let Ok(mut s) = std::net::TcpStream::connect_timeout(&addr, Duration::from_millis(300)) {
+        let _ = s.write_all(b"POST /api/quit HTTP/1.1\r\nHost: 127.0.0.1\r\nContent-Length: 0\r\nConnection: close\r\n\r\n");
+        let mut sink = Vec::new();
+        let _ = s.read_to_end(&mut sink);
+        std::thread::sleep(Duration::from_millis(800));
+    }
+}
+
+fn reg(args: &[&str]) {
+    // reg の「この操作を正しく終了しました。」（シフト JIS で文字化けする）は出さない
+    let ok = std::process::Command::new("reg")
+        .args(args)
+        .stdout(std::process::Stdio::null())
+        .status()
+        .map(|s| s.success())
+        .unwrap_or(false);
+    if !ok {
+        eprintln!("レジストリに書けませんでした: reg {}", args.join(" "));
+        std::process::exit(1);
+    }
+}
+
+/// box-packing.exe と起動役を %LOCALAPPDATA%\box-packing に写し、box-packing:// を自分のユーザーにだけ登録する
+/// （HKCU。管理者の権限は要らない）。ビルドし直したら、もう一度 install する
+fn cmd_install() {
+    let me = std::env::current_exe().expect("自分の場所が分かりません");
+    let from = me.parent().unwrap();
+    let to = install_dir();
+    quit_running();
+    std::fs::create_dir_all(&to).expect("入れる場所を作れません");
+    for name in ["box-packing.exe", "box-packing-launch.exe"] {
+        std::fs::copy(from.join(name), to.join(name))
+            .unwrap_or_else(|e| panic!("{name} を写せません（target/release に両方ありますか）: {e}"));
+    }
+    let launcher = to.join("box-packing-launch.exe");
+    let key = r"HKCU\Software\Classes\box-packing";
+    reg(&["add", key, "/ve", "/d", "URL:box-packing", "/f"]);
+    reg(&["add", key, "/v", "URL Protocol", "/d", "", "/f"]);
+    let command = format!("\"{}\" \"%1\"", launcher.display());
+    reg(&["add", &format!(r"{key}\shell\open\command"), "/ve", "/d", &command, "/f"]);
+    println!("{} に入れて、box-packing:// を登録しました。", to.display());
+    println!("サイトの箱詰めのページの「ネイティブ版を起動」から立ち上げられます（初回はブラウザーが開いてよいか聞きます）。");
+}
+
+/// install で入れたものと登録を消す
+fn cmd_uninstall() {
+    quit_running();
+    let _ = std::process::Command::new("reg")
+        .args(["delete", r"HKCU\Software\Classes\box-packing", "/f"])
+        .stdout(std::process::Stdio::null())
+        .stderr(std::process::Stdio::null())
+        .status();
+    let _ = std::fs::remove_dir_all(install_dir());
+    println!("box-packing:// の登録と {} を消しました。", install_dir().display());
+}
+
 // ---- 探す ----
 
 #[derive(Default)]
@@ -287,6 +357,8 @@ pub struct Shared {
     pub version: u64,
     pub by: String,
     pub result: Option<PackResult>,
+    /// 部門別のいちばん（全部の係から集める）
+    pub metrics: MetricBests,
 }
 
 /// 1 回の「探す」の状態（コマンドと画面の両方から使う）
@@ -304,7 +376,15 @@ pub struct Job {
     pub gpu: Mutex<Option<String>>,
     /// 良くなるたびに端末に出す
     pub log: bool,
+    /// この時間（秒）、いちばん良い結果も部門別のいちばんも良くならなければ止める（ブラウザーの計算係と同じ）
+    pub stall: Option<f64>,
+    /// 画面から最後に様子を聞かれた時刻。watch のとき、WATCH_SECS 聞かれなければ止める（ページを閉じた）
+    pub last_seen: Mutex<Instant>,
+    pub watch: bool,
 }
+
+/// 画面から様子を聞かれなくなってから止めるまでの秒数
+pub const WATCH_SECS: f64 = 20.0;
 
 impl Job {
     pub fn new(seconds: f64, log: bool) -> Job {
@@ -319,6 +399,9 @@ impl Job {
             cpu_threads: AtomicU64::new(0),
             gpu: Mutex::new(None),
             log,
+            stall: None,
+            last_seen: Mutex::new(Instant::now()),
+            watch: false,
         }
     }
 }
@@ -373,6 +456,7 @@ fn explore_line(
         let line_started = Instant::now();
         let mut last_gain = Instant::now();
         let mut last = 0u64;
+        let mut metric_seen = 0u64;
         while !stop.load(Ordering::Relaxed) {
             if s.step() {
                 last_gain = Instant::now();
@@ -381,6 +465,10 @@ fn explore_line(
             if s.tried - last >= 64 {
                 cpu_evals.fetch_add(s.tried - last, Ordering::Relaxed);
                 last = s.tried;
+                if s.metrics.total_version() != metric_seen {
+                    metric_seen = s.metrics.total_version();
+                    shared.lock().unwrap().metrics.merge(&s.metrics);
+                }
                 if last_gain.elapsed().as_secs_f64() >= EXPLORE_STALL
                     || line_started.elapsed().as_secs_f64() >= EXPLORE_MAX
                 {
@@ -405,6 +493,7 @@ pub fn run_solve(input: &PackInput, opt: &SolveOptions, job: &Job) {
         s.rule = plans[0].rule;
         s.version += 1;
         s.by = "最初".into();
+        s.metrics.see(&first);
         s.result = Some(first);
     }
     let shared = &job.shared;
@@ -463,6 +552,7 @@ pub fn run_solve(input: &PackInput, opt: &SolveOptions, job: &Job) {
                 let mut s = Search::new(ctx, ctx.input.seed + i as i64 * 1009);
                 let mut seen = 0u64;
                 let mut last = 0u64;
+                let mut metric_seen = 0u64;
                 let by = format!("CPU {i}");
                 while !stop.load(Ordering::Relaxed) {
                     if s.step() {
@@ -472,7 +562,11 @@ pub fn run_solve(input: &PackInput, opt: &SolveOptions, job: &Job) {
                         cpu_evals.fetch_add(s.tried - last, Ordering::Relaxed);
                         last = s.tried;
                         let take = {
-                            let sh = shared.lock().unwrap();
+                            let mut sh = shared.lock().unwrap();
+                            if s.metrics.total_version() != metric_seen {
+                                metric_seen = s.metrics.total_version();
+                                sh.metrics.merge(&s.metrics);
+                            }
                             if sh.version != seen && sh.score < s.best.score - 1e-9 {
                                 seen = sh.version;
                                 Some((sh.ids.clone(), sh.rule))
@@ -499,8 +593,24 @@ pub fn run_solve(input: &PackInput, opt: &SolveOptions, job: &Job) {
             });
         }
         let mut last_print = Instant::now();
+        let mut last_change = Instant::now();
+        let mut last_mark = 0u64;
         while Instant::now() < deadline && !stop.load(Ordering::Relaxed) {
             std::thread::sleep(Duration::from_millis(50));
+            {
+                let sh = shared.lock().unwrap();
+                let mark = sh.version + sh.metrics.total_version();
+                if mark != last_mark {
+                    last_mark = mark;
+                    last_change = Instant::now();
+                }
+            }
+            if job.stall.is_some_and(|st| last_change.elapsed().as_secs_f64() > st) {
+                break;
+            }
+            if job.watch && job.last_seen.lock().unwrap().elapsed().as_secs_f64() > WATCH_SECS {
+                break;
+            }
             if job.log && last_print.elapsed().as_secs_f64() >= 10.0 {
                 last_print = Instant::now();
                 let el = started.elapsed().as_secs_f64();
@@ -637,7 +747,25 @@ fn gpu_search(
         let t = Instant::now();
         let packed = packer.run(&cands, table)?;
         let g = t.elapsed().as_secs_f64();
-        let scores: Vec<f64> = packed.par_iter().map(|p| finish(&p.trace, ctx, None).score).collect();
+        let results: Vec<PackResult> = packed.par_iter().map(|p| finish(&p.trace, ctx, None)).collect();
+        let scores: Vec<f64> = results.iter().map(|r| r.score).collect();
+        // 部門別のいちばん（GPU の結果には並べ方が付いていないので、良くなったものにだけ付ける）
+        let mut gm = { shared.lock().unwrap().metrics.clone() };
+        let before = gm.total_version();
+        for (i, r) in results.iter().enumerate() {
+            if gm.see(r) {
+                let g = genome_of(&cands[i].ids, &cands[i].rule, table);
+                for m in gm.best.iter_mut().flatten() {
+                    if m.genome.is_none() {
+                        m.genome = Some(g.clone());
+                    }
+                }
+            }
+        }
+        drop(results);
+        if gm.total_version() != before {
+            shared.lock().unwrap().metrics.merge(&gm);
+        }
         evals.fetch_add(batch as u64, Ordering::Relaxed);
         batches += 1;
         for (i, &(kind, pi)) in kinds.iter().enumerate() {

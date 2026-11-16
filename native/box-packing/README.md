@@ -16,7 +16,26 @@ CUDA Toolkit も Visual Studio も要りません。
 
 カーネル（`src/kernel.cu`）は起動のたびに、その GPU 用にコンパイルします（1 秒弱）。
 
-## 画面で使う
+## サイトのページから使う（ふだんの使い方）
+
+サイトの箱詰めのページ（`/playground/box-packing`）が画面で、ネイティブ版は裏で動く計算係です。
+
+```sh
+cargo build --release
+target/release/box-packing.exe install      # 最初の 1 回（ビルドし直したら、もう一度）
+```
+
+`install` は、`box-packing.exe` と起動役の `box-packing-launch.exe` を `%LOCALAPPDATA%\box-packing\` に写し、`box-packing://` の呼び出しを自分のユーザーにだけ登録します（HKCU。管理者の権限は要りません）。写して使うのは、動いているあいだも `cargo build` で上書きできるようにするためです。`install` は動いているネイティブ版に先に終わってもらいます。`uninstall` で写したものと登録を消せます。
+
+- ページの「4. 探す」の「**ネイティブ版を起動**」で立ち上がります（初回はブラウザーが開いてよいか聞きます）。窓は出さず裏で動き、すでに動いていれば何もしません。
+- ページは 127.0.0.1:8787 を 5 秒ごとに確かめ、いれば「ネイティブ版で計算（GPU の名前・CPU のスレッド数）」に切り替えます。「探す」で、組み合わせを 1 つずつ（範囲で試すときは 15 秒ずつ）ネイティブ版に頼み、0.5 秒ごとに結果を聞いて 3D・部門別ベストを描き替えます。柱で積む組み合わせは、ブラウザーの係が 1 つで計算します。
+- 「**ネイティブ版を終了**」で終わります。10 分どのページからも聞かれなければ、自分で終わります。計算中にページを閉じたら、20 秒で計算を止めます。良い結果が 90 秒出なければ、その受け持ちを終えます（ブラウザーの係と同じ）。
+- 答えるのは `https://mosunset.com`・`https://www.mosunset.com`・`http://localhost:*`・`http://127.0.0.1:*` のページだけです（ほかは 403）。
+- 窓口: `GET /api/hello`、`POST /api/page/run {token, input}`、`GET /api/page/poll?token=&b=&m=`（ページが知っている版より新しい結果だけ返す）、`POST /api/page/stop {token}`、`POST /api/quit`。`node tools/page-api-test.mjs <入力.json> [秒]` で、ページと同じ形で試せます（先に `serve --no-open` を動かす）。
+
+ネイティブ版が動いていないときは、ページはブラウザーで軽く計算します（2 並列・30 秒・タブが裏なら休む）。
+
+## ネイティブ版だけの画面で使う（前の試作の画面。手を入れていません）
 
 ```sh
 cargo build --release
