@@ -124,8 +124,8 @@ details summary { cursor: pointer; font-size: 13px; color: var(--muted); margin-
       <div class="row" style="justify-content:space-between">
         <h2 style="margin:0">箱 <span class="meta" id="boxTotal"></span></h2>
         <div class="row">
-          <button class="small" id="sampleDefault">見本</button>
-          <button class="small" id="sampleRandom">ばらばらな箱</button>
+          <button type="button" class="small" id="sampleDefault">見本</button>
+          <button type="button" class="small" id="sampleRandom">ばらばらな箱</button>
         </div>
       </div>
       <div class="scroll" style="margin-top:8px">
@@ -135,9 +135,9 @@ details summary { cursor: pointer; font-size: 13px; color: var(--muted); margin-
         </table>
       </div>
       <div class="row" style="margin-top:8px">
-        <button class="small" id="addRow">＋ 箱を足す</button>
-        <button class="small" id="loadJson">ファイルを読む</button>
-        <button class="small" id="saveJson">ファイルに書き出す</button>
+        <button type="button" class="small" id="addRow">＋ 箱を足す</button>
+        <button type="button" class="small" id="loadJson">ファイルを読む</button>
+        <button type="button" class="small" id="saveJson">ファイルに書き出す</button>
         <input type="file" id="file" accept=".json,application/json" hidden>
       </div>
     </section>
@@ -156,8 +156,8 @@ details summary { cursor: pointer; font-size: 13px; color: var(--muted); margin-
         </label>
       </div>
       <div class="row" style="margin-top:10px">
-        <button class="primary" id="run">詰め方を探す</button>
-        <button id="stop" disabled>止める</button>
+        <button type="button" class="primary" id="run">詰め方を探す</button>
+        <button type="button" id="stop" disabled>止める</button>
       </div>
       <div class="progress"><div id="bar"></div></div>
       <div class="meta" id="meta">まだ計算していません</div>
