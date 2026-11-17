@@ -1,4 +1,4 @@
-# main に push されたら、チェックしてから本番（Cloudflare Workers の mosunset-web）にデプロイする。
+# main に push されたら（PR のマージで）、チェックしてから本番（Cloudflare Workers の mosunset-web）にデプロイする。
 # 手元からはデプロイしない（本番はいつも GitHub の main と同じものにする）。手順は docs/deploy.md
 name: デプロイ
 
