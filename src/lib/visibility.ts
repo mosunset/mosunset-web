@@ -2,7 +2,7 @@
  * 記事・コレクション・ツールの公開の状態（2026-11 から 3 つ）。
  *
  * - published（公開）: 誰でも見られる。一覧・サイト内検索・サイトマップ・RSS・llms.txt にも出す
- * - limited（限定公開）: 管理者と、VIEWER_USER_IDS に書いた人がログインしているときだけ、公開側のページ・一覧・検索に出す。
+ * - limited（限定公開）: 管理者と、Clerk の役割が viewer の人（src/server/auth.ts）がログインしているときだけ、公開側のページ・一覧・検索に出す。
  *   サイトマップ・RSS・llms.txt には出さず、ページは検索エンジンに載せない（noindex）
  * - draft（未公開）: 管理画面だけ（管理者のログイン中は、確かめられるように公開側のページにも印付きで出す）
  *
@@ -20,8 +20,8 @@ export const visibilityLabels: Record<Visibility, string> = {
 
 /**
  * 今見ている人が、どこまで見られるか。
- * - admin: 管理者（ADMIN_USER_IDS）。すべて
- * - viewer: 限定公開を見られる人（VIEWER_USER_IDS）。公開と限定公開
+ * - admin: 管理者（Clerk の public metadata が {"role": "admin"}）。すべて
+ * - viewer: 限定公開を見られる人（{"role": "viewer"}）。公開と限定公開
  * - public: それ以外（ログインしていない人・ほかの人）。公開だけ
  */
 export type Access = 'admin' | 'viewer' | 'public'

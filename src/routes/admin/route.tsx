@@ -36,11 +36,13 @@ function AdminLayout() {
       <div className="mx-auto w-full max-w-3xl px-4 py-6 sm:px-6 sm:py-8">
         <h1 className="text-2xl font-bold">管理者として登録されていません</h1>
         <p className="mt-4 text-muted-foreground">
-          このアカウントを管理者にするには、環境変数 <code>ADMIN_USER_IDS</code>{' '}
-          に次のユーザー ID を追加して、サーバーを再起動してください。
+          このアカウントを管理者にするには、Clerk
+          のダッシュボードで次のユーザーの public metadata に{' '}
+          <code>{'{"role": "admin"}'}</code> を入れてください。反映まで 1
+          分ほどかかります（ログインし直すとすぐ）。
         </p>
         <pre className="mt-4 rounded-md bg-muted p-4 text-sm">
-          ADMIN_USER_IDS={admin.userId}
+          {admin.userId}
         </pre>
       </div>
     )

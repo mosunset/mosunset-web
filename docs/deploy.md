@@ -66,8 +66,8 @@ pnpm run deploy   # `pnpm deploy` は pnpm の別のコマンドなので run �
 | R2 | `mosunset-web-images` | `r2_buckets` |
 | メール | Email Routing（送信元 `noreply@mosunset.com`） | `send_email`・`vars.CONTACT_FROM` |
 | 公開してよい値 | `CLERK_PUBLISHABLE_KEY` / `TURNSTILE_SITE_KEY` | `vars` |
-| 秘密の値 | `CLERK_SECRET_KEY` / `ADMIN_USER_IDS` / `TURNSTILE_SECRET_KEY` | `wrangler secret put <名前>` |
-| 秘密の値（限定公開を見られる人。なくても動く） | `VIEWER_USER_IDS` | `wrangler secret put <名前>` |
+| 秘密の値 | `CLERK_SECRET_KEY` / `TURNSTILE_SECRET_KEY` | `wrangler secret put <名前>` |
+| 管理者・限定公開を見られる人 | Clerk のユーザーの public metadata（`{"role": "admin"}` / `{"role": "viewer"}`） | Clerk のダッシュボード（docs/security.md の「役割」） |
 | 秘密の値（本の ISBN 検索。なくても動く） | `RAKUTEN_APP_ID` / `GOOGLE_BOOKS_API_KEY` | `wrangler secret put <名前>` |
 
 `wrangler.jsonc` のバインディングを変えたら `pnpm cf-typegen` で型を作り直します。

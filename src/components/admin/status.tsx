@@ -10,7 +10,7 @@ import {
 export const statusNotes: Record<Visibility, string> = {
   published: '誰でも見られます。一覧・検索・サイトマップにも出ます。',
   limited:
-    'ログインした、見られる人（管理者と VIEWER_USER_IDS の人）だけが見られます。検索エンジンには載せません。',
+    'ログインした、見られる人（管理者と、Clerk の役割が viewer の人）だけが見られます。検索エンジンには載せません。',
   draft: '管理画面だけで見られます。',
 }
 

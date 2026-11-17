@@ -4,7 +4,7 @@ import { type Visibility, visibilityLabels } from '@/lib/visibility'
 
 /**
  * 限定公開・未公開のものに付ける印（公開のものには何も出さない）。
- * 限定公開は見られる人（管理者・VIEWER_USER_IDS の人）に、未公開は管理者のログイン中だけ、公開側のページにも出る
+ * 限定公開は見られる人（管理者・役割が viewer の人）に、未公開は管理者のログイン中だけ、公開側のページにも出る
  */
 export function VisibilityBadge({
   visibility,

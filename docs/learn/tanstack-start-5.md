@@ -60,7 +60,7 @@ export function getDb() {
 ```
 
 - `cloudflare:workers` は Worker の中にしか無いので、**`src/server/` の中だけで import します**。ブラウザ用のバンドルに入るとビルドが失敗するように、`vite.config.ts` の `importProtection` で守っています。
-- `vars` と secret の値は、`env.名前` のほか `process.env.名前` でも読めます（`compatibility_flags` の `nodejs_compat` のおかげ）。このサイトでは `src/server/auth.ts` の `ADMIN_USER_IDS` などを `process.env` で読んでいます。
+- `vars` と secret の値は、`env.名前` のほか `process.env.名前` でも読めます（`compatibility_flags` の `nodejs_compat` のおかげ）。このサイトでは `src/server/notify.ts` の Clerk の呼び出しなどで、秘密の値を読んでいます。
 - 開発中は `.dev.vars` に書いた値が使われます（テスト用のキーなど）。
 - バインディングを変えたら `pnpm cf-typegen` で `env` の型を作り直します。
 
