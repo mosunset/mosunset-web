@@ -1,14 +1,28 @@
 # デプロイ
 
-変更はブランチで作り、PR を通して `main` に入れます（2026-11-17 から）。`main` にマージされると、
+変更は issue を立ててからブランチで作り、PR を通して `main` に入れます（2026-11-17 から）。`main` にマージされると、
 GitHub Actions（`.github/workflows/deploy.yml`）が型チェック・Biome・ビルドを通してから本番にデプロイします。
 手元からはデプロイしません（本番をいつも GitHub の `main` と同じものにするため。2026-11-15 から）。
 
+## issue と PR の進め方
+
+1 つの用事 ＝ issue 1 つ ＝ ブランチ 1 つ ＝ PR 1 つ にそろえます。
+
+- 何か作る・直すときは、先に issue を立てる。頼んだことをそのまま書き、決まったことはあとから足す
+- ラベルは「機能」「不具合」「ドキュメント」から付ける
+- ブランチ名は issue の番号から付ける（`mosunset/12-book-cover`）。Orca のワークスペースも 1 つの issue に 1 つ
+- PR の本文の `Closes #12`（ひな形 `.github/pull_request_template.md` にある）で issue とつなぐ。マージすると issue も閉じる
+- 作業の途中で別の話が出たら、今の PR には入れず、別の issue にする。すぐやるものは別のワークスペースで進める
+- 小さくて、今の PR と同じ場所の直しだけは、同じ PR に入れてよい（PR の本文に書く）
+
+## 手順
+
 ```bash
-git switch -c <ブランチ名>                 # main から作る
+gh issue create --label 機能               # 先に issue（番号が出る）
+git switch -c mosunset/<番号>-<短い名前>   # main から作る
 pnpm check && pnpm typecheck               # PR でも同じことをする。先に手元で通しておく
-git push -u origin <ブランチ名>
-gh pr create                               # PR を作ると、チェック（.github/workflows/check.yml）が流れる
+git push -u origin mosunset/<番号>-<短い名前>
+gh pr create                               # 本文に Closes #<番号>。チェック（.github/workflows/check.yml）が流れる
 pnpm db:migrate:remote                     # マイグレーションがあるときだけ。マージの前に流す（Actions では流さない）
 gh pr merge --squash                       # またはマージコミット（--merge）。これでデプロイが始まる
 ```
