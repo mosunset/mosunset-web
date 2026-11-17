@@ -84,7 +84,7 @@ export const lookupIsbn = createServerFn({ method: 'POST' })
 
 /**
  * バーコードで読んだ本を調べる（管理者のみ）。
- * もう登録しているか（非公開のものも含む）と、Google Books・楽天ブックスの結果を返す
+ * もう登録しているか（限定公開・未公開のものも含む）と、Google Books・楽天ブックスの結果を返す
  */
 export const scanBook = createServerFn({ method: 'POST' })
   .middleware([adminMiddleware])
@@ -97,7 +97,7 @@ export const scanBook = createServerFn({ method: 'POST' })
           slug: items.slug,
           title: items.title,
           imageKey: items.imageKey,
-          published: items.published,
+          status: items.status,
         })
         .from(items)
         .where(

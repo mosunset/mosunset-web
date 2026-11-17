@@ -1,9 +1,9 @@
 import { createFileRoute, Link } from '@tanstack/react-router'
 import { Rss } from 'lucide-react'
-import { DraftBadge } from '@/components/common/draft-badge'
 import { EmptyState } from '@/components/common/empty-state'
 import { NewBadge } from '@/components/common/item-badges'
 import { SectionPage } from '@/components/common/section-page'
+import { VisibilityBadge } from '@/components/common/visibility-badge'
 import {
   type Group,
   GroupedSections,
@@ -59,7 +59,7 @@ const columns: readonly SortColumn<Post>[] = [
 
 const postText = (p: Post) => [p.title, p.excerpt]
 
-// 公開日のない下書きは、いちばん新しいものとして扱う
+// 公開日のない未公開の記事は、いちばん新しいものとして扱う
 const postTime = (p: Post) =>
   p.publishedAt ? +new Date(p.publishedAt) : Number.MAX_SAFE_INTEGER
 
@@ -87,7 +87,7 @@ function BlogIndex() {
     views,
   })
   const { visible, view } = list
-  // 日付の順のときは年ごとに見出しを付ける（公開日のない下書きは「下書き」にまとめる）
+  // 日付の順のときは年ごとに見出しを付ける（公開日のない未公開の記事は「未公開」にまとめる）
   const byDate =
     list.sort === 'new' ||
     list.sort === 'old' ||
@@ -97,7 +97,7 @@ function BlogIndex() {
     : groupItems(
         visible,
         (p) => (p.publishedAt ? yearOf(new Date(p.publishedAt)) : ''),
-        { label: (year) => (year ? `${year} 年` : '下書き') },
+        { label: (year) => (year ? `${year} 年` : '未公開') },
       )
 
   if (posts.length === 0) {
@@ -149,13 +149,15 @@ function RssLink() {
   )
 }
 
-/** 公開日（下書きなら「下書き」、公開から日が浅ければ「新着」も付ける）と、読む時間の目安 */
+/** 公開日（限定公開・未公開なら印、公開から日が浅ければ「新着」も付ける）と、読む時間の目安 */
 function PostDate({ post, className }: { post: Post; className?: string }) {
   const date =
-    !post.draft && post.publishedAt ? new Date(post.publishedAt) : null
+    post.visibility !== 'draft' && post.publishedAt
+      ? new Date(post.publishedAt)
+      : null
   return (
     <span className="inline-flex flex-wrap items-center gap-x-2">
-      {post.draft && <DraftBadge />}
+      <VisibilityBadge visibility={post.visibility} />
       {date && (
         <time dateTime={date.toISOString()} className={className}>
           {formatDate(date)}

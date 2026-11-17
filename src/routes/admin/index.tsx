@@ -44,8 +44,8 @@ function AdminHome() {
           to="/admin/posts"
         />
         <Stat
-          label="下書き"
-          value={data.posts.draft}
+          label="限定公開・未公開"
+          value={data.posts.limited + data.posts.draft}
           icon={SquarePen}
           to="/admin/posts"
         />

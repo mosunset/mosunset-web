@@ -28,6 +28,7 @@ npx wrangler d1 execute mosunset-web --local --file .wrangler/prod-data.sql
 CLERK_PUBLISHABLE_KEY=pk_test_...
 CLERK_SECRET_KEY=sk_test_...
 ADMIN_USER_IDS=user_...          # 管理画面に入れる Clerk のユーザー ID（カンマ区切り）
+VIEWER_USER_IDS=user_...         # 限定公開のものを見られる Clerk のユーザー ID（カンマ区切り。なくてもよい）
 TURNSTILE_SITE_KEY=1x00000000000000000000AA   # 開発中は Cloudflare のテスト用キー
 ```
 
@@ -109,6 +110,6 @@ native/          この PC で別に動かすプログラム（box-packing: 箱�
 
 ## 本番
 
-- 本番の D1・R2・Turnstile のサイトキーなどは `wrangler.jsonc` にあります。秘密の値（`CLERK_SECRET_KEY`・`ADMIN_USER_IDS`・`TURNSTILE_SECRET_KEY`）は `wrangler secret put <名前>` で入れます。
+- 本番の D1・R2・Turnstile のサイトキーなどは `wrangler.jsonc` にあります。秘密の値（`CLERK_SECRET_KEY`・`ADMIN_USER_IDS`・`VIEWER_USER_IDS`・`TURNSTILE_SECRET_KEY`）は `wrangler secret put <名前>` で入れます。
 - 本の ISBN 検索（管理画面と、本の一覧の「バーコードで調べる」）は、`RAKUTEN_APP_ID`（楽天ブックス。新しい窓口を使うときは `RAKUTEN_ACCESS_KEY` も）と `GOOGLE_BOOKS_API_KEY`（なくても動くが、キーなしは回数の上限にすぐ当たる）を `wrangler secret put` で入れると使えます。入っていないものは「使えませんでした」と出るだけで、ほかは動きます。
 - 本番のコンテンツは管理画面で直接編集します。旧サイトからの移行は 2026-11 に済んでいます（旧サイトの中身は Git の履歴 `0fa6d60` にあります）。

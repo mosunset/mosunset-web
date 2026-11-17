@@ -8,7 +8,7 @@
 | CSP（スクリプトはリクエストごとの nonce が付いたものだけ）などのレスポンスヘッダー | `src/server/security-headers.ts`（`src/start.ts` のミドルウェアから呼ぶ） |
 | 本文の JSON は保存前と表示前の両方で `sanitizeDoc` を通し、危険なリンクや画像を取り除く | `src/server/rich-text.ts` |
 | 画像は大きさ（10MB まで）と先頭のバイトを確かめてから R2 に保存する。ISBN で取ってきた表紙も同じ | `src/server/images.ts` の `validateImageBytes` |
-| 公開側の取得は公開中のものだけに絞る | `src/server/db/index.ts` の `publishedPosts` / `publishedItems` |
+| 公開側の取得は、見ている人に見せてよいものだけに絞る（公開＝誰でも、限定公開＝管理者と `VIEWER_USER_IDS` の人、未公開＝管理者だけ）。サイトマップ・RSS・llms.txt・トップの新着は公開のものだけ。限定公開・未公開のページは noindex | `src/server/db/index.ts` の `postsVisibleTo` / `itemsVisibleTo`（判定は `src/server/auth.ts` の `resolveAccess`、状態は `src/lib/visibility.ts`） |
 | 読むだけの GET で状態を変えない（お問い合わせを既読にするのは POST の `markMessageRead`） | `src/functions/contact.ts` |
 | お問い合わせは Turnstile で確認してから保存する | `src/server/turnstile.ts` |
 | 公開は mosunset.com だけ（workers.dev・プレビュー URL は無効） | `wrangler.jsonc` |

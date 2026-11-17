@@ -2,10 +2,10 @@ import { Link, useNavigate } from '@tanstack/react-router'
 import { ChevronLeft, ChevronRight, ExternalLink, ImageOff } from 'lucide-react'
 import * as React from 'react'
 import { BackLinkFooter } from '@/components/common/back-link-footer'
-import { DraftBadge } from '@/components/common/draft-badge'
 import { EmptyState } from '@/components/common/empty-state'
 import { NewBadge, StatusBadge } from '@/components/common/item-badges'
 import { NotFoundPage } from '@/components/common/not-found-page'
+import { VisibilityBadge } from '@/components/common/visibility-badge'
 import { FilterValue } from '@/components/list/filters'
 import {
   type Group,
@@ -54,6 +54,7 @@ import {
 } from '@/lib/list-memory'
 import { cn } from '@/lib/utils'
 import { sharedImageProps, sharedName } from '@/lib/view-transition'
+import type { Visibility } from '@/lib/visibility'
 
 type ListItem = {
   slug: string
@@ -61,8 +62,8 @@ type ListItem = {
   imageKey: string | null
   attributes: CollectionAttributes
   acquiredAt: string | null
-  /** 非公開（管理者のログイン中だけ届く） */
-  draft?: boolean
+  /** 公開の状態（限定公開・未公開のものは、見られる人にだけ届く） */
+  visibility: Visibility
 }
 
 const sortOptions = [
@@ -143,7 +144,7 @@ function Subtitle({
   )
 }
 
-/** 写真の上に重ねる印（下書き・状態・新着） */
+/** 写真の上に重ねる印（限定公開・未公開・状態・新着） */
 function ImageBadges({
   kind,
   item,
@@ -156,7 +157,7 @@ function ImageBadges({
 }) {
   const mark = statusMarkOf(kind, item.attributes)
   const recent = isRecent(item.acquiredAt)
-  if (!item.draft && !mark && !recent) return null
+  if (item.visibility === 'published' && !mark && !recent) return null
   return (
     <div
       className={cn(
@@ -166,7 +167,7 @@ function ImageBadges({
           : 'top-2 left-2',
       )}
     >
-      {item.draft && <DraftBadge />}
+      <VisibilityBadge visibility={item.visibility} />
       {mark && <StatusBadge tone={mark.tone}>{mark.label}</StatusBadge>}
       {recent && <NewBadge />}
     </div>
@@ -639,7 +640,7 @@ function CollectionTable({
                       <span className="font-medium group-hover:underline">
                         {item.title}
                       </span>
-                      {item.draft && <DraftBadge />}
+                      <VisibilityBadge visibility={item.visibility} />
                       {isRecent(item.acquiredAt) && <NewBadge />}
                     </Link>
                   </td>
@@ -894,7 +895,7 @@ export function CollectionDetail({
         <header className="md:col-start-2 md:row-start-1">
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
             {config.label}
-            {item.draft && <DraftBadge />}
+            <VisibilityBadge visibility={item.visibility} />
             <PagerCompact kind={kind} neighbors={neighbors} />
           </div>
           <h1 className="mt-1 text-3xl font-bold leading-tight">

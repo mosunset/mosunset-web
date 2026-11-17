@@ -15,7 +15,7 @@ import { formatDate, formatDay } from '@/lib/format'
 import { thumbnailUrl } from '@/lib/images'
 import { useHeroScroll } from '@/lib/motion'
 import { mainNav } from '@/lib/navigation'
-import { playgroundTools } from '@/lib/playground/tools'
+import { publicTools } from '@/lib/playground/tools'
 import { seo } from '@/lib/seo'
 import { site } from '@/lib/site'
 import { cn } from '@/lib/utils'
@@ -103,7 +103,7 @@ function SectionHeading({ en, ja }: { en: string; ja: string }) {
 }
 
 /** 新しいツール（公開日の新しい順。同じ日は登録した順） */
-const latestTools = [...playgroundTools]
+const latestTools = [...publicTools]
   .sort((a, b) => b.publishedDate.localeCompare(a.publishedDate))
   .slice(0, 3)
 

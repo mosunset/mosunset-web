@@ -32,6 +32,7 @@ import { errorMessage } from '@/lib/errors'
 import { formatDay } from '@/lib/format'
 import { thumbnailUrl } from '@/lib/images'
 import { cn } from '@/lib/utils'
+import { visibilityLabels } from '@/lib/visibility'
 
 type ScanResult = Awaited<ReturnType<typeof scanBook>>
 type SourceResult = ScanResult['google']
@@ -299,9 +300,9 @@ function ScanResultView({ result }: { result: ScanResult }) {
         <div className="min-w-0 flex-1 space-y-1">
           <p className="font-semibold">
             {owned ? 'もう持っています' : 'まだ登録していません'}
-            {owned && !owned.published && (
+            {owned && owned.status !== 'published' && (
               <Badge variant="outline" className="ml-2 align-middle">
-                非公開
+                {visibilityLabels[owned.status]}
               </Badge>
             )}
           </p>

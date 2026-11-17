@@ -6,6 +6,7 @@ import {
 } from '@/lib/collections/config'
 import { imageUrl } from '@/lib/images'
 import { absoluteUrl, jsonLd, ogImage, personId, seo } from '@/lib/seo'
+import type { Visibility } from '@/lib/visibility'
 
 type DetailForSeo = {
   slug: string
@@ -13,7 +14,7 @@ type DetailForSeo = {
   imageKey: string | null
   attributes: CollectionAttributes
   summary: string
-  draft?: boolean
+  visibility: Visibility
 }
 
 /** 種類ごとの構造化データ（検索エンジン・AI が「何のページか」を読み取れるようにする） */
@@ -91,8 +92,8 @@ export function collectionDetailHead(
       ...seo({
         title: `${item.title}（${config.label}）`,
         description,
-        // 非公開（管理者のログイン中だけ見える）は検索に載せない
-        noindex: item.draft,
+        // 限定公開・未公開は検索エンジンに載せない
+        noindex: item.visibility !== 'published',
       }),
       ...(image ? ogImage(image, item.title, false) : []),
       structuredData(kind, item),

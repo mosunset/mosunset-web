@@ -8,9 +8,9 @@ import {
 } from 'drizzle-orm/sqlite-core'
 
 import type { RichTextDoc } from '@/lib/tiptap'
-
 // drizzle-kit からも読み込まれるので、値の import は相対パスにしておく
 import { collectionKinds } from '../../lib/collections/kinds'
+import { visibilities } from '../../lib/visibility'
 
 const id = () =>
   text('id')
@@ -37,9 +37,9 @@ export const posts = sqliteTable(
     excerpt: text('excerpt').notNull().default(''),
     content: text('content', { mode: 'json' }).$type<RichTextDoc>().notNull(),
     coverImageKey: text('cover_image_key'),
-    status: text('status', { enum: ['draft', 'published'] })
-      .notNull()
-      .default('draft'),
+    /** 公開の状態（src/lib/visibility.ts）。限定公開（limited）は 2026-11 に足した。列の形は変わらない */
+    status: text('status', { enum: visibilities }).notNull().default('draft'),
+    /** 初めて公開・限定公開にした日時（一覧の並びと、記事の日付に使う） */
     publishedAt: integer('published_at', { mode: 'timestamp_ms' }),
     ...timestamps,
   },
@@ -66,6 +66,12 @@ export const collectionItems = sqliteTable(
     /** 入手日・取得日など */
     acquiredAt: text('acquired_at'),
     sortOrder: integer('sort_order').notNull().default(0),
+    /** 公開の状態（src/lib/visibility.ts）。2026-11 に published（する／しない）から置き換えた */
+    status: text('status', { enum: visibilities }).notNull().default('draft'),
+    /**
+     * 古い「公開する／しない」。もう読まないが、status を入れる前のコードに戻したときに困らないよう、
+     * 保存するときに status === published と同じ値を入れ続けている。消すときはマイグレーションで列を落とす
+     */
     published: integer('published', { mode: 'boolean' })
       .notNull()
       .default(false),

@@ -2,6 +2,7 @@ import { createFileRoute, Link } from '@tanstack/react-router'
 
 import { NewBadge } from '@/components/common/item-badges'
 import { SectionPage } from '@/components/common/section-page'
+import { VisibilityBadge } from '@/components/common/visibility-badge'
 import { FilterValue } from '@/components/list/filters'
 import { NoMatches } from '@/components/list/grouped-sections'
 import { listSearchValidator } from '@/components/list/list-search'
@@ -14,11 +15,18 @@ import {
   useList,
   type ViewMode,
 } from '@/components/list/use-list'
+import { getAccess } from '@/functions/auth'
 import { formatDay, isRecent } from '@/lib/format'
 import { listImageLoading } from '@/lib/images'
 import { listItemId } from '@/lib/list-memory'
 import { getNavItem } from '@/lib/navigation'
-import { playgroundCategories, playgroundTools } from '@/lib/playground/tools'
+import {
+  hasNonPublicTools,
+  playgroundCategories,
+  playgroundTools,
+  toolsVisibleTo,
+  toolVisibility,
+} from '@/lib/playground/tools'
 import { sectionHead } from '@/lib/seo'
 
 const item = getNavItem('/playground')
@@ -44,6 +52,10 @@ const facets: readonly Facet<Tool>[] = [
 export const Route = createFileRoute('/playground/')({
   head: () => sectionHead(item),
   validateSearch: listSearchValidator(facets.map((f) => f.key)),
+  // 限定公開・未公開のツールがあるときだけ、見ている人がどこまで見られるかを調べる（ふだんは調べない）
+  loader: async () => ({
+    access: hasNonPublicTools ? await getAccess() : ('public' as const),
+  }),
   component: PlaygroundIndex,
 })
 
@@ -75,10 +87,12 @@ function sortTools(tools: Tool[], sort: string) {
 
 function PlaygroundIndex() {
   const search = Route.useSearch()
+  const { access } = Route.useLoaderData()
+  const tools = hasNonPublicTools ? toolsVisibleTo(access) : playgroundTools
   const list = useList({
     path: '/playground',
     search,
-    items: playgroundTools,
+    items: tools,
     text: toolText,
     facets,
     sortOptions,
@@ -86,7 +100,7 @@ function PlaygroundIndex() {
     columns,
     views,
   })
-  const tools = list.visible
+  const shown = list.visible
 
   return (
     <SectionPage item={item}>
@@ -95,12 +109,12 @@ function PlaygroundIndex() {
         placeholder="ツールの名前・説明・タグで探す"
         shortPlaceholder="ツールを探す"
       />
-      {tools.length === 0 ? (
+      {shown.length === 0 ? (
         <NoMatches onClear={list.clearAll} />
       ) : list.view === 'table' ? (
-        <ToolTable tools={tools} list={list} />
+        <ToolTable tools={shown} list={list} />
       ) : (
-        <ToolCards tools={tools} list={list} />
+        <ToolCards tools={shown} list={list} />
       )}
     </SectionPage>
   )
@@ -146,6 +160,10 @@ function ToolCards({ tools, list }: { tools: Tool[]; list: ListControls }) {
                 >
                   {tool.name}
                 </Link>
+                <VisibilityBadge
+                  visibility={toolVisibility(tool)}
+                  className="ml-2 align-middle"
+                />
               </h2>
               <p className="line-clamp-2 text-sm text-muted-foreground">
                 {tool.description}

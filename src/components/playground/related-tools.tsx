@@ -4,12 +4,12 @@ import { ChevronLeft, ChevronRight } from 'lucide-react'
 import {
   getPlaygroundTool,
   type PlaygroundSlug,
-  playgroundTools,
+  publicTools,
 } from '@/lib/playground/tools'
 import { cn } from '@/lib/utils'
 
 /** 一覧のふだんの並び（新しい順。同じ日は登録した順） */
-const toolsInListOrder = [...playgroundTools].sort((a, b) =>
+const toolsInListOrder = [...publicTools].sort((a, b) =>
   b.publishedDate.localeCompare(a.publishedDate),
 )
 

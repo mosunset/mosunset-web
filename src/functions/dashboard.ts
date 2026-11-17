@@ -49,6 +49,7 @@ export const getDashboard = createServerFn({ method: 'GET' })
     return {
       posts: {
         published: postCounts.find((c) => c.status === 'published')?.value ?? 0,
+        limited: postCounts.find((c) => c.status === 'limited')?.value ?? 0,
         draft: postCounts.find((c) => c.status === 'draft')?.value ?? 0,
       },
       collections: Object.fromEntries(

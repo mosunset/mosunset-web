@@ -1,14 +1,18 @@
 import { createFileRoute, Link } from '@tanstack/react-router'
 import { Plus } from 'lucide-react'
-
 import { AdminPage } from '@/components/admin/admin-page'
 import { ListFilter } from '@/components/admin/list-filter'
+import { StatusBadge } from '@/components/admin/status'
 import { EmptyState } from '@/components/common/empty-state'
-import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { listPostsForAdmin } from '@/functions/posts'
 import { useListFilter } from '@/hooks/admin/use-list-filter'
 import { formatDateTime } from '@/lib/format'
+import {
+  type Visibility,
+  visibilities,
+  visibilityLabels,
+} from '@/lib/visibility'
 
 export const Route = createFileRoute('/admin/posts/')({
   loader: () => listPostsForAdmin(),
@@ -16,12 +20,11 @@ export const Route = createFileRoute('/admin/posts/')({
 })
 
 type Post = Awaited<ReturnType<typeof listPostsForAdmin>>[number]
-type Filter = 'all' | 'published' | 'draft'
+type Filter = 'all' | Visibility
 
 const filterOptions = [
   { value: 'all', label: 'すべて' },
-  { value: 'published', label: '公開中' },
-  { value: 'draft', label: '下書き' },
+  ...visibilities.map((v) => ({ value: v, label: visibilityLabels[v] })),
 ] as const
 
 const listFilterOptions = {
@@ -82,11 +85,7 @@ function AdminPosts() {
                         <span className="truncate font-medium">
                           {post.title}
                         </span>
-                        {post.status === 'published' ? (
-                          <Badge>公開中</Badge>
-                        ) : (
-                          <Badge variant="secondary">下書き</Badge>
-                        )}
+                        <StatusBadge status={post.status} />
                       </div>
                       <div className="truncate text-xs text-muted-foreground">
                         /blog/{post.slug}

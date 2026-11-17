@@ -3,7 +3,6 @@ import { useServerFn } from '@tanstack/react-start'
 import { Wand2 } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useRef } from 'react'
 import { toast } from 'sonner'
-
 import {
   DeleteButton,
   FormError,
@@ -12,6 +11,7 @@ import {
 } from '@/components/admin/form-parts'
 import { ImageUpload } from '@/components/admin/image-upload'
 import { PreviewButton } from '@/components/admin/preview-dialog'
+import { StatusBadge, statusNotes } from '@/components/admin/status'
 import { FormRecovery, SaveStatus } from '@/components/admin/unsaved-changes'
 import { RichTextEditor } from '@/components/editor/rich-text-editor'
 import { Button } from '@/components/ui/button'
@@ -28,6 +28,7 @@ import { useEditableForm } from '@/hooks/admin/use-editable-form'
 import { useSaveShortcut } from '@/hooks/admin/use-save-shortcut'
 import { slugHint, slugInputPattern, slugPattern } from '@/lib/slug'
 import { emptyDoc, type RichTextDoc } from '@/lib/tiptap'
+import { visibilities, visibilityLabels } from '@/lib/visibility'
 
 type Props = {
   /** 編集時は既存の記事。新規作成時は undefined */
@@ -79,7 +80,8 @@ export function PostForm({ post }: Props) {
   })
 
   const status = post?.status ?? 'draft'
-  const isPublished = status === 'published'
+  // 公開・限定公開（どこかに出ている）か。出ているものは自動保存しない
+  const isOut = status !== 'draft'
 
   // 自動保存に失敗したときの内容
   const failedSnapshotRef = useRef<string | null>(null)
@@ -99,13 +101,13 @@ export function PostForm({ post }: Props) {
 
             if (!silent) {
               toast.success(
-                nextStatus === 'published'
-                  ? isPublished
+                nextStatus === status
+                  ? isOut
                     ? '更新しました'
-                    : '公開しました'
-                  : nextStatus !== status
-                    ? '非公開（下書き）に戻しました'
-                    : '下書きを保存しました',
+                    : '下書きを保存しました'
+                  : nextStatus === 'draft'
+                    ? '未公開に戻しました'
+                    : `${visibilityLabels[nextStatus]}にしました`,
               )
             }
             if (!post) {
@@ -127,13 +129,13 @@ export function PostForm({ post }: Props) {
           },
         },
       ),
-    [runSave, post, status, isPublished, save, router],
+    [runSave, post, status, isOut, save, router],
   )
 
   // 下書きの記事は、入力が止まって少したったら自動で保存する
   const canAutosave =
     !!post &&
-    !isPublished &&
+    !isOut &&
     fields.title.trim() !== '' &&
     slugPattern.test(fields.slug)
   useEffect(() => {
@@ -145,7 +147,7 @@ export function PostForm({ post }: Props) {
     return () => window.clearTimeout(timer)
   }, [dirty, canAutosave, submit, fields])
 
-  // Ctrl+S: 公開中なら更新、下書きなら下書き保存
+  // Ctrl+S: 今の状態のまま保存（公開・限定公開なら更新、未公開なら下書き保存）
   useSaveShortcut(() => {
     submit(status)
   })
@@ -254,43 +256,29 @@ export function PostForm({ post }: Props) {
 
       {/* 下に固定する操作バー。長い記事でもすぐ保存できる */}
       <StickyActionBar>
-        {isPublished ? (
-          <>
+        {/* 今の状態のまま保存するボタンを先に、ほかの状態にするボタンをそのあとに並べる */}
+        <Button type="button" disabled={saving} onClick={() => submit(status)}>
+          {isOut ? '更新する' : '下書き保存'}
+        </Button>
+        {visibilities
+          .filter((v) => v !== status)
+          .map((v) => (
             <Button
-              type="button"
-              disabled={saving}
-              onClick={() => submit('published')}
-            >
-              更新する
-            </Button>
-            <Button
-              type="button"
-              variant="outline"
-              disabled={saving}
-              onClick={() => submit('draft')}
-            >
-              非公開に戻す
-            </Button>
-          </>
-        ) : (
-          <>
-            <Button
-              type="button"
-              disabled={saving}
-              onClick={() => submit('published')}
-            >
-              公開する
-            </Button>
-            <Button
+              key={v}
               type="button"
               variant="outline"
               disabled={saving}
-              onClick={() => submit('draft')}
+              title={statusNotes[v]}
+              onClick={() => submit(v)}
             >
-              下書き保存
+              {v === 'published'
+                ? '公開する'
+                : v === 'limited'
+                  ? '限定公開にする'
+                  : '未公開に戻す'}
             </Button>
-          </>
-        )}
+          ))}
+        {post && <StatusBadge status={status} />}
 
         <SaveStatus
           dirty={dirty}
@@ -318,7 +306,7 @@ export function PostForm({ post }: Props) {
               </header>
             }
           />
-          {isPublished && post && (
+          {isOut && post && (
             <PublicPageLink to="/blog/$slug" slug={post.slug} />
           )}
           {post && <DeleteButton disabled={saving} onClick={onDelete} />}

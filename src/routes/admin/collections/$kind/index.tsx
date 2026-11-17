@@ -24,13 +24,13 @@ import { toast } from 'sonner'
 
 import { AdminPage } from '@/components/admin/admin-page'
 import { ListFilter } from '@/components/admin/list-filter'
+import { StatusBadge, statusNotes } from '@/components/admin/status'
 import { EmptyState } from '@/components/common/empty-state'
-import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import {
   listItemsForAdmin,
   reorderItems,
-  setItemsPublished,
+  setItemsStatus,
 } from '@/functions/collections'
 import { useListFilter } from '@/hooks/admin/use-list-filter'
 import {
@@ -43,6 +43,11 @@ import {
 import { errorMessage } from '@/lib/errors'
 import { thumbnailUrl } from '@/lib/images'
 import { cn } from '@/lib/utils'
+import {
+  type Visibility,
+  visibilities,
+  visibilityLabels,
+} from '@/lib/visibility'
 
 export const Route = createFileRoute('/admin/collections/$kind/')({
   loader: ({ params }) => listItemsForAdmin({ data: { kind: params.kind } }),
@@ -50,19 +55,17 @@ export const Route = createFileRoute('/admin/collections/$kind/')({
 })
 
 type Item = Awaited<ReturnType<typeof listItemsForAdmin>>[number]
-type Filter = 'all' | 'published' | 'hidden'
+type Filter = 'all' | Visibility
 
 const filterOptions = [
   { value: 'all', label: 'すべて' },
-  { value: 'published', label: '公開' },
-  { value: 'hidden', label: '非公開' },
+  ...visibilities.map((v) => ({ value: v, label: visibilityLabels[v] })),
 ] as const
 
 const listFilterOptions = {
   initialFilter: 'all' as Filter,
   matchesFilter: (item: Item, filter: Filter) =>
-    filter === 'all' ||
-    (filter === 'published' ? item.published : !item.published),
+    filter === 'all' || item.status === filter,
   searchText: (item: Item) => [
     item.title,
     item.slug,
@@ -85,8 +88,8 @@ function AdminCollectionItems() {
     listFilterOptions,
   )
 
-  // まとめて公開・非公開にするために選んでいるもの（選んでいるあいだは並び替えない）
-  const setPublished = useServerFn(setItemsPublished)
+  // まとめて公開・限定公開・未公開にするために選んでいるもの（選んでいるあいだは並び替えない）
+  const setStatus = useServerFn(setItemsStatus)
   const [selecting, setSelecting] = useState(false)
   const [selected, setSelected] = useState<ReadonlySet<string>>(new Set())
   const [applying, setApplying] = useState(false)
@@ -105,26 +108,21 @@ function AdminCollectionItems() {
     setSelecting(false)
     setSelected(new Set())
   }
-  const applyPublished = async (published: boolean) => {
-    const targets = selectedVisible.filter((i) => i.published !== published)
+  const applyStatus = async (status: Visibility) => {
+    const label = visibilityLabels[status]
+    const targets = selectedVisible.filter((i) => i.status !== status)
     if (targets.length === 0) {
-      toast.info(
-        published ? 'どれも公開になっています' : 'どれも非公開になっています',
-      )
+      toast.info(`どれも${label}になっています`)
       return
     }
-    const message = published
-      ? `${targets.length} 件を公開します。公開ページに出るようになります。`
-      : `${targets.length} 件を非公開にします。公開ページから見えなくなります。`
+    const message = `${targets.length} 件を${label}にします。${statusNotes[status]}`
     if (!window.confirm(message)) return
     setApplying(true)
     try {
-      await setPublished({
-        data: { kind, ids: targets.map((i) => i.id), published },
+      await setStatus({
+        data: { kind, ids: targets.map((i) => i.id), status },
       })
-      toast.success(
-        `${targets.length} 件を${published ? '公開' : '非公開に'}しました`,
-      )
+      toast.success(`${targets.length} 件を${label}にしました`)
       stopSelecting()
       router.invalidate()
     } catch (e) {
@@ -220,7 +218,7 @@ function AdminCollectionItems() {
                 onClick={() => setSelecting(true)}
               >
                 <ListChecks />
-                まとめて公開・非公開
+                まとめて公開の状態を変える
               </Button>
             )}
           </div>
@@ -243,21 +241,17 @@ function AdminCollectionItems() {
                 表示中のものをすべて選ぶ
               </label>
               <div className="ml-auto flex flex-wrap gap-2">
-                <Button
-                  size="sm"
-                  disabled={applying || selectedVisible.length === 0}
-                  onClick={() => applyPublished(true)}
-                >
-                  公開にする
-                </Button>
-                <Button
-                  size="sm"
-                  variant="secondary"
-                  disabled={applying || selectedVisible.length === 0}
-                  onClick={() => applyPublished(false)}
-                >
-                  非公開にする
-                </Button>
+                {visibilities.map((v) => (
+                  <Button
+                    key={v}
+                    size="sm"
+                    variant={v === 'published' ? 'default' : 'secondary'}
+                    disabled={applying || selectedVisible.length === 0}
+                    onClick={() => applyStatus(v)}
+                  >
+                    {visibilityLabels[v]}にする
+                  </Button>
+                ))}
                 <Button
                   size="sm"
                   variant="ghost"
@@ -360,11 +354,7 @@ function SortableRow({
           {subtitle || `${collections[kind].path}/${item.slug}`}
         </div>
       </div>
-      {item.published ? (
-        <Badge>公開</Badge>
-      ) : (
-        <Badge variant="secondary">非公開</Badge>
-      )}
+      <StatusBadge status={item.status} />
     </>
   )
 

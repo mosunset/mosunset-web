@@ -8,7 +8,7 @@ import {
   useSyncExternalStore,
 } from 'react'
 
-import { DraftBadge } from '@/components/common/draft-badge'
+import { VisibilityBadge } from '@/components/common/visibility-badge'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -406,7 +406,12 @@ function OptionRow({
       <span className="grid min-w-0 flex-1">
         <span className="flex items-center gap-2">
           <span className="truncate font-medium">{entry.title}</span>
-          {entry.draft && <DraftBadge className="shrink-0" />}
+          {entry.visibility && (
+            <VisibilityBadge
+              visibility={entry.visibility}
+              className="shrink-0"
+            />
+          )}
         </span>
         {entry.detail && (
           <span className="truncate text-xs text-muted-foreground">

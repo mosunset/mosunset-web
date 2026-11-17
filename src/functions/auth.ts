@@ -1,10 +1,15 @@
 import { createMiddleware, createServerFn } from '@tanstack/react-start'
 
-import { resolveAdminStatus } from '@/server/auth'
+import { resolveAccess, resolveAdminStatus } from '@/server/auth'
 
 /** 今のユーザーが管理者かどうか（/admin の beforeLoad で使う） */
 export const getAdminStatus = createServerFn({ method: 'GET' }).handler(() =>
   resolveAdminStatus(),
+)
+
+/** 今の人が、どこまで見られるか（限定公開のツールを一覧に出すかなどに使う。src/lib/visibility.ts） */
+export const getAccess = createServerFn({ method: 'GET' }).handler(() =>
+  resolveAccess(),
 )
 
 /**

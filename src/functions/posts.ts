@@ -3,8 +3,9 @@ import { createServerFn } from '@tanstack/react-start'
 import { and, asc, desc, eq, gt, lt, ne } from 'drizzle-orm'
 import { z } from 'zod'
 import { adminMiddleware } from '@/functions/auth'
-import { isAdminRequest } from '@/server/auth'
-import { getDb, publishedPosts, schema } from '@/server/db'
+import { visibilities } from '@/lib/visibility'
+import { resolveAccess } from '@/server/auth'
+import { getDb, postsVisibleTo, schema } from '@/server/db'
 import { deleteImagesOf, deleteReplacedImage } from '@/server/r2'
 import {
   readingMinutes,
@@ -22,10 +23,10 @@ const { posts } = schema
 // 公開側
 // ---------------------------------------------------------------------------
 
-/** 公開済みの記事一覧（新しい順）。管理者のログイン中は下書きも入れる */
+/** 記事一覧（新しい順）。見ている人に見せてよいものだけ（src/lib/visibility.ts） */
 export const listPublishedPosts = createServerFn({ method: 'GET' }).handler(
   async () => {
-    const admin = await isAdminRequest()
+    const access = await resolveAccess()
     const rows = await getDb()
       .select({
         slug: posts.slug,
@@ -37,27 +38,28 @@ export const listPublishedPosts = createServerFn({ method: 'GET' }).handler(
         content: posts.content,
       })
       .from(posts)
-      .where(admin ? undefined : publishedPosts)
+      .where(postsVisibleTo(access))
       .orderBy(desc(posts.publishedAt))
     return rows.map(({ status, content, ...row }) => ({
       ...row,
-      draft: status !== 'published',
+      visibility: status,
       readingMinutes: readingMinutes(content),
     }))
   },
 )
 
-/** 公開済みの記事 1 件。本文は HTML にして返す。管理者のログイン中は下書きも返す */
+/** 記事 1 件。本文は HTML にして返す。見ている人に見せてよいものだけ */
 export const getPublishedPost = createServerFn({ method: 'GET' })
   .validator((data: unknown) => z.object({ slug: z.string() }).parse(data))
   .handler(async ({ data }) => {
-    const admin = await isAdminRequest()
+    const access = await resolveAccess()
+    const visible = postsVisibleTo(access)
     const post = await getDb().query.posts.findFirst({
-      where: and(eq(posts.slug, data.slug), admin ? undefined : publishedPosts),
+      where: and(eq(posts.slug, data.slug), visible),
     })
     if (!post) throw notFound()
 
-    // 前後の記事（公開済みのものだけ。公開日の順）
+    // 前後の記事（見ている人に見せてよいもののうち、公開日のあるもの。公開日の順）
     const neighbor = (newer: boolean) =>
       post.publishedAt
         ? getDb()
@@ -65,7 +67,7 @@ export const getPublishedPost = createServerFn({ method: 'GET' })
             .from(posts)
             .where(
               and(
-                publishedPosts,
+                visible,
                 newer
                   ? gt(posts.publishedAt, post.publishedAt)
                   : lt(posts.publishedAt, post.publishedAt),
@@ -92,9 +94,9 @@ export const getPublishedPost = createServerFn({ method: 'GET' })
       readingMinutes: readingMinutes(post.content),
       newer,
       older,
-      draft: post.status !== 'published',
+      visibility: post.status,
       /** 管理者のログイン中だけ入れる（ヘッダーの「編集」の行き先） */
-      editId: admin ? post.id : undefined,
+      editId: access === 'admin' ? post.id : undefined,
     }
   })
 
@@ -108,7 +110,7 @@ const postInputSchema = z.object({
   slug: slugSchema,
   excerpt: z.string().trim().max(300).default(''),
   coverImageKey: z.string().nullable().default(null),
-  status: z.enum(['draft', 'published']),
+  status: z.enum(visibilities),
   content: richTextDocSchema,
 })
 
@@ -171,7 +173,7 @@ export const savePost = createServerFn({ method: 'POST' })
         .insert(posts)
         .values({
           ...values,
-          publishedAt: data.status === 'published' ? new Date() : null,
+          publishedAt: data.status === 'draft' ? null : new Date(),
         })
         .returning({ id: posts.id })
       return { id: created.id }
@@ -187,9 +189,9 @@ export const savePost = createServerFn({ method: 'POST' })
       .update(posts)
       .set({
         ...values,
-        // 初めて公開したときの日時を公開日として残す
+        // 初めて公開・限定公開にしたときの日時を公開日として残す
         publishedAt:
-          data.status === 'published' && !current.publishedAt
+          data.status !== 'draft' && !current.publishedAt
             ? new Date()
             : current.publishedAt,
       })
