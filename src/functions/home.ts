@@ -6,7 +6,7 @@ import { getDb, publishedItems, publishedPosts, schema } from '@/server/db'
 const { posts, collectionItems: items } = schema
 
 /**
- * トップページの「新しいもの」。公開済みのものだけ（管理者のログイン中でも下書きは出さない）。
+ * トップページの「新しいもの」。公開のものだけ（だれが見ても同じ。限定公開・未公開は出さない）。
  * ツールはコードの中の一覧（src/lib/playground/tools.ts）から、ページの側で選ぶ
  */
 export const getHomeFeed = createServerFn({ method: 'GET' }).handler(

@@ -5,13 +5,19 @@ import { clerkClient } from '@clerk/tanstack-react-start/server'
 
 import { absoluteUrl } from '@/lib/seo'
 import { site } from '@/lib/site'
-import { getAdminUserIds } from '@/server/auth'
+import { roleOf } from '@/server/auth'
 
-/** 管理者（ADMIN_USER_IDS の先頭）の Clerk のメインのメールアドレス */
+/**
+ * 管理者（Clerk の public metadata が {"role": "admin"} の人。いちばん先に登録した人）の、メインのメールアドレス。
+ * ユーザーは少ないので、一覧を読んで探す
+ */
 async function getAdminEmail() {
-  const adminId = getAdminUserIds()[0]
-  if (!adminId) return null
-  const user = await clerkClient().users.getUser(adminId)
+  const { data } = await clerkClient().users.getUserList({
+    limit: 100,
+    orderBy: '+created_at',
+  })
+  const user = data.find((u) => roleOf(u.publicMetadata) === 'admin')
+  if (!user) return null
   const primary = user.emailAddresses.find(
     (e) => e.id === user.primaryEmailAddressId,
   )

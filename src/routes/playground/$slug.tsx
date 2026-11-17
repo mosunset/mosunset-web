@@ -3,8 +3,10 @@ import { createFileRoute, notFound } from '@tanstack/react-router'
 import { NotFoundPage } from '@/components/common/not-found-page'
 import { preloadTool } from '@/components/playground/tool-modules'
 import { ToolPage } from '@/components/playground/tool-page'
-import { findPlaygroundTool } from '@/lib/playground/tools'
+import { getAccess } from '@/functions/auth'
+import { findPlaygroundTool, toolVisibility } from '@/lib/playground/tools'
 import { seo } from '@/lib/seo'
+import { canSee } from '@/lib/visibility'
 
 // プレイグラウンドのツールのページ（全ツールでこの 1 つ）。
 // ツールの一覧は src/lib/playground/tools.ts、中身は src/components/playground/tools/<slug>/
@@ -12,6 +14,11 @@ export const Route = createFileRoute('/playground/$slug')({
   loader: async ({ params, preload }) => {
     const tool = findPlaygroundTool(params.slug)
     if (!tool) throw notFound()
+    // 限定公開・未公開のツールは、見られる人にだけ出す（ほかの人には、ないのと同じ「見つかりません」）
+    const visibility = toolVisibility(tool)
+    if (visibility !== 'published' && !canSee(await getAccess(), visibility)) {
+      throw notFound()
+    }
     await preloadTool(tool.slug, { preload })
   },
   staticData: {
@@ -21,7 +28,11 @@ export const Route = createFileRoute('/playground/$slug')({
     const tool = findPlaygroundTool(params.slug)
     return {
       meta: tool
-        ? seo({ title: tool.title, description: tool.description })
+        ? seo({
+            title: tool.title,
+            description: tool.description,
+            noindex: toolVisibility(tool) !== 'published',
+          })
         : seo({ title: 'ツールが見つかりません', noindex: true }),
     }
   },

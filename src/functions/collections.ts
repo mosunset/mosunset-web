@@ -12,8 +12,9 @@ import {
 } from '@/lib/collections/config'
 import { collectionKinds } from '@/lib/collections/kinds'
 import { defaultOrder } from '@/lib/collections/order'
-import { isAdminRequest } from '@/server/auth'
-import { getDb, publishedItems, schema } from '@/server/db'
+import { visibilities } from '@/lib/visibility'
+import { resolveAccess } from '@/server/auth'
+import { getDb, itemsVisibleTo, schema } from '@/server/db'
 import { deleteImagesOf, deleteReplacedImage } from '@/server/r2'
 import {
   htmlToSummary,
@@ -80,8 +81,8 @@ function withAttributes<T extends { attributes: unknown }>(row: T) {
 export const listPublishedItems = createServerFn({ method: 'GET' })
   .validator((data: unknown) => z.object({ kind: kindSchema }).parse(data))
   .handler(async ({ data }) => {
-    // 管理者のログイン中は非公開（下書き）のものも入れる
-    const admin = await isAdminRequest()
+    // 見ている人に見せてよいものだけ（src/lib/visibility.ts）
+    const access = await resolveAccess()
     const rows = await getDb()
       .select({
         slug: items.slug,
@@ -89,17 +90,17 @@ export const listPublishedItems = createServerFn({ method: 'GET' })
         imageKey: items.imageKey,
         attributes: items.attributes,
         acquiredAt: items.acquiredAt,
-        published: items.published,
+        status: items.status,
         sortOrder: items.sortOrder,
         createdAt: items.createdAt,
       })
       .from(items)
-      .where(and(eq(items.kind, data.kind), admin ? undefined : publishedItems))
+      .where(and(eq(items.kind, data.kind), itemsVisibleTo(access)))
     return defaultOrder(data.kind, rows.map(withAttributes)).map(
-      ({ published, sortOrder: _order, createdAt: _created, ...row }) => ({
+      ({ status, sortOrder: _order, createdAt: _created, ...row }) => ({
         ...row,
         attributes: publicAttributes(data.kind, row.attributes),
-        draft: !published,
+        visibility: status,
       }),
     )
   })
@@ -128,8 +129,8 @@ export const getPublishedItem = createServerFn({ method: 'GET' })
     z.object({ kind: kindSchema, slug: z.string() }).parse(data),
   )
   .handler(async ({ data }) => {
-    const admin = await isAdminRequest()
-    const visible = admin ? undefined : publishedItems
+    const access = await resolveAccess()
+    const visible = itemsVisibleTo(access)
     const db = getDb()
     const [item, siblingRows] = await Promise.all([
       db.query.collectionItems.findFirst({
@@ -168,12 +169,12 @@ export const getPublishedItem = createServerFn({ method: 'GET' })
       html,
       /** description や SNS のカードに使う、本文の最初の一部 */
       summary: htmlToSummary(html),
-      /** 非公開（管理者のログイン中だけ見える） */
-      draft: !item.published,
+      /** 公開の状態（限定公開・未公開のときは印を出し、検索エンジンに載せない） */
+      visibility: item.status,
       /** 同じ種類のもの全部の、一覧のふだんの並び（slug と名前だけ） */
       siblings,
       /** 管理者のログイン中だけ入れる（ヘッダーの「編集」の行き先） */
-      editId: admin ? item.id : undefined,
+      editId: access === 'admin' ? item.id : undefined,
     }
   })
 
@@ -189,7 +190,7 @@ const itemInputSchema = z.object({
   slug: optionalSlugSchema,
   acquiredAt: z.union([z.literal(''), dateString]),
   sortOrder: z.coerce.number().int().min(-9999).max(9999).default(0),
-  published: z.boolean(),
+  status: z.enum(visibilities),
   imageKey: z.string().nullable(),
   attributes: z.record(z.string(), z.unknown()).default({}),
   description: richTextDocSchema.nullable(),
@@ -207,7 +208,7 @@ export const listItemsForAdmin = createServerFn({ method: 'GET' })
         imageKey: items.imageKey,
         attributes: items.attributes,
         acquiredAt: items.acquiredAt,
-        published: items.published,
+        status: items.status,
         sortOrder: items.sortOrder,
         updatedAt: items.updatedAt,
         createdAt: items.createdAt,
@@ -262,7 +263,9 @@ export const saveItem = createServerFn({ method: 'POST' })
       slug,
       acquiredAt: data.acquiredAt || null,
       sortOrder: data.sortOrder,
-      published: data.published,
+      status: data.status,
+      // 古い列も合わせておく（schema.ts の published）
+      published: data.status === 'published',
       imageKey: data.imageKey,
       attributes: parseAttributes(data.kind, data.attributes),
       description: data.description ? sanitizeDoc(data.description) : null,
@@ -332,17 +335,17 @@ export const reorderItems = createServerFn({ method: 'POST' })
   })
 
 /**
- * 一覧で選んだものを、まとめて公開・非公開にする。
+ * 一覧で選んだものを、まとめて公開・限定公開・未公開にする。
  * D1 は 1 回の問い合わせに渡せる値の数に上限（100）があるので、90 件ずつに分けて 1 回の往復で送る
  */
-export const setItemsPublished = createServerFn({ method: 'POST' })
+export const setItemsStatus = createServerFn({ method: 'POST' })
   .middleware([adminMiddleware])
   .validator((data: unknown) =>
     z
       .object({
         kind: kindSchema,
         ids: z.array(z.string()).min(1).max(1000),
-        published: z.boolean(),
+        status: z.enum(visibilities),
       })
       .parse(data),
   )
@@ -355,7 +358,7 @@ export const setItemsPublished = createServerFn({ method: 'POST' })
     const [first, ...rest] = chunks.map((ids) =>
       db
         .update(items)
-        .set({ published: data.published })
+        .set({ status: data.status, published: data.status === 'published' })
         .where(and(eq(items.kind, data.kind), inArray(items.id, ids))),
     )
     await db.batch([first, ...rest])

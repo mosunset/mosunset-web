@@ -2,7 +2,6 @@ import { useRouter } from '@tanstack/react-router'
 import { useServerFn } from '@tanstack/react-start'
 import { useCallback, useMemo } from 'react'
 import { toast } from 'sonner'
-
 import { AttributeInput } from '@/components/admin/attribute-input'
 import {
   DeleteButton,
@@ -17,6 +16,7 @@ import {
   mergeIsbnResult,
 } from '@/components/admin/isbn-lookup'
 import { PreviewButton } from '@/components/admin/preview-dialog'
+import { StatusSelect } from '@/components/admin/status'
 import { FormRecovery, SaveStatus } from '@/components/admin/unsaved-changes'
 import { RichTextEditor } from '@/components/editor/rich-text-editor'
 import { Button } from '@/components/ui/button'
@@ -37,6 +37,7 @@ import {
 import { imageUrl } from '@/lib/images'
 import { slugHint, slugInputPattern } from '@/lib/slug'
 import { emptyDoc, type RichTextDoc } from '@/lib/tiptap'
+import type { Visibility } from '@/lib/visibility'
 
 type Props = {
   kind: CollectionKind
@@ -50,7 +51,7 @@ type CollectionFields = {
   title: string
   slug: string
   acquiredAt: string
-  published: boolean
+  status: Visibility
   imageKey: string | null
   attributes: CollectionAttributes
   description: RichTextDoc
@@ -68,7 +69,7 @@ export function CollectionForm({ kind, item, initialIsbn }: Props) {
       // 本の URL はふだん ISBN にしている
       slug: item?.slug ?? initialIsbn ?? '',
       acquiredAt: item?.acquiredAt ?? '',
-      published: item?.published ?? true,
+      status: item?.status ?? 'published',
       imageKey: item?.imageKey ?? null,
       attributes:
         item?.attributes ?? (initialIsbn ? { isbn: initialIsbn } : {}),
@@ -258,15 +259,11 @@ export function CollectionForm({ kind, item, initialIsbn }: Props) {
             />
           </div>
         </div>
-        <label className="flex items-center gap-2 self-end pb-2 text-sm">
-          <input
-            type="checkbox"
-            checked={fields.published}
-            onChange={(e) => set('published', e.target.checked)}
-            className="size-4 accent-primary"
-          />
-          公開ページに表示する
-        </label>
+        <StatusSelect
+          value={fields.status}
+          onChange={(status) => set('status', status)}
+          disabled={saving}
+        />
       </div>
 
       <FormError message={error} />
@@ -302,7 +299,7 @@ export function CollectionForm({ kind, item, initialIsbn }: Props) {
               </div>
             }
           />
-          {item?.published && (
+          {item && item.status !== 'draft' && (
             <PublicPageLink to={config.detailPath} slug={item.slug} />
           )}
           {item && <DeleteButton disabled={saving} onClick={onDelete} />}

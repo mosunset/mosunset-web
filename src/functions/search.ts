@@ -2,19 +2,20 @@ import { createServerFn } from '@tanstack/react-start'
 import { asc, desc } from 'drizzle-orm'
 
 import { publicAttributes } from '@/lib/collections/config'
-import { isAdminRequest } from '@/server/auth'
-import { getDb, publishedItems, publishedPosts, schema } from '@/server/db'
+import { resolveAccess } from '@/server/auth'
+import { getDb, itemsVisibleTo, postsVisibleTo, schema } from '@/server/db'
 
 const { posts, collectionItems: items } = schema
 
 /**
  * サイト全体の検索（ヘッダーの「検索」）と、サイドバーの「今いる場所の中身」に使う、
- * 記事とコレクションの一覧。プレイグラウンドの道具はコードの中にあるので、ここには入れない。
- * 管理者のログイン中は、公開側の一覧と同じく下書きも入れる
+ * 記事とコレクションの一覧。プレイグラウンドの道具はコードの中にあるので、ここには入れない
+ * （どこまで見られるか access を返すので、道具はページの側でそれに合わせて絞る）。
+ * 公開側の一覧と同じく、見ている人に見せてよいものだけ（src/lib/visibility.ts）
  */
 export const getSiteIndex = createServerFn({ method: 'GET' }).handler(
   async () => {
-    const admin = await isAdminRequest()
+    const access = await resolveAccess()
     const db = getDb()
     const [postRows, itemRows] = await Promise.all([
       db
@@ -27,7 +28,7 @@ export const getSiteIndex = createServerFn({ method: 'GET' }).handler(
           status: posts.status,
         })
         .from(posts)
-        .where(admin ? undefined : publishedPosts)
+        .where(postsVisibleTo(access))
         .orderBy(desc(posts.publishedAt)),
       db
         .select({
@@ -36,10 +37,10 @@ export const getSiteIndex = createServerFn({ method: 'GET' }).handler(
           title: items.title,
           imageKey: items.imageKey,
           attributes: items.attributes,
-          published: items.published,
+          status: items.status,
         })
         .from(items)
-        .where(admin ? undefined : publishedItems)
+        .where(itemsVisibleTo(access))
         // 公開側の一覧と同じ順（手で決めた順 → 入手日の新しい順 → 登録の新しい順）
         .orderBy(
           asc(items.sortOrder),
@@ -48,11 +49,12 @@ export const getSiteIndex = createServerFn({ method: 'GET' }).handler(
         ),
     ])
     return {
+      access,
       posts: postRows.map(({ status, ...row }) => ({
         ...row,
-        draft: status !== 'published',
+        visibility: status,
       })),
-      items: itemRows.map(({ published, attributes, ...row }) => ({
+      items: itemRows.map(({ status, attributes, ...row }) => ({
         ...row,
         attributes: publicAttributes(
           row.kind,
@@ -60,7 +62,7 @@ export const getSiteIndex = createServerFn({ method: 'GET' }).handler(
             ? (attributes as Record<string, string>)
             : {},
         ),
-        draft: !published,
+        visibility: status,
       })),
     }
   },

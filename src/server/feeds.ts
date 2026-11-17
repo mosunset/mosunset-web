@@ -2,7 +2,7 @@ import { desc } from 'drizzle-orm'
 
 import { collections } from '@/lib/collections/config'
 import { contactNav, mainNav } from '@/lib/navigation'
-import { playgroundTools } from '@/lib/playground/tools'
+import { publicTools } from '@/lib/playground/tools'
 import { absoluteUrl } from '@/lib/seo'
 import { site } from '@/lib/site'
 import { getDb, publishedItems, publishedPosts, schema } from '@/server/db'
@@ -25,7 +25,7 @@ const staticPaths = [
   '/',
   ...mainNav.map((i) => i.to),
   contactNav.to,
-  ...playgroundTools.map((t) => `/playground/${t.slug}`),
+  ...publicTools.map((t) => `/playground/${t.slug}`),
 ]
 
 type Entry = { path: string; lastmod?: Date }
@@ -181,7 +181,7 @@ export async function llmsTxtResponse() {
     '',
     '## プレイグラウンド（ブラウザで動くツール）',
     '',
-    ...playgroundTools.map((t) =>
+    ...publicTools.map((t) =>
       link(t.name, `/playground/${t.slug}`, t.description),
     ),
     '',

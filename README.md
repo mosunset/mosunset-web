@@ -27,9 +27,10 @@ npx wrangler d1 execute mosunset-web --local --file .wrangler/prod-data.sql
 ```bash
 CLERK_PUBLISHABLE_KEY=pk_test_...
 CLERK_SECRET_KEY=sk_test_...
-ADMIN_USER_IDS=user_...          # 管理画面に入れる Clerk のユーザー ID（カンマ区切り）
 TURNSTILE_SITE_KEY=1x00000000000000000000AA   # 開発中は Cloudflare のテスト用キー
 ```
+
+管理者などの役割は、サイトではなく Clerk のダッシュボードで付けます（開発用・本番のインスタンスそれぞれ。[docs/security.md](docs/security.md) の「役割」）。
 
 > **Windows の場合:** ローカルの Workers ランタイム（workerd）には Visual C++ 再頒布可能パッケージが要ります。
 > `pnpm dev` が `write EOF` で止まるときは `winget install Microsoft.VCRedist.2015+.x64` を入れてください。
@@ -102,13 +103,13 @@ native/          この PC で別に動かすプログラム（box-packing: 箱�
 ## セキュリティ
 
 - 管理画面のデータを読み書きする server function には、すべて `adminMiddleware`（`src/functions/auth.ts`。判定は `src/server/auth.ts`）を付けます。画面側のチェックだけに頼りません。
-- DB・R2・秘密の値（`TURNSTILE_SECRET_KEY`・`ADMIN_USER_IDS` など）を扱うコードは `src/server` に置き、ブラウザ用のバンドルに入らないことをビルドで確かめています（上の「ファイルの置き場所」）。
+- DB・R2・秘密の値（`TURNSTILE_SECRET_KEY`・`CLERK_SECRET_KEY` など）を扱うコードは `src/server` に置き、ブラウザ用のバンドルに入らないことをビルドで確かめています（上の「ファイルの置き場所」）。
 - 本文（Tiptap の JSON）は、保存前と表示前の両方で `sanitizeDoc`（`src/server/rich-text.ts`）を通し、危険なリンクや画像を取り除きます。
 - レスポンスには CSP（スクリプトはリクエストごとの nonce が付いたものだけ）などのヘッダーを付けます（`src/server/security-headers.ts`。`src/start.ts` のミドルウェアから呼ぶ）。外部のサービスを足すときは、ここに通信先を足します。
 - 脆弱性の連絡先は `/.well-known/security.txt` です。`Expires` は 1 年以内にする決まりなので、期限の前に延ばします。
 
 ## 本番
 
-- 本番の D1・R2・Turnstile のサイトキーなどは `wrangler.jsonc` にあります。秘密の値（`CLERK_SECRET_KEY`・`ADMIN_USER_IDS`・`TURNSTILE_SECRET_KEY`）は `wrangler secret put <名前>` で入れます。
+- 本番の D1・R2・Turnstile のサイトキーなどは `wrangler.jsonc` にあります。秘密の値（`CLERK_SECRET_KEY`・`TURNSTILE_SECRET_KEY`）は `wrangler secret put <名前>` で入れます。
 - 本の ISBN 検索（管理画面と、本の一覧の「バーコードで調べる」）は、`RAKUTEN_APP_ID`（楽天ブックス。新しい窓口を使うときは `RAKUTEN_ACCESS_KEY` も）と `GOOGLE_BOOKS_API_KEY`（なくても動くが、キーなしは回数の上限にすぐ当たる）を `wrangler secret put` で入れると使えます。入っていないものは「使えませんでした」と出るだけで、ほかは動きます。
 - 本番のコンテンツは管理画面で直接編集します。旧サイトからの移行は 2026-11 に済んでいます（旧サイトの中身は Git の履歴 `0fa6d60` にあります）。

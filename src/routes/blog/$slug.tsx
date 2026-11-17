@@ -6,8 +6,8 @@ import {
 } from '@/components/blog/article-toc'
 import { CopyArticleMenu } from '@/components/blog/copy-article-menu'
 import { BackLinkFooter } from '@/components/common/back-link-footer'
-import { DraftBadge } from '@/components/common/draft-badge'
 import { NotFoundPage } from '@/components/common/not-found-page'
+import { VisibilityBadge } from '@/components/common/visibility-badge'
 import { ZoomableImage } from '@/components/rich-text/image-viewer'
 import { RichTextContent } from '@/components/rich-text/rich-text-content'
 import { getPublishedPost } from '@/functions/posts'
@@ -39,8 +39,8 @@ export const Route = createFileRoute('/blog/$slug')({
             ...seo({
               title: loaderData.title,
               description: loaderData.excerpt || undefined,
-              // 下書き（管理者のログイン中だけ見える）は検索に載せない
-              noindex: loaderData.draft,
+              // 限定公開・未公開は検索エンジンに載せない
+              noindex: loaderData.visibility !== 'published',
             }),
             { property: 'og:type', content: 'article' },
             ...(loaderData.publishedAt
@@ -130,7 +130,7 @@ function BlogPost() {
             />
           )}
           <p className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted-foreground">
-            {post.draft && <DraftBadge />}
+            <VisibilityBadge visibility={post.visibility} />
             {post.publishedAt && (
               <time dateTime={post.publishedAt.toISOString()}>
                 {formatDate(post.publishedAt)}

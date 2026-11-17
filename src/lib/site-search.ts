@@ -11,8 +11,9 @@ import {
 } from '@/lib/collections/config'
 import { thumbnailUrl } from '@/lib/images'
 import { contactNav, mainNav } from '@/lib/navigation'
-import { playgroundTools } from '@/lib/playground/tools'
+import { toolsVisibleTo, toolVisibility } from '@/lib/playground/tools'
 import { normalizeForSearch } from '@/lib/search-text'
+import type { Access, Visibility } from '@/lib/visibility'
 
 /** サイト全体の検索で見つかるもの 1 件 */
 export type SearchEntry = {
@@ -25,7 +26,8 @@ export type SearchEntry = {
   href: string
   image?: string | null
   icon?: LucideIcon
-  draft?: boolean
+  /** 公開の状態（限定公開・未公開のときに印を出す） */
+  visibility?: Visibility
   /** 探すときに比べる文字（形をそろえたもの） */
   text: string
   /** 名前（形をそろえたもの）。名前で当たったものを先に出す */
@@ -68,19 +70,22 @@ export const pageEntries: readonly SearchEntry[] = [
   ),
 )
 
-const toolEntries: readonly SearchEntry[] = playgroundTools.map((t) =>
-  entry(
-    {
-      id: `tool:${t.slug}`,
-      group: 'プレイグラウンド',
-      title: t.name,
-      detail: t.category,
-      href: `/playground/${t.slug}`,
-      image: t.thumbnail,
-    },
-    [t.title, t.description, t.category, ...t.tags],
-  ),
-)
+/** 道具（見ている人に見せてよいものだけ。検索の一覧を読めていないうちは公開のものだけ） */
+const toolEntriesFor = (access: Access): SearchEntry[] =>
+  toolsVisibleTo(access).map((t) =>
+    entry(
+      {
+        id: `tool:${t.slug}`,
+        group: 'プレイグラウンド',
+        title: t.name,
+        detail: t.category,
+        href: `/playground/${t.slug}`,
+        image: t.thumbnail,
+        visibility: toolVisibility(t),
+      },
+      [t.title, t.description, t.category, ...t.tags],
+    ),
+  )
 
 /** コレクションの項目の値（選択肢はラベルにする。URL は探す対象にしない） */
 function attributeWords(
@@ -104,7 +109,7 @@ export function buildEntries(index: SiteIndex | null): SearchEntry[] {
         detail: p.excerpt ?? undefined,
         href: `/blog/${p.slug}`,
         image: thumbnailUrl(p.coverImageKey),
-        draft: p.draft,
+        visibility: p.visibility,
       },
       [p.excerpt],
     ),
@@ -119,12 +124,13 @@ export function buildEntries(index: SiteIndex | null): SearchEntry[] {
         detail: itemSubtitle(item.kind, item.attributes) || undefined,
         href: `${config.path}/${item.slug}`,
         image: thumbnailUrl(item.imageKey),
-        draft: item.draft,
+        visibility: item.visibility,
       },
       attributeWords(item.kind, item.attributes),
     )
   })
-  return [...pageEntries, ...posts, ...toolEntries, ...items]
+  const tools = toolEntriesFor(index?.access ?? 'public')
+  return [...pageEntries, ...posts, ...tools, ...items]
 }
 
 /** 探す言葉を、空白で区切った語に分ける（すべての語を含むものが当たる） */

@@ -14,7 +14,7 @@ import {
   collectionList,
   filterKeysOf,
 } from '@/lib/collections/config'
-import { playgroundCategories, playgroundTools } from '@/lib/playground/tools'
+import { playgroundCategories, publicTools } from '@/lib/playground/tools'
 
 /**
  * サイドバーで、今いる場所（第一階層）の下に出す中身。
@@ -82,7 +82,7 @@ function PlaygroundTools({ onNavigate }: { onNavigate: () => void }) {
   const matchRoute = useMatchRoute()
   return playgroundCategories.map((category) => (
     <SubGroup key={category} label={category}>
-      {playgroundTools
+      {publicTools
         .filter((t) => t.category === category)
         .map((tool) => (
           <SidebarMenuSubItem key={tool.slug}>

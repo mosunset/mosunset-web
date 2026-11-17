@@ -1,3 +1,5 @@
+import { type Access, canSee, type Visibility } from '@/lib/visibility'
+
 /**
  * プレイグラウンドのツール一覧。ツールそのものがコードなので、管理画面ではなくここで管理する。
  * ツールを足すときは、ここに 1 件足し、src/components/playground/tools/<slug>/ を作り、
@@ -24,6 +26,12 @@ type PlaygroundTool = {
    * だいたい合わせておくと、ツールが出たときに下のリンクが押し下げられない（CLS）。見た目を大きく変えたら測り直す
    */
   loadingHeight?: number
+  /**
+   * 公開の状態（src/lib/visibility.ts）。書かなければ公開。
+   * ツールはコードなので、限定公開・未公開にしても、一覧・検索・サイトマップから外して、
+   * 見られない人にはページを「見つかりません」にするだけ（プログラムそのものはサイトに含まれる）
+   */
+  visibility?: Visibility
 }
 
 export const playgroundTools = [
@@ -366,6 +374,24 @@ export function getPlaygroundTool(slug: PlaygroundSlug): PlaygroundTool {
 /** URL の slug からツールを探す（ないときは undefined） */
 export function findPlaygroundTool(slug: string): PlaygroundTool | undefined {
   return playgroundTools.find((t) => t.slug === slug)
+}
+
+/** ツールの公開の状態（書いていなければ公開） */
+export function toolVisibility(tool: object): Visibility {
+  return 'visibility' in tool ? (tool.visibility as Visibility) : 'published'
+}
+
+/** 公開のツール（サイドバー・トップ・関連ツール・サイトマップ・llms.txt など、だれにでも同じものを出すところ） */
+export const publicTools = playgroundTools.filter(
+  (t) => toolVisibility(t) === 'published',
+)
+
+/** 限定公開・未公開のツールがあるか（ないときは、見ている人を調べずに済ませる） */
+export const hasNonPublicTools = publicTools.length !== playgroundTools.length
+
+/** その人に見せてよいツール */
+export function toolsVisibleTo(access: Access) {
+  return playgroundTools.filter((t) => canSee(access, toolVisibility(t)))
 }
 
 export const playgroundCategories = [
