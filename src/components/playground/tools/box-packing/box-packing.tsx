@@ -58,8 +58,10 @@ import {
   buildCombos,
   comboChips,
   defaultSweep,
+  HOPELESS_SHARE,
   LIGHT_SEARCH_MS,
   LIGHT_WORKERS,
+  MAX_LOAD_RATIO,
   MAX_SEARCH_MS,
   NATIVE_SLICE_MS,
   planSearch,
@@ -1335,6 +1337,7 @@ export function BoxPacking() {
       const fresh = candidates.filter((i) => visits[i] + active[i] === 0)
       if (fresh.length > 0)
         return fresh[Math.floor(Math.random() * fresh.length)]
+      const loadOf = (i: number) => visits[i] + active[i]
       // 成績の順位（0 がいちばん良い）。点数が出ていないものは最後
       const order = [...candidates].sort(
         (a, b) =>
@@ -1344,13 +1347,27 @@ export function BoxPacking() {
       const rank = new Map(
         order.map((i, r) => [i, r / Math.max(1, order.length - 1)]),
       )
+      // 偏りすぎないようにする（成績の良い 1 つに 300 回、ほかは 1 回、のようにならないように）。
+      // 成績の上半分を「見込みあり」、下半分を「見込み薄」に分ける（順位は良くなれば入れ替わる）
+      const promising = order.slice(0, Math.ceil(order.length / 2))
+      const minPromising = Math.min(...promising.map(loadOf))
+      // 見込み薄も省ききらず、見込みありのいちばん少ない回数の 1/HOPELESS_SHARE くらいは当てる
+      const behind = order
+        .slice(promising.length)
+        .filter((i) => loadOf(i) * HOPELESS_SHARE < minPromising)
+      if (behind.length > 0)
+        return behind.reduce((a, b) => (loadOf(b) < loadOf(a) ? b : a))
+      // 見込みありの中でも、いちばん少ないものの MAX_LOAD_RATIO 倍（+1）より多く当たったものは、ほかが追いつくまで選ばない
+      const allowed = promising.filter(
+        (i) => loadOf(i) <= MAX_LOAD_RATIO * minPromising + 1,
+      )
       const total = candidates.reduce((a, i) => a + visits[i] + active[i], 0)
       // ネイティブ版は、良い組み合わせを深く探す（試す数が多いので、良いところに使う）
       const explore = isNative ? 0.15 : 0.5
-      let chosen = candidates[0]
+      let chosen = allowed[0]
       let bestValue = Number.NEGATIVE_INFINITY
-      for (const i of candidates) {
-        const load = visits[i] + active[i]
+      for (const i of allowed) {
+        const load = loadOf(i)
         const value =
           1 -
           (rank.get(i) ?? 1) +

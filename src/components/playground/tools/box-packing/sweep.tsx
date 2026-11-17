@@ -58,6 +58,10 @@ export const LIGHT_SEARCH_MS = 30_000
  * 要るので、ブラウザーの係（SLICE_SEC）より長くする
  */
 export const NATIVE_SLICE_MS = 15_000
+/** 組み合わせを選ぶときの偏りの上限。成績の上半分（見込みあり）は、その中でいちばん当たっていないものの この倍（+1）までしか当たらない */
+export const MAX_LOAD_RATIO = 3
+/** 成績の下半分（見込み薄）にも、見込みありのいちばん少ない回数の この分の 1 くらいは当てる */
+export const HOPELESS_SHARE = 4
 
 /** 1 つの組み合わせ（設定欄の値から変える値） */
 export type SweepCombo = {
