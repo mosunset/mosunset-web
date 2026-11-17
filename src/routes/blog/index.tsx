@@ -1,6 +1,5 @@
 import { createFileRoute, Link } from '@tanstack/react-router'
 import { Rss } from 'lucide-react'
-
 import { DraftBadge } from '@/components/common/draft-badge'
 import { EmptyState } from '@/components/common/empty-state'
 import { NewBadge } from '@/components/common/item-badges'
@@ -27,6 +26,7 @@ import { listImageLoading, thumbnailUrl } from '@/lib/images'
 import { listItemId } from '@/lib/list-memory'
 import { getNavItem } from '@/lib/navigation'
 import { sectionHead } from '@/lib/seo'
+import { sharedImageProps, sharedName } from '@/lib/view-transition'
 
 const item = getNavItem('/blog')
 
@@ -178,7 +178,7 @@ type PostsProps = {
 function PostList({ posts, grouped, eager }: PostsProps) {
   const Title = grouped ? 'h3' : 'h2'
   return (
-    <ul className="divide-y">
+    <ul data-reveal-children className="divide-y">
       {posts.map((post, index) => (
         <li key={post.slug} id={listItemId(post.slug)} className="scroll-mt-32">
           <Link
@@ -202,6 +202,7 @@ function PostList({ posts, grouped, eager }: PostsProps) {
                 src={thumbnailUrl(post.coverImageKey) ?? undefined}
                 alt=""
                 {...listImageLoading(index, eager)}
+                {...sharedImageProps(sharedName('post', post.slug))}
                 className="aspect-[4/3] w-24 shrink-0 self-start rounded-md border object-cover sm:w-40"
               />
             )}
@@ -215,15 +216,21 @@ function PostList({ posts, grouped, eager }: PostsProps) {
 function PostCards({ posts, grouped, eager }: PostsProps) {
   const Title = grouped ? 'h3' : 'h2'
   return (
-    <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+    <ul
+      data-reveal-children
+      className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3"
+    >
       {posts.map((post, index) => (
         <li key={post.slug} id={listItemId(post.slug)} className="scroll-mt-32">
           <Link
             to="/blog/$slug"
             params={{ slug: post.slug }}
-            className="group flex h-full flex-col overflow-hidden rounded-lg border transition-colors hover:bg-muted/40"
+            className="group flex h-full flex-col overflow-hidden rounded-lg border transition-[background-color,box-shadow,translate] duration-300 hover:bg-muted/40 hover:shadow-md motion-safe:hover:-translate-y-1"
           >
-            <div className="aspect-[4/3] overflow-hidden border-b bg-muted/30">
+            <div
+              {...sharedImageProps(sharedName('post', post.slug))}
+              className="aspect-[4/3] overflow-hidden border-b bg-muted/30"
+            >
               {post.coverImageKey && (
                 <img
                   src={thumbnailUrl(post.coverImageKey) ?? undefined}

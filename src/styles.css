@@ -256,3 +256,106 @@ body {
   --tw-prose-invert-th-borders: oklch(43.9% 0 0);
   --tw-prose-invert-td-borders: oklch(37.1% 0 0);
 }
+
+/*
+ * ページを移るときの動き（View Transitions。src/lib/view-transition.ts・src/router.tsx）。
+ * ページ全体は、前のページが少し薄くなって消え、次のページが少し下から出てくる。
+ * ヘッダーは動かさない（名前を付けて、ページ全体の入れ替わりから外す）
+ */
+@keyframes vt-page-out {
+  to {
+    opacity: 0;
+  }
+}
+@keyframes vt-page-in {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+}
+html:active-view-transition-type(page)::view-transition-old(root) {
+  animation: 160ms ease-in both vt-page-out;
+}
+html:active-view-transition-type(page)::view-transition-new(root) {
+  animation: 280ms cubic-bezier(0.2, 0.8, 0.2, 1) 60ms both vt-page-in;
+}
+/* 動いている途中に押したボタン・リンクも効くようにしてある（src/lib/view-transition.ts の passClicksThroughTransitions） */
+::view-transition-group(site-header) {
+  animation: none;
+}
+/* 一覧 ⇄ 詳細でつながる写真。枠の形が違う（正方形 ↔ 縦長など）ので、ゆがめずに切って重ねる */
+::view-transition-group(.shared) {
+  animation-duration: 420ms;
+  animation-timing-function: cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+::view-transition-old(.shared),
+::view-transition-new(.shared) {
+  height: 100%;
+  object-fit: cover;
+  overflow: clip;
+}
+
+/* 拡大表示の動き（src/components/rich-text/image-viewer.tsx）。クリックした画像が画面いっぱいまで伸びる */
+::view-transition-group(zoom-image) {
+  animation-duration: 320ms;
+  animation-timing-function: cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+::view-transition-old(zoom-image),
+::view-transition-new(zoom-image) {
+  height: 100%;
+  object-fit: contain;
+}
+html[data-zooming]::view-transition-old(root),
+html[data-zooming]::view-transition-new(root) {
+  animation-duration: 200ms;
+}
+/* 拡大表示のあいだは、ほかの名前付きのものを外す（暗い背景より手前に出ないように） */
+html[data-zooming] [data-vt-fixed],
+html[data-zooming] header {
+  view-transition-name: none !important;
+}
+
+/* OS で「視差効果を減らす」をオンにしている人には、どれも動かさない */
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-group(*),
+  ::view-transition-old(*),
+  ::view-transition-new(*) {
+    animation: none !important;
+  }
+}
+
+/*
+ * トップページを開いたときに、上の欄が順に出てくる（src/routes/index.tsx の Hero）。
+ * 終わったあとは形を残さない（backwards）。スクロールで動かす GSAP（src/lib/motion.ts）とぶつからないように
+ */
+@keyframes hero-rise {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+}
+@keyframes hero-slide {
+  from {
+    transform: translateY(16px);
+  }
+}
+@keyframes hero-pop {
+  from {
+    transform: scale(0.85);
+  }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .hero-rise {
+    animation: hero-rise 700ms cubic-bezier(0.2, 0.8, 0.2, 1) backwards;
+    animation-delay: var(--hero-delay, 0ms);
+  }
+  /* アイコンはページでいちばん大きい画像なので、薄くはせず大きさだけ変える（読み込みの速さの点数に響かないように） */
+  /* ボタンは薄くしない（出てくる途中も見えていて、押せるように）。位置だけ動かす */
+  .hero-slide {
+    animation: hero-slide 700ms cubic-bezier(0.2, 0.8, 0.2, 1) backwards;
+    animation-delay: var(--hero-delay, 0ms);
+  }
+  .hero-pop {
+    animation: hero-pop 800ms cubic-bezier(0.34, 1.56, 0.64, 1) backwards;
+  }
+}

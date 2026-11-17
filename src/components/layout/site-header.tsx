@@ -49,7 +49,8 @@ export function SiteHeader() {
     <header
       ref={headerRef}
       data-hidden={hidden}
-      className="sticky top-0 z-50 flex h-(--header-height) w-full shrink-0 items-center gap-2 border-b bg-background/95 px-4 backdrop-blur transition-transform duration-200 data-[hidden=true]:-translate-y-full"
+      // ページを移るときの動き（src/styles.css）では、ヘッダーは動かさない
+      className="sticky top-0 z-50 flex [view-transition-name:site-header] h-(--header-height) w-full shrink-0 items-center gap-2 border-b bg-background/95 px-4 backdrop-blur transition-transform duration-200 data-[hidden=true]:-translate-y-full"
     >
       {/* 狭い画面ではメニューをサイドバー（ドロワー）で開く */}
       <SidebarTrigger className="-ml-1 lg:hidden" />

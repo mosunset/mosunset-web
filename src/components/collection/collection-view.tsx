@@ -1,7 +1,6 @@
 import { Link, useNavigate } from '@tanstack/react-router'
 import { ChevronLeft, ChevronRight, ExternalLink, ImageOff } from 'lucide-react'
 import * as React from 'react'
-
 import { BackLinkFooter } from '@/components/common/back-link-footer'
 import { DraftBadge } from '@/components/common/draft-badge'
 import { EmptyState } from '@/components/common/empty-state'
@@ -54,6 +53,7 @@ import {
   useRememberedListOrder,
 } from '@/lib/list-memory'
 import { cn } from '@/lib/utils'
+import { sharedImageProps, sharedName } from '@/lib/view-transition'
 
 type ListItem = {
   slug: string
@@ -377,7 +377,10 @@ function CollectionCards({
   const contain = imageFitOf(kind) === 'contain'
   const Title = grouped ? 'h3' : 'h2'
   return (
-    <ul className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
+    <ul
+      data-reveal-children
+      className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4"
+    >
       {items.map((item, index) => {
         const src = thumbnailUrl(item.imageKey)
         return (
@@ -391,7 +394,10 @@ function CollectionCards({
               params={{ slug: item.slug }}
               className="group block"
             >
-              <div className="relative aspect-square overflow-hidden rounded-lg border bg-muted/30">
+              <div
+                {...sharedImageProps(sharedName(kind, item.slug))}
+                className="relative aspect-square overflow-hidden rounded-lg border bg-muted/30"
+              >
                 {src ? (
                   <img
                     src={src}
@@ -445,7 +451,10 @@ function FeaturedCards({
           {items.length} 件
         </span>
       </h2>
-      <ul className="grid grid-cols-2 gap-4 lg:grid-cols-3 lg:gap-6">
+      <ul
+        data-reveal-children
+        className="grid grid-cols-2 gap-4 lg:grid-cols-3 lg:gap-6"
+      >
         {items.map((item, index) => {
           const src = thumbnailUrl(item.imageKey)
           return (
@@ -462,7 +471,10 @@ function FeaturedCards({
                 params={{ slug: item.slug }}
                 className="group block"
               >
-                <div className="relative aspect-square overflow-hidden rounded-xl border bg-gradient-to-b from-muted/20 to-muted/60 shadow-sm transition-shadow group-hover:shadow-md">
+                <div
+                  {...sharedImageProps(sharedName(kind, item.slug))}
+                  className="relative aspect-square overflow-hidden rounded-xl border bg-gradient-to-b from-muted/20 to-muted/60 shadow-sm transition-shadow group-hover:shadow-md"
+                >
                   {src ? (
                     <img
                       src={src}
@@ -504,7 +516,10 @@ function CollectionGallery({
   const config = collections[kind]
   const contain = imageFitOf(kind) === 'contain'
   return (
-    <ul className="grid grid-cols-3 gap-x-3 gap-y-4 sm:grid-cols-4 md:grid-cols-6">
+    <ul
+      data-reveal-children
+      className="grid grid-cols-3 gap-x-3 gap-y-4 sm:grid-cols-4 md:grid-cols-6"
+    >
       {items.map((item, index) => {
         const src = thumbnailUrl(item.imageKey)
         return (
@@ -519,7 +534,10 @@ function CollectionGallery({
               title={item.title}
               className="group block"
             >
-              <div className="relative aspect-square overflow-hidden rounded-md border bg-muted/30">
+              <div
+                {...sharedImageProps(sharedName(kind, item.slug))}
+                className="relative aspect-square overflow-hidden rounded-md border bg-muted/30"
+              >
                 {src ? (
                   <img
                     src={src}
@@ -605,6 +623,7 @@ function CollectionTable({
                           src={src}
                           alt=""
                           loading="lazy"
+                          {...sharedImageProps(sharedName(kind, item.slug))}
                           className={cn(
                             'size-10 shrink-0 rounded border',
                             contain
@@ -891,6 +910,9 @@ export function CollectionDetail({
               <ZoomableImage
                 src={src}
                 alt={item.title}
+                frameProps={sharedImageProps(sharedName(kind, item.slug), {
+                  fixed: true,
+                })}
                 className="h-[min(55vh,28rem)] rounded-lg border bg-muted/30 md:aspect-[4/5] md:h-auto md:max-h-[70vh]"
                 imgClassName="size-full object-contain"
                 // スマホには小さい版（640px）を送り、ページでいちばん大きく出る写真なので優先して読む

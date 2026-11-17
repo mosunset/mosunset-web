@@ -2,7 +2,7 @@ import * as React from 'react'
 
 import {
   ImageLightbox,
-  type ViewerImage,
+  useImageZoom,
 } from '@/components/rich-text/image-viewer'
 import { cn } from '@/lib/utils'
 
@@ -47,7 +47,7 @@ export function RichTextContent({
   html: string
   className?: string
 }) {
-  const [image, setImage] = React.useState<ViewerImage | null>(null)
+  const zoom = useImageZoom()
   const ref = React.useRef<HTMLDivElement>(null)
 
   // キーボードでも拡大できるように、本文中の画像にフォーカスが当たるようにする
@@ -72,7 +72,7 @@ export function RichTextContent({
     if (!(target instanceof HTMLImageElement) || target.closest('a')) {
       return false
     }
-    setImage({ src: target.currentSrc || target.src, alt: target.alt })
+    zoom.open({ src: target.currentSrc || target.src, alt: target.alt }, target)
     return true
   }
 
@@ -94,7 +94,7 @@ export function RichTextContent({
         // biome-ignore lint/security/noDangerouslySetInnerHtml: サーバーで Tiptap の JSON から生成し、危険なリンクを取り除いた HTML
         dangerouslySetInnerHTML={{ __html: html }}
       />
-      <ImageLightbox image={image} onClose={() => setImage(null)} />
+      <ImageLightbox image={zoom.image} onClose={zoom.close} />
     </>
   )
 }
