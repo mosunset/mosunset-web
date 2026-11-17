@@ -75,8 +75,8 @@ function Hero() {
           </p>
         </div>
         <div
-          className="hero-rise flex flex-wrap justify-center gap-3"
-          style={heroDelay(320)}
+          className="hero-slide flex flex-wrap justify-center gap-3"
+          style={heroDelay(200)}
         >
           <Button asChild>
             <Link to="/blog">ブログを読む</Link>

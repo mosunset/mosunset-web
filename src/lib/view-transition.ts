@@ -61,6 +61,53 @@ type RouterLike = {
   ) => () => void
 }
 
+/** 押されたときに、クリックを渡す先（押した場所にある、押せるもの） */
+const CLICKABLE =
+  'a[href], button, input, select, textarea, label, summary, [role="button"], [role="link"], [tabindex]:not([tabindex="-1"])'
+
+/**
+ * 動いているあいだも、ボタンやリンクを押せるようにする。
+ *
+ * View Transitions が動いているあいだ、ブラウザはクリックをページの中身ではなく <html> に届ける
+ * （CSS の pointer-events では下に通せない）。そこで、動きの途中に押されたら、動きをすぐ終わらせて、
+ * 押した場所にあるボタンやリンクに同じクリックを渡す。ページを移る動きも、拡大表示の動きも同じ
+ */
+function passClicksThroughTransitions() {
+  let active: ViewTransition | null = null
+  const start = document.startViewTransition.bind(document)
+  document.startViewTransition = ((
+    arg?: Parameters<typeof document.startViewTransition>[0],
+  ) => {
+    const transition = start(arg)
+    active = transition
+    transition.finished.finally(() => {
+      if (active === transition) active = null
+    })
+    return transition
+  }) as typeof document.startViewTransition
+
+  document.addEventListener(
+    'click',
+    (event) => {
+      if (!active || event.target !== document.documentElement) return
+      event.preventDefault()
+      event.stopImmediatePropagation()
+      const { clientX: x, clientY: y } = event
+      active.skipTransition()
+      active = null
+      // 動きの絵が消えてから、押した場所にあるものを探す
+      requestAnimationFrame(() => {
+        const hit = document.elementFromPoint(x, y)
+        const target = hit?.closest<HTMLElement>(CLICKABLE) ?? null
+        if (!target) return
+        target.focus({ preventScroll: true })
+        target.click()
+      })
+    },
+    true,
+  )
+}
+
 /**
  * 一覧 ⇄ 詳細の写真をつなぐ。ブラウザで 1 回だけ呼ぶ（src/router.tsx）
  *
@@ -74,6 +121,8 @@ export function installSharedTransitions(router: RouterLike) {
   // ルーターを作り直したとき（開発中の差し替えなど）に、クリックの見張りが重ならないように
   if (installed) return
   installed = true
+
+  passClicksThroughTransitions()
 
   let returning: string | null = null
 
