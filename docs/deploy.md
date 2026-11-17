@@ -1,18 +1,40 @@
 # デプロイ
 
-GitHub の `main` に push すると、GitHub Actions（`.github/workflows/deploy.yml`）が
-型チェック・Biome・ビルドを通してから本番にデプロイします。手元からはデプロイしません
-（本番をいつも GitHub の `main` と同じものにするため。2026-11-15 から）。
+変更は issue を立ててからブランチで作り、PR を通して `main` に入れます（2026-11-17 から）。`main` にマージされると、
+GitHub Actions（`.github/workflows/deploy.yml`）が型チェック・Biome・ビルドを通してから本番にデプロイします。
+手元からはデプロイしません（本番をいつも GitHub の `main` と同じものにするため。2026-11-15 から）。
+
+## issue と PR の進め方
+
+1 つの用事 ＝ issue 1 つ ＝ ブランチ 1 つ ＝ PR 1 つ にそろえます。
+
+- 何か作る・直すときは、先に issue を立てる。頼んだことをそのまま書き、決まったことはあとから足す
+- ラベルは「機能」「不具合」「ドキュメント」から付ける
+- ブランチ名は issue の番号から付ける（`mosunset/12-book-cover`）。Orca のワークスペースも 1 つの issue に 1 つ
+- PR の本文の `Closes #12`（ひな形 `.github/pull_request_template.md` にある）で issue とつなぐ。マージすると issue も閉じる
+- 作業の途中で別の話が出たら、今の PR には入れず、別の issue にする。すぐやるものは別のワークスペースで進める
+- 小さくて、今の PR と同じ場所の直しだけは、同じ PR に入れてよい（PR の本文に書く）
+
+## 手順
 
 ```bash
-pnpm check && pnpm typecheck   # Actions でも同じことをする。先に手元で通しておく
-pnpm db:migrate:remote         # マイグレーションがあるときだけ。push の前に流す（Actions では流さない）
-git push origin main           # これでデプロイが始まる
+gh issue create --label 機能               # 先に issue（番号が出る）
+git switch -c mosunset/<番号>-<短い名前>   # main から作る
+pnpm check && pnpm typecheck               # PR でも同じことをする。先に手元で通しておく
+git push -u origin mosunset/<番号>-<短い名前>
+gh pr create                               # 本文に Closes #<番号>。チェック（.github/workflows/check.yml）が流れる
+pnpm db:migrate:remote                     # マイグレーションがあるときだけ。マージの前に流す（Actions では流さない）
+gh pr merge --squash                       # またはマージコミット（--merge）。これでデプロイが始まる
 ```
 
-- 結果は GitHub の Actions のタブか、コミットの横の ✓ / ✗ で見る。チェックで落ちたときはデプロイされない
+- `main` は GitHub のルールセット「main を守る」で守っている。直接の push・強制 push・削除はできず、
+  PR のチェック「チェック」が通らないとマージできない。管理者も例外にしていない。
+  決まりを変えるときは、リポジトリの Settings → Rules → Rulesets
+- マージの方法はスカッシュ（1 コミットにまとめる）とマージコミットから選ぶ。リベースは切っている
+- マージしたブランチは GitHub 側で自動で消える。手元のブランチと worktree は別に片付ける
+- 結果は PR の画面か、GitHub の Actions のタブで見る。デプロイの前のチェックで落ちたときはデプロイされない
 - いま本番に出ている版は `npx wrangler deployments list`
-- マイグレーションは、古いコードのままでも動く形（列を足すなど）にしておく。push からデプロイまでのあいだも本番は動いているため
+- マイグレーションは、古いコードのままでも動く形（列を足すなど）にしておく。マージからデプロイまでのあいだも本番は動いているため
 - 流し直したいときは、Actions のタブの「デプロイ」から Run workflow
 - Cloudflare 側の自動ビルド（ダッシュボードの Workers Builds・Git 連携）は使わない。2026-11-15 に切断した。
   つなぐと push のたびに Actions とは別にビルドが走り、チェックなしのデプロイが重なるおそれがある。
@@ -28,12 +50,12 @@ git push origin main           # これでデプロイが始まる
 ## Actions が使えないときだけ、手元からデプロイする
 
 ```bash
-git switch main && git pull
+git switch <ブランチ名>   # PR にしたブランチ。main には直接 push できない
 pnpm check && pnpm typecheck
 pnpm run deploy   # `pnpm deploy` は pnpm の別のコマンドなので run を付ける
 ```
 
-手元から出したあとは、同じコミットを必ず `main` に push しておく（本番と GitHub がずれないように）。
+手元から出したあとは、そのブランチの PR を必ず `main` にマージしておく（本番と GitHub がずれないように）。
 
 ## 本番のリソース
 

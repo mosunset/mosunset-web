@@ -43,7 +43,7 @@ TURNSTILE_SITE_KEY=1x00000000000000000000AA   # 開発中は Cloudflare のテ�
 | `pnpm build` / `pnpm preview` | 本番用のビルドと、その確認 |
 | `pnpm db:generate` | `src/server/db/schema.ts` を変えたあと、マイグレーションを作る |
 | `pnpm db:migrate:local` / `db:migrate:remote` | マイグレーションを開発用 / 本番の D1 に当てる |
-| `git push origin main` | 本番（Cloudflare Workers）へのデプロイ。GitHub Actions がチェックしてから出す（[docs/deploy.md](docs/deploy.md)） |
+| `gh pr create` → `gh pr merge` | 本番（Cloudflare Workers）へのデプロイ。main には PR でだけ入れられ、マージすると GitHub Actions がチェックしてから出す（[docs/deploy.md](docs/deploy.md)） |
 | `pnpm run deploy` | 手元からビルドして本番に出す。Actions が使えないときだけ（`pnpm deploy` は pnpm の別のコマンドなので `run` を付ける） |
 | `pnpm docs:dev` | 開発用ドキュメント（仕様・設計メモ、`docs/`）を http://localhost:3001 で見る |
 | `pnpm cf-typegen` | `wrangler.jsonc` のバインディングを変えたあと、型を作り直す |
@@ -79,7 +79,7 @@ src/
 drizzle/         D1 のマイグレーション
 docs/            開発用のドキュメント（仕様・設計メモ・TanStack Start 入門）
 native/          この PC で別に動かすプログラム（box-packing: 箱詰めの計算係。Rust + CUDA。サイトのビルドには入らない）
-.github/         GitHub Actions（main に push されたらデプロイ）
+.github/         GitHub Actions（PR のチェックと、main に入ったらデプロイ）
 ```
 
 中身は 3 つの層に分けています。

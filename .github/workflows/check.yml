@@ -1,0 +1,45 @@
+# PR を作ったとき・更新したときに、型チェック・Biome・ビルドを流す。
+# main はこのチェックが通らないとマージできない（GitHub のルールセットで、ジョブ名「チェック」を必須にしている。
+# ジョブ名を変えるときは、ルールセットの必須のチェックも変える）。手順は docs/deploy.md
+name: チェック
+
+on:
+  pull_request:
+    branches: [main]
+
+# 同じ PR に続けて push したら、古いほうのチェックは止める
+concurrency:
+  group: check-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    name: チェック
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v5
+
+      # デプロイ（deploy.yml）と同じ版にそろえる
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 12
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 26
+          cache: pnpm
+
+      - name: 依存を入れる
+        run: pnpm install --frozen-lockfile
+
+      - name: 型チェック
+        run: pnpm run typecheck
+
+      - name: 書き方のチェック（Biome）
+        run: pnpm run check
+
+      - name: ビルド
+        run: pnpm run build
