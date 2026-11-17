@@ -1,7 +1,6 @@
 import { createFileRoute, Link } from '@tanstack/react-router'
 import { ArrowRight, ImageOff } from 'lucide-react'
-import type * as React from 'react'
-
+import * as React from 'react'
 import { SocialIcon } from '@/components/layout/social-icons'
 import { Button } from '@/components/ui/button'
 import {
@@ -14,11 +13,13 @@ import { getHomeFeed } from '@/functions/home'
 import { collections, imageFitOf } from '@/lib/collections/config'
 import { formatDate, formatDay } from '@/lib/format'
 import { thumbnailUrl } from '@/lib/images'
+import { useHeroScroll } from '@/lib/motion'
 import { mainNav } from '@/lib/navigation'
 import { playgroundTools } from '@/lib/playground/tools'
 import { seo } from '@/lib/seo'
 import { site } from '@/lib/site'
 import { cn } from '@/lib/utils'
+import { sharedImageProps, sharedName } from '@/lib/view-transition'
 
 export const Route = createFileRoute('/')({
   head: () => ({ meta: seo({ description: site.description }) }),
@@ -38,31 +39,52 @@ function Home() {
   )
 }
 
+/** 上の欄の文字が順に出てくるときの、遅れ（src/styles.css の .hero-rise） */
+function heroDelay(ms: number) {
+  return { '--hero-delay': `${ms}ms` } as React.CSSProperties
+}
+
 function Hero() {
+  const heroRef = React.useRef<HTMLElement>(null)
+  useHeroScroll(heroRef)
   return (
-    <section className="flex flex-col items-center gap-6 py-20 text-center">
+    <section
+      ref={heroRef}
+      className="flex flex-col items-center gap-6 py-20 text-center"
+    >
       <img
         src={site.icon.medium}
         alt={site.image.alt}
         width={160}
         height={160}
         fetchPriority="high"
-        className="size-40 rounded-full object-cover shadow-lg"
+        data-hero-icon
+        className="hero-pop size-40 rounded-full object-cover shadow-lg"
       />
-      <div className="space-y-3">
-        <h1 className="text-5xl font-bold tracking-tight">{site.name}</h1>
-        <p className="text-xl font-medium">{site.tagline}</p>
-        <p className="text-muted-foreground">
-          作ったもの、書いたこと、集めているものを置いています。
-        </p>
-      </div>
-      <div className="flex flex-wrap justify-center gap-3">
-        <Button asChild>
-          <Link to="/blog">ブログを読む</Link>
-        </Button>
-        <Button asChild variant="outline">
-          <a href="#about">自己紹介</a>
-        </Button>
+      {/* 文字とボタンはまとめて動かす（スクロールで下へずれるとき、重ならないように） */}
+      <div data-hero-text className="flex flex-col items-center gap-6">
+        <div className="space-y-3">
+          <h1 className="hero-rise text-5xl font-bold tracking-tight">
+            {site.name}
+          </h1>
+          <p className="hero-rise text-xl font-medium" style={heroDelay(120)}>
+            {site.tagline}
+          </p>
+          <p className="hero-rise text-muted-foreground" style={heroDelay(220)}>
+            作ったもの、書いたこと、集めているものを置いています。
+          </p>
+        </div>
+        <div
+          className="hero-rise flex flex-wrap justify-center gap-3"
+          style={heroDelay(320)}
+        >
+          <Button asChild>
+            <Link to="/blog">ブログを読む</Link>
+          </Button>
+          <Button asChild variant="outline">
+            <a href="#about">自己紹介</a>
+          </Button>
+        </div>
       </div>
     </section>
   )
@@ -89,7 +111,7 @@ const latestTools = [...playgroundTools]
 function Latest() {
   const feed = Route.useLoaderData()
   return (
-    <section id="latest" className="scroll-mt-20 border-t py-16">
+    <section id="latest" data-reveal className="scroll-mt-20 border-t py-16">
       <SectionHeading en="Latest" ja="新着" />
       <div className="mt-6 grid gap-10 md:grid-cols-2">
         {feed.posts.length > 0 && (
@@ -111,6 +133,7 @@ function Latest() {
                   </Link>
                 }
                 image={thumbnailUrl(post.coverImageKey)}
+                shared={sharedName('post', post.slug)}
                 meta={
                   post.publishedAt && (
                     <time dateTime={new Date(post.publishedAt).toISOString()}>
@@ -164,9 +187,12 @@ function Latest() {
                   <Link
                     to={config.detailPath}
                     params={{ slug: item.slug }}
-                    className="group block overflow-hidden rounded-lg border transition-colors hover:bg-muted/40"
+                    className="group block overflow-hidden rounded-lg border transition-[background-color,box-shadow,translate] duration-300 hover:bg-muted/40 hover:shadow-md motion-safe:hover:-translate-y-1"
                   >
-                    <div className="flex aspect-square items-center justify-center overflow-hidden border-b bg-muted/30">
+                    <div
+                      {...sharedImageProps(sharedName(item.kind, item.slug))}
+                      className="flex aspect-square items-center justify-center overflow-hidden border-b bg-muted/30"
+                    >
                       {src ? (
                         <img
                           src={src}
@@ -233,15 +259,21 @@ function LatestColumn({
 function LatestRow({
   link,
   image,
+  shared,
   meta,
 }: {
   link: React.ReactNode
   image: string | null
+  /** 記事の詳細の表紙につなぐ名前（src/lib/view-transition.ts） */
+  shared?: string
   meta: React.ReactNode
 }) {
   return (
-    <li className="group relative flex gap-3 rounded-lg border p-2.5 transition-colors hover:bg-muted/40">
-      <div className="flex aspect-[1200/630] w-24 shrink-0 items-center justify-center self-start overflow-hidden rounded-md border bg-muted/30">
+    <li className="group relative flex gap-3 rounded-lg border p-2.5 transition-[background-color,box-shadow,translate] duration-300 hover:bg-muted/40 hover:shadow-md motion-safe:hover:-translate-y-0.5">
+      <div
+        {...(shared && image ? sharedImageProps(shared) : {})}
+        className="flex aspect-[1200/630] w-24 shrink-0 items-center justify-center self-start overflow-hidden rounded-md border bg-muted/30"
+      >
         {/* 表紙のない記事は、サイトのアイコンを小さく出す */}
         {image ? (
           <img
@@ -273,7 +305,7 @@ function LatestRow({
 /** 自己紹介（くわしくはブログの記事「学びと開発の自己紹介」） */
 function About() {
   return (
-    <section id="about" className="scroll-mt-20 border-t py-16">
+    <section id="about" data-reveal className="scroll-mt-20 border-t py-16">
       <SectionHeading en="About" ja="自己紹介" />
       <div className="mt-6 grid gap-8 md:grid-cols-[2fr_1fr]">
         <div className="space-y-4 leading-relaxed">
@@ -324,12 +356,12 @@ const aboutFacts = [
 
 function Contents() {
   return (
-    <section id="contents" className="scroll-mt-20 border-t py-16">
+    <section id="contents" data-reveal className="scroll-mt-20 border-t py-16">
       <SectionHeading en="Contents" ja="コンテンツ" />
       <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {mainNav.map((item) => (
           <Link key={item.to} to={item.to} className="group">
-            <Card className="h-full transition-colors group-hover:bg-muted/50">
+            <Card className="h-full transition-[background-color,box-shadow,translate] duration-300 group-hover:bg-muted/50 group-hover:shadow-md motion-safe:group-hover:-translate-y-1">
               <CardHeader>
                 <item.icon className="mb-2 size-6 text-muted-foreground" />
                 <CardTitle className="flex items-center gap-1">
@@ -349,7 +381,11 @@ function Contents() {
 /** SNS へのリンク（お問い合わせは目立たせないので、ここには置かない） */
 function Links() {
   return (
-    <section id="links" className="scroll-mt-20 border-t py-16 text-center">
+    <section
+      id="links"
+      data-reveal
+      className="scroll-mt-20 border-t py-16 text-center"
+    >
       <SectionHeading en="Links" ja="リンク" />
       <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
         {site.social.map((s) => (

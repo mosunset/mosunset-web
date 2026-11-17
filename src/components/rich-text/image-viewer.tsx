@@ -58,17 +58,21 @@ export function ZoomableImage({
   alt,
   className,
   imgClassName,
+  frameProps,
   ...imgProps
 }: {
   src: string
   alt: string
   className?: string
   imgClassName?: string
+  /** 枠（ボタン）に付ける属性。ページを移るときの動きの名前など（src/lib/view-transition.ts） */
+  frameProps?: React.HTMLAttributes<HTMLElement>
 } & Omit<React.ComponentProps<'img'>, 'src' | 'alt' | 'className'>) {
   const [open, setOpen] = React.useState(false)
   return (
     <>
       <button
+        {...frameProps}
         type="button"
         onClick={() => setOpen(true)}
         className={cn(

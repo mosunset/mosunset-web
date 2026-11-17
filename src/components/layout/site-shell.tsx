@@ -1,3 +1,4 @@
+import { useLocation } from '@tanstack/react-router'
 import type * as React from 'react'
 
 import { AppBreadcrumb } from '@/components/layout/app-breadcrumb'
@@ -7,9 +8,13 @@ import { SiteFooter } from '@/components/layout/site-footer'
 import { SiteHeader } from '@/components/layout/site-header'
 import { SiteSearchDialog } from '@/components/layout/site-search'
 import { SidebarInset, SidebarProvider } from '@/components/ui/sidebar'
+import { useScrollReveal } from '@/lib/motion'
 
 /** 公開サイトのレイアウト（ヘッダー・必要なときだけ出るサイドバー・フッター） */
 export function SiteShell({ children }: { children: React.ReactNode }) {
+  // スクロールで出てくる動き（ページや絞り込みが変わったら、やり直す）
+  const href = useLocation({ select: (location) => location.href })
+  useScrollReveal(href)
   return (
     <div className="[--header-height:--spacing(14)]">
       {/* キーボードで操作する人が、ヘッダーのリンクを飛ばして本文へ移れるように */}

@@ -1,6 +1,5 @@
 import { createFileRoute, Link } from '@tanstack/react-router'
 import * as React from 'react'
-
 import {
   ArticleTocAside,
   ArticleTocDisclosure,
@@ -22,6 +21,7 @@ import {
   seo,
   websiteId,
 } from '@/lib/seo'
+import { sharedImageProps, sharedName } from '@/lib/view-transition'
 
 export const Route = createFileRoute('/blog/$slug')({
   loader: ({ params }) => getPublishedPost({ data: { slug: params.slug } }),
@@ -118,6 +118,9 @@ function BlogPost() {
             <ZoomableImage
               src={imagePath(post.coverImageKey)}
               alt={post.title}
+              frameProps={sharedImageProps(sharedName('post', post.slug), {
+                fixed: true,
+              })}
               className="mb-6 rounded-lg border"
               imgClassName="aspect-[1200/630] w-full object-cover"
               // スマホには小さい版（640px）を送り、ページでいちばん大きく出る写真なので優先して読む

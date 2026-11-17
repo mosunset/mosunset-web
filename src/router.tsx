@@ -1,5 +1,6 @@
 import { createRouter as createTanStackRouter } from '@tanstack/react-router'
 import { getGlobalStartContext } from '@tanstack/react-start'
+import { installSharedTransitions } from '@/lib/view-transition'
 import { routeTree } from './routeTree.gen'
 
 /**
@@ -25,7 +26,14 @@ export function getRouter() {
     defaultPreload: 'intent',
     defaultPreloadStaleTime: 0,
     ssr: { nonce: getCspNonce() },
+    // ページを移るときに View Transitions で軽く入れ替える（src/lib/view-transition.ts）。
+    // 一覧の絞り込み・並べ替え（URL の ? のあとだけが変わる）と、ページの中の # への移動では動かさない
+    defaultViewTransition: {
+      types: ({ pathChanged }) => (pathChanged ? ['page'] : false),
+    },
   })
+
+  installSharedTransitions(router)
 
   return router
 }
