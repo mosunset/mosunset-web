@@ -1,0 +1,46 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="768" height="432" viewBox="0 0 768 432">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#f8fafc"/>
+      <stop offset="1" stop-color="#eef2f7"/>
+    </linearGradient>
+    <linearGradient id="desk" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#c49065"/>
+      <stop offset="1" stop-color="#9c6b43"/>
+    </linearGradient>
+    <radialGradient id="sh" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0" stop-color="#334155" stop-opacity="0.35"/>
+      <stop offset="1" stop-color="#334155" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <rect width="768" height="432" fill="url(#bg)"/>
+
+  <!-- 斜めから撮った箱の写真と、7 つの角 -->
+  <rect x="48" y="66" width="300" height="300" rx="14" fill="url(#desk)"/>
+  <g>
+    <polygon points="112,140 250,152 240,318 128,300" fill="#7c3aed"/>
+    <polygon points="112,140 158,112 288,122 250,152" fill="#a78bfa"/>
+    <polygon points="250,152 288,122 280,280 240,318" fill="#5b21b6"/>
+    <circle cx="184" cy="222" r="34" fill="#f5d0fe" opacity="0.9"/>
+  </g>
+  <g fill="rgba(34,211,238,0.3)" stroke="#ffffff" stroke-width="3">
+    <circle cx="112" cy="140" r="9"/><circle cx="250" cy="152" r="9"/>
+    <circle cx="240" cy="318" r="9"/><circle cx="128" cy="300" r="9"/>
+    <circle cx="158" cy="112" r="9"/><circle cx="288" cy="122" r="9"/>
+    <circle cx="280" cy="280" r="9"/>
+  </g>
+
+  <!-- 矢印 -->
+  <path d="M372 216 H418" stroke="#0e7490" stroke-width="6" stroke-linecap="round"/>
+  <path d="M408 200 L428 216 L408 232" fill="none" stroke="#0e7490" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
+
+  <!-- できあがり（正面を大きく、上と側面を少し。背景は透明・下に影） -->
+  <ellipse cx="584" cy="368" rx="122" ry="16" fill="url(#sh)"/>
+  <g>
+    <polygon points="492,112 652,112 652,360 492,360" fill="#7c3aed"/>
+    <polygon points="492,112 516,90 676,90 652,112" fill="#a78bfa"/>
+    <polygon points="652,112 676,90 676,338 652,360" fill="#5b21b6"/>
+    <circle cx="572" cy="226" r="46" fill="#f5d0fe" opacity="0.9"/>
+    <rect x="512" y="314" width="120" height="14" rx="4" fill="#ede9fe" opacity="0.85"/>
+  </g>
+</svg>

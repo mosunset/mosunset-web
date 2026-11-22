@@ -346,6 +346,20 @@ export const playgroundTools = [
     loadingHeight: 196,
   },
   {
+    slug: 'box-promo',
+    name: '箱の写真を宣材写真ふうに',
+    title:
+      '箱の写真を宣材写真ふうに | 斜めから撮った箱を、正面が大きく見える透過画像に組み直す',
+    description:
+      '斜めから撮ったフィギュアやおもちゃの箱の写真から、正面・上の面・側面を射影変換で切り出し、正面を大きく、上と側面を少し見せる宣材写真のような画像に組み直します。見えている 7 つの角をだいたいの位置に置けば、近くの辺に吸着します。写り込みや光のむらも補正し、背景を透明にして書き出します。画像はサーバーに送りません。',
+    category: '画像・ギャラリー',
+    tags: ['射影変換', '箱', '商品画像', 'フィギュア', 'Canvas'],
+    publishedDate: '2026-11-22',
+    thumbnail: '/playground/box-promo/thumbnail.svg',
+    wide: true,
+    loadingHeight: 196,
+  },
+  {
     slug: 'whisper-transcribe',
     name: 'ブラウザで文字起こし',
     title:
