@@ -630,6 +630,9 @@ function Editor({
   const [displayScale, setDisplayScale] = useState(1)
   const [selected, setSelected] = useState<CornerKey | null>(null)
   const [dragging, setDragging] = useState(false)
+  /** 矢印キーで動かした直後（拡大鏡を少しのあいだ出す） */
+  const [nudging, setNudging] = useState(false)
+  const nudgeTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const { width: W, height: H } = photo
 
   useEffect(() => {
@@ -657,7 +660,8 @@ function Editor({
       },
     })
 
-  const loupePoint = dragging && selected ? corners[selected] : null
+  const loupePoint =
+    (dragging || nudging) && selected ? corners[selected] : null
 
   // ルーペ（ドラッグ中に、指やカーソルで隠れる所を拡大して出す）
   useEffect(() => {
@@ -727,7 +731,14 @@ function Editor({
     dragRef.current = null
     setDragging(false)
   }
-  const onKey = (key: CornerKey) => (e: React.KeyboardEvent<SVGElement>) => {
+  // 選んだ角を矢印キーで 1px（Shift で 10px）ずつ動かす。
+  // ほかのボタンを押してフォーカスが外れても、角を選んだままなら効くよう、ページ全体で受ける
+  const keyRef = useRef<(e: KeyboardEvent) => void>(() => {})
+  keyRef.current = (e: KeyboardEvent) => {
+    if (!selected || e.altKey || e.ctrlKey || e.metaKey) return
+    const target = e.target as HTMLElement | null
+    if (target?.closest('input, textarea, select, [contenteditable="true"]'))
+      return
     const step = e.shiftKey ? 10 : 1
     const d =
       e.key === 'ArrowLeft'
@@ -738,11 +749,28 @@ function Editor({
             ? { x: 0, y: -step }
             : e.key === 'ArrowDown'
               ? { x: 0, y: step }
-              : null
-    if (!d) return
+              : e.key === 'Escape'
+                ? null
+                : undefined
+    if (d === undefined) return
     e.preventDefault()
-    move(key, { x: corners[key].x + d.x, y: corners[key].y + d.y })
+    if (d === null) {
+      setSelected(null)
+      return
+    }
+    move(selected, {
+      x: corners[selected].x + d.x,
+      y: corners[selected].y + d.y,
+    })
+    setNudging(true)
+    if (nudgeTimer.current) clearTimeout(nudgeTimer.current)
+    nudgeTimer.current = setTimeout(() => setNudging(false), 1200)
   }
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => keyRef.current(e)
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [])
 
   const loupeLeft =
     loupePoint !== null && !(loupePoint.x < W / 2 && loupePoint.y < H / 2)
@@ -808,7 +836,6 @@ function Editor({
                 onPointerMove={onMove}
                 onPointerUp={endDrag}
                 onPointerCancel={endDrag}
-                onKeyDown={onKey(key)}
                 onFocus={() => setSelected(key)}
                 className="cursor-grab outline-none active:cursor-grabbing"
                 style={{ touchAction: 'none' }}
@@ -853,6 +880,11 @@ function Editor({
           />
         )}
       </div>
+      <p className="mt-2 text-xs text-muted-foreground" aria-live="polite">
+        {selected
+          ? `選択中: ${cornerLabels[selected].short}（${cornerLabels[selected].long}）${Math.round(corners[selected].x)}, ${Math.round(corners[selected].y)}。矢印キーで 1px、Shift+矢印キーで 10px 動かせます（Esc で選択を外す）`
+          : '丸をクリックして選ぶと、矢印キーで 1px ずつ動かせます'}
+      </p>
     </div>
   )
 }
