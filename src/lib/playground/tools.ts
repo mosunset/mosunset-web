@@ -360,6 +360,19 @@ export const playgroundTools = [
     loadingHeight: 196,
   },
   {
+    slug: 'houkoku-guide',
+    name: '報告・相談の手引き',
+    title:
+      '報告・相談の手引き | 「何言ってるかわからない」を減らす、流れで話すための5分メモ',
+    description:
+      '上司への報告・相談で「何言ってるかわからない」と言われないために、話の流れ（前提・背景・因果・ゴール・法則）をたどり、写真に撮れる言葉で話すための手引きです。相談前の5分メモでは「対応中」「いろいろ」のような写真に撮れない言葉を見つけて、言い換えのための問いを出します。メモはこのブラウザにだけ保存します。',
+    category: 'ビジネス',
+    tags: ['報告', '相談', '言語化', 'ホウレンソウ', 'コミュニケーション'],
+    publishedDate: '2026-11-26',
+    thumbnail: '/playground/houkoku-guide/thumbnail.svg',
+    wide: true,
+  },
+  {
     slug: 'whisper-transcribe',
     name: 'ブラウザで文字起こし',
     title:

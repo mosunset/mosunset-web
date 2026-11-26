@@ -1,0 +1,44 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="768" height="432" viewBox="0 0 768 432">
+  <rect width="768" height="432" fill="#ffffff"/>
+  <rect width="768" height="18" fill="#111111"/>
+
+  <!-- 点で話す: ばらばらの灰色の言葉 -->
+  <g fill="#ffffff" stroke="#8a8a8a" stroke-width="3">
+    <rect x="70" y="78" width="120" height="40" transform="rotate(3 130 98)"/>
+    <rect x="222" y="70" width="96" height="40" transform="rotate(-5 270 90)"/>
+    <rect x="352" y="84" width="150" height="40"/>
+    <rect x="534" y="74" width="84" height="40" transform="rotate(3 576 94)"/>
+    <rect x="648" y="86" width="64" height="40" transform="rotate(-5 680 106)"/>
+  </g>
+  <g fill="#bdbdbd">
+    <rect x="88" y="94" width="84" height="8"/>
+    <rect x="240" y="86" width="60" height="8"/>
+    <rect x="370" y="100" width="114" height="8"/>
+    <rect x="550" y="90" width="52" height="8"/>
+    <rect x="662" y="102" width="36" height="8"/>
+  </g>
+
+  <!-- 流れで話す: 赤い路線と 5 つの駅 -->
+  <rect x="120" y="242" width="528" height="16" fill="#e4002b"/>
+  <g fill="#ffffff" stroke="#e4002b" stroke-width="16">
+    <circle cx="120" cy="250" r="34"/>
+    <circle cx="252" cy="250" r="34"/>
+    <circle cx="384" cy="250" r="34"/>
+    <circle cx="516" cy="250" r="34"/>
+    <circle cx="648" cy="250" r="34"/>
+  </g>
+  <g fill="#111111">
+    <rect x="84" y="318" width="72" height="16"/>
+    <rect x="216" y="318" width="72" height="16"/>
+    <rect x="348" y="318" width="72" height="16"/>
+    <rect x="480" y="318" width="72" height="16"/>
+    <rect x="612" y="318" width="72" height="16"/>
+  </g>
+  <g fill="#9c9c9c">
+    <rect x="94" y="346" width="52" height="9"/>
+    <rect x="226" y="346" width="52" height="9"/>
+    <rect x="358" y="346" width="52" height="9"/>
+    <rect x="490" y="346" width="52" height="9"/>
+    <rect x="622" y="346" width="52" height="9"/>
+  </g>
+</svg>
